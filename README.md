@@ -144,7 +144,7 @@ GET /api/v1/park/at?ts=20230710T20:15:33Z
 ```
 
 #### GET /api/$version/$projection/from
-Exposes the projected reference data from the given point in time (inclusive)
+Exposes the projected reference data **from** the given point in time (inclusive). Use this when you want to cache future changes. Because multiple versions of the same reference data may returned, the data is presented in time series format. Use the RDK client to parse the response more easily.
 
 | Parameter | Required | Type   | Notes |
 |-----------|----------|--------|-------|
