@@ -10,38 +10,52 @@ Requires a PostgreSQL database
 ## Concepts
 
 <pre>
-                                         ┌────────────────────────┐               ┌────────────────────────┐     GET /api/$version/$projection/at
-                                         │                        │               │                        │◀────────────────────────────────────
-                                         │                        │    exposes   ╱│                        │     GET /api/$version/$projection/from
-                                         │       Projection       │┼──────────────│      RESTful API       │◀────────────────────────────────────
-                                         │                        │              ╲│                        │     GET /api/$version/$projection/all
-                                         │                        │               │                        │◀────────────────────────────────────
-                                         └────────────────────────┘               └────────────────────────┘
-                                                     ╲│╱
-                                                      ○
-                                                      │  transforms
-                                                      │
-                                                     ╱│╲
-                                         ┌────────────────────────┐               ┌────────────────────────┐
-                                         │                        │               │                        │
-                                         │                        │   triggers   ╱│                        │   POST $url
-                                         │          View          │┼──────────────│        Webhook         │─────────────────▶
-                                         │                        │              ╲│                        │
-                                         │                        │               │                        │
-                                         └────────────────────────┘               └────────────────────────┘
-                                                     ╲│╱
-                                                      ○
-                                                      │
-                                                      │  queries
-                                                      │
-                                                     ╱│╲
-┌────────────────────────┐               ┌────────────────────────┐
-│                        │               │                        │
-│                        │ coordinates  ╱│                        │
-│       Change Set       │────────────┼──│     Reference Data     │
-│                        │              ╲│                        │
-│                        │               │                        │
-└────────────────────────┘               └────────────────────────┘
+┌────────────────────────┐                 ┌────────────────────────┐
+│                        │                 │                        │
+│                        │  coordinates   ╱│                        │
+│       Change Set       │──────────────┼──│     Reference Data     │
+│                        │                ╲│                        │
+│                        │                 │                        │
+└────────────────────────┘                 └────────────────────────┘
+                                                       ╲│╱
+                                                        │
+                                                        │ is queried by
+                                                        │
+                                                        ○
+                                                       ╱│╲
+                                           ┌────────────────────────┐               ┌────────────────────────┐
+                                           │                        │               │                        │
+                                           │                        │   triggers   ╱│                        │ POST $url
+                                           │          View          │┼──────────────│        Webhook         │─────────────▶
+                                           │                        │              ╲│                        │
+                                           │                        │               │                        │
+                                           └────────────────────────┘               └────────────────────────┘
+                                                       ╲│╱
+                                                        │
+                                                        │ is transformed by
+                                                        │
+                                                        ○
+                                                       ╱│╲
+                                           ┌────────────────────────┐
+                                           │                        │
+                                           │                        │
+                                           │       Projection       │
+                                           │                        │
+                                           │                        │
+                                           └────────────────────────┘
+                                                        ┼
+                                                        │
+                                                        │ is exposed by
+                                                        │
+                                                        │
+                                                       ╱│╲
+                                           ┌────────────────────────┐             GET /api/$version/$entity/at
+                                           │                        │◀────────────────────────────────────────
+                                           │                        │           GET /api/$version/$entity/from
+                                           │      RESTful API       │◀────────────────────────────────────────
+                                           │                        │            GET /api/$version/$entity/all
+                                           │                        │◀────────────────────────────────────────
+                                           └────────────────────────┘
 </pre>
 
 ### Change Set
@@ -65,8 +79,69 @@ Exposes the projected reference data at the given point in time
 | Parameter | Required | Type   | Notes |
 |-----------|----------|--------|-------|
 | timestamp | Yes      | String | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
-| page      | no       | Number | For pagination |
-| size      | no       | Number | For pagination |
+| offset    | No       | Number | For pagination |
+| limit     | No       | Number | For pagination |
+
+##### Example
+```
+GET /api/v1/park/at?ts=20230710T20:15:33Z
+```
+
+```json
+{
+  "data": [
+    {
+      "code": "DC",
+      "name": "Devon Cliffs",
+      "calendar": [
+        {
+          "eventType": "Park Open - Owners",
+          "timestamp": "20230301T00:00:00",
+        },
+        {
+          "eventType": "Park Open - Guests",
+          "timestamp": "20230314T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Guests",
+          "timestamp": "20231115T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Owners",
+          "timestamp": "20231130T00:00:00",
+        }
+      ],
+    },
+    {
+      "code": "PV",
+      "name": "Primrose Valley",
+      "calendar": [
+        {
+          "eventType": "Park Open - Owners",
+          "timestamp": "20230301T00:00:00",
+        },
+        {
+          "eventType": "Park Open - Guests",
+          "timestamp": "20230314T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Guests",
+          "timestamp": "20231115T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Owners",
+          "timestamp": "20231130T00:00:00",
+        }
+      ],
+    }
+  ],
+  "metadata": {
+    "offset": 1,
+    "limit": 10,
+    "documents": 39
+  }
+}
+```
 
 #### GET /api/$version/$projection/from
 Exposes the projected reference data from the given point in time (inclusive)
@@ -74,16 +149,16 @@ Exposes the projected reference data from the given point in time (inclusive)
 | Parameter | Required | Type   | Notes |
 |-----------|----------|--------|-------|
 | timestamp | Yes      | String | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
-| page      | no       | Number | For pagination |
-| size      | no       | Number | For pagination |
+| offset    | No       | Number | For pagination |
+| limit     | No       | Number | For pagination |
 
 #### GET /api/$version/$projection/all
 Exposes all the projected reference data
 
 | Parameter | Required | Type   | Notes |
 |-----------|----------|--------|-------|
-| page      | no       | Number | For pagination |
-| size      | no       | Number | For pagination |
+| offset    | No       | Number | For pagination |
+| limit     | No       | Number | For pagination |
 
 - Example Responses
 - Error codes
