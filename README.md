@@ -162,18 +162,46 @@ GET /api/v1/park/from?ts=20230710T20:15:33Z
   "data": [
     {
       "code": [
-        { "value": "DC" }
+        {
+          "value": "DC"
+        }
       ],
       "name": [
-        { "value": "Devon Cliffs" },
-        { "value": "Devon Hills", "from": "20240101T00:00:00Z" },
-        { "from": "20250101T00:00:00Z" }
+        {
+          "value": "Devon Cliffs"
+        },
+        {
+          "value": "Devon Hills",
+          "from": "20240101T00:00:00Z"
+        },
+        {
+          "from": "20250101T00:00:00Z"
+        }
       ],
       "calendar": [
-        {
-          "eventType": "Park Open - Owners",
-          "timestamp": "20230301T00:00:00",
-        },
+        [
+          {
+            "value": {
+              "eventType": [
+                { "value": "Park Open - Owners" },
+              ],
+              "timestamp": [
+                { "value": "20230301T00:00:00" },
+              ]
+            },
+          },
+          {
+            "value": { 
+              "eventType": [
+                { "value": "Park Open - Owners" },
+              ],
+              "timestamp": [
+                { "value": "20230301T00:00:00" },
+              ]
+            },
+            "from": "20240101T00:00:00Z",
+          },
+        ],
         {
           "eventType": "Park Open - Guests",
           "timestamp": "20230314T00:00:00",
