@@ -152,6 +152,73 @@ Exposes the projected reference data from the given point in time (inclusive)
 | offset    | No       | Number | For pagination |
 | limit     | No       | Number | For pagination |
 
+##### Example
+```
+GET /api/v1/park/from?ts=20230710T20:15:33Z
+```
+
+```json
+{
+  "data": [
+    {
+      "code": [
+        { "value": "DC" }
+      ],
+      "name": [
+        { "value": "Devon Cliffs" },
+        { "value": "Devon Hills", "from": "20240101T00:00:00Z" },
+        { "from": "20250101T00:00:00Z" }
+      ],
+      "calendar": [
+        {
+          "eventType": "Park Open - Owners",
+          "timestamp": "20230301T00:00:00",
+        },
+        {
+          "eventType": "Park Open - Guests",
+          "timestamp": "20230314T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Guests",
+          "timestamp": "20231115T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Owners",
+          "timestamp": "20231130T00:00:00",
+        }
+      ],
+    },
+    {
+      "code": "PV",
+      "name": "Primrose Valley",
+      "calendar": [
+        {
+          "eventType": "Park Open - Owners",
+          "timestamp": "20230301T00:00:00",
+        },
+        {
+          "eventType": "Park Open - Guests",
+          "timestamp": "20230314T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Guests",
+          "timestamp": "20231115T00:00:00",
+        },
+        {
+          "eventType": "Park Close - Owners",
+          "timestamp": "20231130T00:00:00",
+        }
+      ],
+    }
+  ],
+  "metadata": {
+    "offset": 1,
+    "limit": 10,
+    "documents": 39
+  }
+}
+```
+
 #### GET /api/$version/$projection/all
 Exposes all the projected reference data
 
