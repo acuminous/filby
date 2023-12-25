@@ -7,7 +7,89 @@ A framework for managing time series reference data. Features include
 
 Requires a PostgreSQL database
 
-# Getting Started
+## Concepts
+
+<pre>
+                                         ┌────────────────────────┐               ┌────────────────────────┐     GET /api/$version/$projection/at
+                                         │                        │               │                        │◀────────────────────────────────────
+                                         │                        │    exposes   ╱│                        │     GET /api/$version/$projection/from
+                                         │       Projection       │┼──────────────│      RESTful API       │◀────────────────────────────────────
+                                         │                        │              ╲│                        │     GET /api/$version/$projection/all
+                                         │                        │               │                        │◀────────────────────────────────────
+                                         └────────────────────────┘               └────────────────────────┘
+                                                     ╲│╱
+                                                      ○
+                                                      │  transforms
+                                                      │
+                                                     ╱│╲
+                                         ┌────────────────────────┐               ┌────────────────────────┐
+                                         │                        │               │                        │
+                                         │                        │   triggers   ╱│                        │   POST $url
+                                         │          View          │┼──────────────│        Webhook         │─────────────────▶
+                                         │                        │              ╲│                        │
+                                         │                        │               │                        │
+                                         └────────────────────────┘               └────────────────────────┘
+                                                     ╲│╱
+                                                      ○
+                                                      │
+                                                      │  queries
+                                                      │
+                                                     ╱│╲
+┌────────────────────────┐               ┌────────────────────────┐
+│                        │               │                        │
+│                        │ coordinates  ╱│                        │
+│       Change Set       │────────────┼──│     Reference Data     │
+│                        │              ╲│                        │
+│                        │               │                        │
+└────────────────────────┘               └────────────────────────┘
+</pre>
+
+### Change Set
+A change set determines which reference data is in effect at a given point in time.
+
+### Reference Data
+The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc.
+
+### View
+Views query the reference data. RDF implements them using [materialised views](https://www.postgresql.org/docs/current/rules-materializedviews.html).
+
+### Projection
+A projection transforms a view, typically into a structured JSON object. 
+
+### RESTful API
+Each projection is automatically exposed via three RESTful APIs.
+
+#### GET /api/$version/$projection/at
+Exposes the projected reference data at the given point in time
+
+| Parameter | Required | Type   | Notes |
+|-----------|----------|--------|-------|
+| timestamp | Yes      | String | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
+| page      | no       | Number | For pagination |
+| size      | no       | Number | For pagination |
+
+#### GET /api/$version/$projection/from
+Exposes the projected reference data from the given point in time (inclusive)
+
+| Parameter | Required | Type   | Notes |
+|-----------|----------|--------|-------|
+| timestamp | Yes      | String | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
+| page      | no       | Number | For pagination |
+| size      | no       | Number | For pagination |
+
+#### GET /api/$version/$projection/all
+Exposes all the projected reference data
+
+| Parameter | Required | Type   | Notes |
+|-----------|----------|--------|-------|
+| page      | no       | Number | For pagination |
+| size      | no       | Number | For pagination |
+
+- Example Responses
+- Error codes
+- Configuration (Max Page Size)
+
+## Getting Started
 ### 1. Create a new project
 To create a new project run:
 
