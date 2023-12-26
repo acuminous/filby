@@ -1,14 +1,42 @@
 # Reference Data Framework
-A framework for managing time series reference data. Features include
+A framework for working with time series reference data.
 
-- Supports time series reference data
-- Selectively expose reference data via a RESTful API
-- Notify downstream systems of changes via webhooks
+## Contents
+- [Introduction](#introduction)
+- [Usage](#usage)
+  - [Getting Started](#getting-started)
+- [API](#api)
+   - [GET /api/$version/$projection/changelog](#get--api--version--projection-changelog)
+   - [GET /api/$version/$projection/at](#get--api--version--projection-at)
 
-Requires a PostgreSQL database
+## Introduction
+Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
 
-## Concepts
+### 1. Consistency
+Whenever we duplicate our reference data, we increase the likelihood of inconsistency. Even if we have one authoritive source of truth, we may cache the reference data in multiple systems, resulting in temporary inconsisenty unless cache updated are sychronoised. Given the reference data is slow moving, a short period of inconsistency may be acceptable.
 
+### 2. Load Times
+Some reference data sets may be too large to desirably load over a network connection for web and mobile applications. Therefore we should discorage accidentlaly including large data sets into a client bundle, or requesting large data sets over a network.
+
+### 3. Reliability
+Requesting data sets over a network may fail, especially when mobile. Bundling local copies of reference data into the application (providing they are not too large) will aleviate this, but increase the potential for [stale data](#stale-data).
+
+### 4. Stale Data
+Even though reference data is slow moving, it will still change occasionally. Therefore we need a strategy for refreshing reference data.
+
+### 5. Temporality
+When reference data changes, the previous values may still be required for historic comparisons. Therefore all reference data should have an effective date. Effective dates can also be used to synchronise updates by including future records when the values are known in advance. This comes at the cost of increased size, and there may still be some inconsistency due to clock drift and cache expiry times.
+
+### 6. Evolution
+Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known.
+
+### 7. Local Testing
+Applications may be tested locally, and therefore any solution sould work well on a development laptop.
+
+## This Solution
+Solving such a complex problem becomes simpler when broken down. This project provides a server side, PostgreSQL based, framework for managing slow moving, time series reference data. It exposes projections of the data via a point-in-time RESTful API, and will notify downstream systems via webhooks when the reference data supporting the projections changes. It can therefore be extended by other systems. For example, the webhook could trigger a build pipeline to release a new client side reference data module. Another webhook might trigger the reference data to be exported, ready to be loaded in into the company data lake.
+
+### Concepts
 <pre>
 ┌────────────────────────┐                 ┌────────────────────────┐
 │                        │                 │                        │
@@ -25,8 +53,8 @@ Requires a PostgreSQL database
                                                        ╱│╲
                                            ┌────────────────────────┐               ┌────────────────────────┐
                                            │                        │               │                        │
-                                           │                        │   triggers   ╱│                        │ POST $url
-                                           │          View          │┼──────────────│        Webhook         │─────────────▶
+                                           │                        │   triggers   ╱│                        │
+                                           │          View          │┼──────────────│        Webhook         │
                                            │                        │              ╲│                        │
                                            │                        │               │                        │
                                            └────────────────────────┘               └────────────────────────┘
@@ -43,48 +71,67 @@ Requires a PostgreSQL database
                                            │                        │
                                            │                        │
                                            └────────────────────────┘
-                                                        ┼
-                                                        │
-                                                        │ is exposed by
-                                                        │
-                                                        │
-                                                       ╱│╲
-                                           ┌────────────────────────┐             GET /api/$version/$entity/at
-                                           │                        │◀────────────────────────────────────────
-                                           │                        │           GET /api/$version/$entity/from
-                                           │      RESTful API       │◀────────────────────────────────────────
-                                           │                        │            GET /api/$version/$entity/all
-                                           │                        │◀────────────────────────────────────────
-                                           └────────────────────────┘
 </pre>
 
-### Change Set
+#### Change Set
 A change set determines which reference data is in effect at a given point in time.
 
-### Reference Data
-The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc.
+#### Reference Data
+The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc. We use the example of Holiday Park opening times as an example.
 
-### View
-Views query the reference data. RDF implements them using [materialised views](https://www.postgresql.org/docs/current/rules-materializedviews.html).
+#### View
+A views is a query across the reference data.
 
-### Projection
-A projection transforms a view, typically into a structured JSON object. 
+#### Projection
+A projection transforms a view, typically into a structured JSON object. Projections are automatically exposed via a [RESTful API](#api)
 
-### RESTful API
-Each projection is automatically exposed via three RESTful APIs.
+## API
+Each projection is automatically exposed via the following RESTful API. All responses include appropriate [ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag), [Last-Modified](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified) and [Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control) headers.
 
-#### GET /api/$version/$projection/at
-Exposes the projected reference data at the given point in time
+### GET /api/$version/$projection/changelog
+Returns the change set timestamps that affect this projection.
 
-| Parameter | Required | Type   | Notes |
+#### Query Parameters
+There are no query parameters.
+
+#### Example
+```
+GET /api/v1/park/changelog
+```
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "timestamp": 1672012800000,
+      "notes": "Park data as of Monday, 26th December 2022 GMT"
+   },
+   {
+      "id": 2,
+      "timestamp": 1703548800000,
+      "notes": "Park data as of Tuesday, 26th December 2023 GMT"
+   }
+}
+```
+
+### GET /api/$version/$projection/at
+Returns the projected reference data at the given point in time.
+
+#### Query Parameters
+
+| Name      | Required | Type   | Notes |
 |-----------|----------|--------|-------|
-| timestamp | Yes      | String | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
+| changeset | No       | Number | The changeset id |
+| timestamp | No       | Number | The time in milliseconds to which the reference data should apply |
 | offset    | No       | Number | For pagination |
 | limit     | No       | Number | For pagination |
 
-##### Example
+Either a changeset or timestamp is required. If you use the current timestamp the response will be practically uncachable, so it is strongly recommended to use a changeset id or timestamp returned by the [changelog API](GET--api--version--projection-changes).
+
+#### Example
 ```
-GET /api/v1/park/at?ts=20230710T20:15:33Z
+GET /api/v1/park/at?changeset=2
 ```
 
 ```json
@@ -94,170 +141,53 @@ GET /api/v1/park/at?ts=20230710T20:15:33Z
       "code": "DC",
       "name": "Devon Cliffs",
       "calendar": [
-        {
-          "eventType": "Park Open - Owners",
-          "timestamp": "20230301T00:00:00",
+        { "event": "Park Open - Owners",
+          "timestamp": "20230301T00:00:00Z"
         },
         {
-          "eventType": "Park Open - Guests",
-          "timestamp": "20230314T00:00:00",
+          "event": "Park Open - Guests",
+          "timestamp": "20230314T00:00:00Z"
         },
         {
-          "eventType": "Park Close - Guests",
-          "timestamp": "20231115T00:00:00",
+          "event": "Park Close - Guests",
+          "timestamp": "20231115T00:00:00Z"
         },
         {
-          "eventType": "Park Close - Owners",
-          "timestamp": "20231130T00:00:00",
+          "event": "Park Close - Owners",
+          "timestamp": "20231130T00:00:00Z"
         }
-      ],
+      ]
     },
     {
       "code": "PV",
       "name": "Primrose Valley",
       "calendar": [
         {
-          "eventType": "Park Open - Owners",
-          "timestamp": "20230301T00:00:00",
+          "event": "Park Open - Owners",
+          "timestamp": "20230301T00:00:00Z"
         },
         {
-          "eventType": "Park Open - Guests",
-          "timestamp": "20230314T00:00:00",
+          "event": "Park Open - Guests",
+          "timestamp": "20230314T00:00:00Z"
         },
         {
-          "eventType": "Park Close - Guests",
-          "timestamp": "20231115T00:00:00",
+          "event": "Park Close - Guests",
+          "timestamp": "20231115T00:00:00Z"
         },
         {
-          "eventType": "Park Close - Owners",
-          "timestamp": "20231130T00:00:00",
+          "event": "Park Close - Owners",
+          "timestamp": "20231130T00:00:00Z"
         }
-      ],
+      ]
     }
   ],
   "metadata": {
     "offset": 1,
     "limit": 10,
-    "documents": 39
+    "count": 39
   }
 }
 ```
-
-#### GET /api/$version/$projection/from
-Exposes the projected reference data **from** the given point in time (inclusive). Use this when you want to cache future changes. Because multiple versions of the same reference data may returned, the data is presented in time series format. Use the RDK client to parse the response more easily.
-
-| Parameter | Required | Type   | Notes |
-|-----------|----------|--------|-------|
-| timestamp | Yes      | String | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
-| offset    | No       | Number | For pagination |
-| limit     | No       | Number | For pagination |
-
-##### Example
-```
-GET /api/v1/park/from?ts=20230710T20:15:33Z
-```
-
-```json
-{
-  "data": [
-    {
-      "code": [
-        {
-          "value": "DC"
-        }
-      ],
-      "name": [
-        {
-          "value": "Devon Cliffs"
-        },
-        {
-          "value": "Devon Hills",
-          "from": "20240101T00:00:00Z"
-        },
-        {
-          "from": "20250101T00:00:00Z"
-        }
-      ],
-      "calendar": [
-        [
-          {
-            "value": {
-              "eventType": [
-                { "value": "Park Open - Owners" },
-              ],
-              "timestamp": [
-                { "value": "20230301T00:00:00" },
-              ]
-            },
-          },
-          {
-            "value": { 
-              "eventType": [
-                { "value": "Park Open - Owners" },
-              ],
-              "timestamp": [
-                { "value": "20230301T00:00:00" },
-              ]
-            },
-            "from": "20240101T00:00:00Z",
-          },
-        ],
-        {
-          "eventType": "Park Open - Guests",
-          "timestamp": "20230314T00:00:00",
-        },
-        {
-          "eventType": "Park Close - Guests",
-          "timestamp": "20231115T00:00:00",
-        },
-        {
-          "eventType": "Park Close - Owners",
-          "timestamp": "20231130T00:00:00",
-        }
-      ],
-    },
-    {
-      "code": "PV",
-      "name": "Primrose Valley",
-      "calendar": [
-        {
-          "eventType": "Park Open - Owners",
-          "timestamp": "20230301T00:00:00",
-        },
-        {
-          "eventType": "Park Open - Guests",
-          "timestamp": "20230314T00:00:00",
-        },
-        {
-          "eventType": "Park Close - Guests",
-          "timestamp": "20231115T00:00:00",
-        },
-        {
-          "eventType": "Park Close - Owners",
-          "timestamp": "20231130T00:00:00",
-        }
-      ],
-    }
-  ],
-  "metadata": {
-    "offset": 1,
-    "limit": 10,
-    "documents": 39
-  }
-}
-```
-
-#### GET /api/$version/$projection/all
-Exposes all the projected reference data
-
-| Parameter | Required | Type   | Notes |
-|-----------|----------|--------|-------|
-| offset    | No       | Number | For pagination |
-| limit     | No       | Number | For pagination |
-
-- Example Responses
-- Error codes
-- Configuration (Max Page Size)
 
 ## Getting Started
 ### 1. Create a new project
