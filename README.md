@@ -12,7 +12,7 @@ A framework for working with time series reference data.
 ## Introduction
 Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
 
-| Challenge | Explanation |
+| Challenge | Notes |
 |-----------|-------|
 | Consistency | Whenever we duplicate our reference data, we increase the likelihood of inconsistency. Even if we have one authoritive source of truth, we may cache the reference data in multiple systems, resulting in temporary inconsisenty unless cache updated are sychronoised. Given the reference data is slow moving, a short period of inconsistency may be acceptable. |
 | Load Times | Some reference data sets may be too large to desirably load over a network connection for web and mobile applications. Therefore we should discorage accidentlaly including large data sets into a client bundle, or requesting large data sets over a network. |
