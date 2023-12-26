@@ -117,12 +117,12 @@ GET /api/v1/park/changelog
       "id": 1,
       "timestamp": 1672012800000,
       "notes": "Park data as of Monday, 26th December 2022 GMT"
-   },
-   {
+    },
+    {
       "id": 2,
       "timestamp": 1703548800000,
       "notes": "Park data as of Tuesday, 26th December 2023 GMT"
-   }
+    }
   ]
 }
 ```
