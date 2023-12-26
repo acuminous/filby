@@ -3,6 +3,7 @@ A framework for working with time series reference data.
 
 ## Contents
 - [Introduction](#introduction)
+- [Concepts](#concepts) 
 - [Usage](#usage)
   - [Getting Started](#getting-started)
 - [API](#api)
