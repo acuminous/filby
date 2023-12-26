@@ -22,7 +22,6 @@ Most applications require slow moving reference data, which presents the followi
 | Evolution | Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known. |
 | Local Testing | Applications may be tested locally, and therefore any solution sould work well on a development laptop. |
 
-## This Solution
 Solving such a complex problem becomes simpler when broken down. This project provides a server side, PostgreSQL based, framework for managing slow moving, time series reference data. It exposes projections of the data via a point-in-time RESTful API, and will notify downstream systems via webhooks when the reference data supporting the projections changes. It can therefore be extended by other systems. For example, the webhook could trigger a build pipeline to release a new client side reference data module. Another webhook might trigger the reference data to be exported, ready to be loaded in into the company data lake.
 
 ### Concepts
