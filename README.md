@@ -7,7 +7,7 @@ A framework for working with time series reference data.
 - [Usage](#usage)
   - [Getting Started](#getting-started)
 - [API](#api)
-   - [GET /api/$version/$projection/changelog](get-apiversionprojectionchangelog)
+   - [GET /api/$version/$projection/changelog](#get-apiversionprojectionchangelog)
    - [GET /api/$version/$projection/at](#get-apiversionprojectionat)
 
 ## Introduction
