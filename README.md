@@ -123,6 +123,7 @@ GET /api/v1/park/changelog
       "timestamp": 1703548800000,
       "notes": "Park data as of Tuesday, 26th December 2023 GMT"
    }
+  ]
 }
 ```
 
