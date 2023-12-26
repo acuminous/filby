@@ -25,28 +25,27 @@ Most applications require slow moving reference data, which presents the followi
 Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing slow moving, time series reference data. It exposes projections of the data via a point-in-time RESTful API, and will notify downstream systems via webhooks when the reference data supporting the projections changes. 
 
 <pre>
-                                                                                      Webhook
-                                                  ┌─────────────────────────────────────────────────────────────────────┐
-                                                  │                                                                     │
-                                                  │                                                                     ▼
-┌────────────────────────┐           ┌────────────────────────┐    GET /api/$version/$projection/changelog ┌────────────────────────┐
-│                        │           │                        │◀───────────────────────────────────────────│                        │
-│                        │           │     Reference Data     │                                            │                        │
-│        Database        │◀─────────▶│       Framework        │                                            │         Client         │
-│                        │           │                        │          GET /api/$version/$projection/at  │                        │
-│                        │           │                        │◀───────────────────────────────────────────│                        │
-└────────────────────────┘           └────────────────────────┘                                            └────────────────────────┘
-                                                  ▲
-                                                  │
-                                                  │
-                                                  │
-                                     ┌────────────────────────┐
-                                     │                        │
-                                     │      Time Series       │
-                                     │     Reference Data     │
-                                     │                        │
-                                     │                        │
-                                     └────────────────────────┘
+                                                                  Webhook
+                              ┌─────────────────────────────────────────────────────────────────────┐
+                              │                                                                     │
+                              │                                                                     ▼
+┌────────┐       ┌────────────────────────┐    GET /api/$version/$projection/changelog ┌────────────────────────┐
+│        │       │                        │◀───────────────────────────────────────────│                        │
+│        │       │     Reference Data     │                                            │                        │
+│   DB   │◀─────▶│       Framework        │                                            │         Client         │
+│        │       │                        │          GET /api/$version/$projection/at  │                        │
+│        │       │                        │◀───────────────────────────────────────────│                        │
+└────────┘       └────────────────────────┘                                            └────────────────────────┘
+                              ▲
+                              │
+                              │
+                              │
+                 ┌────────────────────────┐
+                 │                        │
+                 │      Time Series       │
+                 │     Reference Data     │
+                 │                        │
+                 └────────────────────────┘
 </pre>
 
 It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, a web application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
