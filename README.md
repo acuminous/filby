@@ -49,7 +49,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
                  └────────────────────────┘
 </pre>
 
-It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
+It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
 ### Concepts
 RDF has four key concepts
@@ -139,7 +139,7 @@ Returns the projected reference data at the given point in time.
 | offset    | No       | Number | For pagination |
 | limit     | No       | Number | For pagination |
 
-Either a changeset or timestamp is required. If you use the current timestamp the response will be practically uncachable, so it is strongly recommended to use a changeset id or timestamp returned by the [changelog API](GET--api--version--projection-changes).
+Either a changeset or timestamp is required. Using the current timestamp will make the response practically uncachable, so it is strongly advised to use a changeset id or timestamp returned by the [changelog API](GET--api--version--projection-changelog). Since the reference data is slow moving, and can be created far in advance, you should not need to fetch the changelog frequently. Depending on your context, you may also be able to register a webhook and receive notifications of changes to the projected reference data. If you really cannot afford the extra request to obtain the changelog, then you should consider rounding down the current timestamp to the nearest minuite/hour/day to make the response more cacheable.
 
 #### Example
 ```
