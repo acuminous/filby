@@ -51,6 +51,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
 ### Concepts
+RDF has four key concepts
 <pre>
 ┌────────────────────────┐                 ┌────────────────────────┐
 │                        │                 │                        │
@@ -87,17 +88,12 @@ It can therefore be extended by other systems. For example, the client in the ab
                                            └────────────────────────┘
 </pre>
 
-#### Change Set
-A change set determines which reference data is in effect at a given point in time.
-
-#### Reference Data
-The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc. We use the example of Holiday Park opening times as an example.
-
-#### View
-A views is a query across the reference data.
-
-#### Projection
-A projection transforms a view, typically into a structured JSON object. Projections are automatically exposed via a [RESTful API](#api)
+| Concept | Notes |
+|---------|-------|
+| Change Set | A change set determines which reference data is in effect at a given point in time. |
+| Reference Data | The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc. We use the example of Holiday Park opening times as an example. |
+| View | A views is a query across the reference data. |
+| Projection | A projection transforms a view, typically into a structured JSON object. Projections are automatically exposed via a [RESTful API](#api) |
 
 ## API
 Each projection is automatically exposed via the following RESTful API. All responses include appropriate [ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag), [Last-Modified](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Last-Modified) and [Cache-Control](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control) headers.
