@@ -6,6 +6,7 @@ A framework for working with time series reference data.
 - [Concepts](#concepts) 
 - [Usage](#usage)
   - [Getting Started](#getting-started)
+  - [Configuration](#configuration)
 - [API](#api)
    - [GET /api/$version/$projection/changelog](#get-apiversionprojectionchangelog)
    - [GET /api/$version/$projection/at](#get-apiversionprojectionat)
@@ -248,12 +249,12 @@ npx rdf-create-reference-data
 
 This will prompt for the following details: 
 
-| Name           | Type   | Default | Notes |
-|----------------|--------|---------|-------|
+| Name           | Type   | Default                               | Notes |
+|----------------|--------|---------------------------------------|-------|
 | Change Set     | Number | The current/highest change set number | Associates the reference data with a change set, and by virtue an effective from date | 
-| Name           | String |         | The reference data entity name |
-| Version        | Number | 1       | Increment the version when making backwards incompatible changes  |
-| Notes          | String |         | useful for describing the changes or referencing external documentation |
+| Name           | String |                                       | The reference data entity name |
+| Version        | Number | 1                                     | Increment the version when making backwards incompatible changes  |
+| Notes          | String |                                       | useful for describing the changes or referencing external documentation |
 
 The script will also create placeholder files in the `migrations` and `schemas` folders which must be completed manually.
 
@@ -277,9 +278,12 @@ The script will also create placeholder files in the `migrations` and `schemas` 
 ### 5. Add a webhook (optional)
 
 
-## Configuration
+### Configuration
+The following configuration options can be specified in rdf.json
 
-| Property             | Type    | Required | Default | Notes |
-|----------------------|---------|----------|---------|-------|
-| migrations.autostart | Boolean | No       | true    | Applies migrations automatically on startup |
+| Property Path              | Type    | Required | Default                                                           | Notes |
+|----------------------------|---------|----------|-------------------------------------------------------------------|-------|
+| migrations.autostart       | Boolean | No       | true                                                              | Applies migrations automatically on server startup      |
+| api.changelog.cacheControl | String  | No       | max-age=86400, stale-while-revalidate=86400, stale-if-error=86400 | Configures the Cache-Control header          |
+| api.at.disableTimestamps   | Boolean | No       | false                                                             | Disables the timestamp query parameter, forcing clients to specify a change set instead |
 
