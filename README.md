@@ -91,8 +91,8 @@ RDF has four key concepts
 
 | Concept | Notes |
 |---------|-------|
-| Change Set | A change set determines which reference data is in effect at a given point in time. |
-| Reference Data | The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc. We use the example of Holiday Park opening times as an example. |
+| Change&nbsp;Set | A change set determines which reference data is in effect at a given point in time. |
+| Reference&nbsp;Data | The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc. We use the example of Holiday Park opening times as an example. |
 | View | A views is a query across the reference data. |
 | Projection | A projection transforms a view, typically into a structured JSON object. Projections are automatically exposed via a [RESTful API](#api) |
 
