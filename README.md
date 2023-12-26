@@ -4,9 +4,8 @@ A framework for working with time series reference data.
 ## Contents
 - [Introduction](#introduction)
 - [Concepts](#concepts) 
-- [Usage](#usage)
-  - [Getting Started](#getting-started)
-  - [Configuration](#configuration)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
 - [API](#api)
    - [GET /api/$version/$projection/changelog](#get-apiversionprojectionchangelog)
    - [GET /api/$version/$projection/at](#get-apiversionprojectionat)
@@ -94,7 +93,7 @@ RDF has four key concepts
 |---------|-------|
 | Change&#x00A0;Set | A change set determines which reference data is in effect at a given point in time. |
 | Reference&#x00A0;Data | The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc. We use the example of Holiday Park opening times as an example. |
-| View | A views is a query across the reference data. |
+| View | A view is a query across the reference data. |
 | Projection | A projection transforms a view, typically into a structured JSON object. Projections are automatically exposed via a [RESTful API](#api) |
 
 ## API
@@ -201,79 +200,97 @@ GET /api/v1/park/at?changeset=2
   }
 }
 ```
-
 ## Getting Started
+
 ### 1. Create a new project
-To create a new project run:
 
 ```bash
-mkdir refdata-service
-cd refdata-service
-npm i reference-data-framework --save-dev
+mkdir rdf-server
+cd rdf-server
+npm i reference-data-framework
 npx rdf-init
 ```
 
-This will create a project with the following structure:
+This will create a project with the following structure...
 
-| Name         | Type | Notes |
-|--------------|------|-------|
+| Name         | Type   | Notes |
+|--------------|--------|-------|
 | migrations   | folder | Stores the reference data SQL migrations files |
 | schemas      | folder | Stores the reference data API json schemas |
 | projections  | folder | Stores the reference data API projections |
-| index.js     | file | Starts the RESTful API |
-| rdf.json     | file | Stores the framework [configuration](#configuration) | 
+| index.js     | file   | Starts the RESTful API |
+| rdf.json     | file   | Stores the framework [configuration](#configuration) | 
 
 ### 2. Create a change set
-RDF requires all reference data updates to be incorporated into a change set. To create a new change set run:
 
 ```bash
 npx rdf-create-change-set
 ```
 
-This will prompt for the following details:
+This will prompt for the following details and create a SQL migration in the `migrations` folder.
 
-| Name           | Type   | Default | Notes |
-|----------------|--------|---------|-------|
-| Id             | Number | The next number in the sequence | Uniquely identifies a change set, and determine which reference data to use when the effective from dates are indentical. | 
-| Effective from | String |  | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
-| Notes          | String |   | useful for describing the changes or referencing external documentation |
+| Name           | Type   | Requried | Default                         | Notes |
+|----------------|--------|----------|---------------------------------|-------|
+| Id             | Number | Yes      | The next number in the sequence | Uniquely identifies a change set, and determines which reference data to use when the `effective from` dates are indentical. | 
+| Effective From | String | Yes      |                                 | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
+| Notes          | String | No       |                                 | Useful for describing the changes or referencing external documentation        |
 
-and create a SQL migration for the change set in the `migrations` folder.
-
-### 3. Create reference data
-To add reference data run:
+### 3. Create some reference data
 
 ```bash
 npx rdf-create-reference-data
 ```
 
-This will prompt for the following details: 
+This will prompt for the following details and create a placeholder file in the `migrations` folder which must be completed manually.
 
-| Name           | Type   | Default                               | Notes |
-|----------------|--------|---------------------------------------|-------|
-| Change Set     | Number | The current/highest change set number | Associates the reference data with a change set, and by virtue an effective from date | 
-| Name           | String |                                       | The reference data entity name |
-| Version        | Number | 1                                     | Increment the version when making backwards incompatible changes  |
-| Notes          | String |                                       | useful for describing the changes or referencing external documentation |
+| Name           | Type   | Required | Default                      | Notes |
+|----------------|--------|----------|------------------------------|-------|
+| Change Set     | Number | Yes      | The latest change set number | Associates the reference data with a change set, and by implication, an effective from date. | 
+| Name           | String | Yes      |                              | The entity name. |
+| Version        | Number | Yes      | 1                            | Increment the version ONLY when making backwards incompatible changes. |
+| Notes          | String | No       |                              | Useful for describing the entity or referencing external documentation. |
 
-The script will also create placeholder files in the `migrations` and `schemas` folders which must be completed manually.
-
-### 4. Expose the reference data via a projection
-A projection is a [materialized view](https://www.postgresql.org/docs/current/rules-materializedviews.html), which will be exposed automatically by a RESTful API. To create a new projection run:
+### 4. Create a view for the reference data
 
 ```bash
-npx rdf-create-projection
+npx rdf-create-view
 ```
 
-The will prompt for the following details: 
+The will prompt for the following details and create a placeholder file in the `migrations` folder which must be completed manually.
 
-| Name           | Type   | Default | Notes |
-|----------------|--------|---------|-------|
-| Name           | String |         | The projection name. Forms part of the RESTful API path |
-| Version        | Number | 1       | Increment the version when making backwards incompatible changes. Forms part of the RESTful API path |
-| Notes          | String |         | useful for describing the changes or referencing external documentation |
+| Name           | Type   | Required | Default | Notes |
+|----------------|--------|----------|---------|-------|
+| Name           | String | Yes      |         | The view name.                                                         |
+| Version        | Number | Yes      |  1      | Increment the version ONLY when making backwards incompatible changes. |
+| Notes          | String | Yes      |         | Useful for describing the view or referencing external documentation   |
 
-The script will also create placeholder files in the `migrations` and `schemas` folders which must be completed manually. This will automaticaly expose the projection 
+The view SQL must join across all reference data required by the projection(s), and their change sets. If the projection(s) will transform the view to JSON you may wish to consider the column naming convension described [here](https://www.npmjs.com/package/csvtojson#nested-json-structure)
+
+```sql
+WITH park_ts AS (
+  SELECT
+    p.code,
+    p.name,
+    p.rdk_action,
+    cs.id AS change_set_id
+    cs.effective_from AS effective_from
+  FROM
+    park p,
+    change_set cs
+  INNER JOIN p.rdk_change_set_id ON c.id
+) park_calendar_ts AS (
+  SELECT
+    pc_
+)
+    FROM orders
+    GROUP BY region
+)
+SELECT
+  p.code AS code,
+  p.name AS name,
+  pc.
+FROM
+  park p
 
 ### 5. Add a webhook (optional)
 
