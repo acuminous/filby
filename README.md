@@ -48,7 +48,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
                  └────────────────────────┘
 </pre>
 
-It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, a web application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
+It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
 ### Concepts
 <pre>
