@@ -12,25 +12,25 @@ A framework for working with time series reference data.
 ## Introduction
 Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
 
-### 1. Consistency
+#### 1. Consistency
 Whenever we duplicate our reference data, we increase the likelihood of inconsistency. Even if we have one authoritive source of truth, we may cache the reference data in multiple systems, resulting in temporary inconsisenty unless cache updated are sychronoised. Given the reference data is slow moving, a short period of inconsistency may be acceptable.
 
-### 2. Load Times
+#### 2. Load Times
 Some reference data sets may be too large to desirably load over a network connection for web and mobile applications. Therefore we should discorage accidentlaly including large data sets into a client bundle, or requesting large data sets over a network.
 
-### 3. Reliability
+#### 3. Reliability
 Requesting data sets over a network may fail, especially when mobile. Bundling local copies of reference data into the application (providing they are not too large) will aleviate this, but increase the potential for [stale data](#stale-data).
 
-### 4. Stale Data
+#### 4. Stale Data
 Even though reference data is slow moving, it will still change occasionally. Therefore we need a strategy for refreshing reference data.
 
-### 5. Temporality
+#### 5. Temporality
 When reference data changes, the previous values may still be required for historic comparisons. Therefore all reference data should have an effective date. Effective dates can also be used to synchronise updates by including future records when the values are known in advance. This comes at the cost of increased size, and there may still be some inconsistency due to clock drift and cache expiry times.
 
-### 6. Evolution
+#### 6. Evolution
 Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known.
 
-### 7. Local Testing
+#### 7. Local Testing
 Applications may be tested locally, and therefore any solution sould work well on a development laptop.
 
 ## This Solution
