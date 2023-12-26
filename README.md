@@ -43,8 +43,8 @@ Solving such a complex problem becomes simpler when broken down. This project pr
                               │
                  ┌────────────────────────┐
                  │                        │
-                 │      Time Series       │
                  │     Reference Data     │
+                 │         Frames         │
                  │                        │
                  └────────────────────────┘
 </pre>
@@ -58,7 +58,7 @@ RDF has four key concepts
 │                        │                 │                        │
 │                        │  coordinates   ╱│                        │
 │       Change Set       │──────────────┼──│     Reference Data     │
-│                        │                ╲│                        │
+│                        │                ╲│         Frame          │
 │                        │                 │                        │
 └────────────────────────┘                 └────────────────────────┘
                                                        ╲│╱
@@ -92,7 +92,7 @@ RDF has four key concepts
 | Concept | Notes |
 |---------|-------|
 | Change&#x00A0;Set | A change set determines which reference data is in effect at a given point in time. |
-| Reference&#x00A0;Data | The reference data is slow moving, time series relational data. e.g. Tax rates, Product Catalogs, etc. We use the example of Holiday Park opening times as an example. |
+| Reference&#x00A0;Data&#x00A0;Frame | A reference data frame is a snapshot of some reference data at a point in time. e.g. Tax rates, Product Catalogs, etc. A frame may also indicate the deletion of some reference data. |
 | View | A view is a query across the reference data. |
 | Projection | A projection transforms a view, typically into a structured JSON object. Projections are automatically exposed via a [RESTful API](#api) |
 
@@ -235,10 +235,10 @@ This will prompt for the following details and create a SQL migration in the `mi
 | Effective From | String | Yes      |                                 | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
 | Notes          | String | No       |                                 | Useful for describing the changes or referencing external documentation        |
 
-### 3. Create some reference data
+### 3. Create a reference data frame
 
 ```bash
-npx rdf-create-reference-data
+npx rdf-create-frame
 ```
 
 This will prompt for the following details and create a placeholder file in the `migrations` folder which must be completed manually.
@@ -248,6 +248,7 @@ This will prompt for the following details and create a placeholder file in the 
 | Change Set     | Number | Yes      | The latest change set number | Associates the reference data with a change set, and by implication, an effective from date. | 
 | Name           | String | Yes      |                              | The entity name. |
 | Version        | Number | Yes      | 1                            | Increment the version ONLY when making backwards incompatible changes. |
+| Action         | String | Yes      | PUT                          | The action may be either 'PUT' or 'DELETE'. |
 | Notes          | String | No       |                              | Useful for describing the entity or referencing external documentation. |
 
 ### 4. Create a view for the reference data
@@ -267,30 +268,38 @@ The will prompt for the following details and create a placeholder file in the `
 The view SQL must join across all reference data required by the projection(s), and their change sets. If the projection(s) will transform the view to JSON you may wish to consider the column naming convension described [here](https://www.npmjs.com/package/csvtojson#nested-json-structure)
 
 ```sql
-WITH park_ts AS (
+CREATE VIEW park_vw AS (
   SELECT
-    p.code,
-    p.name,
-    p.rdk_action,
-    cs.id AS change_set_id
-    cs.effective_from AS effective_from
+    cs.id AS park_change_set_id,
+    cs.effective_from AS park_change_set_effective_from,
+    f.action AS park_frame_action,
+    p.code AS park_code,
+    p.name AS park_name
   FROM
-    park p,
-    change_set cs
-  INNER JOIN p.rdk_change_set_id ON c.id
-) park_calendar_ts AS (
+    change_set cs,
+    frame f,
+    park p
+  INNER JOIN cs.id ON f.change_set_id
+  INNER JOIN f.id ON p.frame_id
+);
+```
+
+```sql
+CREATE VIEW park_calendar_vw AS (
   SELECT
-    pc_
-)
-    FROM orders
-    GROUP BY region
-)
-SELECT
-  p.code AS code,
-  p.name AS name,
-  pc.
-FROM
-  park p
+    cs.id AS park_calendar_change_set_id,
+    cs.effective_from AS park_calendar_change_set_effective_from,
+    f.action AS park_calendar_frame_action,
+    pc.event AS park_calendar_event,
+    pc.timestamp AS park_calendar_timestamp
+  FROM
+    change_set cs,
+    frame f,
+    park_calendar pc
+  INNER JOIN cs.id ON f.change_set_id
+  INNER JOIN f.id ON pc.frame_id
+);
+```
 
 ### 5. Add a webhook (optional)
 
