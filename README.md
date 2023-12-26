@@ -154,19 +154,19 @@ GET /api/v1/park/at?changeset=2
       "name": "Devon Cliffs",
       "calendar": [
         { "event": "Park Open - Owners",
-          "timestamp": "20230301T00:00:00Z"
+          "timestamp": "2023-03-01T00:00:00Z"
         },
         {
           "event": "Park Open - Guests",
-          "timestamp": "20230314T00:00:00Z"
+          "timestamp": "2023-03-14T00:00:00Z"
         },
         {
           "event": "Park Close - Guests",
-          "timestamp": "20231115T00:00:00Z"
+          "timestamp": "2023-11-15T00:00:00Z"
         },
         {
           "event": "Park Close - Owners",
-          "timestamp": "20231130T00:00:00Z"
+          "timestamp": "2023-11-30T00:00:00Z"
         }
       ]
     },
@@ -176,19 +176,19 @@ GET /api/v1/park/at?changeset=2
       "calendar": [
         {
           "event": "Park Open - Owners",
-          "timestamp": "20230301T00:00:00Z"
+          "timestamp": "2023-03-01T00:00:00Z"
         },
         {
           "event": "Park Open - Guests",
-          "timestamp": "20230314T00:00:00Z"
+          "timestamp": "2023-03-14T00:00:00Z"
         },
         {
           "event": "Park Close - Guests",
-          "timestamp": "20231115T00:00:00Z"
+          "timestamp": "2023-11-15T00:00:00Z"
         },
         {
           "event": "Park Close - Owners",
-          "timestamp": "20231130T00:00:00Z"
+          "timestamp": "2023-11-30T00:00:00Z"
         }
       ]
     }
@@ -202,13 +202,25 @@ GET /api/v1/park/at?changeset=2
 ```
 ## Getting Started
 
-### 1. Create a new project
+Start by creating a new project and installing rdf...
 
 ```bash
 mkdir rdf-server
 cd rdf-server
 npm i reference-data-framework
-npx rdf-init
+```
+
+RDF comes bundled with an interactive utility to guide you through the process of adding reference data. When first run it will ask you if you want to initialise a new project.
+
+```bash
+npx rdf-util
+```
+
+```bash
+Welcome to RDF.
+
+Do you want to initialise a new project (Y/n)?
+Y
 ```
 
 This will create a project with the following structure...
@@ -219,37 +231,243 @@ This will create a project with the following structure...
 | schemas      | folder | Stores the reference data API json schemas |
 | projections  | folder | Stores the reference data API projections |
 | index.js     | file   | Starts the RESTful API |
-| rdf.json     | file   | Stores the framework [configuration](#configuration) | 
+| data.json    | file   | Stores the framework data | 
+| config.json  | file   | Stores the framework [configuration](#configuration) | 
 
-### 2. Create a change set
+After successful initialisation RDF will ask if you want to create a change set
 
 ```bash
-npx rdf-create-change-set
+Project initialisation successful.
+
+Do you want to create a change set (Y/n)?
+Y
 ```
 
-This will prompt for the following details and create a SQL migration in the `migrations` folder.
+After answering `Yes` you will be prompted for the following details...
 
 | Name           | Type   | Requried | Default                         | Notes |
 |----------------|--------|----------|---------------------------------|-------|
-| Id             | Number | Yes      | The next number in the sequence | Uniquely identifies a change set, and determines which reference data to use when the `effective from` dates are indentical. | 
+| Change Set Id  | Number | Yes      | The next number in the sequence | Uniquely identifies a change set, and determines which reference data to use when the `effective from` dates are indentical. | 
 | Effective From | String | Yes      |                                 | Must be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) |
 | Notes          | String | No       |                                 | Useful for describing the changes or referencing external documentation        |
 
-### 3. Create a reference data frame
-
 ```bash
-npx rdf-create-frame
+Creating change set. Please specify...
+
+Change Set Id (1):
+1
+
+Effective From:
+2022-12-26T00:00:00Z
+
+Notes:
+Park data as of Monday, 26th December 2022 GMT
+
+Is this correct (Y/n)?
+Y
+
+Creating migrations/00001.insert-change-set-1.sql
+Done
 ```
 
-This will prompt for the following details and create a placeholder file in the `migrations` folder which must be completed manually.
+This will create a SQL migration in the `migrations` folder then ask you to add a reference data frame.
+
+```bash
+Do you want to add a reference data frame (Y/n)?
+Y
+```
+
+After answering `Yes` you will be prompted for the following details...
 
 | Name           | Type   | Required | Default                      | Notes |
 |----------------|--------|----------|------------------------------|-------|
-| Change Set     | Number | Yes      | The latest change set number | Associates the reference data with a change set, and by implication, an effective from date. | 
-| Name           | String | Yes      |                              | The entity name. |
-| Version        | Number | Yes      | 1                            | Increment the version ONLY when making backwards incompatible changes. |
+| Change Set Id  | Number | Yes      | The latest change set number | Associates the reference data with a change set, and by implication, an effective from date. | 
 | Action         | String | Yes      | PUT                          | The action may be either 'PUT' or 'DELETE'. |
-| Notes          | String | No       |                              | Useful for describing the entity or referencing external documentation. |
+| Entity Name    | String | Yes      |                              | The entity name. |
+| Version        | Number | Yes      | 1                            | Increment the version ONLY when making backwards incompatible changes. |
+
+```bash
+Creating reference data frame. Please specify...
+
+Change Set Id (1):
+1
+
+Action:
+PUT
+
+Entity Name:
+Park
+
+Version (1):
+1
+
+Is this correct (Y/n)?
+Y
+
+Creating migrations/00002.create-park-v1-reference-data-frame-table.sql
+Creating migrations/00003.insert-park-v1-reference-data-frames.sql
+Done
+```
+
+Since the Park entity has not been previously defined, RDF will create a SQL migration placeholder for the table in the `migrations` folder. It will also create a placeholder for inserting the reference data frames. When complete these migration fiels should look somethink like the following...
+
+```sql
+-- Example park reference data frame table definition
+
+START TRANSACTION;
+
+CREATE TABLE park_v1 (
+  rdf_change_set_id INTEGER REFERENCES rdf_change_set,
+  rdf_action rdf_action_type,
+  code TEXT NOT NULL,
+  name TEXT NOT NULL,
+  PRIMARY_KEY (rdf_change_set_id, rdf_action, code),
+  UNIQUE (rdf_change_set_id, rdf_action, name)
+);
+
+CREATE VIEW park_v1_vw (
+  SELECT
+    cs.effective_from AS rdf_effective_from,
+    p.*
+  FROM change_set cs
+  INNER JOIN park p ON p.rdf_change_set_id = cs.id;
+);
+
+END TRANSACTION;
+```
+
+```sql
+-- Example park data frames
+INSERT INTO park_v1 (rdf_change_set_id, rdf_action, code, name) VALUES
+(1, 'PUT', 'DC', 'Devon Cliffs'),
+(1, 'PUT', 'PV', 'Primrose Valley');
+```
+
+Next you will be asked if you want to add more reference data frames.
+
+```bash
+Do you want to add another reference data frame (Y/n)?
+Y
+```
+
+Answering `Yes` will repeat the previous step.
+
+```bash
+Creating reference data frame. Please specify...
+
+Change Set Id (1):
+1
+
+Action:
+PUT
+
+Entity Name:
+Park Calendar
+
+Version (1):
+1
+
+Is this correct (Y/n)?
+Y
+
+Creating migrations/00004.create-park-calendar-v1-reference-data-frame-table.sql
+Creating migrations/00005.insert-park-calendar-v1-reference-data-frames.sql
+Done
+```
+
+```sql
+-- Example park calendar reference data frame table definition
+START TRANSACTION;
+
+CREATE TYPE event_type AS ENUM ('Park Open - Owners', 'Park Close - Owners', 'Park Open - Guests', 'Park Close - Guests');
+
+CREATE TABLE park_calendar_v1 (
+  rdf_change_set_id INTEGER REFERENCES rdf_change_set,
+  rdf_action rdf_action_type,
+  id SERIAL NOT NULL,
+  park_code TEXT NOT NULL REFERENCES park_v1 (code),
+  event event_type NOT NULL,
+  occurs_at TIMESTAMP WITH TIME ZONE
+  PRIMARY KEY (rdf_change_set_id, rdf_action, id),
+  UNIQUE (rdf_change_set_id, rdf_action, park_code, event, scheduled_for)
+);
+
+CREATE VIEW park_calendar_v1_vw (
+  SELECT
+    cs.effective_from AS rdf_effective_from,
+    pc.*
+  FROM change_set cs
+  INNER JOIN park_calendar pc ON pc.rdf_change_set_id = cs.id;
+);
+
+END TRANSACTION;
+```
+
+```sql
+-- Example park calendar data frames
+INSERT INTO park_calendar_v1 (rdf_change_set_id, rdf_action, id, park_code, event, occurs_at) VALUES
+(1, 'PUT', 1, 'DC', 'Park Open - Owners', '2023-03-01T00:00:00Z'),
+(1, 'PUT', 2, 'DC', 'Park Open - Guests', '2023-03-14T00:00:00Z'),
+(1, 'PUT', 3, 'DC', 'Park Close - Owners', '2023-11-15T00:00:00Z'),
+(1, 'PUT', 4, 'DC', 'Park Close - Guests', '2023-11-30T00:00:00Z'),
+(1, 'PUT', 5, 'PV', 'Park Open - Owners', '2023-03-01T00:00:00Z'),
+(1, 'PUT', 6, 'PV', 'Park Open - Guests', '2023-03-14T00:00:00Z'),
+(1, 'PUT', 7, 'PV', 'Park Close - Owners', '2023-11-15T00:00:00Z'),
+(1, 'PUT', 8, 'PV', 'Park Close - Guests', '2023-11-30T00:00:00Z');
+```
+
+```bash
+Do you want to add another reference data frame (Y/n)?
+N
+```
+
+Now that the reference data frames have been defined and entered, you will be asked if you want to create any additional views.
+
+```bash
+Do you want to create an additional view over the reference data (Y/n)?
+Y
+```
+
+After answering `Yes` you will be prompted for the following details...
+
+| Name           | Type   | Required | Default                      | Notes |
+|----------------|--------|----------|------------------------------|-------|
+| View Name      | String | Yes      |                              | The view name. |
+| Version        | Number | Yes      | 1                            | Increment the version ONLY when making backwards incompatible changes. |
+
+```bash
+Creating view. Please specify...
+
+View Name:
+Park Full
+
+Version (1):
+1
+
+Is this correct (Y/n)?
+Y
+
+Creating migrations/00006.create-park-full-view.sql
+Done
+```
+
+Once again this will create a placeholder migration file in the `migrations` folder.
+
+```sql
+-- Example park full view definition
+START TRANSACTION;
+
+CREATE VIEW park_full_v1 (
+  SELECT
+  FROM
+    park_vw p
+  INNER JOIN park_calendar_vw pc on pc.code = 
+);
+
+END TRANSACTION;
+```
+
+
 
 ### 4. Create a view for the reference data
 
