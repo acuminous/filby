@@ -134,8 +134,8 @@ Returns the projected reference data at the given point in time.
 
 | Name      | Required | Type   | Notes |
 |-----------|----------|--------|-------|
-| changeset | No       | Number | The changeset id |
-| timestamp | No       | Number | The time in milliseconds to which the reference data should apply |
+| changeset | No       | Number | The changeset id to which the reference data should apply. Can be obtained from the [changelog API](GET--api--version--projection-changelog)  |
+| timestamp | No       | Number | The time in milliseconds to which the reference data should apply. May be disabled by the server. |
 | offset    | No       | Number | For pagination |
 | limit     | No       | Number | For pagination |
 
