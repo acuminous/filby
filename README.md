@@ -34,7 +34,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 │        │       │                        │◀───────────────────────────────────────────│                        │
 │        │       │     Reference Data     │                                            │                        │
 │   DB   │◀─────▶│       Framework        │                                            │         Client         │
-│        │       │                        │          GET /api/$version/$projection/at  │                        │
+│        │       │                        │           GET /api/$version/$projection/at │                        │
 │        │       │                        │◀───────────────────────────────────────────│                        │
 └────────┘       └────────────────────────┘                                            └────────────────────────┘
                               ▲
