@@ -1,14 +1,13 @@
-START TRANSACTION;
+DO $$ 
 
-INSERT INTO rdf_change_set (id, effective_from, notes) VALUES 
-(6, '2021-06-01T00:00:00Z', 'Replace Richmond with Skegness');
+DECLARE
+  v_change_set_id INTEGER;
 
-INSERT INTO park_v1_data_frame (rdf_change_set_id, rdf_action, code, name) VALUES 
-(6, 'DELETE', 'RI', 'Richmond'),
-(6, 'PUT', 'SK', 'Skegness');
+BEGIN
 
-SELECT rdf_notify_entity_change(ARRAY[
-  ('park', 1)
-]::rdf_entity_table_type[]);
+  SELECT rdf_add_change_set('2021-06-01T00:00:00Z', 'Replace Richmond with Skegness') INTO v_change_set_id;
 
-END TRANSACTION;
+  PERFORM delete_park_v1(v_change_set_id, 'RI');
+  PERFORM put_park_v1(v_change_set_id, 'SK', 'Skegness');
+
+END $$;

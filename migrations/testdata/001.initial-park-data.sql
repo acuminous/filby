@@ -1,47 +1,40 @@
-START TRANSACTION;
+DO $$ 
 
-INSERT INTO rdf_entity (id, name, version) VALUES 
-(1, 'park', 1),
-(2, 'park_calendar', 1);
+DECLARE
+  v_park_projection_id INTEGER;
+  v_change_set_id INTEGER;
+  
+BEGIN
 
-INSERT INTO rdf_projection (id, name, version) VALUES 
-(1, 'park', 1);
+  PERFORM rdf_add_entity('park', 1);
+  PERFORM rdf_add_entity('park_calendar', 1);
 
-INSERT INTO rdf_projection_entity (projection_id, entity_id) VALUES 
-(1, 1),
-(1, 2);
+  SELECT rdf_add_projection('park', 1) INTO v_park_projection_id;
+  PERFORM rdf_add_projection_dependency(v_park_projection_id, 'park', 1);
+  PERFORM rdf_add_projection_dependency(v_park_projection_id, 'park_calendar', 1);
 
-INSERT INTO rdf_change_set (id, effective_from, notes) VALUES 
-(1, '2019-01-01T00:00:00Z', 'Initial park data');
+  PERFORM rdf_add_webhook(v_park_projection_id, 'https://httpbin.org/status/500');
+  PERFORM rdf_add_webhook(v_park_projection_id, 'https://httpbin.org/status/200');
 
-INSERT INTO park_v1_data_frame (rdf_change_set_id, rdf_action, code, name) VALUES 
-(1, 'PUT', 'DC', 'Devon Hills'),
-(1, 'PUT', 'PV', 'Primrose Valley'),
-(1, 'PUT', 'GA', 'Greenacres');
+  SELECT rdf_add_change_set('2019-01-01T00:00:00Z', 'Initial park data') INTO v_change_set_id;
 
-INSERT INTO park_calendar_v1_data_frame (rdf_change_set_id, rdf_action, park_code, event, occurs) VALUES 
-(1, 'PUT', 'DC', 'Park Open - Owners', '2019-03-01T00:00:00Z'),
-(1, 'PUT', 'DC', 'Park Open - Guests', '2019-03-15T00:00:00Z'),
-(1, 'PUT', 'DC', 'Park Close - Owners', '2019-11-30T00:00:00Z'),
-(1, 'PUT', 'DC', 'Park Close - Guests', '2019-11-15T00:00:00Z'),
+  PERFORM put_park_v1(v_change_set_id, 'DC', 'Devon Hills');
+  PERFORM put_park_v1(v_change_set_id, 'PV', 'Primrose Valley');
+  PERFORM put_park_v1(v_change_set_id, 'GA', 'Greenacres'); 
 
-(1, 'PUT', 'PV', 'Park Open - Owners', '2019-03-01T00:00:00Z'),
-(1, 'PUT', 'PV', 'Park Open - Guests', '2019-03-15T00:00:00Z'),
-(1, 'PUT', 'PV', 'Park Close - Owners', '2019-11-30T00:00:00Z'),
-(1, 'PUT', 'PV', 'Park Close - Guests', '2019-11-15T00:00:00Z'),
+  PERFORM put_park_calendar_v1(v_change_set_id, 1, 'DC', 'Park Open - Owners', '2019-03-01T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 2, 'DC', 'Park Open - Guests', '2019-03-15T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 3, 'DC', 'Park Close - Owners', '2019-11-30T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 4, 'DC', 'Park Close - Guests', '2019-11-15T00:00:00Z');
 
-(1, 'PUT', 'GA', 'Park Open - Owners', '2019-03-01T00:00:00Z'),
-(1, 'PUT', 'GA', 'Park Open - Guests', '2019-03-15T00:00:00Z'),
-(1, 'PUT', 'GA', 'Park Close - Owners', '2019-11-30T00:00:00Z'),
-(1, 'PUT', 'GA', 'Park Close - Guests', '2019-11-15T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 5, 'PV', 'Park Open - Owners', '2019-03-01T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 6, 'PV', 'Park Open - Guests', '2019-03-15T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 7, 'PV', 'Park Close - Owners', '2019-11-30T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 8, 'PV', 'Park Close - Guests', '2019-11-15T00:00:00Z');
 
-INSERT INTO rdf_webhook (projection_id, url) VALUES 
-(1, 'https://httpbin.org/status/500'),
-(1, 'https://httpbin.org/status/200');
+  PERFORM put_park_calendar_v1(v_change_set_id, 9,  'GA', 'Park Open - Owners', '2019-03-01T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 10, 'GA', 'Park Open - Guests', '2019-03-15T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 11, 'GA', 'Park Close - Owners', '2019-11-30T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 12, 'GA', 'Park Close - Guests', '2019-11-15T00:00:00Z');
 
-SELECT rdf_notify_entity_change(ARRAY[
-  ('park', 1), 
-  ('park_calendar', 1)
-]::rdf_entity_table_type[]);
-
-END TRANSACTION;
+END $$;

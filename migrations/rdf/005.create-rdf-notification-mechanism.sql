@@ -27,6 +27,26 @@ CREATE TYPE rdf_entity_table_type AS (
   version INTEGER
 );
 
+CREATE FUNCTION rdf_notify(p_name TEXT, p_version INTEGER) RETURNS VOID
+AS $$
+DECLARE
+  projection RECORD;
+BEGIN
+  FOR projection IN (
+    SELECT DISTINCT p.id
+    FROM rdf_entity e
+    INNER JOIN rdf_projection_entity pe ON pe.entity_id = e.id
+    INNER JOIN rdf_projection p ON p.id = pe.projection_id
+    WHERE e.name = p_name AND e.version = p_version
+  ) 
+  LOOP
+    PERFORM rdf_schedule_notification(w.id)
+    FROM rdf_webhook w
+    WHERE w.projection_id = projection.id;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE FUNCTION rdf_notify_entity_change(p_input_table rdf_entity_table_type[])
 RETURNS VOID
 AS $$

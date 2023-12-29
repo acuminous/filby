@@ -1,20 +1,17 @@
-START TRANSACTION;
+DO $$ 
 
-INSERT INTO rdf_change_set (id, effective_from, notes) VALUES 
-(5, '2021-04-01T00:00:00Z', 'Add Richmond');
+DECLARE
+  v_change_set_id INTEGER;
 
-INSERT INTO park_v1_data_frame (rdf_change_set_id, rdf_action, code, name) VALUES 
-(5, 'PUT', 'RI', 'Richmond');
+BEGIN
 
-INSERT INTO park_calendar_v1_data_frame (rdf_change_set_id, rdf_action, park_code, event, occurs) VALUES 
-(5, 'PUT', 'RI', 'Park Open - Owners', '2021-03-01T00:00:00Z'),
-(5, 'PUT', 'RI', 'Park Open - Guests', '2021-03-15T00:00:00Z'),
-(5, 'PUT', 'RI', 'Park Close - Owners', '2021-11-30T00:00:00Z'),
-(5, 'PUT', 'RI', 'Park Close - Guests', '2021-11-15T00:00:00Z');
+  SELECT rdf_add_change_set('2021-04-01T00:00:00Z', 'Add Richmond') INTO v_change_set_id;
 
-SELECT rdf_notify_entity_change(ARRAY[
-  ('park', 1),
-  ('park_calendar', 1)
- ]::rdf_entity_table_type[]);
+  PERFORM put_park_v1(v_change_set_id, 'RI', 'Richmond');
 
-END TRANSACTION;
+  PERFORM put_park_calendar_v1(v_change_set_id, 37, 'RI', 'Park Open - Owners', '2021-03-01T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 38, 'RI', 'Park Open - Guests', '2021-03-15T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 39, 'RI', 'Park Close - Owners', '2021-11-30T00:00:00Z');
+  PERFORM put_park_calendar_v1(v_change_set_id, 40, 'RI', 'Park Close - Guests', '2021-11-15T00:00:00Z');
+
+END $$;

@@ -4,7 +4,7 @@ const { getParks, getPark } = require('./park-v1-schemas');
 module.exports = (fastify, { db }, done) => {
 
 	fastify.get('/changelog', async (request, reply) => {
-		const changeLog = await db.getParkChangeLog();
+		const changeLog = await db.getChangeLog('park', 1);
 		const changeSet = changeLog[changeLog.length - 1];
 
 		reply.headers({

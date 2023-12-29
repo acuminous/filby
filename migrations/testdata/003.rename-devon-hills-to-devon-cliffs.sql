@@ -1,13 +1,12 @@
-START TRANSACTION;
+DO $$ 
 
-INSERT INTO rdf_change_set (id, effective_from, notes) VALUES 
-(3, '2020-02-01T00:00:00Z', 'Rename Devon Hills to Devon Cliffs');
+DECLARE
+  v_change_set_id INTEGER;
 
-INSERT INTO park_v1_data_frame (rdf_change_set_id, rdf_action, code, name) VALUES 
-(3, 'PUT', 'DC', 'Devon Cliffs');
+BEGIN
 
-SELECT rdf_notify_entity_change(ARRAY[
-  ('park', 1)
-]::rdf_entity_table_type[]);
+  SELECT rdf_add_change_set('2020-02-01T00:00:00Z', 'Rename Devon Hills to Devon Cliffs') INTO v_change_set_id;
+  
+  PERFORM put_park_v1(v_change_set_id, 'DC', 'Devon Cliffs');
 
-END TRANSACTION;
+END $$;
