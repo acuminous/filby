@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "@fastify/swagger": "^8.12.2",
+    "@fastify/swagger-ui": "^2.0.1",
+    "dot-prop": "^8.0.2",
+    "fastify": "^4.25.2",
+    "http-errors": "^2.0.0",
+    "ky": "^1.1.3",
+    "marv": "^6.0.0",
+    "marv-pg-driver": "^5.0.0",
+    "pg": "^8.11.3",
+    "pipsqueak": "^2.7.0"
+  },
+  "name": "refdata",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "docker": "docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=password postgres:16-alpine"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

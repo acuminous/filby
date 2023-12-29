@@ -1,0 +1,16 @@
+{
+  "server": {
+    "port": 3000
+  },
+  "notifications": {
+    "disabled": false,
+    "interval": "5s",
+    "delay": "5s",
+    "maxAttempts": 10    
+  },
+  "database": {
+	  "user": "postgres",
+	  "database": "postgres",
+	  "password": "password"
+  }
+}
