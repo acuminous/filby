@@ -26,11 +26,11 @@ Most applications require slow moving reference data, which presents the followi
 Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing slow moving, time series reference data. It exposes projections of the data via a point-in-time RESTful API, and will notify downstream systems via webhooks when the reference data supporting the projections changes. 
 
 <pre>
-                                                                       Webhook
+                                                                 Webhook (optional)
                                     ┌──────────────────────────────────────────────────────────────────────────┐
                                     │                                                                          │
                                     │                                                                          ▼
-┌─────────────────┐        ┌────────────────┐    GET /rdf/$version/changelog?projection=$p&version=$v  ┌──────────────┐
+┌─────────────────┐        ┌────────────────┐          GET /rdf/v1/changelog?projection=$p&version=$v  ┌──────────────┐
 │                 │        │                │◀─────────────────────────────────────────────────────────│              │
 │                 │        │   Reference    │                                                          │              │
 │    PostgreSQL   │◀──────▶│     Data       │                                                          │    Client    │
@@ -48,6 +48,69 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 </pre>
 
 It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
+
+The first of the two API calls, namely `/rdf/v1/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
+
+```bash
+GET /rdf/v1/changelog?projection=park&version=1
+```
+
+```json
+[
+  {
+    "changeSetId": 1,
+    "effectiveFrom": "2019-01-01T00:00:00.000Z",
+    "notes": "Initial park data",
+    "lastModified": "2018-12-01T16:20:34.383Z",
+    "eTag": "142475a5eddeec8f0786"
+  },
+  {
+     "changeSetId": 2,
+     "effectiveFrom": "2020-01-01T00:00:00.000Z",
+     "notes": "Park Calendars - 2020",
+     "lastModified": "2029-12-01T14:49:34.405Z",
+     "eTag": "a3dc15aa8d59d26e349d"
+  }
+]
+```
+
+The second API call, namely `/api/:version/:projection` will return the reference data, correct at the time of the given changeSetId.
+
+```
+GET /api/v1/park?changeSetId=2
+```
+
+```json
+[
+  {
+    "code": "DC",
+    "name": "Devon Hills"
+  },
+  {
+    "code": "GA",
+    "name": "Greenacres"
+  },
+  {
+    "code": "PV",
+    "name": "Primrose Valley"
+  }
+]
+```
+
+At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of valuable benefits. 
+
+1. Reference data can be safely prepared/cached ahead of time
+2. Clients will receive consistent reference data by fixing the changeSetId at the start of a transaction
+3. Clients will receive the latest reference data by updating to the latest changeSetId when one becomes available
+4. The changeSetId makes for an excellent cache key, enabling the projection responses to be cached indefinitely
+5. Projections provide multiple views of the same reference data, and can therefore be taylored to the needs of each client.
+6. Versioned projections supports backwards incompatible changes
+
+Refering back to the previous list of challenges, the above solution can go a long way to solving consistency, load times (tailored content, caching), reliability (caching), stale data, temporality, evolution (through versioning) and local testing (http is easy to nock).
+
+However, by extending the solution through webhooks further improvements can be made. Even a highly cachable API may still be unreachable, and cumbersome to use with BI tools. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale.
+
+
 
 ### Concepts
 RDF has four key concepts
