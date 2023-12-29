@@ -1,23 +1,5 @@
 START TRANSACTION;
 
-DELETE FROM park_calendar_v1_data_frame;
-DELETE FROM park_v1_data_frame;
-DELETE FROM rdf_change_set;
-DELETE FROM rdf_notification;
-DELETE FROM rdf_webhook;
-DELETE FROM rdf_projection_entity;
-DELETE FROM rdf_projection;
-DELETE FROM rdf_entity;
-
-ALTER SEQUENCE IF EXISTS rdf_change_set_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS  park_v1_data_frame_frame_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS  park_calendar_v1_data_frame_frame_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS  rdf_webhook_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS  rdf_notification_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS  rdf_projection_entity_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS  rdf_projection_id_seq RESTART WITH 1;
-ALTER SEQUENCE IF EXISTS  rdf_entity_id_seq RESTART WITH 1;
-
 INSERT INTO rdf_entity (id, name, version) VALUES 
 (1, 'park', 1),
 (2, 'park_calendar', 1);

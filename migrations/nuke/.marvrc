@@ -1,0 +1,6 @@
+{
+  "namespace": "nuke",
+  "directives": {
+    "audit": "false"
+  }
+}
