@@ -47,8 +47,6 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 └─────────────────┘
 </pre>
 
-It can therefore be extended by other systems. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
-
 The first of the two API calls, namely `/rdf/v1/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
 
 ```bash
@@ -108,9 +106,7 @@ At first glance, accessing projections via change sets may seem an unnecessary o
 
 Refering back to the previous list of challenges, the above solution can go a long way to solving consistency, load times (tailored content, caching), reliability (caching), stale data, temporality, evolution (through versioning) and local testing (http is easy to nock).
 
-However, by extending the solution through webhooks further improvements can be made. Even a highly cachable API may still be unreachable, and cumbersome to use with BI tools. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale.
-
-
+However, even a highly cachable API may still be unreachable, and cumbersome to use with BI tools. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
 ### Concepts
 RDF has four key concepts
