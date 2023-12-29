@@ -1,10 +1,2 @@
-1. Refactor webhooks to use the interval to group notifications
-This could be done by putting a unique constraint on the notifications table
-causing a conflict when a notification was added for the same webhook, projection and status
-by replacing the existing webhook on conflict, we would
-
-	a) dedupe similar notifications
-	b) prevent permanent table growth (by only showing the most recent success & pending)
-	c) simplify the notification generation by moving it into the add_park and add_park_calendar functions
-
-2. Demonstrate a rolling calendar by deleting events older than two years	
+- Demonstrate a rolling calendar by deleting events older than two years	
+- Support broadcast notifications
