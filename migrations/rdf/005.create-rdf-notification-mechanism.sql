@@ -8,24 +8,25 @@ CREATE TABLE rdf_notification (
   scheduled_for TIMESTAMP WITH TIME ZONE NOT NULL,
   attempts INTEGER DEFAULT 0,
   status rdf_notification_status NOT NULL DEFAULT 'PENDING',
-  last_attempted_at TIMESTAMP WITH TIME ZONE,
+  last_attempted TIMESTAMP WITH TIME ZONE,
   last_status_code INTEGER,
-  last_error TEXT
+  last_error TEXT,
+  CONSTRAINT rdf_notification_webhook_id_status_uniq UNIQUE (webhook_id, status)
 );
 
-CREATE FUNCTION rdf_schedule_notification(p_webhook_id INTEGER)
-RETURNS VOID
+CREATE FUNCTION rdf_schedule_notification(p_webhook_id INTEGER) RETURNS VOID
 AS $$
 BEGIN
-  INSERT INTO rdf_notification (webhook_id, scheduled_for) VALUES (p_webhook_id, now());
+  INSERT INTO rdf_notification (webhook_id, scheduled_for) VALUES (p_webhook_id, now())
+  ON CONFLICT (webhook_id, status) DO UPDATE SET
+    id = EXCLUDED.id,
+    scheduled_for = EXCLUDED.scheduled_for,
+    attempts = 0,
+    last_attempted = NULL,
+    last_status_code = NULL,
+    last_error = NULL;
 END;
 $$ LANGUAGE plpgsql;
-
-
-CREATE TYPE rdf_entity_table_type AS (
-  name TEXT,
-  version INTEGER
-);
 
 CREATE FUNCTION rdf_notify(p_name TEXT, p_version INTEGER) RETURNS VOID
 AS $$
@@ -44,29 +45,6 @@ BEGIN
     FROM rdf_webhook w
     WHERE w.projection_id = projection.id;
   END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE FUNCTION rdf_notify_entity_change(p_input_table rdf_entity_table_type[])
-RETURNS VOID
-AS $$
-BEGIN
-  PERFORM 1 FROM (
-    WITH projection AS (
-      SELECT
-        DISTINCT (p.id)
-      FROM 
-        rdf_entity e
-      INNER JOIN rdf_projection_entity pe ON pe.entity_id = e.id
-      INNER JOIN rdf_projection p ON p.id = pe.projection_id
-      INNER JOIN UNNEST(p_input_table) i ON i.name = e.name AND i.version = e.version
-    )
-    SELECT
-      rdf_schedule_notification(w.id)
-    FROM 
-      projection p
-    INNER JOIN rdf_webhook w ON w.projection_id = p.id
-  );
 END;
 $$ LANGUAGE plpgsql;
 
@@ -93,15 +71,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE FUNCTION rdf_pass_notification(p_id INTEGER, p_last_status_code INTEGER)
-RETURNS VOID
+CREATE FUNCTION rdf_pass_notification(p_id INTEGER, p_last_status_code INTEGER) RETURNS VOID
 AS $$
+DECLARE
+  v_webhook_id INTEGER;
 BEGIN
+  SELECT webhook_id FROM rdf_notification n WHERE n.id = p_id INTO v_webhook_id;
+  DELETE FROM rdf_notification n WHERE n.webhook_id = v_webhook_id AND n.status = 'OK';
   UPDATE rdf_notification n
   SET 
     attempts = n.attempts + 1,
     status = 'OK',
-    last_attempted_at = now(),
+    last_attempted = now(),
     last_status_code = p_last_status_code,
     last_error = NULL
   WHERE
@@ -109,15 +90,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE FUNCTION rdf_fail_notification(p_id INTEGER, p_scheduled_for TIMESTAMP WITH TIME ZONE, p_last_status_code INTEGER, p_error TEXT)
-RETURNS VOID
+CREATE FUNCTION rdf_fail_notification(p_id INTEGER, p_scheduled_for TIMESTAMP WITH TIME ZONE, p_last_status_code INTEGER, p_error TEXT) RETURNS VOID
 AS $$
 BEGIN
   UPDATE rdf_notification n
   SET 
     attempts = n.attempts + 1,
     scheduled_for = p_scheduled_for,
-    last_attempted_at = now(),
+    last_attempted = now(),
     last_status_code = p_last_status_code,
     last_error = p_error
   WHERE

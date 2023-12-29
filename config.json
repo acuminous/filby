@@ -5,7 +5,7 @@
   "notifications": {
     "disabled": false,
     "interval": "5s",
-    "delay": "5s",
+    "delay": "10s",
     "maxAttempts": 10    
   },
   "database": {
