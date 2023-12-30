@@ -253,58 +253,10 @@ curl -s 'http://localhost:3000/rdf/v1/changelog?projection=park&version=1' | jso
 curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
 ```
 
-'''json
+```json
 [
    {
       "calendar" : [
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2019-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2019-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2019-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2019-11-30T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2020-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2020-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2020-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2020-11-30T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2021-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2021-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2021-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2021-11-30T00:00:00.000Z"
-         },
          {
             "event" : "Park Open - Owners",
             "occurs" : "2022-03-01T00:00:00.000Z"
@@ -343,54 +295,6 @@ curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
    },
    {
       "calendar" : [
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2019-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2019-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2019-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2019-11-30T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2020-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2020-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2020-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2020-11-30T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2021-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2021-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2021-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2021-11-30T00:00:00.000Z"
-         },
          {
             "event" : "Park Open - Owners",
             "occurs" : "2022-03-01T00:00:00.000Z"
