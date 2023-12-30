@@ -204,6 +204,7 @@ The main type of reference data is a `Park`. Each park as a unique, two characte
       "event": "Park Close - Owners",
       "occurs": "2023-11-30T00:00:00Z"
     }
+  ]
 }
 ```
 
