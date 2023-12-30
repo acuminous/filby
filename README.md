@@ -123,7 +123,7 @@ RDF has the following important concepts
                                                    │ transforms                           │
                                                    │                                      │
                                                    │                                      │
-                                                   │                                      │ represents
+                                                   │                                      │ can be monitored by a
                                                   ╱│╲                                     │
                                         ┌────────────────────┐                 ┌────────────────────┐
                                         │                    │                 │                    │
