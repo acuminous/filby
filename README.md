@@ -167,12 +167,303 @@ Notifications are published whenever a new data frame is created. The framework 
 A webhook is a URL the framework will POST to whenenver a data frame used to build a projection is added. The body of the request is simply the name and version of the affected projection, and the relevant changet set id.
 
 ## An Example
-This project includes an example based on a Caravan Park business. 
+This project includes a proof of concept based on a Caravan Park business. 
 
 ```bash
 git clone git@github.com:acuminous/reference-data-framework.git
 cd reference-data-framework
 npm i
+npm run docker
 node index
 ```
 
+```
+curl -s 'http://localhost:3000/rdf/v1/changelog?projection=park&version=1' | json_pp
+```
+
+```json
+[
+   {
+      "changeSetId" : 1,
+      "eTag" : "3e47a70d88bc2f469764",
+      "effectiveFrom" : "2019-01-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.782Z",
+      "notes" : "Initial park data"
+   },
+   {
+      "changeSetId" : 2,
+      "eTag" : "0deb60efb0fdece38ada",
+      "effectiveFrom" : "2020-01-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.806Z",
+      "notes" : "Park Calendars - 2020"
+   },
+   {
+      "changeSetId" : 3,
+      "eTag" : "0dcca8db71834f0e2157",
+      "effectiveFrom" : "2020-02-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.814Z",
+      "notes" : "Rename Devon Hills to Devon Cliffs"
+   },
+   {
+      "changeSetId" : 4,
+      "eTag" : "147a7c2b260a295eaeb0",
+      "effectiveFrom" : "2021-01-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.817Z",
+      "notes" : "Park Calendars - 2021"
+   },
+   {
+      "changeSetId" : 5,
+      "eTag" : "6c3955258fad84d85e15",
+      "effectiveFrom" : "2021-04-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.825Z",
+      "notes" : "Add Richmond"
+   },
+   {
+      "changeSetId" : 6,
+      "eTag" : "043b03799009dde539aa",
+      "effectiveFrom" : "2021-06-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.830Z",
+      "notes" : "Replace Richmond with Skegness"
+   },
+   {
+      "changeSetId" : 7,
+      "eTag" : "2077eec54329f6d009b3",
+      "effectiveFrom" : "2020-01-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.836Z",
+      "notes" : "Park Calendars - 2022"
+   },
+   {
+      "changeSetId" : 8,
+      "eTag" : "e91ee5644302d802278d",
+      "effectiveFrom" : "2022-05-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.848Z",
+      "notes" : "Delete Greenacres"
+   },
+   {
+      "changeSetId" : 9,
+      "eTag" : "c481b71954adc1e6aa1b",
+      "effectiveFrom" : "2020-01-01T00:00:00.000Z",
+      "lastModified" : "2023-12-30T12:15:10.850Z",
+      "notes" : "Park Calendars - 2023"
+   }
+]
+```
+
+```
+curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
+```
+
+'''json
+[
+   {
+      "calendar" : [
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2019-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2019-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2019-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2019-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2020-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2020-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2020-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2020-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2021-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2021-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2021-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2021-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2022-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2022-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2022-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2022-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2023-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2023-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2023-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2023-11-30T00:00:00.000Z"
+         }
+      ],
+      "code" : "DC",
+      "name" : "Devon Cliffs"
+   },
+   {
+      "calendar" : [
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2019-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2019-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2019-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2019-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2020-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2020-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2020-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2020-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2021-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2021-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2021-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2021-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2022-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2022-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2022-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2022-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2023-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2023-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2023-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2023-11-30T00:00:00.000Z"
+         }
+      ],
+      "code" : "PV",
+      "name" : "Primrose Valley"
+   },
+   {
+      "calendar" : [
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2022-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2022-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2022-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2022-11-30T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Owners",
+            "occurs" : "2023-03-01T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Open - Guests",
+            "occurs" : "2023-03-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Guests",
+            "occurs" : "2023-11-15T00:00:00.000Z"
+         },
+         {
+            "event" : "Park Close - Owners",
+            "occurs" : "2023-11-30T00:00:00.000Z"
+         }
+      ],
+      "code" : "SK",
+      "name" : "Skegness"
+   }
+]
+```
