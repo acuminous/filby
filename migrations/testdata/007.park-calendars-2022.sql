@@ -7,6 +7,21 @@ BEGIN
 
   SELECT rdf_add_change_set('2020-01-01T00:00:00Z', 'Park Calendars - 2022') INTO v_change_set_id;
 
+  PERFORM delete_park_calendar_v1(v_change_set_id, 13);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 14);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 15);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 16);
+
+  PERFORM delete_park_calendar_v1(v_change_set_id, 17);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 18);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 19);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 20);
+
+  PERFORM delete_park_calendar_v1(v_change_set_id, 21);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 22);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 23);
+  PERFORM delete_park_calendar_v1(v_change_set_id, 24);
+
   PERFORM put_park_calendar_v1(v_change_set_id, 41, 'DC', 'Park Open - Owners', '2022-03-01T00:00:00Z');
   PERFORM put_park_calendar_v1(v_change_set_id, 42, 'DC', 'Park Open - Guests', '2022-03-15T00:00:00Z');
   PERFORM put_park_calendar_v1(v_change_set_id, 43, 'DC', 'Park Close - Owners', '2022-11-30T00:00:00Z');

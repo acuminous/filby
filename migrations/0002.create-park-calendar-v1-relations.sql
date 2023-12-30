@@ -68,7 +68,7 @@ DECLARE
 BEGIN
   SELECT id INTO v_entity_id FROM rdf_entity WHERE name = c_entity_name AND version = c_entity_version;
   SELECT rdf_add_data_frame(p_change_set_id, v_entity_id, 'DELETE') INTO v_frame_id;
-  INSERT INTO park_v1 (rdf_frame_id, id) VALUES (v_frame_id, p_id);
+  INSERT INTO park_calendar_v1 (rdf_frame_id, id) VALUES (v_frame_id, p_id);
   PERFORM rdf_notify(c_entity_name, c_entity_version); 
 END;
 $$ LANGUAGE plpgsql;

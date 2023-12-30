@@ -3,7 +3,7 @@ const { changelog } = require('./schemas');
 
 module.exports = (fastify, { db }, done) => {
 
-	fastify.get('/api/v1/changelog', { schema: changelog }, async (request, reply) => {
+	fastify.get('/rdf/v1/changelog', { schema: changelog }, async (request, reply) => {
 
 		const projection = await getProjection(request)
 
