@@ -5,11 +5,6 @@ A framework for working with time series reference data.
 - [Introduction](#introduction)
 - [How it works](#how-it-works)
 - [An example](#an-example)
-- [Getting Started](#getting-started)
-- [Configuration](#configuration)
-- [API](#api)
-   - [GET /api/$version/$projection/changelog](#get-apiversionprojectionchangelog)
-   - [GET /api/$version/$projection/at](#get-apiversionprojectionat)
 
 ## Introduction
 Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
