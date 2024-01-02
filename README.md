@@ -372,7 +372,7 @@ In it's POC form, RDF requires the developer to manage entity definition and dat
 
 ```yaml
 # 0001.define-park-entities.yaml
-entity: 
+entities: 
   - name: park
     version: 1
     fields:
@@ -397,7 +397,7 @@ entity:
 
 ```yaml
 # 0002.add-park-projection.yaml    
-projection:
+projections:
   - name: park
     version: 1
     dependencies:
@@ -406,7 +406,7 @@ projection:
     - name: park_calendar
       version: 1
 
-webhook:
+webhooks:
   - projection:
       name: park
       version: 1
