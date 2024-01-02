@@ -381,7 +381,7 @@ entity:
         primary_key: true
       - name: name
         type: TEXT
-  - name: park_calendar:
+  - name: park_calendar
     version: 1
     fields:
       - name: id
