@@ -395,7 +395,7 @@ entity:
         type: TIMESTAMP WITH TIME ZONE
     
 projection:
-  - name park
+  - name: park
     version: 1
     dependencies:
     - name: park
