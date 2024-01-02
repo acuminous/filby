@@ -366,3 +366,112 @@ curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
    }
 ]
 ```
+## Proposed DDL
+
+In it's POC form, RDF requires the developer to manage entity definition and data using SQL migration files. Each entity requires a stored procedure to aggregate the data frames, which results in an undesirable learning curve. Instead we are considering introducing a SQL like domain specific language, which can be used as an alternative to SQL.
+
+```yaml
+entity: 
+  - name: park
+    version: 1
+    fields:
+      - name: code
+        type: TEXT
+        primary_key: true
+      - name: name
+        type: TEXT
+
+  - name: park_calendar:
+    version: 1
+    fields:
+      - name: id
+        type: INTEGER
+        primary_key: true
+      - name: park_code
+        type: TEXT
+      - name: event
+        type: TEXT
+      - name: occurs
+        type: TIMESTAMP WITH TIME ZONE
+    
+projection:
+  - name park
+    version: 1
+    dependencies:
+    - name: park
+      version: 1
+    - name: park_calendar
+      version: 1
+
+webhook:
+  - projection:
+      name: park
+      version: 1
+    url: https://httpbin.org/status/200
+
+change_set:
+  - effective_from: 2020-01-01T00:00:00Z
+    notes: Park Calendars - 2023
+    frames:
+      - entity: park
+        action: PUT
+        data:
+          - code: DC
+            name: Devon Cliffs
+          - code: PV
+            name: Primrose Valley
+          - code: SK
+            name: Skegness
+      - entity: park_calendar
+        action: PUT
+        data:
+        - id: 1
+          park_code: DC
+          event: Park Open - Owners
+          occurs: 2023-03-01 00:00:00Z
+        - id: 2  
+          park_code: DC
+          event: Park Open - Guests
+          occurs: 2023-03-15 00:00:00Z
+        - id: 3
+          park_code: DC
+          event: Park Close - Owners
+          occurs: 2023-11-30 00:00:00Z
+        - id: 4
+          park_code: DC
+          event: Park Close - Guests
+          occurs: 2023-11-15 00:00:00Z
+        - id: 5
+          park_code: PV
+          event: Park Open - Owners
+          occurs: 2023-03-01 00:00:00Z
+        - id: 6
+          park_code: PV
+          event: Park Open - Guests
+          occurs: 2023-03-15 00:00:00Z
+        - id: 7
+          park_code: PV
+          event: Park Close - Owners
+          occurs: 2023-11-30 00:00:00Z
+        - id: 8
+          park_code: PV
+          event: Park Close - Guests
+          occurs: 2023-11-15 00:00:00Z
+        - id: 9
+          park_code: SK
+          event: Park Open - Owners
+          occurs: 2023-03-01 00:00:00Z
+        - id: 10
+          park_code: SK
+          event: Park Open - Guests
+          occurs: 2023-03-15 00:00:00Z
+        - id: 11
+          park_code: SK
+          event: Park Close - Owners
+          occurs: 2023-11-30 00:00:00Z
+        - id: 12
+          park_code: SK
+          event: Park Close - Guests
+          occurs: 2023-11-15 00:00:00Z
+
+```
