@@ -371,6 +371,7 @@ curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
 In it's POC form, RDF requires the developer to manage entity definition and data using SQL migration files. Each entity requires a stored procedure to aggregate the data frames, which results in an undesirable learning curve. Instead we are considering introducing a SQL like domain specific language, which can be used as an alternative to SQL.
 
 ```yaml
+# 0001.define-park-entity.yaml
 entity: 
   - name: park
     version: 1
@@ -380,7 +381,10 @@ entity:
         primary_key: true
       - name: name
         type: TEXT
+```
 
+```yaml
+# 0002.definte-park-calendar-entity.yaml
   - name: park_calendar:
     version: 1
     fields:
@@ -393,7 +397,10 @@ entity:
         type: TEXT
       - name: occurs
         type: TIMESTAMP WITH TIME ZONE
-    
+```
+
+```yaml
+# 0003.add-park-projection.yaml    
 projection:
   - name: park
     version: 1
@@ -402,13 +409,19 @@ projection:
       version: 1
     - name: park_calendar
       version: 1
+```
 
+```yaml
+# 0004.add-park-httpbin-webhook.yaml
 webhook:
   - projection:
       name: park
       version: 1
     url: https://httpbin.org/status/200
+```
 
+```yaml
+# 0005.initial-data-frames.yaml
 change_set:
   - effective_from: 2020-01-01T00:00:00Z
     notes: Park Calendars - 2023
@@ -473,5 +486,4 @@ change_set:
           park_code: SK
           event: Park Close - Guests
           occurs: 2023-11-15 00:00:00Z
-
 ```
