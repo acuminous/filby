@@ -390,9 +390,8 @@ define entities:
         type: TEXT
     identified by:
       - code
-    constraints:
-      park_code_len: CHECK (LENGTH(code) >= 2)
-      park_name_uniq: UNIQUE name
+    checks:
+      -park_code_len: LENGTH(code) >= 2
   - name: park_calendar
     version: 1
     fields:

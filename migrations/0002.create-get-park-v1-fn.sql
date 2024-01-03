@@ -14,8 +14,8 @@ BEGIN
     pc.event AS calendar_event,
     pc.occurs AS calendar_occurs
   FROM 
-    get_squashed_park_v1(p_change_set_id) p
-  LEFT JOIN get_squashed_park_calendar_v1(p_change_set_id) pc ON pc.park_code = p.code
+    get_park_v1_aggregate(p_change_set_id) p
+  LEFT JOIN get_park_calendar_v1_aggregate(p_change_set_id) pc ON pc.park_code = p.code
   WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'  
   ORDER BY
     code ASC,

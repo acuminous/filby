@@ -1,18 +1,14 @@
 START TRANSACTION;
 
 -- Custom Teardown
-DROP FUNCTION IF EXISTS get_squashed_park_calendar_v1;
-DROP FUNCTION IF EXISTS put_park_calendar_v1;
-DROP FUNCTION IF EXISTS delete_park_calendar_v1;
+DROP FUNCTION IF EXISTS get_park_calendar_v1_aggregate;
+DROP FUNCTION IF EXISTS put_park_calendar_v1_frame;
+DROP FUNCTION IF EXISTS delete_park_calendar_v1_frame;
 
 DROP FUNCTION IF EXISTS get_park_v1;
-DROP FUNCTION IF EXISTS get_squashed_park_v1;
-DROP FUNCTION IF EXISTS put_park_v1;
-DROP FUNCTION IF EXISTS delete_park_v1;
-
-DROP VIEW IF EXISTS squadshed_park_calendar_v1_vw;
-DROP VIEW IF EXISTS squadshed_park_v1_vw;
-DROP VIEW IF EXISTS park_v1_changelog_vw;
+DROP FUNCTION IF EXISTS get_park_v1_aggregate;
+DROP FUNCTION IF EXISTS put_park_v1_frame;
+DROP FUNCTION IF EXISTS delete_park_v1_frame;
 
 DROP TABLE IF EXISTS park_calendar_v1;
 DROP TABLE IF EXISTS park_v1;
