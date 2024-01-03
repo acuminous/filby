@@ -375,10 +375,10 @@ In it's POC form, RDF requires the developer to manage entity definition and dat
 define enums
   - name: park_calendar_event_type
     values:
-    - Park Open - Owners
-    - Park Open - Guests
-    - Park Close - Owners
-    - Park Close - Guests
+      - Park Open - Owners
+      - Park Open - Guests
+      - Park Close - Owners
+      - Park Close - Guests
 define entities: 
   - name: park
     version: 1
