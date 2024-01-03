@@ -1,5 +1,6 @@
 {
   "namespace": "test-data",
+  "filter": "(?:\\.sql|\\.yaml)$",
   "directives": {
     "audit": "false"
   }

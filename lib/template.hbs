@@ -9,7 +9,6 @@ CREATE TYPE {{name}} AS ENUM (
 {{/define_enums}}
 
 {{#define_entities}}
-
 INSERT INTO rdf_entity (name, version) VALUES ('{{name}}', {{version}});
 
 CREATE TABLE {{name}}_v{{version}} (
@@ -47,53 +46,66 @@ BEGIN
   WHERE e.name = '{{name}}' AND e.version = {{version}}
     AND f.change_set_id <= p_change_set_id
   ORDER BY
-    {{#identified_by}}x.{{name}}{{/identified_by}},
+    {{#identified_by}}x.{{name}}{{/identified_by}} ASC,
     x.rdf_frame_id DESC;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE FUNCTION put_{{name}}_v{{version}}_frame(
-  p_change_set_id INTEGER,
-  {{#fields}}
-  p_{{name}} {{type}}{{#unless @last}},{{/unless}}
-  {{/fields}}
-) RETURNS VOID
-AS $$
-DECLARE
-  c_entity_name TEXT := '{{name}}';
-  c_entity_version INTEGER := {{version}};
-  v_entity_id INTEGER;
-  v_frame_id INTEGER;
-BEGIN
-  SELECT id INTO v_entity_id FROM rdf_entity WHERE name = c_entity_name AND version = c_entity_version;
-  SELECT rdf_add_data_frame(p_change_set_id, v_entity_id, 'PUT') INTO v_frame_id;
-  INSERT INTO {{name}}_v{{version}} (rdf_frame_id, {{#fields}}{{name}}{{#unless @last}}, {{/unless}}{{/fields}}) VALUES
-    (v_frame_id, {{#fields}}p_{{name}}{{#unless @last}}, {{/unless}}{{/fields}});
-  PERFORM rdf_notify(c_entity_name, c_entity_version);
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE FUNCTION delete_{{name}}_v{{version}}_frame(
-  p_change_set_id INTEGER,
-  {{#identified_by}}
-  p_{{name}} {{type}}{{#unless @last}},{{/unless}}
-  {{/identified_by}}
-) RETURNS VOID
-AS $$
-DECLARE
-  c_entity_name TEXT := '{{name}}';
-  c_entity_version INTEGER := {{version}};
-  v_entity_id INTEGER;
-  v_frame_id INTEGER;
-BEGIN
-  SELECT id INTO v_entity_id FROM rdf_entity WHERE name = c_entity_name AND version = c_entity_version;
-  SELECT rdf_add_data_frame(p_change_set_id, v_entity_id, 'DELETE') INTO v_frame_id;
-  INSERT INTO {{name}}_v{{version}} (rdf_frame_id, {{#identified_by}}{{name}}{{#unless @last}}, {{/unless}}{{/identified_by}}) VALUES
-  (v_frame_id, {{#identified_by}}p_{{name}}{{#unless @last}}, {{/unless}}{{/identified_by}});
-  PERFORM rdf_notify(c_entity_name, c_entity_version);
 END;
 $$ LANGUAGE plpgsql;
 
 {{/define_entities}}
 
+{{#add_projections}}
+
+DO $$
+
+DECLARE
+  v_projection_id INTEGER;
+  v_entity_id INTEGER;
+
+BEGIN
+  INSERT INTO rdf_projection (name, version) VALUES
+    ('{{name}}', {{version}}){{#unless @last}}),{{/unless}}
+  RETURNING id INTO v_projection_id;
+
+  {{#dependencies}}
+  SELECT id INTO v_entity_id FROM rdf_entity WHERE name = '{{name}}' AND version = {{version}};
+
+  INSERT INTO rdf_projection_entity (projection_id, entity_id) VALUES
+    (v_projection_id, v_entity_id);
+
+  {{/dependencies}}
+END;
+$$ LANGUAGE plpgsql;
+
+{{/add_projections}}
+
+{{#add_change_set}}
+DO $$
+  DECLARE
+    v_change_set_id INTEGER;
+    v_entity_id INTEGER;
+    v_frame_id INTEGER;
+  BEGIN
+    INSERT INTO rdf_change_set (effective_from, notes, last_modified, entity_tag) VALUES
+    ('{{effective_from}}', '{{notes}}', now(), encode(gen_random_bytes(10), 'hex'))
+    RETURNING id INTO v_change_set_id;
+
+    {{#frames}}
+    {{#data}}
+    SELECT id INTO v_entity_id FROM rdf_entity WHERE name = '{{../entity}}' AND version = {{../version}};
+
+    INSERT INTO rdf_data_frame (change_set_id, entity_id, action) VALUES
+      (v_change_set_id, v_entity_id, '{{../action}}')
+    RETURNING id INTO v_frame_id;
+
+    INSERT INTO {{../entity}}_v{{../version}} (rdf_frame_id, {{#xkeys .}}{{key}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
+      (v_frame_id, {{#xvalues .}}'{{value}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
+    {{/data}}
+    {{/frames}}
+
+  END;
+$$ LANGUAGE plpgsql;
+
+{{/add_change_set}}
+
 END TRANSACTION;
+

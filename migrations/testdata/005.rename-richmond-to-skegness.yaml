@@ -1,0 +1,38 @@
+add change set:
+  effective_from: 2021-06-01T00:00:00Z
+  notes: Rename Richmond to Skegness
+  frames:
+    - entity: park
+      version: 1
+      action: DELETE
+      data:
+        - code: RI
+
+    - entity: park
+      version: 1
+      action: PUT
+      data:
+        - code: SK
+          name: Skegness
+
+    - entity: park_calendar
+      version: 1
+      action: PUT
+      data:
+      - id: 37
+        park_code: SK
+        event: Park Open - Owners
+        occurs: 2021-05-01T00:00:00Z
+      - id: 38
+        park_code: SK
+        event: Park Open - Guests
+        occurs: 2021-05-15T00:00:00Z
+      - id: 39
+        park_code: SK
+        event: Park Close - Owners
+        occurs: 2021-11-30T00:00:00Z
+      - id: 40
+        park_code: SK
+        event: Park Close - Guests
+        occurs: 2021-11-15T00:00:00Z
+

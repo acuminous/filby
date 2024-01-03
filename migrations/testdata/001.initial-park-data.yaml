@@ -1,0 +1,75 @@
+add projections:
+  - name: park
+    version: 1
+    dependencies:
+    - name: park
+      version: 1
+    - name: park_calendar
+      version: 1
+
+add change set:
+  effective_from: 2019-01-01T00:00:00Z
+  notes: Initial Data
+  frames:
+    - entity: park
+      version: 1
+      action: PUT
+      data:
+        - code: DC
+          name: Devon Cliffs
+        - code: PV
+          name: Primrose Valley
+        - code: GA
+          name: Greenacres
+    - entity: park_calendar
+      version: 1
+      action: PUT
+      data:
+      - id: 1
+        park_code: DC
+        event: Park Open - Owners
+        occurs: 2019-03-01 00:00:00Z
+      - id: 2
+        park_code: DC
+        event: Park Open - Guests
+        occurs: 2019-03-15 00:00:00Z
+      - id: 3
+        park_code: DC
+        event: Park Close - Owners
+        occurs: 2019-11-30 00:00:00Z
+      - id: 4
+        park_code: DC
+        event: Park Close - Guests
+        occurs: 2019-11-15 00:00:00Z
+      - id: 5
+        park_code: PV
+        event: Park Open - Owners
+        occurs: 2019-03-01 00:00:00Z
+      - id: 6
+        park_code: PV
+        event: Park Open - Guests
+        occurs: 2019-03-15 00:00:00Z
+      - id: 7
+        park_code: PV
+        event: Park Close - Owners
+        occurs: 2019-11-30 00:00:00Z
+      - id: 8
+        park_code: PV
+        event: Park Close - Guests
+        occurs: 2019-11-15 00:00:00Z
+      - id: 9
+        park_code: GA
+        event: Park Open - Owners
+        occurs: 2019-03-01 00:00:00Z
+      - id: 10
+        park_code: GA
+        event: Park Open - Guests
+        occurs: 2019-03-15 00:00:00Z
+      - id: 11
+        park_code: GA
+        event: Park Close - Owners
+        occurs: 2019-11-30 00:00:00Z
+      - id: 12
+        park_code: GA
+        event: Park Close - Guests
+        occurs: 2019-11-15 00:00:00Z

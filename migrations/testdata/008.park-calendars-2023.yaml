@@ -1,0 +1,153 @@
+add change set:
+  effective_from: 2023-01-01T00:00:00Z
+  notes: Park Calendars - 2023
+  frames:
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 25
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 26
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 27
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 28
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 29
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 30
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 31
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 32
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 33
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 34
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 35
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 36
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 37
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 38
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 39
+    - entity: park_calendar
+      version: 1
+      action: DELETE
+      data:
+      - id: 40
+
+    - entity: park_calendar
+      version: 1
+      action: PUT
+      data:
+      - id: 57
+        park_code: DC
+        event: Park Open - Owners
+        occurs: 2023-03-01 00:00:00Z
+      - id: 58
+        park_code: DC
+        event: Park Open - Guests
+        occurs: 2023-03-15 00:00:00Z
+      - id: 59
+        park_code: DC
+        event: Park Close - Owners
+        occurs: 2023-11-30 00:00:00Z
+      - id: 60
+        park_code: DC
+        event: Park Close - Guests
+        occurs: 2023-11-15 00:00:00Z
+      - id: 61
+        park_code: PV
+        event: Park Open - Owners
+        occurs: 2023-03-01 00:00:00Z
+      - id: 62
+        park_code: PV
+        event: Park Open - Guests
+        occurs: 2023-03-15 00:00:00Z
+      - id: 63
+        park_code: PV
+        event: Park Close - Owners
+        occurs: 2023-11-30 00:00:00Z
+      - id: 64
+        park_code: PV
+        event: Park Close - Guests
+        occurs: 2023-11-15 00:00:00Z
+      - id: 65
+        park_code: GA
+        event: Park Open - Owners
+        occurs: 2023-03-01 00:00:00Z
+      - id: 66
+        park_code: GA
+        event: Park Open - Guests
+        occurs: 2023-03-15 00:00:00Z
+      - id: 67
+        park_code: GA
+        event: Park Close - Owners
+        occurs: 2023-11-30 00:00:00Z
+      - id: 68
+        park_code: GA
+        event: Park Close - Guests
+        occurs: 2023-11-15 00:00:00Z
+      - id: 69
+        park_code: SK
+        event: Park Open - Owners
+        occurs: 2023-03-01 00:00:00Z
+      - id: 70
+        park_code: SK
+        event: Park Open - Guests
+        occurs: 2023-03-15 00:00:00Z
+      - id: 71
+        park_code: SK
+        event: Park Close - Owners
+        occurs: 2023-11-30 00:00:00Z
+      - id: 72
+        park_code: SK
+        event: Park Close - Guests
+        occurs: 2023-11-15 00:00:00Z

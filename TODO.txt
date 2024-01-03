@@ -1,2 +1,4 @@
-- Demonstrate a rolling calendar by deleting events older than two years	
+- Change PUT to POST
+- Support indexes
+- Remove webhooks - just have the code notify
 - Support broadcast notifications
