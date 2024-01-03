@@ -372,7 +372,7 @@ In it's POC form, RDF requires the developer to manage entity definition and dat
 
 ```yaml
 # 0001.define-park-entities.yaml
-define enums
+define enums:
   - name: park_calendar_event_type
     values:
       - Park Open - Owners
