@@ -409,7 +409,7 @@ define entities:
 ```
 
 ```yaml
-# 0002.add-park-projection.yaml    
+# 0002.add-park-projections.yaml    
 add projections:
   - name: park
     version: 1
