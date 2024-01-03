@@ -390,7 +390,7 @@ define entities:
     identified by:
       - code
     constraints:
-      park_code_len: CHECK (LENGTH(name) >= 2)
+      park_code_len: CHECK (LENGTH(code) >= 2)
       park_name_uniq: UNIQUE name
   - name: park_calendar
     version: 1
