@@ -5,6 +5,7 @@ A framework for working with time series reference data.
 - [Introduction](#introduction)
 - [How it works](#how-it-works)
 - [An example](#an-example)
+- [Proposed DSL](#proposed-dsl)
 
 ## Introduction
 Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
