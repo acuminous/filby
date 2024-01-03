@@ -367,9 +367,9 @@ curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
    }
 ]
 ```
-## Proposed DDL
+## Proposed DSL
 
-In it's POC form, RDF requires the developer to manage entity definition and data using SQL migration files. Each entity requires a stored procedure to aggregate the data frames, which results in an undesirable learning curve. Instead we are considering introducing a SQL like domain specific language, which can be used as an alternative to SQL.
+In it's POC form, RDF requires the developer to manage entity definition and data using SQL migration files. Each entity requires a stored procedure to aggregate the data frames, which results in an undesirable learning curve. Instead we are considering introducing a domain specific language (DSL), which can be used as an alternative to SQL, but still managed with migration files.
 
 ```yaml
 # 0001.define-park-entities.yaml
