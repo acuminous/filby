@@ -203,7 +203,7 @@ ORDER BY p.code ASC, pc.occurs ASC;
 function getParks(changeSetId) {
   return rdf.withTransaction(async (client) => {
     const { rows } = await client.query(query, [changeSetId]);
-    return rows
+    return rows.map(toPark);
   });
 };
 ```
