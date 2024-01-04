@@ -121,7 +121,7 @@ RDF has the following important concepts
          │                                 │
          │                                 │
          │                                 │ announces
-         │                                 │ changes to
+         │                                 │ changes for
         ╱│╲                               ╱│╲
 ┌─────────────────┐               ┌─────────────────┐                   ┌─────────────────┐
 │                 │               │                 │                   │                 │
