@@ -231,8 +231,8 @@ BEGIN
   LEFT JOIN get_park_calendar_v1_aggregate(p_change_set_id) pc ON pc.park_code = p.code
   WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'  
   ORDER BY
-    code ASC,
-    occurs ASC;
+    p.code ASC,
+    p.occurs ASC;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
