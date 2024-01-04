@@ -209,7 +209,7 @@ function getParks(changeSetId) {
 ```
 
 Since the results for the specified change set should not change, a pro-tip is to wrap queries like the above in an immutable PostgreSQL function so the output can be cached.
-```
+```sql
 -- migrations/0002.create-get-park-v1-function.sql
 CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
 RETURNS TABLE (
