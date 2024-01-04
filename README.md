@@ -167,25 +167,25 @@ A hook is an event the framework will emit to whenenver a data frame used to bui
 ## API
 RDF provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
 
-### rdf.init(config: RdfConfig): Promise<void>
+```rdf.init(config: RdfConfig): Promise<void>```
 Connects to the database and runs migrations
 
-### rdf.startNotifications(): Promise<void>
+```rdf.startNotifications(): Promise<void>```
 Starts polling the database for notifications
 
-### rdf.stop(): Promise<void>
+```rdf.stop(): Promise<void>```
 Stops polling for notifications then disconnects from the database
 
-### rdf.getProjections(): Promise<Projection>[]
+```rdf.getProjections(): Promise<Projection>[]```
 Returns the list of projections.
 
-### rdf.getProjection(name: string, version: number): Promise<Projection>
+```rdf.getProjection(name: string, version: number): Promise<Projection>```
 Returns the specified projection.
 
-### rdf.getChangeLog(projection): Promise<ChangeSet[]>
+```rdf.getChangeLog(projection): Promise<ChangeSet[]>```
 Returns the change log (an ordered list of change sets) for the given projection.
 
-### rdf.getChangeSet(changeSetId): Promise<ChangeSet>
+```rdf.getChangeSet(changeSetId): Promise<ChangeSet>```
 Returns the specified change set
 
 ## Configuration
