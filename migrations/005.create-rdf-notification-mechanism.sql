@@ -4,20 +4,21 @@ CREATE TYPE rdf_notification_status AS ENUM ('PENDING', 'OK');
 
 CREATE TABLE rdf_notification (
   id SERIAL PRIMARY KEY,
-  hook_id INTEGER REFERENCES rdf_hook (id),
+  hook_id INTEGER REFERENCES rdf_hook (id) NOT NULL,
+  projection_id INTEGER REFERENCES rdf_projection (id) NOT NULL,
   scheduled_for TIMESTAMP WITH TIME ZONE NOT NULL,
   attempts INTEGER DEFAULT 0,
   status rdf_notification_status NOT NULL DEFAULT 'PENDING',
   last_attempted TIMESTAMP WITH TIME ZONE,
   last_error TEXT,
-  CONSTRAINT rdf_notification_hook_id_status_uniq UNIQUE (hook_id, status)
+  CONSTRAINT rdf_notification_hook_id_projection_id_status_uniq UNIQUE (hook_id, projection_id, status)
 );
 
-CREATE FUNCTION rdf_schedule_notification(p_hook_id INTEGER) RETURNS VOID
+CREATE FUNCTION rdf_schedule_notification(p_hook_id INTEGER, p_projection_id INTEGER) RETURNS VOID
 AS $$
 BEGIN
-  INSERT INTO rdf_notification (hook_id, scheduled_for) VALUES (p_hook_id, now())
-  ON CONFLICT (hook_id, status) DO UPDATE SET
+  INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES (p_hook_id, p_projection_id, now())
+  ON CONFLICT (hook_id, projection_id, status) DO UPDATE SET
     id = EXCLUDED.id,
     scheduled_for = EXCLUDED.scheduled_for,
     attempts = 0,
@@ -39,9 +40,10 @@ BEGIN
     WHERE e.name = p_name AND e.version = p_version
   ) 
   LOOP
-    PERFORM rdf_schedule_notification(w.id)
-    FROM rdf_hook w
-    WHERE w.projection_id = projection.id;
+    PERFORM rdf_schedule_notification(h.id, projection.id)
+    FROM rdf_hook h
+    WHERE h.projection_id = projection.id
+       OR h.projection_id IS NULL;
   END LOOP;
 END;
 $$ LANGUAGE plpgsql;

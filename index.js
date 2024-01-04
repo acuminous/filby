@@ -115,7 +115,11 @@ module.exports = class RDF extends EventEmitter {
   }
 
   async #getHook(tx, notification) {
-    const { rows } = await tx.query('SELECT w.event, p.name, p.version FROM rdf_hook w INNER JOIN rdf_projection p ON p.id = w.projection_id WHERE w.id = $1', [notification.hookId]);
+    const { rows } = await tx.query(`
+      SELECT h.event, p.name, p.version FROM rdf_hook h
+      INNER JOIN rdf_notification n ON n.hook_id = h.id
+      INNER JOIN rdf_projection p ON p.id = n.projection_id
+      WHERE h.id = $1`, [notification.hookId]);
     const hooks = rows.map((row) => ({ event: row.event, projection: { name: row.name, version: row.version }}))
     return hooks[0];
   }
@@ -126,7 +130,7 @@ module.exports = class RDF extends EventEmitter {
 
   async #failNotification(tx, notification, err) {
     const scheduledFor = new Date(Date.now() + Math.pow(2, notification.attempts) * 1000);
-    await tx.query('SELECT rdf_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.message])
+    await tx.query('SELECT rdf_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.stack])
   }
 }
 

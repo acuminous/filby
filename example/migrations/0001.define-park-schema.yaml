@@ -47,4 +47,5 @@ add projections:
 add hooks:
   - projection: park
     version: 1
-    event: 'park_v1_change'
+    event: park_v1_change
+  - event: change

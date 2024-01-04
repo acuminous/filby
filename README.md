@@ -213,9 +213,14 @@ add projections:
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
 # reference data the projection changes.
 add hooks:
+  # This is a projection specific hook, which only fires when the data
+  # supporting the park v1 projection changes
   - projection: park
     version: 1
     event: park_v1_change
+  # This is a general hook, which only fires when the data
+  # supporting any projection changes
+  - event: change
 ```
 
 ```yaml

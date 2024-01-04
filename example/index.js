@@ -50,6 +50,8 @@ const rdf = new RDF({ ...config.rdf, ...{ database: config.database }});
 
 		rdf.on('park_v1_change', (event) => {
 			console.log({ event })
+		}).on('change', (event) => {
+			console.log({ event })
 		});
 	  await rdf.startNotifications();
 
