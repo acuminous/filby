@@ -100,6 +100,9 @@ DO $$
     INSERT INTO {{../entity}}_v{{../version}} (rdf_frame_id, {{#xkeys .}}{{key}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
       (v_frame_id, {{#xvalues .}}'{{value}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
     {{/data}}
+
+    PERFORM rdf_notify('{{entity}}', {{version}});
+
     {{/frames}}
 
   END;

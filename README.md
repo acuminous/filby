@@ -4,8 +4,8 @@ A framework for working with time series reference data.
 ## Contents
 - [Introduction](#introduction)
 - [How it works](#how-it-works)
+- [Configuration](#configuration)
 - [An example](#an-example)
-- [Proposed DSL](#proposed-dsl)
 
 ## Introduction
 Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
@@ -162,6 +162,76 @@ Notifications are published whenever a new data frame is created. The framework 
 ### Webhook
 A webhook is a URL the framework will POST to whenenver a data frame used to build a projection is added. The body of the request is simply the name and version of the affected projection, and the relevant changet set id.
 
+## Configuration
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a YAML based, domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder.
+
+```yaml
+# Define enums for your reference data
+# Equivalent of PostgreSQL's CREATE TYPE statement
+define enums:
+
+  - name: park_calendar_event_type
+    values:
+      - Park Open - Owners
+      - Park Open - Guests
+      - Park Close - Owners
+      - Park Close - Guests
+
+# Defining entities performs the following:
+#
+# 1. Inserts a row into the 'rdf_entity' table,
+# 2. Creates a table 'park_v1' for holding reference data
+# 3. Creates an aggregate function 'park_v1_aggregate' to be used by projections
+#
+define entities:
+
+  - name: park
+    version: 1
+    fields:
+      - name: code
+        type: TEXT # Any valid PostgreSQL type (including enums) are supported
+      - name: name
+        type: TEXT
+    identified by:
+      - code # Used to aggregate the data frames
+    checks:
+      park_code_len: LENGTH(code) >= 2 # Creates PostgreSQL check constraints
+
+# Defining projections and their dependent entities
+# RDF uses the dependencies to work out what projections are affected by reference data updates
+add projections:
+  - name: park
+    version: 1
+    dependencies:
+    - name: park
+      version: 1
+    - name: calendar
+      version: 1
+
+# Add a change set containing one or more data frames for the previously defined entities
+add change set:
+  effective_from: 2019-01-01T00:00:00Z
+  notes: Initial Data
+  frames:
+    - entity: park
+      version: 1
+      action: PUT
+      data:
+        # Adds a data frame for Devon Cliffs
+        - code: DC
+          name: Devon Cliffs
+        # Adds a data frame for Primrose Valley
+        - code: PV
+          name: Primrose Valley
+    - entity: park
+      version: 1
+      action: DELETE
+      data:
+        # Adds a data frame that will delete the entity identified
+        # by code XX from the effective data
+        - code: XX
+```
+
 ## An Example
 This project includes a proof of concept based on a Caravan Park business. 
 
@@ -195,48 +265,41 @@ curl -s 'http://localhost:3000/rdf/v1/changelog?projection=park&version=1' | jso
    },
    {
       "changeSetId" : 3,
-      "eTag" : "0dcca8db71834f0e2157",
-      "effectiveFrom" : "2020-02-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.814Z",
-      "notes" : "Rename Devon Hills to Devon Cliffs"
-   },
-   {
-      "changeSetId" : 4,
       "eTag" : "147a7c2b260a295eaeb0",
       "effectiveFrom" : "2021-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.817Z",
       "notes" : "Park Calendars - 2021"
    },
    {
-      "changeSetId" : 5,
+      "changeSetId" : 4,
       "eTag" : "6c3955258fad84d85e15",
       "effectiveFrom" : "2021-04-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.825Z",
       "notes" : "Add Richmond"
    },
    {
-      "changeSetId" : 6,
+      "changeSetId" : 5,
       "eTag" : "043b03799009dde539aa",
       "effectiveFrom" : "2021-06-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.830Z",
-      "notes" : "Replace Richmond with Skegness"
+      "notes" : "Rename Richmond to Skegness"
    },
    {
-      "changeSetId" : 7,
+      "changeSetId" : 6,
       "eTag" : "2077eec54329f6d009b3",
       "effectiveFrom" : "2020-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.836Z",
       "notes" : "Park Calendars - 2022"
    },
    {
-      "changeSetId" : 8,
+      "changeSetId" : 7,
       "eTag" : "e91ee5644302d802278d",
       "effectiveFrom" : "2022-05-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.848Z",
       "notes" : "Delete Greenacres"
    },
    {
-      "changeSetId" : 9,
+      "changeSetId" : 8,
       "eTag" : "c481b71954adc1e6aa1b",
       "effectiveFrom" : "2020-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.850Z",
@@ -246,7 +309,7 @@ curl -s 'http://localhost:3000/rdf/v1/changelog?projection=park&version=1' | jso
 ```
 
 ```
-curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
+curl -s 'http://localhost:3000/api/v1/park?changeSetId=8' | json_pp
 ```
 
 ```json
@@ -367,128 +430,4 @@ curl -s 'http://localhost:3000/api/v1/park?changeSetId=9' | json_pp
    }
 ]
 ```
-## Proposed DSL
 
-In it's POC form, RDF requires the developer to manage entity definition and data using SQL migration files. Each entity requires a stored procedure to aggregate the data frames, which results in an undesirable learning curve. Instead we are considering introducing a domain specific language (DSL), which can be used as an alternative to SQL, but still managed with migration files.
-
-```yaml
-# 0001.define-park-entities.yaml
-define enums:
-  - name: park_calendar_event_type
-    values:
-      - Park Open - Owners
-      - Park Open - Guests
-      - Park Close - Owners
-      - Park Close - Guests
-define entities: 
-  - name: park
-    version: 1
-    fields:
-      - name: code
-        type: TEXT
-      - name: name
-        type: TEXT
-    identified by:
-      - code
-    checks:
-      -park_code_len: LENGTH(code) >= 2
-  - name: park_calendar
-    version: 1
-    fields:
-      - name: id
-        type: INTEGER
-      - name: park_code
-        type: TEXT
-      - name: event
-        type: park_calendar_event_type
-      - name: occurs
-        type: TIMESTAMP WITH TIME ZONE
-    identified by:
-      - id
-```
-
-```yaml
-# 0002.add-park-projections.yaml    
-add projections:
-  - name: park
-    version: 1
-    dependencies:
-    - name: park
-      version: 1
-    - name: park_calendar
-      version: 1
-
-add webhooks:
-  - projection:
-      name: park
-      version: 1
-    url: https://httpbin.org/status/200
-```
-
-```yaml
-# 0003.add-park-data-frames.yaml
-add change set:
-  effective_from: 2020-01-01T00:00:00Z
-  notes: Park Calendars - 2023
-  frames:
-    - entity: park
-      action: PUT
-      data:
-        - code: DC
-          name: Devon Cliffs
-        - code: PV
-          name: Primrose Valley
-        - code: SK
-          name: Skegness
-    - entity: park_calendar
-      action: PUT
-      data:
-      - id: 1
-        park_code: DC
-        event: Park Open - Owners
-        occurs: 2023-03-01 00:00:00Z
-      - id: 2  
-        park_code: DC
-        event: Park Open - Guests
-        occurs: 2023-03-15 00:00:00Z
-      - id: 3
-        park_code: DC
-        event: Park Close - Owners
-        occurs: 2023-11-30 00:00:00Z
-      - id: 4
-        park_code: DC
-        event: Park Close - Guests
-        occurs: 2023-11-15 00:00:00Z
-      - id: 5
-        park_code: PV
-        event: Park Open - Owners
-        occurs: 2023-03-01 00:00:00Z
-      - id: 6
-        park_code: PV
-        event: Park Open - Guests
-        occurs: 2023-03-15 00:00:00Z
-      - id: 7
-        park_code: PV
-        event: Park Close - Owners
-        occurs: 2023-11-30 00:00:00Z
-      - id: 8
-        park_code: PV
-        event: Park Close - Guests
-        occurs: 2023-11-15 00:00:00Z
-      - id: 9
-        park_code: SK
-        event: Park Open - Owners
-        occurs: 2023-03-01 00:00:00Z
-      - id: 10
-        park_code: SK
-        event: Park Open - Guests
-        occurs: 2023-03-15 00:00:00Z
-      - id: 11
-        park_code: SK
-        event: Park Close - Owners
-        occurs: 2023-11-30 00:00:00Z
-      - id: 12
-        park_code: SK
-        event: Park Close - Guests
-        occurs: 2023-11-15 00:00:00Z
-```
