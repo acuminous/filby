@@ -167,28 +167,28 @@ A hook is an event the framework will emit to whenenver a data frame used to bui
 ## API
 RDF provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
 
-#### rdf.init(config: RdfConfig): Promise<void>
+#### rdf.init(config: RdfConfig): Promise&lt;void&gt;
 Connects to the database and runs migrations
 
-#### rdf.startNotifications(): Promise<void>
+#### rdf.startNotifications(): Promise&lt;void&gt;
 Starts polling the database for notifications
 
-#### rdf.stop(): Promise<void>
+#### rdf.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
 
-#### rdf.getProjections(): Promise<Projection>[]
+#### rdf.getProjections(): Promise&lt;Projection&gt;[]
 Returns the list of projections.
 
-#### rdf.getProjection(name: string, version: number): Promise<Projection>
+#### rdf.getProjection(name: string, version: number): Promise&lt;Projection&gt;
 Returns the specified projection.
 
-#### rdf.getChangeLog(projection): Promise<ChangeSet[]>
+#### rdf.getChangeLog(projection): Promise&lt;ChangeSet[]&gt;
 Returns the change log (an ordered list of change sets) for the given projection.
 
-#### rdf.getChangeSet(changeSetId): Promise<ChangeSet>
+#### rdf.getChangeSet(changeSetId): Promise&lt;ChangeSet&gt;
 Returns the specified change set
 
-#### rdf.withTransaction(fn: function(client: PGClient): Promise<T>): Promise<T>
+#### rdf.withTransaction(fn: function(client: PGClient): Promise&lt;T&gt;): Promise<T&gt;
 Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to query the aggregate entities for your projections, e.g.
 
 ```sql
