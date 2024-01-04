@@ -239,6 +239,8 @@ This project includes a proof of concept based on a Caravan Park business.
 git clone git@github.com:acuminous/reference-data-framework.git
 cd reference-data-framework
 npm i
+cd example
+npm i
 npm run docker
 node index
 ```
