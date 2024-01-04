@@ -1,9 +1,0 @@
-add change set:
-  effective_from: 2022-05-01T00:00:00Z
-  notes: Delete Greenacres
-  frames:
-    - entity: park
-      version: 1
-      action: DELETE
-      data:
-        - code: GA

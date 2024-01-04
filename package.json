@@ -2,9 +2,6 @@
   "name": "reference-data-framework",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "docker": "docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=password postgres:16-alpine"
-  },
   "dependencies": {
     "@fastify/swagger": "^8.12.2",
     "@fastify/swagger-ui": "^2.0.1",
