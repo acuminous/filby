@@ -193,13 +193,10 @@ Passes a transactional [node-pg client](https://node-postgres.com/) to the given
 
 ```sql
 SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
-FROM 
-  get_park_v1_aggregate($1) p
+FROM get_park_v1_aggregate($1) p
 LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
 WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'  
-ORDER BY
-  code ASC,
-  occurs ASC;
+ORDER BY p.code ASC, pc.occurs ASC;
 ```
 
 ```js
