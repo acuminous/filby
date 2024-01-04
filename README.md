@@ -4,6 +4,7 @@ A framework for working with slow moving, time dependent reference data.
 ## Contents
 - [Introduction](#introduction)
 - [How it works](#how-it-works)
+- [API](#api)
 - [Configuration](#configuration)
 - [Example Application](#example-application)
 
@@ -162,6 +163,30 @@ Notifications are published whenever a new data frame is created. The framework 
 
 ### Hook
 A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
+
+## API
+RDF provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
+
+### rdf.init(config: RdfConfig): Promise<void>
+Connects to the database and runs migrations
+
+### rdf.startNotifications(): Promise<void>
+Starts polling the database for notifications
+
+### rdf.stop(): Promise<void>
+Stops polling for notifications then disconnects from the database
+
+### rdf.getProjections(): Promise<Projection>[]
+Returns the list of projections.
+
+### rdf.getProjection(name: string, version: number): Promise<Projection>
+Returns the specified projection.
+
+### rdf.getChangeLog(projection): Promise<ChangeSet[]>
+Returns the change log (an ordered list of change sets) for the given projection.
+
+### rdf.getChangeSet(changeSetId): Promise<ChangeSet>
+Returns the specified change set
 
 ## Configuration
 All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON.
