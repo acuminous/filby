@@ -232,7 +232,7 @@ add change set:
         - code: XX
 ```
 
-## An Example
+## Example Application
 This project includes a proof of concept based on a Caravan Park business. 
 
 ```bash
