@@ -208,6 +208,13 @@ add projections:
     - name: calendar
       version: 1
 
+# A hook defines an asynchronous event that will be emitted by the framework whenever the
+# reference data the projection changes.
+add hooks:
+  - projection: park
+    version: 1
+    event: park_v1_change
+
 # Add a change set containing one or more data frames for the previously defined entities
 add change set:
   effective_from: 2019-01-01T00:00:00Z
