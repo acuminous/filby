@@ -4,7 +4,7 @@ add change set:
   frames:
     - entity: park_calendar
       version: 1
-      action: PUT
+      action: POST
       data:
       - id: 13
         park_code: DC

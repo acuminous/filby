@@ -1,6 +1,6 @@
 START TRANSACTION;
 
-CREATE TYPE rdf_action_type AS ENUM ('PUT', 'DELETE');
+CREATE TYPE rdf_action_type AS ENUM ('POST', 'DELETE');
 
 CREATE TABLE rdf_data_frame (
   id SERIAL PRIMARY KEY,

@@ -153,7 +153,7 @@ A projection is a versioned view of one or more **entities**, made available via
 An entity represents reference data. It might be a product set, or VAT rates. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which the park entity has many calendar event entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more **data frames**. The dependency between projections and entities must be explicitly stated so we can emit notifications when a new **data frame** is added.
 
 ### Data Frame
-A data frame is a snapshot of an entity, associated with a **change set**. There are two types of data frame, 'PUT' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted. 
+A data frame is a snapshot of an entity, associated with a **change set**. There are two types of data frame, 'POST' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted.
 
 ### Change Set
 A change set groups a set of data frames (potentially for different entities) into a single unit with a common effective date. The data frames will not be aggregated by their parent entities when building a projection for an earlier change set.
@@ -235,7 +235,7 @@ add change set:
   frames:
     - entity: park
       version: 1
-      action: PUT
+      action: POST
       data:
         # Adds a data frame for Devon Cliffs
         - code: DC

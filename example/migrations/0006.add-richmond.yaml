@@ -4,14 +4,14 @@ add change set:
   frames:
     - entity: park
       version: 1
-      action: PUT
+      action: POST
       data:
         - code: RI
           name: Richmond
 
     - entity: park_calendar
       version: 1
-      action: PUT
+      action: POST
       data:
       - id: 37
         park_code: RI

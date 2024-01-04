@@ -10,14 +10,14 @@ add change set:
 
     - entity: park
       version: 1
-      action: PUT
+      action: POST
       data:
         - code: SK
           name: Skegness
 
     - entity: park_calendar
       version: 1
-      action: PUT
+      action: POST
       data:
       - id: 37
         park_code: SK

@@ -85,7 +85,7 @@ add change set:
 
     - entity: park_calendar
       version: 1
-      action: PUT
+      action: POST
       data:
       - id: 57
         park_code: DC
