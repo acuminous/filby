@@ -163,9 +163,11 @@ Notifications are published whenever a new data frame is created. The framework 
 A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## Configuration
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a YAML based, domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient).
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON.
 
 ```yaml
+# migrations/0001.define-park-schema.yaml
+
 # Define enums for your reference data
 # Equivalent of PostgreSQL's CREATE TYPE statement
 define enums:
@@ -214,6 +216,10 @@ add hooks:
   - projection: park
     version: 1
     event: park_v1_change
+```
+
+```yaml
+# migrations/0002.initial-data-load.yaml
 
 # Add a change set containing one or more data frames for the previously defined entities
 add change set:
