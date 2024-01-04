@@ -27,7 +27,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
                                     ┌──────────────────────────────────────────────────────────────────────────┐
                                     │                                                                          │
                                     │                                                                          ▼
-┌─────────────────┐        ┌────────────────┐          GET /api/changelog?projection=$p&version=$v  ┌──────────────┐
+┌─────────────────┐        ┌────────────────┐             GET /api/changelog?projection=$p&version=$v  ┌──────────────┐
 │                 │        │                │◀─────────────────────────────────────────────────────────│              │
 │                 │        │   Reference    │                                                          │              │
 │    PostgreSQL   │◀──────▶│     Data       │                                                          │    Client    │
