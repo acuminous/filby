@@ -1,2 +1,2 @@
-- Support indexes
+- Schema validation
 
