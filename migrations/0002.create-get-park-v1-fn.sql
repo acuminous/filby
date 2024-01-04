@@ -21,4 +21,4 @@ BEGIN
     code ASC,
     occurs ASC;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql IMMUTABLE;
