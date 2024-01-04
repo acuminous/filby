@@ -20,28 +20,30 @@ Most applications require slow moving reference data, which presents the followi
 | Evolution | Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known. |
 | Local Testing | Applications may be tested locally, and therefore any solution sould work well on a development laptop. |
 
-Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing slow moving, time dependent reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webook must be manually created by the application developer. An [example application](#example-application) is provided to demonstrate how.
+Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing slow moving, time dependent reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. An [example application](#example-application) is provided to demonstrate how.
 
 <pre>
-                                                                 Webhook
-                                    ┌──────────────────────────────────────────────────────────────────────────┐
-                                    │                                                                          │
-                                    │                                                                          ▼
-┌─────────────────┐        ┌────────────────┐             GET /api/changelog?projection=$p&version=$v  ┌──────────────┐
-│                 │        │                │◀─────────────────────────────────────────────────────────│              │
-│                 │        │   Reference    │                                                          │              │
-│    PostgreSQL   │◀──────▶│     Data       │                                                          │    Client    │
-│                 │        │   Framework    │ GET /api/projection/:version/:projection?changeSetId=$c  │              │
-│                 │        │                │◀─────────────────────────────────────────────────────────│              │
-└─────────────────┘        └────────────────┘                                                          └──────────────┘
-         ▲
-         │
-         │
-┌─────────────────┐
-│                 │
-│   Data Frames   │
-│                 │
-└─────────────────┘
+                             Change
+                          Notification                                  Webhook
+                         ┌───────────┐    ┌─────────────────────────────────────────────────────────────────┐
+                         │           │    │                                                                 │
+                         │           ▼    │                                                                 ▼
+┌────────┐      ┌─────────────────┬──────────┐     GET /api/changelog?projection=$p&version=$v ┌────────────────────────┐
+│        │      │                 │          ├─────────────────────────────────────────────────│                        │
+│        │      │    Reference    │          │                                                 │                        │
+│   DB   │◀────▶│      Data       │   App    │                                                 │         Client         │
+│        │      │    Framework    │          │i/projection/:version/:projection?changeSetId=$c │                        │
+│        │      │                 │          ├─────────────────────────────────────────────────│                        │
+└────────┘      └─────────────────┴──────────┘                                                 └────────────────────────┘
+                         ▲
+                         │
+                         │
+            ┌────────────────────────┐
+            │                        │
+            │     Reference Data     │
+            │      Change Sets       │
+            │                        │
+            └────────────────────────┘
 </pre>
 
 The first of the two API calls, namely `/api/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
