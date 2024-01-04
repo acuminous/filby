@@ -163,7 +163,7 @@ Notifications are published whenever a new data frame is created. The framework 
 A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## Configuration
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a YAML based, domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for adding custom views over the aggregated reference data.
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a YAML based, domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient).
 
 ```yaml
 # Define enums for your reference data
