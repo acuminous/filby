@@ -1,0 +1,19 @@
+{
+  "name": "rdf-example",
+  "version": "1.0.0",
+  "description": "An example project using the reference data framework",
+  "main": "index.js",
+  "scripts": {
+    "start": "node .",
+    "docker": "docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=password postgres:16-alpine",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@fastify/swagger": "^8.12.2",
+    "@fastify/swagger-ui": "^2.0.1",
+    "fastify": "^4.25.2",
+    "http-errors": "^2.0.0"
+  },
+  "author": "Stephen Cresswell",
+  "license": "ISC"
+}

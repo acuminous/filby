@@ -1,13 +1,13 @@
 const createError = require('http-errors');
-const { changelog } = require('./schemas');
+const schemas = require('./changelog-v1-schemas');
 
-module.exports = (fastify, { db }, done) => {
+module.exports = (fastify, { rdf }, done) => {
 
-	fastify.get('/rdf/v1/changelog', { schema: changelog }, async (request, reply) => {
+	fastify.get('/', { schema: schemas.changelog, rdf }, async (request, reply) => {
 
 		const projection = await getProjection(request)
 
-		const changeLog = await db.getChangeLog(projection);
+		const changeLog = await rdf.getChangeLog(projection);
 		if (changeLog.length === 0) throw createError(404, `Projection ${projection.name}-v${projection.version} has no change sets`);
 
 		const changeSet = changeLog[changeLog.length - 1];
@@ -24,7 +24,7 @@ module.exports = (fastify, { db }, done) => {
 	async function getProjection(request) {
 		const name = request.query.projection;
 		const version = parseInt(request.query.version, 10);
-		const projection = await db.getProjection(name, version);
+		const projection = await rdf.getProjection(name, version);
 		if (!projection) throw createError(404, `Projection not found: ${name}-v${version}`);
 		return projection;
 	}

@@ -1,11 +1,11 @@
 # Reference Data Framework
-A framework for working with time series reference data.
+A framework for working with slow moving, time dependent reference data.
 
 ## Contents
 - [Introduction](#introduction)
 - [How it works](#how-it-works)
 - [Configuration](#configuration)
-- [An example](#an-example)
+- [Example Application](#example-application)
 
 ## Introduction
 Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
@@ -20,18 +20,18 @@ Most applications require slow moving reference data, which presents the followi
 | Evolution | Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known. |
 | Local Testing | Applications may be tested locally, and therefore any solution sould work well on a development laptop. |
 
-Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing slow moving, time series reference data. It exposes projections of the data via a point-in-time RESTful API, and will notify downstream systems via webhooks when the reference data supporting the projections changes. 
+Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing slow moving, time dependent reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webook must be manually created by the application developer. An [example application](#example-application) is provided to demonstrate how.
 
 <pre>
-                                                                 Webhook (optional)
+                                                                 Webhook
                                     ┌──────────────────────────────────────────────────────────────────────────┐
                                     │                                                                          │
                                     │                                                                          ▼
-┌─────────────────┐        ┌────────────────┐          GET /rdf/v1/changelog?projection=$p&version=$v  ┌──────────────┐
+┌─────────────────┐        ┌────────────────┐          GET /api/changelog?projection=$p&version=$v  ┌──────────────┐
 │                 │        │                │◀─────────────────────────────────────────────────────────│              │
 │                 │        │   Reference    │                                                          │              │
 │    PostgreSQL   │◀──────▶│     Data       │                                                          │    Client    │
-│                 │        │   Framework    │            GET /api/$version/$projection?changeSetId=$c  │              │
+│                 │        │   Framework    │ GET /api/projection/:version/:projection?changeSetId=$c  │              │
 │                 │        │                │◀─────────────────────────────────────────────────────────│              │
 └─────────────────┘        └────────────────┘                                                          └──────────────┘
          ▲
@@ -44,10 +44,10 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 └─────────────────┘
 </pre>
 
-The first of the two API calls, namely `/rdf/v1/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
+The first of the two API calls, namely `/api/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
 
 ```bash
-GET /rdf/v1/changelog?projection=park&version=1
+GET /api/changelog?projection=park&version=1
 ```
 
 ```json
@@ -69,10 +69,10 @@ GET /rdf/v1/changelog?projection=park&version=1
 ]
 ```
 
-The second API call, namely `/api/:version/:projection` will return the reference data, correct at the time of the given changeSetId.
+The second API call, namely `/api/projection/:version/:projection` will return the reference data, correct at the time of the given changeSetId.
 
 ```
-GET /api/v1/park?changeSetId=2
+GET /api/projection/v1/park?changeSetId=2
 ```
 
 ```json
@@ -124,7 +124,7 @@ RDF has the following important concepts
                                         ┌────────────────────┐                 ┌────────────────────┐
                                         │                    │                 │                    │
                                         │                    │                 │                    │
-                                        │       Entity       │                 │      Webhook       │
+                                        │       Entity       │                 │        Hook        │
                                         │                    │                 │                    │
                                         │                    │                 │                    │
                                         └────────────────────┘                 └────────────────────┘
@@ -157,13 +157,13 @@ A data frame is a snapshot of an entity, associated with a **change set**. There
 A change set groups a set of data frames (potentially for different entities) into a single unit with a common effective date. The data frames will not be aggregated by their parent entities when building a projection for an earlier change set.
 
 ### Notifications
-Notifications are published whenever a new data frame is created. The framework works out which projections are affected, and notifies interested parties via a **webhook**. If multiple data frames are created in quick succession (or part of a transaction) only a single notification is sent. Notifications are retried a configurable number of times using an exponential backoff algorithm.
+Notifications are published whenever a new data frame is created. The framework works out which projections are affected, and notifies interested parties via a **hook**. If multiple data frames are created in quick succession (or part of a transaction) only a single notification is sent. Notifications are retried a configurable number of times using an exponential backoff algorithm.
 
-### Webhook
-A webhook is a URL the framework will POST to whenenver a data frame used to build a projection is added. The body of the request is simply the name and version of the affected projection, and the relevant changet set id.
+### Hook
+A hook is an event the framework will emiut to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## Configuration
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a YAML based, domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder.
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a YAML based, domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for adding custom views over the aggregated reference data.
 
 ```yaml
 # Define enums for your reference data
@@ -244,7 +244,7 @@ node index
 ```
 
 ```
-curl -s 'http://localhost:3000/rdf/v1/changelog?projection=park&version=1' | json_pp
+curl -s 'http://localhost:3000/api/changelog?projection=park&version=1' | json_pp
 ```
 
 ```json
@@ -309,7 +309,7 @@ curl -s 'http://localhost:3000/rdf/v1/changelog?projection=park&version=1' | jso
 ```
 
 ```
-curl -s 'http://localhost:3000/api/v1/park?changeSetId=8' | json_pp
+curl -s 'http://localhost:3000/api/projection/v1/park?changeSetId=8' | json_pp
 ```
 
 ```json

@@ -1,0 +1,33 @@
+{
+  "getParks": {
+    "query": {
+      "type": "object",
+      "required": ["changeSetId"],
+      "properties": {
+        "changeSetId": {
+          "type": "integer"
+        }
+      }
+    }
+  },
+  "getPark": {
+    "params": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string"
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "required": ["changeSetId"],
+      "properties": {
+        "changeSetId": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

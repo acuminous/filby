@@ -1,0 +1,16 @@
+{
+  "changelog": {
+    "query": {
+      "type": "object",
+      "required": ["projection", "version"],
+      "properties": {
+        "projection": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

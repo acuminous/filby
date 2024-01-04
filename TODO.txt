@@ -1,4 +1,3 @@
 - Change PUT to POST
 - Support indexes
-- Convert webhooks into code hooks, ie. the notification code executes provided js, or potentially emits an event. Need to give some thought as to how we discourage the same hook being shared between handlers though, as otherwise if a handler fails, and the tx rolls back, the successful handlers will be retriggers on the next attempt
 - Support broadcast notifications

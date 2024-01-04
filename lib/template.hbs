@@ -78,6 +78,20 @@ $$ LANGUAGE plpgsql;
 
 {{/add_projections}}
 
+{{#add_hooks}}
+DO $$
+
+DECLARE
+  v_projection_id INTEGER;
+
+BEGIN
+  SELECT id INTO v_projection_id FROM rdf_projection WHERE name = '{{projection}}' AND version = {{version}};
+  INSERT INTO rdf_hook (projection_id, event) VALUES (v_projection_id, '{{event}}');
+END;
+$$ LANGUAGE plpgsql;
+
+{{/add_hooks}}
+
 {{#add_change_set}}
 DO $$
   DECLARE

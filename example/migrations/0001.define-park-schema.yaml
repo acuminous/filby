@@ -34,3 +34,17 @@ define entities:
         type: TIMESTAMP WITH TIME ZONE
     identified by:
       - id
+
+add projections:
+  - name: park
+    version: 1
+    dependencies:
+    - name: park
+      version: 1
+    - name: park_calendar
+      version: 1
+
+add hooks:
+  - projection: park
+    version: 1
+    event: 'park_v1_change'
