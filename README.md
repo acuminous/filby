@@ -188,6 +188,29 @@ Returns the change log (an ordered list of change sets) for the given projection
 #### rdf.getChangeSet(changeSetId): Promise<ChangeSet>
 Returns the specified change set
 
+#### rdf.withTransaction(fn: function(client: PGClient): Promise<T>): Promise<T>
+Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to query the aggregate entities for your projections, e.g.
+
+```sql
+SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
+FROM 
+  get_park_v1_aggregate($1) p
+LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
+WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'  
+ORDER BY
+  code ASC,
+  occurs ASC;
+```
+
+```js
+function getParks(changeSetId) {
+  return rdf.withTransaction(async (client) => {
+    const { rows } = await client.query(query, [changeSetId]);
+    return rows
+  });
+};
+```
+
 ## Configuration
 All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON.
 
