@@ -212,27 +212,15 @@ function getParks(changeSetId) {
 ```sql
 -- migrations/0002.create-get-park-v1-function.sql
 CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
-RETURNS TABLE (
-  code TEXT,
-  name TEXT,
-  calendar_event park_calendar_event_type,
-  calendar_occurs TIMESTAMP WITH TIME ZONE
-)
+RETURNS TABLE (code TEXT, name TEXT, calendar_event park_calendar_event_type, calendar_occurs TIMESTAMP WITH TIME ZONE)
 AS $$
 BEGIN
   RETURN QUERY
-  SELECT
-    p.code,
-    p.name,
-    pc.event AS calendar_event,
-    pc.occurs AS calendar_occurs
-  FROM 
-    get_park_v1_aggregate(p_change_set_id) p
+  SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
+  FROM get_park_v1_aggregate(p_change_set_id) p
   LEFT JOIN get_park_calendar_v1_aggregate(p_change_set_id) pc ON pc.park_code = p.code
   WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'  
-  ORDER BY
-    p.code ASC,
-    p.occurs ASC;
+  ORDER BY p.code ASC, p.occurs ASC;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
