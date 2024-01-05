@@ -176,19 +176,19 @@ Starts polling the database for notifications
 #### rdf.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
 
-#### rdf.getProjections(): Promise&lt;Projection&gt;[]
+#### rdf.getProjections(): Promise&lt;RdfProjection&gt;[]
 Returns the list of projections.
 
-#### rdf.getProjection(name: string, version: number): Promise&lt;Projection&gt;
+#### rdf.getProjection(name: string, version: number): Promise&lt;RdfProjection&gt;
 Returns the specified projection.
 
-#### rdf.getChangeLog(projection): Promise&lt;ChangeSet[]&gt;
+#### rdf.getChangeLog(projection): Promise&lt;RdfChangeSet[]&gt;
 Returns the change log (an ordered list of change sets) for the given projection.
 
-#### rdf.getChangeSet(changeSetId): Promise&lt;ChangeSet&gt;
+#### rdf.getChangeSet(changeSetId): Promise&lt;RdfChangeSet&gt;
 Returns the specified change set
 
-#### rdf.withTransaction(fn: function(client: PGClient): Promise&lt;T&gt;): Promise<T&gt;
+#### rdf.withTransaction(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise<T&gt;
 Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to query the aggregate entities for your projections, e.g.
 
 ```sql
