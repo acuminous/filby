@@ -2,9 +2,8 @@
   "name": "rdf-example",
   "version": "1.0.0",
   "description": "An example project using the reference data framework",
-  "main": "index.js",
   "scripts": {
-    "start": "node .",
+    "start": "npx ts-node index.ts",
     "docker": "docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=password postgres:16-alpine",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,5 +14,10 @@
     "http-errors": "^2.0.0"
   },
   "author": "Stephen Cresswell",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@types/http-errors": "^2.0.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
 }

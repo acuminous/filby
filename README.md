@@ -95,7 +95,7 @@ GET /api/projection/v1/park?changeSetId=2
 ]
 ```
 
-At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of valuable benefits. 
+At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of valuable benefits.
 
 1. Reference data can be safely prepared/cached ahead of time
 2. Clients will receive consistent reference data by fixing the changeSetId at the start of a transaction
@@ -121,8 +121,8 @@ RDF has the following important concepts
          │ depends on                         │
          │                                    │
          │                                    │
-         │                                    │ 
-         │                                    │ 
+         │                                    │
+         │                                    │
         ╱│╲                                  ╱│╲
 ┌─────────────────┐                  ┌─────────────────┐                   ┌─────────────────┐
 │                 │                  │                 │                   │                 │
@@ -136,7 +136,7 @@ RDF has the following important concepts
          │                                    │
          │                                    │
          │                                    │
-        ╱│╲                                   │ 
+        ╱│╲                                   │
 ┌─────────────────┐                  ┌─────────────────┐
 │                 │                  │                 │
 │                 │╲ is grouped by   │                 │
@@ -195,7 +195,7 @@ Passes a transactional [node-pg client](https://node-postgres.com/) to the given
 SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
 FROM get_park_v1_aggregate($1) p
 LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
-WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'  
+WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'
 ORDER BY p.code ASC, pc.occurs ASC;
 ```
 
@@ -219,7 +219,7 @@ BEGIN
   SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
   FROM get_park_v1_aggregate(p_change_set_id) p
   LEFT JOIN get_park_calendar_v1_aggregate(p_change_set_id) pc ON pc.park_code = p.code
-  WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'  
+  WHERE p.rdf_action <> 'DELETE' AND pc.rdf_action <> 'DELETE'
   ORDER BY p.code ASC, p.occurs ASC;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
@@ -314,16 +314,29 @@ add change set:
 ```
 
 ## Example Application
-This project includes a proof of concept based on a Caravan Park business. 
+This project includes proof of concept applications based on a Caravan Park business.
 
+### Installation
 ```bash
 git clone git@github.com:acuminous/reference-data-framework.git
 cd reference-data-framework
 npm i
-cd example
+```
+
+### TypeScript variant
+```
+cd examples/typescript
 npm i
 npm run docker
-node index
+npm start
+```
+
+### JavaScript Variant
+```
+cd examples/javascript
+npm i
+npm run docker
+npm start
 ```
 
 ```
@@ -513,4 +526,3 @@ curl -s 'http://localhost:3000/api/projection/v1/park?changeSetId=8' | json_pp
    }
 ]
 ```
-

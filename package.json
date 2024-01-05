@@ -2,6 +2,7 @@
   "name": "reference-data-framework",
   "version": "1.0.0",
   "main": "index.js",
+  "types": "index.d.ts",
   "dependencies": {
     "@fastify/swagger": "^8.12.2",
     "@fastify/swagger-ui": "^2.0.1",
@@ -15,5 +16,8 @@
   },
   "author": "Stephen Cresswell",
   "license": "ISC",
-  "description": "A framework for managing temporal reference data"
+  "description": "A framework for managing temporal reference data",
+  "devDependencies": {
+    "@types/pg": "^8.10.9"
+  }
 }

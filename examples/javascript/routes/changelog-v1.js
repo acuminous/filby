@@ -1,9 +1,23 @@
 const createError = require('http-errors');
-const schemas = require('./changelog-v1-schemas');
+
+const getChangelogSchema = {
+	querystring: {
+		type: "object",
+	  required: ["projection", "version"],
+		properties: {
+			projection: {
+				type: "string"
+			},
+			version: {
+				type: "integer"
+			}
+		}
+	}
+};
 
 module.exports = (fastify, { rdf }, done) => {
 
-	fastify.get('/', { schema: schemas.changelog, rdf }, async (request, reply) => {
+	fastify.get('/', { schema: getChangelogSchema }, async (request, reply) => {
 
 		const projection = await getProjection(request)
 
@@ -13,8 +27,8 @@ module.exports = (fastify, { rdf }, done) => {
 		const changeSet = changeLog[changeLog.length - 1];
 
 		reply.headers({
-			'Last-Modified': changeSet.lastModified,
-			'ETag': changeSet.eTag,
+			'Last-Modified': changeSet.lastModified.toUTCString(),
+			'ETag': changeSet.entityTag,
 			'Cache-Control': 'max-age=600, stale-while-revalidate=600, stale-if-error=86400',
 		});
 
@@ -22,8 +36,8 @@ module.exports = (fastify, { rdf }, done) => {
 	});
 
 	async function getProjection(request) {
-		const name = request.query.projection;
-		const version = parseInt(request.query.version, 10);
+		const name = String(request.query.projection);
+		const version = Number(request.query.version);
 		const projection = await rdf.getProjection(name, version);
 		if (!projection) throw createError(404, `Projection not found: ${name}-v${version}`);
 		return projection;
@@ -31,4 +45,3 @@ module.exports = (fastify, { rdf }, done) => {
 
 	done();
 }
-

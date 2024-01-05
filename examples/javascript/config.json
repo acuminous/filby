@@ -1,5 +1,8 @@
 {
   "fastify": {
+    "logger": true
+  },
+  "server": {
     "port": 3000
   },
   "database": {
@@ -8,6 +11,7 @@
 	  "password": "password"
   },
   "rdf": {
+    "migrations": "../migrations",
     "notifications": {
       "interval": "5s",
       "delay": "1s",

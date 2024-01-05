@@ -1,30 +1,62 @@
 const createError = require('http-errors');
-const schemas = require('./park-v1-schemas');
 
-module.exports = (fastify, { rdf }, done) => {
+export default (fastify, { rdf }, done) => {
 
-  fastify.get('/', { schema: schemas.getParks }, async (request, reply) => {
+  const getParksSchema = {
+    querystring: {
+      type: "object",
+      required: ["changeSetId"],
+      properties: {
+        changeSetId: {
+          type: "integer"
+        }
+      }
+    }
+  };
+
+  fastify.get('/', { schema: getParksSchema }, async (request, reply) => {
     const changeSet = await getChangeSet(request);
     const parks = await getParks(changeSet);
 
     reply.headers({
-      'Last-Modified': changeSet.lastModified,
-      'ETag': changeSet.eTag,
+      'Last-Modified': changeSet.lastModified.toUTCString(),
+      'ETag': changeSet.entityTag,
       'Cache-Control': 'max-age=31536000, immutable',
     });
 
     return parks;
   });
 
-  fastify.get('/:code', { schema: schemas.getPark }, async (request, reply) => {
+  const getParkSchema = {
+    querystring: {
+      type: "object",
+      required: ["changeSetId"],
+      properties: {
+        changeSetId: {
+          type: "integer"
+        }
+      }
+    },
+    params: {
+      type: "object",
+      required: ["code"],
+      properties: {
+        code: {
+          type: "string"
+        }
+      }
+      }
+  };
+
+  fastify.get('/:code', { schema: getParkSchema }, async (request, reply) => {
     const changeSet = await getChangeSet(request);
-    const code = request.params.code;
+    const code = String(request.params.code);
     const park = await getPark(changeSet, code);
     if (!park) throw createError(404, `Park not found: ${code}`);
 
     reply.headers({
-      'Last-Modified': changeSet.lastModified,
-      'ETag': changeSet.eTag,
+      'Last-Modified': changeSet.lastModified.toUTCString(),
+      'ETag': changeSet.entityTag,
       'Cache-Control': 'max-age=31536000, immutable',
     });
 
@@ -32,7 +64,7 @@ module.exports = (fastify, { rdf }, done) => {
   });
 
   async function getChangeSet(request) {
-    const changeSetId = parseInt(request.query.changeSetId, 10)
+    const changeSetId = Number(request.query.changeSetId);
     const changeSet = await rdf.getChangeSet(changeSetId);
     if (!changeSet) throw createError(400, `Invalid changeSetId`)
     return changeSet;
@@ -40,15 +72,15 @@ module.exports = (fastify, { rdf }, done) => {
 
   async function getParks(changeSet) {
     return rdf.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1)', [changeSet.changeSetId]);
+      const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1)', [changeSet.id]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
       return Array.from(parkDictionary.values());
     });
   }
 
   async function getPark(changeSet, code) {
-    return withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1) WHERE code = upper($2)', [changeSet.changeSetId, code]);
+    return rdf.withTransaction(async (tx) => {
+      const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1) WHERE code = upper($2)', [changeSet.id, code]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
       return parkDictionary.get(code);
     });
@@ -63,4 +95,3 @@ module.exports = (fastify, { rdf }, done) => {
 
   done();
 }
-

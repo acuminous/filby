@@ -1,4 +1,3 @@
-
 const path = require('node:path');
 
 const EventEmitter = require('eventemitter2');
@@ -8,13 +7,13 @@ const { Pool } = require('pg');
 
 const driver = require('./lib/marv-rdf-driver');
 
-module.exports = class RDF extends EventEmitter {
+module.exports = class ReferenceDataFramework extends EventEmitter {
 
   #config;
   #pool;
   #scheduler;
 
-  constructor(config, pool) {
+  constructor(config) {
     super();
     this.#config = config;
     this.#pool = new Pool(config.database);
@@ -23,7 +22,7 @@ module.exports = class RDF extends EventEmitter {
 
   async init() {
     const rdfMigrationsDir = path.join(__dirname, 'migrations');
-    const customMigrationsDir = this.#config?.migrations || 'migrations';
+    const customMigrationsDir = this.#config.migrations || 'migrations';
 
     await this.#migrate(this.#config.database, rdfMigrationsDir);
     await this.#migrate(this.#config.database, path.resolve(customMigrationsDir));
@@ -36,6 +35,10 @@ module.exports = class RDF extends EventEmitter {
 
   async startNotifications() {
     this.#scheduler.start()
+  }
+
+  async stopNotifications() {
+    await this.#scheduler.stop();
   }
 
   async stop() {
@@ -55,7 +58,7 @@ module.exports = class RDF extends EventEmitter {
 
   async getProjections() {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT name, version FROM rdf_projection');
+      const { rows } = await tx.query('SELECT id, name, version FROM rdf_projection');
       return rows;
     });
   }
@@ -116,11 +119,11 @@ module.exports = class RDF extends EventEmitter {
 
   async #getHook(tx, notification) {
     const { rows } = await tx.query(`
-      SELECT h.event, p.name, p.version FROM rdf_hook h
+      SELECT h.event, p.id, p.name, p.version FROM rdf_hook h
       INNER JOIN rdf_notification n ON n.hook_id = h.id
       INNER JOIN rdf_projection p ON p.id = n.projection_id
       WHERE h.id = $1`, [notification.hookId]);
-    const hooks = rows.map((row) => ({ event: row.event, projection: { name: row.name, version: row.version }}))
+    const hooks = rows.map((row) => ({ event: row.event, projection: { id: row.id, name: row.name, version: row.version }}))
     return hooks[0];
   }
 
@@ -136,10 +139,10 @@ module.exports = class RDF extends EventEmitter {
 
 function toChangeSet(row) {
   return {
-    changeSetId: row.change_set_id,
-    effectiveFrom: row.effective_from,
+    id: row.change_set_id,
+    effectiveFrom: new Date(row.effective_from),
     notes: row.notes,
-    lastModified: row.last_modified,
-    eTag: row.entity_tag
+    lastModified: new Date(row.last_modified),
+    entityTag: row.entity_tag
   };
 }

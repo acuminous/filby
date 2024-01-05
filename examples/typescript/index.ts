@@ -1,13 +1,22 @@
-const path = require('node:path');
+import path from 'node:path';
 
-const config = require('./config');
-const fastify = require('fastify')(config.fastify);
-const swagger = require('@fastify/swagger');
-const swaggerUI = require('@fastify/swagger-ui');
+import config from './config.json';
+import Fastify from 'fastify';
+import swagger from '@fastify/swagger';
+import swaggerUI from '@fastify/swagger-ui';
 
-const changeLogRoute = require('./routes/changelog-v1');
-const RDF = require('../index');
-const rdf = new RDF({ ...config.rdf, ...{ database: config.database }});
+import changeLogRoute from './routes/changelog-v1';
+import ReferenceDataFramework, { RdfProjection, RdfEvent } from '../..';
+
+const fastify = Fastify(config.fastify);
+
+const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.database }});
+
+type AppProcess = NodeJS.Process & {
+  emit(event: string): boolean;
+};
+
+const app: AppProcess = process;
 
 (async () => {
 
@@ -46,18 +55,19 @@ const rdf = new RDF({ ...config.rdf, ...{ database: config.database }});
 		await registerChangelog();
 		await registerProjections();
 
-	  await fastify.listen({ port: config.fastify.port });
+	  await fastify.listen(config.server);
 
-		rdf.on('park_v1_change', (event) => {
+		rdf.on('park_v1_change', (event: RdfEvent) => {
 			console.log({ event })
-		}).on('change', (event) => {
+		});
+		rdf.on('change', (event: RdfEvent) => {
 			console.log({ event })
 		});
 	  await rdf.startNotifications();
 
 		registerShutdownHooks();
-	  console.log(`Server is listening on port ${config.fastify.port}`);
-	  console.log(`See http://localhost:${config.fastify.port}/documentation`);
+	  console.log(`Server is listening on port ${config.server?.port}`);
+	  console.log(`See http://localhost:${config.server?.port}/documentation`);
 	  console.log(`Use CTRL+D or kill -TERM ${process.pid} to stop`);
 	} catch (err) {
 		console.error(err);
@@ -71,7 +81,7 @@ async function registerChangelog() {
 
 async function registerProjections() {
 	const projections = await rdf.getProjections();
-	projections.forEach((projection) => {
+	projections.forEach((projection: RdfProjection) => {
 		const route = require(path.resolve(`routes/${projection.name}-v${projection.version}`));
 		const prefix = `/api/projection/v${projection.version}/${projection.name}`;
 		fastify.register(route, { prefix, rdf });
@@ -79,10 +89,10 @@ async function registerProjections() {
 }
 
 function registerShutdownHooks() {
-  process.once('SIGINT', () => process.emit('app_stop'));
-  process.once('SIGTERM', () => process.emit('app_stop'));
-  process.once('app_stop', async () => {
-  	process.removeAllListeners('app_stop');
+  app.once('SIGINT', () => app.emit('app_stop'));
+  app.once('SIGTERM', () => app.emit('app_stop'));
+  app.once('app_stop', async () => {
+  	app.removeAllListeners('app_stop');
   	await rdf.stopNotifications();
 		await fastify.close();
 		await rdf.stop();
