@@ -1,5 +1,5 @@
 # Reference Data Framework
-A framework for working with slow moving, temporal reference data.
+A framework for managing slow moving, temporal reference data.
 
 ## Contents
 - [Introduction](#introduction)
