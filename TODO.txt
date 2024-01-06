@@ -1,2 +1,0 @@
-- Add Alter / Remove support to the DLS
-- Schema validation
