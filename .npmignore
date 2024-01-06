@@ -1,2 +1,6 @@
-example
+.github
+.nyc_output
+coverage
+examples
 node_modules
+.gitignore

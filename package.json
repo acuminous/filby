@@ -4,7 +4,8 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "test": "docker-compose --file test/docker-compose.yaml up --detach && zUnit"
+    "test": "docker-compose --file test/docker-compose.yaml up --detach && zUnit",
+    "coverage": "nyc --report html --reporter lcov --reporter text-summary zUnit"
   },
   "dependencies": {
     "eventemitter2": "^6.4.9",
@@ -29,6 +30,20 @@
   ],
   "devDependencies": {
     "@types/pg": "^8.10.9",
+    "nyc": "^15.1.0",
     "zunit": "^4.0.2"
-  }
+  },
+  "directories": {
+    "example": "examples",
+    "lib": "lib",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acuminous/reference-data-framework.git"
+  },
+  "bugs": {
+    "url": "https://github.com/acuminous/reference-data-framework/issues"
+  },
+  "homepage": "https://github.com/acuminous/reference-data-framework#readme"
 }
