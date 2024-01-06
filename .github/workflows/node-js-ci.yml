@@ -12,6 +12,9 @@ jobs:
           - 5432:5432
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: rdf_test
+          POSTGRES_USER: rdf_test
+          POSTGRES_PASSWORD: rdf_test
     strategy:
       matrix:
         node-version: [18.x, 20.x]
@@ -34,6 +37,9 @@ jobs:
           - 5432:5432
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: rdf_test
+          POSTGRES_USER: rdf_test
+          POSTGRES_PASSWORD: rdf_test
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
