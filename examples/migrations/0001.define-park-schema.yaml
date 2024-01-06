@@ -37,9 +37,9 @@ add projections:
   - name: park
     version: 1
     dependencies:
-      - name: park
+      - entity: park
         version: 1
-      - name: park_calendar
+      - entity: park_calendar
         version: 1
 
 add hooks:

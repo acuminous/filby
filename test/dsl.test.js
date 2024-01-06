@@ -37,6 +37,7 @@ describe('DSL', () => {
   let rdf;
 
   before(async () => {
+    deleteMigrations();
     rdf = new TestReferenceDataFramework(config);
     await rdf.reset();
   })
@@ -91,10 +92,9 @@ describe('DSL', () => {
             type: TEXT
           - name: rate
             type: NUMERIC
-          identified by: [
-            type
-          ]
-        `);
+          identified by:
+          - type
+      `);
 
       const { rows: entities } = await rdf.withTransaction((tx) => {
         return tx.query('SELECT name, version FROM rdf_entity');
@@ -102,6 +102,44 @@ describe('DSL', () => {
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
+    });
+  });
+
+  describe('Hooks', () => {
+    it('should add hooks', async (t) => {
+      await apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+          - name: rate
+            type: NUMERIC
+          identified by:
+          - type
+
+        add projections:
+        - name: VAT Rates
+          version: 1
+          dependencies:
+          - entity: VAT Rate
+            version: 1
+
+        add hooks:
+        - projection: VAT Rates
+          version: 1
+          event: VAT Rates Change
+        - event: Any Change
+      `);
+
+      const { rows: hooks } = await rdf.withTransaction((tx) => {
+        return tx.query('SELECT name, version, event FROM rdf_hook h LEFT JOIN rdf_projection p ON h.projection_id = p.id');
+      });
+
+      eq(hooks.length, 2);
+      deq(hooks[0], { name: 'VAT Rates', version: 1, event: 'VAT Rates Change' });
+      deq(hooks[1], { name: null, version: null, event: 'Any Change' });
     });
   });
 

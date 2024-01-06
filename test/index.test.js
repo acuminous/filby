@@ -381,7 +381,7 @@ describe('RDF', () => {
 
       rdf.once('VAT Rate Changed', ({ event, projection }) => {
         eq(event, 'VAT Rate Changed')
-        deq(projection, { id: 1, name: 'VAT Rates', version: 1 });
+        deq(projection, { name: 'VAT Rates', version: 1 });
         done();
       })
 
@@ -405,7 +405,7 @@ describe('RDF', () => {
 
       rdf.on('VAT Rate Changed', ({ event, projection }) => {
         eq(event, 'VAT Rate Changed')
-        deq(projection, { id: 1, name: 'VAT Rates', version: 1 });
+        deq(projection, { name: 'VAT Rates', version: 1 });
         setTimeout(done, 1000);
       })
 
