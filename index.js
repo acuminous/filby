@@ -113,17 +113,18 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
 
   async #getNextNotification(tx, maxAttempts) {
     const { rows } = await tx.query('SELECT id, hook_id, attempts FROM rdf_get_next_notification($1)', [maxAttempts]);
-    const notifications = rows.map((row) => ({ id: row.id, hookId: row.hook_id, attempts: row.attempts}));
+    const notifications = rows.map((row) => ({ id: row.id, hookId: row.hook_id, attempts: row.attempts }));
     return notifications[0];
   }
 
   async #getHook(tx, notification) {
-    const { rows } = await tx.query(`
-      SELECT h.event, p.id, p.name, p.version FROM rdf_hook h
-      INNER JOIN rdf_notification n ON n.hook_id = h.id
-      INNER JOIN rdf_projection p ON p.id = n.projection_id
-      WHERE h.id = $1`, [notification.hookId]);
-    const hooks = rows.map((row) => ({ event: row.event, projection: { id: row.id, name: row.name, version: row.version }}))
+    const { rows } = await tx.query(
+      `SELECT h.event, p.id, p.name, p.version FROM rdf_hook h
+INNER JOIN rdf_notification n ON n.hook_id = h.id
+INNER JOIN rdf_projection p ON p.id = n.projection_id
+WHERE h.id = $1`,
+      [notification.hookId]);
+    const hooks = rows.map((row) => ({ event: row.event, projection: { id: row.id, name: row.name, version: row.version } }))
     return hooks[0];
   }
 

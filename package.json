@@ -4,8 +4,6 @@
   "main": "index.js",
   "types": "index.d.ts",
   "dependencies": {
-    "@fastify/swagger": "^8.12.2",
-    "@fastify/swagger-ui": "^2.0.1",
     "eventemitter2": "^6.4.9",
     "handlebars": "^4.7.8",
     "marv": "^6.0.0",

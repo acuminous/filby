@@ -113,8 +113,8 @@ DO $$
       (v_change_set_id, v_entity_id, '{{../action}}')
     RETURNING id INTO v_frame_id;
 
-    INSERT INTO {{../entity}}_v{{../version}} (rdf_frame_id, {{#xkeys .}}{{key}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
-      (v_frame_id, {{#xvalues .}}'{{value}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
+    INSERT INTO {{../entity}}_v{{../version}} (rdf_frame_id, {{#xkeys .}}{{item}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
+      (v_frame_id, {{#xvalues .}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
     {{/data}}
 
     PERFORM rdf_notify('{{entity}}', {{version}});
@@ -127,4 +127,3 @@ $$ LANGUAGE plpgsql;
 {{/add_change_set}}
 
 END TRANSACTION;
-

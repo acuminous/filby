@@ -1,6 +1,6 @@
 const createError = require('http-errors');
 
-export default (fastify, { rdf }, done) => {
+module.exports = (fastify, { rdf }, done) => {
 
   const getParksSchema = {
     querystring: {
@@ -45,7 +45,7 @@ export default (fastify, { rdf }, done) => {
           type: "string"
         }
       }
-      }
+    }
   };
 
   fastify.get('/:code', { schema: getParkSchema }, async (request, reply) => {

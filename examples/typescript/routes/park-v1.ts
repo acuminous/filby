@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import createError from 'http-errors';
 import ReferenceDataFramework, { RdfChangeSet } from '../../..';
 
-export default (fastify: FastifyInstance, { rdf } : { rdf: ReferenceDataFramework }, done: (err?: Error) => void) => {
+export default (fastify: FastifyInstance, { rdf }: { rdf: ReferenceDataFramework }, done: (err?: Error) => void) => {
 
   const getParksSchema = {
     querystring: {
@@ -49,7 +49,7 @@ export default (fastify: FastifyInstance, { rdf } : { rdf: ReferenceDataFramewor
           type: "string"
         }
       }
-      }
+    }
   } as const;
 
   fastify.get<{
@@ -70,7 +70,7 @@ export default (fastify: FastifyInstance, { rdf } : { rdf: ReferenceDataFramewor
     return park;
   });
 
-  async function getChangeSet(request: FastifyRequest<{ Querystring: typeof getParksSchema.querystring.properties }> | FastifyRequest<{ Querystring: typeof getParkSchema.querystring.properties }> ) {
+  async function getChangeSet(request: FastifyRequest<{ Querystring: typeof getParksSchema.querystring.properties }> | FastifyRequest<{ Querystring: typeof getParkSchema.querystring.properties }>) {
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await rdf.getChangeSet(changeSetId);
     if (!changeSet) throw createError(400, `Invalid changeSetId`)
