@@ -11,21 +11,20 @@ CREATE TYPE {{name}} AS ENUM (
 {{#define_entities}}
 INSERT INTO rdf_entity (name, version) VALUES ('{{name}}', {{version}});
 
-CREATE TABLE {{name}}_v{{version}} (
+CREATE TABLE {{table_name}}_v{{version}} (
   rdf_frame_id INTEGER PRIMARY KEY REFERENCES rdf_data_frame (id),
   {{#fields}}
   {{name}} {{type}},
   {{/fields}}
-  CONSTRAINT {{name}}_frame_id_{{#identified_by}}{{name}}_{{#if @last}}uniq{{/if}}{{/identified_by}} UNIQUE (rdf_frame_id, {{#identified_by}}{{name}}{{/identified_by}}){{#if checks}},{{/if}}
+  CONSTRAINT {{table_name}}_frame_id_{{#identified_by}}{{table_name}}_{{#if @last}}uniq{{/if}}{{/identified_by}} UNIQUE (rdf_frame_id, {{#identified_by}}{{name}}{{/identified_by}}){{#if checks}},{{/if}}
   {{#each checks}}
   CONSTRAINT {{@key}}_chk CHECK ({{{this}}}){{#unless @last}},{{/unless}}
   {{/each}}
 );
 
-CREATE FUNCTION get_{{name}}_v{{version}}_aggregate(
+CREATE FUNCTION get_{{table_name}}_v{{version}}_aggregate(
   p_change_set_id INTEGER
 ) RETURNS TABLE (
-  rdf_action rdf_action_type,
   {{#fields}}
   {{name}} {{type}}{{#unless @last}},{{/unless}}
   {{/fields}}
@@ -33,21 +32,29 @@ CREATE FUNCTION get_{{name}}_v{{version}}_aggregate(
 AS $$
 BEGIN
   RETURN QUERY
+  WITH aggregated AS (
+    SELECT
+      DISTINCT ON ({{#identified_by}}{{name}}{{#unless @last}},{{/unless}}{{/identified_by}})
+      f.action AS rdf_action,
+      {{#fields}}
+      x.{{name}}{{#unless @last}},{{/unless}}
+      {{/fields}}
+    FROM
+      rdf_data_frame f
+    INNER JOIN rdf_entity e ON e.id = f.entity_id
+    INNER JOIN {{table_name}}_v{{version}} x ON x.rdf_frame_id = f.id
+    WHERE e.name = '{{name}}' AND e.version = {{version}}
+      AND f.change_set_id <= p_change_set_id
+    ORDER BY
+      {{#identified_by}}x.{{name}}{{/identified_by}} ASC,
+      x.rdf_frame_id DESC
+  )
   SELECT
-    DISTINCT ON ({{#identified_by}}{{name}}{{#unless @last}},{{/unless}}{{/identified_by}})
-    f.action AS rdf_action,
     {{#fields}}
-    x.{{name}}{{#unless @last}},{{/unless}}
+      a.{{name}}{{#unless @last}},{{/unless}}
     {{/fields}}
-  FROM
-    rdf_data_frame f
-  INNER JOIN rdf_entity e ON e.id = f.entity_id
-  INNER JOIN {{name}}_v{{version}} x ON x.rdf_frame_id = f.id
-  WHERE e.name = '{{name}}' AND e.version = {{version}}
-    AND f.change_set_id <= p_change_set_id
-  ORDER BY
-    {{#identified_by}}x.{{name}}{{/identified_by}} ASC,
-    x.rdf_frame_id DESC;
+  FROM aggregated a
+  WHERE a.rdf_action <> 'DELETE';
 END;
 $$ LANGUAGE plpgsql;
 
@@ -101,8 +108,8 @@ DO $$
     v_entity_id INTEGER;
     v_frame_id INTEGER;
   BEGIN
-    INSERT INTO rdf_change_set (effective_from, notes, last_modified, entity_tag) VALUES
-    ('{{effective_from}}', '{{notes}}', now(), encode(gen_random_bytes(10), 'hex'))
+    INSERT INTO rdf_change_set (effective_from, notes) VALUES
+      ('{{effective_from}}', '{{notes}}')
     RETURNING id INTO v_change_set_id;
 
     {{#frames}}

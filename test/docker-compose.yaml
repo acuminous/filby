@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rdf_test
+    environment:
+      POSTGRES_DB: rdf_test
+      POSTGRES_USER: rdf_test
+      POSTGRES_PASSWORD: rdf_test
+    ports:
+      - "5432:5432"

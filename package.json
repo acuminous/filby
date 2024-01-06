@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "types": "index.d.ts",
+  "scripts": {
+    "test": "docker-compose --file test/docker-compose.yaml up --detach && zUnit"
+  },
   "dependencies": {
     "eventemitter2": "^6.4.9",
     "handlebars": "^4.7.8",
@@ -25,6 +28,7 @@
     "typescript"
   ],
   "devDependencies": {
-    "@types/pg": "^8.10.9"
+    "@types/pg": "^8.10.9",
+    "zunit": "^4.0.2"
   }
 }
