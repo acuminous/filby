@@ -42,12 +42,11 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
   }
 
   async stopNotifications() {
-    if (!this.#scheduler) return;
-    await this.#scheduler.stop();
+    await this.#scheduler?.stop();
   }
 
   async stop() {
-    await this.#scheduler.stop();
+    await this.#scheduler?.stop();
     await this.#pool.end();
   }
 

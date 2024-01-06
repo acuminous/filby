@@ -1,10 +1,10 @@
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 
-const ReferenceDataFramework = require('..');
+const TestReferenceDataFramework = require('./TestReferenceDataFramework');
 
 const config = {
-  migrations: 'test/migrations',
+  migrations: 'test/dsl',
   database: {
     user: 'rdf_test',
     password: 'rdf_test'
@@ -472,18 +472,3 @@ describe('RDF', () => {
     });
   })
 });
-
-class TestReferenceDataFramework extends ReferenceDataFramework {
-  async wipe() {
-    await this.withTransaction(async (tx) => {
-      await tx.query('DELETE FROM vat_rate_v1');
-      await tx.query('DELETE FROM rdf_notification');
-      await tx.query('DELETE FROM rdf_hook');
-      await tx.query('DELETE FROM rdf_data_frame');
-      await tx.query('DELETE FROM rdf_projection_entity');
-      await tx.query('DELETE FROM rdf_entity');
-      await tx.query('DELETE FROM rdf_change_set');
-      await tx.query('DELETE FROM rdf_projection');
-    });
-  }
-}
