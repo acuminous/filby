@@ -14,7 +14,7 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD: trust
     strategy:
       matrix:
-        node-version: [18.x, 20x]
+        node-version: [18.x, 20.x]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
