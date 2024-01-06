@@ -14,7 +14,16 @@
   },
   "author": "Stephen Cresswell",
   "license": "ISC",
-  "description": "A framework for managing temporal reference data",
+  "description": "A framework for managing slow moving, temporal reference data",
+  "keywords": [
+    "temporal",
+    "reference data",
+    "data",
+    "database",
+    "postgres",
+    "postgresql",
+    "typescript"
+  ],
   "devDependencies": {
     "@types/pg": "^8.10.9"
   }
