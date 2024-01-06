@@ -4,7 +4,7 @@ const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 const TestReferenceDataFramework = require('./TestReferenceDataFramework');
 
 const config = {
-  migrations: 'test/dsl',
+  migrations: 'test/migrations',
   database: {
     user: 'rdf_test',
     password: 'rdf_test'
@@ -14,6 +14,14 @@ const config = {
     interval: '100ms',
     maxAttempts: 3,
     maxRescheduleDelay: '100ms',
+  },
+  nukeCustomObjects: async (tx) => {
+    await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
+    await tx.query('DROP TYPE IF EXISTS tax_rate_type');
+  },
+  wipeCustomData: async (tx) => {
+    await tx.query('DELETE FROM vat_rate_v1');
   }
 }
 
@@ -23,7 +31,7 @@ describe('RDF', () => {
 
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
-    await rdf.init();
+    await rdf.reset();
   })
 
   beforeEach(async () => {

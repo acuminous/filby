@@ -33,7 +33,7 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
 
   async #migrate(connection, directory) {
     const migrations = await marv.scan(directory);
-    return marv.migrate(migrations, driver({ connection }));
+    await marv.migrate(migrations, driver({ connection }));
   }
 
   async startNotifications() {

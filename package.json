@@ -9,6 +9,8 @@
     "coverage": "nyc --report html --reporter lcov --reporter text-summary zUnit"
   },
   "dependencies": {
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
     "eventemitter2": "^6.4.9",
     "handlebars": "^4.7.8",
     "marv": "^6.0.0",

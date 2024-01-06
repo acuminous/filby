@@ -1,5 +1,4 @@
 define enums:
-
   - name: park_calendar_event_type
     values:
       - Park Open - Owners
@@ -8,7 +7,6 @@ define enums:
       - Park Close - Guests
 
 define entities:
-
   - name: park
     version: 1
     fields:
@@ -39,10 +37,10 @@ add projections:
   - name: park
     version: 1
     dependencies:
-    - name: park
-      version: 1
-    - name: park_calendar
-      version: 1
+      - name: park
+        version: 1
+      - name: park_calendar
+        version: 1
 
 add hooks:
   - projection: park

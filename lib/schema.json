@@ -1,0 +1,263 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "JSON Schema for RDF",
+  "type": "object",
+  "properties": {
+    "define enums": {
+      "$ref": "#/definitions/enumsType"
+    },
+    "define_enums": {
+      "$ref": "#/definitions/enumsType"
+    },
+    "define entities": {
+      "$ref": "#/definitions/entitiesType"
+    },
+    "define_entities": {
+      "$ref": "#/definitions/entitiesType"
+    },
+    "add projections": {
+      "$ref": "#/definitions/projectionsType"
+    },
+    "add_projections": {
+      "$ref": "#/definitions/projectionsType"
+    },
+    "add hooks": {
+      "$ref": "#/definitions/hooksType"
+    },
+    "add_hooks": {
+      "$ref": "#/definitions/hooksType"
+    },
+    "add change set": {
+      "$ref": "#/definitions/changeSetType"
+    },
+    "add_change_set": {
+      "$ref": "#/definitions/changeSetType"
+    }
+  },
+  "definitions": {
+    "enumsType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "values"
+        ]
+      }
+    },
+    "entitiesType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "type"
+              ]
+            }
+          },
+          "identified by": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "checks": {
+            "type": "object",
+            "minProperties": 1,
+            "patternProperties": {
+              ".+": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "name",
+              "version",
+              "fields",
+              "identified by"
+            ]
+          },
+          {
+            "required": [
+              "name",
+              "version",
+              "fields",
+              "identified_by"
+            ]
+          }
+        ]
+      }
+    },
+    "projectionsType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "dependencies": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "entity",
+                "version"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "dependencies"
+        ]
+      }
+    },
+    "hooksType": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "projection": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "event": {
+            "type": "string"
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "projection",
+              "version",
+              "event"
+            ]
+          },
+          {
+            "required": [
+              "event"
+            ]
+          }
+        ]
+      }
+    },
+    "changeSetType": {
+      "type": "object",
+      "properties": {
+        "effective_from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "frames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "entity": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "POST",
+                  "DELETE"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object"
+                }
+              }
+            },
+            "required": [
+              "entity",
+              "version",
+              "action",
+              "data"
+            ]
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "effective_from",
+            "notes",
+            "frames"
+          ]
+        },
+        {
+          "required": [
+            "effective from",
+            "notes",
+            "frames"
+          ]
+        }
+      ]
+    }
+  },
+  "required": []
+}

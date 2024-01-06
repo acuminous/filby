@@ -70,11 +70,11 @@ DECLARE
 
 BEGIN
   INSERT INTO rdf_projection (name, version) VALUES
-    ('{{name}}', {{version}}){{#unless @last}}),{{/unless}}
+    ('{{name}}', {{version}})
   RETURNING id INTO v_projection_id;
 
   {{#dependencies}}
-  SELECT id INTO v_entity_id FROM rdf_entity WHERE name = '{{name}}' AND version = {{version}};
+  SELECT id INTO v_entity_id FROM rdf_entity WHERE name = '{{entity}}' AND version = {{version}};
 
   INSERT INTO rdf_projection_entity (projection_id, entity_id) VALUES
     (v_projection_id, v_entity_id);
