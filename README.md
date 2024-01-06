@@ -164,7 +164,7 @@ A data frame is a snapshot of an entity, associated with a **change set**. There
 A change set groups a set of data frames (potentially for different entities) into a single unit with a common effective date. The data frames will not be aggregated by their parent entities when building a projection for an earlier change set.
 
 ### Notifications
-Notifications are published whenever a new data frame is created. The framework works out which projections are affected, and notifies interested parties via a **hook**. If multiple data frames are created in quick succession (or part of a transaction) only a single notification is sent. Notifications are retried a configurable number of times using an exponential backoff algorithm.
+Notifications are published whenever a new data frame is created. The framework works out which projections are affected, and notifies interested parties via a **hook**. If multiple data frames are created in quick succession (or part of a transaction) only a single notification is sent. Notifications are retried a configurable number of times using an exponential backoff algorithm. It is save for multiple instances of the framework to poll for notifications concurrently.
 
 ### Hook
 A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
