@@ -1,10 +1,10 @@
 START TRANSACTION;
 
 CREATE VIEW rdf_projection_change_log_vw AS (
-  SELECT DISTINCT ON (c.id)
+  SELECT
     p.id AS projection_id,
     p.name AS projection_name,
-    p.version AS projection_version,  
+    p.version AS projection_version,
     c.id AS change_set_id,
     c.effective_from,
     c.notes,

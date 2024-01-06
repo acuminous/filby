@@ -1,5 +1,5 @@
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { describe, it, before, after, beforeEach } = require('zunit');
+const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 
 const ReferenceDataFramework = require('..');
 
@@ -8,6 +8,12 @@ const config = {
   database: {
     user: 'rdf_test',
     password: 'rdf_test'
+  },
+  notifications: {
+    initialDelay: '0ms',
+    interval: '100ms',
+    maxAttempts: 3,
+    maxRescheduleDelay: '100ms',
   }
 }
 
@@ -21,7 +27,13 @@ describe('RDF', () => {
   })
 
   beforeEach(async () => {
+    rdf.removeAllListeners();
     await rdf.wipe();
+  })
+
+  afterEach(async () => {
+    await rdf.stopNotifications();
+    rdf.removeAllListeners();
   })
 
   after(async () => {
@@ -171,6 +183,7 @@ describe('RDF', () => {
 
       const projection = await rdf.getProjection('VAT Rates', 1);
       const changelog = (await rdf.getChangeLog(projection)).map(({ id, effectiveFrom, notes }) => ({ id, effectiveFrom: effectiveFrom.toISOString(), notes }));
+
       eq(changelog.length, 3);
       deq(changelog[0], { id: 1, effectiveFrom: '2020-04-05T00:00:00.000Z', notes: 'Countries' });
       deq(changelog[1], { id: 2, effectiveFrom: '2020-04-05T00:00:00.000Z', notes: '2020 VAT Rates' });
@@ -338,14 +351,131 @@ describe('RDF', () => {
         eq(aggregate3.length, 2);
         deq(aggregate3[0], { type: 'standard', rate: 0.15 });
         deq(aggregate3[1], { type: 'reduced', rate: 0.10 });
-      }, { exclusive: true });
+      });
+    });
+  })
+
+  describe('Notifications', () => {
+    it('should notify interested parties of projection changes', async (t, done) => {
+      await rdf.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+          (1, 'VAT Rates', 1),
+          (2, 'CGT Rates', 1)`
+        );
+        await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+          (1, 1, 'VAT Rate Changed'),
+          (2, 2, 'CGT Rate Changed')`
+        );
+        await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+          (1, 1, now())`
+        );
+      });
+
+      rdf.once('VAT Rate Changed', ({ event, projection }) => {
+        eq(event, 'VAT Rate Changed')
+        deq(projection, { id: 1, name: 'VAT Rates', version: 1 });
+        done();
+      })
+
+      rdf.startNotifications();
+    });
+
+    it('should not redeliver successful notifications', async (t, done) => {
+      await rdf.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+          (1, 'VAT Rates', 1),
+          (2, 'CGT Rates', 1)`
+        );
+        await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+          (1, 1, 'VAT Rate Changed'),
+          (2, 2, 'CGT Rate Changed')`
+        );
+        await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+          (1, 1, now())`
+        );
+      });
+
+      rdf.on('VAT Rate Changed', ({ event, projection }) => {
+        eq(event, 'VAT Rate Changed')
+        deq(projection, { id: 1, name: 'VAT Rates', version: 1 });
+        setTimeout(done, 1000);
+      })
+
+      rdf.startNotifications();
+    });
+
+    it('should redeliver unsuccessful notifications up to the maximum number of attempts', async (t, done) => {
+      await rdf.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+          (1, 'VAT Rates', 1),
+          (2, 'CGT Rates', 1)`
+        );
+        await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+          (1, 1, 'VAT Rate Changed'),
+          (2, 2, 'CGT Rate Changed')`
+        );
+        await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+          (1, 1, now())`
+        );
+      });
+
+      let attempt = 0;
+      rdf.on('VAT Rate Changed', async () => {
+        attempt++;
+        throw new Error('Oh Noes!');
+      });
+
+      setTimeout(async () => {
+        eq(attempt, 3);
+        done();
+      }, 500)
+
+      rdf.startNotifications();
+    });
+
+    it('should capture the last delivery error', async (t, done) => {
+      const before = new Date();
+
+      await rdf.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+          (1, 'VAT Rates', 1),
+          (2, 'CGT Rates', 1)`
+        );
+        await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+          (1, 1, 'VAT Rate Changed'),
+          (2, 2, 'CGT Rate Changed')`
+        );
+        await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+          (1, 1, now())`
+        );
+      });
+
+      let attempt = 0;
+      rdf.on('VAT Rate Changed', () => {
+        attempt++;
+        throw new Error(`Oh Noes! ${attempt}`);
+      });
+
+      setTimeout(async () => {
+        const { rows: notifications } = await rdf.withTransaction(async (tx) => {
+          return tx.query('SELECT * FROM rdf_notification');
+        })
+
+        eq(notifications.length, 1);
+        eq(notifications[0].status, 'PENDING');
+        ok(notifications[0].last_attempted > before);
+        match(notifications[0].last_error, /Oh Noes! 3/);
+        done();
+      }, 500)
+
+      rdf.startNotifications();
     });
   })
 });
 
 class TestReferenceDataFramework extends ReferenceDataFramework {
   async wipe() {
-    return this.withTransaction(async (tx) => {
+    await this.withTransaction(async (tx) => {
       await tx.query('DELETE FROM vat_rate_v1');
       await tx.query('DELETE FROM rdf_notification');
       await tx.query('DELETE FROM rdf_hook');
@@ -354,6 +484,6 @@ class TestReferenceDataFramework extends ReferenceDataFramework {
       await tx.query('DELETE FROM rdf_entity');
       await tx.query('DELETE FROM rdf_change_set');
       await tx.query('DELETE FROM rdf_projection');
-    })
+    });
   }
 }

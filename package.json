@@ -13,6 +13,7 @@
     "handlebars": "^4.7.8",
     "marv": "^6.0.0",
     "marv-pg-driver": "^5.0.0",
+    "parse-duration": "^1.1.0",
     "pg": "^8.11.3",
     "pipsqueak": "^2.7.0",
     "yaml": "^2.3.4"

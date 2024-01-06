@@ -4,20 +4,23 @@ const EventEmitter = require('eventemitter2');
 const { promiseApi: pipsqueak } = require('pipsqueak');
 const marv = require('marv/api/promise');
 const { Pool } = require('pg');
+const parseDuration = require('parse-duration');
+
 
 const driver = require('./lib/marv-rdf-driver');
 
 module.exports = class ReferenceDataFramework extends EventEmitter {
 
   #config;
+  #maxRescheduleDelay;
   #pool;
   #scheduler;
 
   constructor(config) {
     super();
     this.#config = config;
+    this.#maxRescheduleDelay = parseDuration(this.#config.notifications?.maxRescheduleDelay || '1h');
     this.#pool = new Pool(config.database);
-    this.#scheduler = this.#createScheduler();
   }
 
   async init() {
@@ -34,10 +37,12 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
   }
 
   async startNotifications() {
-    this.#scheduler.start()
+    this.#scheduler = this.#createScheduler();
+    this.#scheduler.start();
   }
 
   async stopNotifications() {
+    if (!this.#scheduler) return;
     await this.#scheduler.stop();
   }
 
@@ -72,7 +77,7 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
 
   async getChangeLog(projection) {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT change_set_id, effective_from, notes, last_modified, entity_tag FROM rdf_projection_change_log_vw WHERE projection_id = $1', [projection.id]);
+      const { rows } = await tx.query('SELECT DISTINCT ON (change_set_id) change_set_id, effective_from, notes, last_modified, entity_tag FROM rdf_projection_change_log_vw WHERE projection_id = $1', [projection.id]);
       return rows.map(toChangeSet);
     });
   };
@@ -87,7 +92,7 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
   #createScheduler() {
     const maxAttempts = this.#config.notifications?.maxAttempts || 10;
     const interval = this.#config.notifications?.interval || '1m';
-    const delay = this.#config.notifications?.delay || '10s';
+    const initialDelay = this.#config.notifications?.initialDelay || '10s';
 
     const factory = async (ctx) => {
       let ok = true;
@@ -103,12 +108,13 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
           } catch (err) {
             await this.#failNotification(tx, notification, err);
           }
+
           return true;
         });
       } while (ok);
     }
 
-    return pipsqueak({ name: 'rdf-notifications', factory, interval, delay });
+    return pipsqueak({ name: 'rdf-notifications', factory, interval, delay: initialDelay });
   }
 
   async #getNextNotification(tx, maxAttempts) {
@@ -133,7 +139,8 @@ WHERE h.id = $1`,
   }
 
   async #failNotification(tx, notification, err) {
-    const scheduledFor = new Date(Date.now() + Math.pow(2, notification.attempts) * 1000);
+    const rescheduleDelay = Math.min(Math.pow(2, notification.attempts) * 1000, this.#maxRescheduleDelay);
+    const scheduledFor = new Date(Date.now() + rescheduleDelay);
     await tx.query('SELECT rdf_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.stack])
   }
 }
