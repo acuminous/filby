@@ -24,9 +24,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-      - run: pushd examples/javascript
-      - run: npm ci
-      - run: popd
+      - run: pushd examples/javascript && npm ci
       - run: npm run lint
       - run: npm test
 

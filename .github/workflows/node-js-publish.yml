@@ -23,9 +23,7 @@ jobs:
         with:
           node-version: '20.x'
       - run: npm ci
-      - run: pushd examples/javascript
-      - run: npm ci
-      - run: popd
+      - run: pushd examples/javascript && npm ci
       - run: npm test
 
 
