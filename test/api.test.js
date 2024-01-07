@@ -28,7 +28,7 @@ describe('API', () => {
 
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
-    await rdf.reset;
+    await rdf.reset();
   })
 
   beforeEach(async () => {
