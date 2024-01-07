@@ -19,9 +19,6 @@ const config = {
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
     await tx.query('DROP TYPE IF EXISTS tax_rate_type');
-  },
-  wipeCustomData: async (tx) => {
-    await tx.query('DELETE FROM vat_rate_v1');
   }
 }
 
@@ -31,15 +28,12 @@ describe('API', () => {
 
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
-    await rdf.init();
-    await rdf.nukeCustomObjects();
-    await rdf.wipeRdfData();
+    await rdf.reset;
   })
 
   beforeEach(async () => {
     rdf.removeAllListeners();
-    await rdf.nukeCustomObjects();
-    await rdf.wipeRdfData();
+    await rdf.wipe();
   })
 
   afterEach(async () => {

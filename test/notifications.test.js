@@ -17,9 +17,6 @@ const config = {
   },
   nukeCustomObjects: async (tx) => {
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
-  },
-  wipeCustomData: async (tx) => {
-    await tx.query('DELETE FROM vat_rate_v1');
   }
 }
 
@@ -29,15 +26,12 @@ describe('Notifications', () => {
 
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
-    await rdf.init();
-    await rdf.nukeCustomObjects();
-    await rdf.wipeRdfData();
+    await rdf.reset();
   })
 
   beforeEach(async () => {
     rdf.removeAllListeners();
-    await rdf.nukeCustomObjects();
-    await rdf.wipeRdfData();
+    await rdf.wipe();
   })
 
   afterEach(async () => {

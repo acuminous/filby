@@ -23,14 +23,11 @@ describe('Schema', () => {
 
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
-    await rdf.init();
-    await rdf.nukeCustomObjects();
-    await rdf.wipeRdfData();
+    await rdf.reset();
   })
 
   beforeEach(async () => {
-    await rdf.nukeCustomObjects();
-    await rdf.wipeRdfData();
+    await rdf.wipe();
   })
 
   after(async () => {
