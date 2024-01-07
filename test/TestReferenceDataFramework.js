@@ -19,7 +19,7 @@ module.exports = class TestReferenceDataFramework extends ReferenceDataFramework
     await this.withTransaction(async (tx) => {
       await this.#nukeCustomObjects(tx);
       await this.#wipeRdfData(tx);
-    })
+    });
   }
 
   async #wipeRdfData(tx) {
@@ -31,4 +31,4 @@ module.exports = class TestReferenceDataFramework extends ReferenceDataFramework
     await tx.query('DELETE FROM rdf_change_set');
     await tx.query('DELETE FROM rdf_projection');
   }
-}
+};

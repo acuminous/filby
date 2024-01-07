@@ -20,7 +20,7 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
     await tx.query('DROP TYPE IF EXISTS tax_rate_type');
   }
-}
+};
 
 describe('API', () => {
 
@@ -29,21 +29,21 @@ describe('API', () => {
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
     await rdf.reset();
-  })
+  });
 
   beforeEach(async () => {
     rdf.removeAllListeners();
     await rdf.wipe();
-  })
+  });
 
   afterEach(async () => {
     await rdf.stopNotifications();
     rdf.removeAllListeners();
-  })
+  });
 
   after(async () => {
     await rdf.stop();
-  })
+  });
 
   describe('Projections', () => {
 

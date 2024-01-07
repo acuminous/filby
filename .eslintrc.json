@@ -64,7 +64,6 @@
     "prefer-rest-params": 0,
     "quote-props": 0,
     "quotes": 0,
-    "semi": 0,
     "import/no-dynamic-require": 0,
     "prefer-destructuring": 0
   }

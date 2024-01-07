@@ -25,7 +25,7 @@ const config = {
     await tx.query('DROP TABLE IF EXISTS cgt_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
   }
-}
+};
 
 describe('DSL', () => {
 
@@ -35,16 +35,16 @@ describe('DSL', () => {
     deleteMigrations();
     rdf = new TestReferenceDataFramework(config);
     await rdf.reset();
-  })
+  });
 
   beforeEach(async () => {
     deleteMigrations();
     await rdf.wipe();
-  })
+  });
 
   after(async () => {
     await rdf.stop();
-  })
+  });
 
   describe('Projections', () => {
     it('should add projections', async (t) => {
@@ -233,7 +233,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'name'"))
+        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'name'"));
         return true;
       });
 
@@ -246,7 +246,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'type'"))
+        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'type'"));
         return true;
       });
 
@@ -307,8 +307,8 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0 must have required property 'effective'"));
         return true;
-      })
-    })
+      });
+    });
 
     it('should require at least one frame', async (t) => {
       await rejects(() => applyYaml(t.name, `
@@ -317,7 +317,7 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0 must have required property 'frames'"));
         return true;
-      })
+      });
 
       await rejects(() => applyYaml(t.name, `
         add change set:
@@ -326,8 +326,8 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames must be an array"));
         return true;
-      })
-    })
+      });
+    });
 
     it('should require frames to specify an entity name', async (t) => {
       await rejects(() => applyYaml(t.name, `
@@ -342,8 +342,8 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'entity'"));
         return true;
-      })
-    })
+      });
+    });
 
     it('should require frames to specify an entity version', async (t) => {
       await rejects(() => applyYaml(t.name, `
@@ -358,8 +358,8 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'version'"));
         return true;
-      })
-    })
+      });
+    });
 
     it('should require frames to specify an valid action', async (t) => {
       await rejects(() => applyYaml(t.name, `
@@ -374,7 +374,7 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'action'"));
         return true;
-      })
+      });
 
       await rejects(() => applyYaml(t.name, `
         add change set:
@@ -389,8 +389,8 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames/0/action must be equal to one of the allowed values: POST, DELETE"));
         return true;
-      })
-    })
+      });
+    });
 
     it('should require frame data to specify at least one value', async (t) => {
       await rejects(() => applyYaml(t.name, `
@@ -403,8 +403,8 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'data'"));
         return true;
-      })
-    })
+      });
+    });
 
     it('should require frame data to specify at least one value', async (t) => {
       await rejects(() => applyYaml(t.name, `
@@ -418,9 +418,9 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames/0/data must be an array"));
         return true;
-      })
-    })
-  })
+      });
+    });
+  });
 
   describe('Aggregates', () => {
     it('should aggregate data frames up to the specified change set', async (t) => {
@@ -526,7 +526,7 @@ describe('DSL', () => {
         deq(aggregate3[0], { type: 'standard', rate: 0.15 });
         deq(aggregate3[1], { type: 'reduced', rate: 0.10 });
         deq(aggregate1[2], { type: 'zero', rate: 0 });
-      })
+      });
     });
 
     it('should exclude aggregates where the most recent frame was a delete', async (t) => {
@@ -708,9 +708,9 @@ describe('DSL', () => {
       await rejects(() => apply(t.name, 'UNSUPPORTED', 'yml'), (err) => {
         eq(err.message, 'Unsupported file type: yml');
         return true;
-      })
+      });
     });
-  })
+  });
 
   describe('Hooks', () => {
     it('should add hooks', async (t) => {

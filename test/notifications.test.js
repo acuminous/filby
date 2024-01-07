@@ -18,7 +18,7 @@ const config = {
   nukeCustomObjects: async (tx) => {
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
   }
-}
+};
 
 describe('Notifications', () => {
 
@@ -27,21 +27,21 @@ describe('Notifications', () => {
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
     await rdf.reset();
-  })
+  });
 
   beforeEach(async () => {
     rdf.removeAllListeners();
     await rdf.wipe();
-  })
+  });
 
   afterEach(async () => {
     await rdf.stopNotifications();
     rdf.removeAllListeners();
-  })
+  });
 
   after(async () => {
     await rdf.stop();
-  })
+  });
 
   it('should notify interested parties of projection changes', async (t, done) => {
     await rdf.withTransaction(async (tx) => {
@@ -59,10 +59,10 @@ describe('Notifications', () => {
     });
 
     rdf.once('VAT Rate Changed', ({ event, projection }) => {
-      eq(event, 'VAT Rate Changed')
+      eq(event, 'VAT Rate Changed');
       deq(projection, { name: 'VAT Rates', version: 1 });
       done();
-    })
+    });
 
     rdf.startNotifications();
   });
@@ -83,10 +83,10 @@ describe('Notifications', () => {
     });
 
     rdf.on('VAT Rate Changed', ({ event, projection }) => {
-      eq(event, 'VAT Rate Changed')
+      eq(event, 'VAT Rate Changed');
       deq(projection, { name: 'VAT Rates', version: 1 });
       setTimeout(done, 1000);
-    })
+    });
 
     rdf.startNotifications();
   });
@@ -115,7 +115,7 @@ describe('Notifications', () => {
     setTimeout(async () => {
       eq(attempt, 3);
       done();
-    }, 500)
+    }, 500);
 
     rdf.startNotifications();
   });
@@ -146,14 +146,14 @@ describe('Notifications', () => {
     setTimeout(async () => {
       const { rows: notifications } = await rdf.withTransaction(async (tx) => {
         return tx.query('SELECT * FROM rdf_notification');
-      })
+      });
 
       eq(notifications.length, 1);
       eq(notifications[0].status, 'PENDING');
       ok(notifications[0].last_attempted > before);
       match(notifications[0].last_error, /Oh Noes! 3/);
       done();
-    }, 500)
+    }, 500);
 
     rdf.startNotifications();
   });

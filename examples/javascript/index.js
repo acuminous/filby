@@ -34,12 +34,12 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
 			deepLinking: false
 		},
 		uiHooks: {
-			onRequest: function (_, __, next) { next() },
-			preHandler: function (_, __, next) { next() }
+			onRequest: function (_, __, next) { next(); },
+			preHandler: function (_, __, next) { next(); }
 		},
 		staticCSP: true,
 		transformStaticCSP: (header) => header,
-		transformSpecification: (swaggerObject) => { return swaggerObject },
+		transformSpecification: (swaggerObject) => { return swaggerObject; },
 		transformSpecificationClone: true
 	});
 
@@ -52,10 +52,10 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
 		await fastify.listen(config.server);
 
 		rdf.on('park_v1_change', (event) => {
-			console.log({ event })
+			console.log({ event });
 		});
 		rdf.on('change', (event) => {
-			console.log({ event })
+			console.log({ event });
 		});
 		await rdf.startNotifications();
 
@@ -65,7 +65,7 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
 		console.log(`Use CTRL+D or kill -TERM ${process.pid} to stop`);
 	} catch (err) {
 		console.error(err);
-		process.exit(1)
+		process.exit(1);
 	}
 })();
 
@@ -79,7 +79,7 @@ async function registerProjections() {
 		const route = require(path.resolve(`routes/${projection.name}-v${projection.version}`));
 		const prefix = `/api/projection/v${projection.version}/${projection.name}`;
 		fastify.register(route, { prefix, rdf });
-	})
+	});
 }
 
 function registerShutdownHooks() {
@@ -91,5 +91,5 @@ function registerShutdownHooks() {
 		await fastify.close();
 		await rdf.stop();
 		console.log('Server has stopped');
-	})
+	});
 }

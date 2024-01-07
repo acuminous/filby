@@ -66,7 +66,7 @@ module.exports = (fastify, { rdf }, done) => {
   async function getChangeSet(request) {
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await rdf.getChangeSet(changeSetId);
-    if (!changeSet) throw createError(400, `Invalid changeSetId`)
+    if (!changeSet) throw createError(400, `Invalid changeSetId`);
     return changeSet;
   }
 
@@ -94,4 +94,4 @@ module.exports = (fastify, { rdf }, done) => {
   }
 
   done();
-}
+};

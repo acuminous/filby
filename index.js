@@ -111,7 +111,7 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
           return true;
         });
       } while (ok);
-    }
+    };
 
     return pipsqueak({ name: 'rdf-notifications', factory, interval, delay: initialDelay });
   }
@@ -129,20 +129,20 @@ INNER JOIN rdf_notification n ON n.hook_id = h.id
 INNER JOIN rdf_projection p ON p.id = n.projection_id
 WHERE h.id = $1`,
       [notification.hookId]);
-    const hooks = rows.map((row) => ({ event: row.event, projection: { name: row.name, version: row.version } }))
+    const hooks = rows.map((row) => ({ event: row.event, projection: { name: row.name, version: row.version } }));
     return hooks[0];
   }
 
   async #passNotification(tx, notification) {
-    await tx.query('SELECT rdf_pass_notification($1)', [notification.id])
+    await tx.query('SELECT rdf_pass_notification($1)', [notification.id]);
   }
 
   async #failNotification(tx, notification, err) {
     const rescheduleDelay = Math.min(Math.pow(2, notification.attempts) * 1000, this.#maxRescheduleDelay);
     const scheduledFor = new Date(Date.now() + rescheduleDelay);
-    await tx.query('SELECT rdf_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.stack])
+    await tx.query('SELECT rdf_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.stack]);
   }
-}
+};
 
 function toChangeSet(row) {
   return {

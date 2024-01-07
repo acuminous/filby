@@ -19,7 +19,7 @@ module.exports = (fastify, { rdf }, done) => {
 
 	fastify.get('/', { schema: getChangelogSchema }, async (request, reply) => {
 
-		const projection = await getProjection(request)
+		const projection = await getProjection(request);
 
 		const changeLog = await rdf.getChangeLog(projection);
 		if (changeLog.length === 0) throw createError(404, `Projection ${projection.name}-v${projection.version} has no change sets`);
@@ -44,4 +44,4 @@ module.exports = (fastify, { rdf }, done) => {
 	}
 
 	done();
-}
+};

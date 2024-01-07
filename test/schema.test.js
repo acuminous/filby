@@ -15,7 +15,7 @@ const config = {
     maxAttempts: 3,
     maxRescheduleDelay: '100ms',
   }
-}
+};
 
 describe('Schema', () => {
 
@@ -24,15 +24,15 @@ describe('Schema', () => {
   before(async () => {
     rdf = new TestReferenceDataFramework(config);
     await rdf.reset();
-  })
+  });
 
   beforeEach(async () => {
     await rdf.wipe();
-  })
+  });
 
   after(async () => {
     await rdf.stop();
-  })
+  });
 
   describe('Projections', () => {
     it('should prevent duplicate projections', async () => {
@@ -53,7 +53,7 @@ describe('Schema', () => {
       }, (err) => {
         eq(err.code, '23505');
         return true;
-      })
+      });
     });
 
     it('should enforce projections are named', async () => {
@@ -64,7 +64,7 @@ describe('Schema', () => {
       }, (err) => {
         eq(err.code, '23502');
         return true;
-      })
+      });
     });
 
     it('should enforce projections are versioned', async () => {
@@ -75,7 +75,7 @@ describe('Schema', () => {
       }, (err) => {
         eq(err.code, '23502');
         return true;
-      })
+      });
     });
   });
 
@@ -99,7 +99,7 @@ describe('Schema', () => {
       }, (err) => {
         eq(err.code, '23505');
         return true;
-      })
+      });
     });
 
     it('should enforce change sets have effective dates', async () => {
@@ -110,7 +110,7 @@ describe('Schema', () => {
       }, (err) => {
         eq(err.code, '23502');
         return true;
-      })
+      });
     });
 
     it('should default last modified date to now', async () => {
