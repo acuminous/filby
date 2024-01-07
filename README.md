@@ -178,6 +178,9 @@ Connects to the database and runs migrations
 #### rdf.startNotifications(): Promise&lt;void&gt;
 Starts polling the database for notifications
 
+#### rdf.stopNotifications(): Promise&lt;void&gt;
+Stops polling the database for notifications, and waits for any inflight notifications to complete.
+
 #### rdf.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
 
