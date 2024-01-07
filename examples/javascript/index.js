@@ -21,28 +21,28 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
       info: {
         title: 'Holiday Park Data Service',
         description: 'A proof of concept reference data application',
-        version: '1.0.0'
+        version: '1.0.0',
       },
       schemes: ['http'],
       consumes: ['application/json'],
       produces: ['application/json'],
-    }
+    },
   });
 
   await fastify.register(swaggerUI, {
     routePrefix: '/documentation',
     uiConfig: {
       docExpansion: 'full',
-      deepLinking: false
+      deepLinking: false,
     },
     uiHooks: {
       onRequest(_, __, next) { next(); },
-      preHandler(_, __, next) { next(); }
+      preHandler(_, __, next) { next(); },
     },
     staticCSP: true,
     transformStaticCSP: (header) => header,
     transformSpecification: (swaggerObject) => { return swaggerObject; },
-    transformSpecificationClone: true
+    transformSpecificationClone: true,
   });
 
   try {

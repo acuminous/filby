@@ -6,13 +6,13 @@ const getChangelogSchema = {
     required: ['projection', 'version'],
     properties: {
       projection: {
-        type: 'string'
+        type: 'string',
       },
       version: {
-        type: 'integer'
-      }
-    }
-  }
+        type: 'integer',
+      },
+    },
+  },
 };
 
 module.exports = (fastify, { rdf }, done) => {

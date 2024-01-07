@@ -7,7 +7,7 @@ const config = {
   migrations: 'test',
   database: {
     user: 'rdf_test',
-    password: 'rdf_test'
+    password: 'rdf_test',
   },
   notifications: {
     initialDelay: '0ms',
@@ -17,7 +17,7 @@ const config = {
   },
   nukeCustomObjects: async (tx) => {
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
-  }
+  },
 };
 
 describe('Notifications', () => {

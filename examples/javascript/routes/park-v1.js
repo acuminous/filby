@@ -8,10 +8,10 @@ module.exports = (fastify, { rdf }, done) => {
       required: ['changeSetId'],
       properties: {
         changeSetId: {
-          type: 'integer'
-        }
-      }
-    }
+          type: 'integer',
+        },
+      },
+    },
   };
 
   fastify.get('/', { schema: getParksSchema }, async (request, reply) => {
@@ -33,19 +33,19 @@ module.exports = (fastify, { rdf }, done) => {
       required: ['changeSetId'],
       properties: {
         changeSetId: {
-          type: 'integer'
-        }
-      }
+          type: 'integer',
+        },
+      },
     },
     params: {
       type: 'object',
       required: ['code'],
       properties: {
         code: {
-          type: 'string'
-        }
-      }
-    }
+          type: 'string',
+        },
+      },
+    },
   };
 
   fastify.get('/:code', { schema: getParkSchema }, async (request, reply) => {

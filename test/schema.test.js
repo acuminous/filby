@@ -7,14 +7,14 @@ const config = {
   migrations: 'test',
   database: {
     user: 'rdf_test',
-    password: 'rdf_test'
+    password: 'rdf_test',
   },
   notifications: {
     initialDelay: '0ms',
     interval: '100ms',
     maxAttempts: 3,
     maxRescheduleDelay: '100ms',
-  }
+  },
 };
 
 describe('Schema', () => {

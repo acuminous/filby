@@ -127,7 +127,7 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
 INNER JOIN rdf_notification n ON n.hook_id = h.id
 INNER JOIN rdf_projection p ON p.id = n.projection_id
 WHERE h.id = $1`,
-      [notification.hookId]
+      [notification.hookId],
     );
     const hooks = rows.map((row) => ({ event: row.event, projection: { name: row.name, version: row.version } }));
     return hooks[0];
@@ -150,6 +150,6 @@ function toChangeSet(row) {
     effective: new Date(row.effective),
     notes: row.notes,
     lastModified: new Date(row.last_modified),
-    entityTag: row.entity_tag
+    entityTag: row.entity_tag,
   };
 }

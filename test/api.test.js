@@ -7,7 +7,7 @@ const config = {
   migrations: 'test',
   database: {
     user: 'rdf_test',
-    password: 'rdf_test'
+    password: 'rdf_test',
   },
   notifications: {
     initialDelay: '0ms',
@@ -19,7 +19,7 @@ const config = {
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
     await tx.query('DROP TYPE IF EXISTS tax_rate_type');
-  }
+  },
 };
 
 describe('API', () => {

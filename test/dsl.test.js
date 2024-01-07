@@ -9,7 +9,7 @@ const config = {
   migrations: 'test/dsl',
   database: {
     user: 'rdf_test',
-    password: 'rdf_test'
+    password: 'rdf_test',
   },
   notifications: {
     initialDelay: '0ms',
@@ -24,7 +24,7 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v2_aggregate');
     await tx.query('DROP TABLE IF EXISTS cgt_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
-  }
+  },
 };
 
 describe('DSL', () => {
