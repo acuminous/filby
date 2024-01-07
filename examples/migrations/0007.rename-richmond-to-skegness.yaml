@@ -1,5 +1,5 @@
 add change set:
-  - notes: Rename Richmond to Skegness
+  - description: Rename Richmond to Skegness
     effective: 2021-06-01T00:00:00Z
     frames:
       - entity: park

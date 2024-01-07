@@ -120,7 +120,7 @@ describe('Schema', () => {
       const checkpoint = new Date();
 
       await filby.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO fby_change_set (id, effective, notes) VALUES
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries')`);
       });
 
@@ -130,7 +130,7 @@ describe('Schema', () => {
 
     it('should default entity tag to random hex', async () => {
       await filby.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO fby_change_set (id, effective, notes) VALUES
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries')`);
       });
 

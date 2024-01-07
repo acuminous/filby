@@ -7,7 +7,7 @@ CREATE VIEW fby_projection_change_log_vw AS (
     p.version AS projection_version,
     c.id AS change_set_id,
     c.effective,
-    c.notes,
+    c.description,
     c.last_modified,
     c.entity_tag
   FROM

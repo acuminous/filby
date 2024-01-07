@@ -96,7 +96,7 @@ describe('API', () => {
           (1, 2),
           (2, 1),
           (2, 3)`);
-        await tx.query(`INSERT INTO fby_change_set (id, effective, notes) VALUES
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries'),
           (2, '2020-04-05T00:00:00.000Z', '2020 VAT Rates'),
           (3, '2020-04-05T00:00:00.000Z', '2020 CGT Rates'),
@@ -111,12 +111,12 @@ describe('API', () => {
       });
 
       const projection = await filby.getProjection('VAT Rates', 1);
-      const changelog = (await filby.getChangeLog(projection)).map(({ id, effective, notes }) => ({ id, effective: effective.toISOString(), notes }));
+      const changelog = (await filby.getChangeLog(projection)).map(({ id, effective, description }) => ({ id, effective: effective.toISOString(), description }));
 
       eq(changelog.length, 3);
-      deq(changelog[0], { id: 1, effective: '2020-04-05T00:00:00.000Z', notes: 'Countries' });
-      deq(changelog[1], { id: 2, effective: '2020-04-05T00:00:00.000Z', notes: '2020 VAT Rates' });
-      deq(changelog[2], { id: 4, effective: '2021-04-05T00:00:00.000Z', notes: '2021 VAT Rates' });
+      deq(changelog[0], { id: 1, effective: '2020-04-05T00:00:00.000Z', description: 'Countries' });
+      deq(changelog[1], { id: 2, effective: '2020-04-05T00:00:00.000Z', description: '2020 VAT Rates' });
+      deq(changelog[2], { id: 4, effective: '2021-04-05T00:00:00.000Z', description: '2021 VAT Rates' });
     });
 
     it('should dedupe change sets', async () => {
@@ -130,7 +130,7 @@ describe('API', () => {
         await tx.query(`INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
           (1, 1),
           (1, 2)`);
-        await tx.query(`INSERT INTO fby_change_set (id, effective, notes) VALUES
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Everything')`);
         await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
           (1, 1, 'POST'),
@@ -139,14 +139,14 @@ describe('API', () => {
       });
 
       const projection = await filby.getProjection('VAT Rates', 1);
-      const changelog = (await filby.getChangeLog(projection)).map(({ id, effective, notes }) => ({ id, effective: effective.toISOString(), notes }));
+      const changelog = (await filby.getChangeLog(projection)).map(({ id, effective, description }) => ({ id, effective: effective.toISOString(), description }));
       eq(changelog.length, 1);
-      deq(changelog[0], { id: 1, effective: '2020-04-05T00:00:00.000Z', notes: 'Everything' });
+      deq(changelog[0], { id: 1, effective: '2020-04-05T00:00:00.000Z', description: 'Everything' });
     });
 
     it('should get change set by id', async () => {
       await filby.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO fby_change_set (id, effective, notes) VALUES
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries'),
           (2, '2020-04-05T00:00:00.000Z', '2020 VAT Rates'),
           (3, '2020-04-05T00:00:00.000Z', '2020 CGT Rates')`);
@@ -155,7 +155,7 @@ describe('API', () => {
       const changeSet = await filby.getChangeSet(2);
       eq(changeSet.id, 2);
       eq(changeSet.effective.toISOString(), '2020-04-05T00:00:00.000Z');
-      eq(changeSet.notes, '2020 VAT Rates');
+      eq(changeSet.description, '2020 VAT Rates');
     });
   });
 });

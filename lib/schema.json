@@ -225,7 +225,7 @@
             "type": "string",
             "format": "date-time"
           },
-          "notes": {
+          "description": {
             "type": "string"
           },
           "frames": {

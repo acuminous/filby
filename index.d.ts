@@ -33,7 +33,7 @@ export type RdfProjection = {
 export type RdfChangeSet = {
   id: number;
   effective: Date;
-  notes: string;
+  description: string;
   lastModified: Date;
   entityTag: string;
 };

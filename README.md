@@ -65,14 +65,14 @@ GET /api/changelog?projection=park&version=1
   {
     "changeSetId": 1,
     "effective": "2019-01-01T00:00:00.000Z",
-    "notes": "Initial park data",
+    "description": "Initial park data",
     "lastModified": "2018-12-01T16:20:34.383Z",
     "eTag": "142475a5eddeec8f0786"
   },
   {
      "changeSetId": 2,
      "effective": "2020-01-01T00:00:00.000Z",
-     "notes": "Park Calendars - 2020",
+     "description": "Park Calendars - 2020",
      "lastModified": "2029-12-01T14:49:34.405Z",
      "eTag": "a3dc15aa8d59d26e349d"
   }
@@ -305,7 +305,7 @@ add hooks:
 
 # Add a change set containing one or more data frames for the previously defined entities
 add change set:
-  - notes: Initial Data
+  - description: Initial Data
     effective: 2019-01-01T00:00:00Z
     frames:
       - entity: park

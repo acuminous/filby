@@ -494,7 +494,7 @@ describe('DSL', () => {
           - type
 
         add change set:
-        - notes: 2020 VAT Rates
+        - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -516,7 +516,7 @@ describe('DSL', () => {
             - type: zero
               rate: 0
 
-        - notes: 2021 VAT Rates
+        - description: 2021 VAT Rates
           effective: 2021-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -538,7 +538,7 @@ describe('DSL', () => {
             - type: zero
               rate: 0
 
-        - notes: 2022 VAT Rates
+        - description: 2022 VAT Rates
           effective: 2022-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -600,7 +600,7 @@ describe('DSL', () => {
           - type
 
         add change set:
-        - notes: 2020 VAT Rates
+        - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -622,7 +622,7 @@ describe('DSL', () => {
             - type: zero
               rate: 0
 
-        - notes: 2021 VAT Rates
+        - description: 2021 VAT Rates
           effective: 2021-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -644,7 +644,7 @@ describe('DSL', () => {
             - type: zero
               rate: 0
 
-        - notes: 2022 VAT Rates
+        - description: 2022 VAT Rates
           effective: 2022-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -704,19 +704,19 @@ describe('DSL', () => {
           - type
 
         add change set:
-        - notes: 2020 VAT Rates
+        - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
             source: ./test/dsl/datafiles/vat-rate-v1-2020.csv
-        - notes: 2021 VAT Rates
+        - description: 2021 VAT Rates
           effective: 2021-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
             source: ./test/dsl/datafiles/vat-rate-v1-2021.csv
-        - notes: 2021 VAT Rates
+        - description: 2021 VAT Rates
           effective: 2022-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate

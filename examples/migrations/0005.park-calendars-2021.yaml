@@ -1,5 +1,5 @@
 add change set:
-  - notes: Park Calendars - 2021
+  - description: Park Calendars - 2021
     effective: 2021-01-01T00:00:00Z
     frames:
       - entity: park_calendar
