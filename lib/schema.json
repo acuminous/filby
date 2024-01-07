@@ -225,10 +225,6 @@
             "type": "string",
             "format": "date-time"
           },
-          "effective_from": {
-            "type": "string",
-            "format": "date-time"
-          },
           "notes": {
             "type": "string"
           },
@@ -268,19 +264,9 @@
             }
           }
         },
-        "oneOf": [
-          {
-            "required": [
-              "effective from",
-              "frames"
-            ]
-          },
-          {
-            "required": [
-              "effective_from",
-              "frames"
-            ]
-          }
+        "required": [
+          "effective",
+          "frames"
         ]
       }
     }

@@ -6,7 +6,7 @@ CREATE VIEW rdf_projection_change_log_vw AS (
     p.name AS projection_name,
     p.version AS projection_version,
     c.id AS change_set_id,
-    c.effective_from,
+    c.effective,
     c.notes,
     c.last_modified,
     c.entity_tag

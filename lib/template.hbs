@@ -108,8 +108,8 @@ DO $$
     v_entity_id INTEGER;
     v_frame_id INTEGER;
   BEGIN
-    INSERT INTO rdf_change_set (effective_from, notes) VALUES
-      ('{{effective_from}}', '{{notes}}')
+    INSERT INTO rdf_change_set (effective, notes) VALUES
+      ('{{effective}}', '{{notes}}')
     RETURNING id INTO v_change_set_id;
 
     {{#frames}}

@@ -294,7 +294,7 @@ add hooks:
 
 # Add a change set containing one or more data frames for the previously defined entities
 add change set:
-  effective_from: 2019-01-01T00:00:00Z
+  effective: 2019-01-01T00:00:00Z
   notes: Initial Data
   frames:
     - entity: park

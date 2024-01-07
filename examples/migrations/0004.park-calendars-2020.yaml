@@ -1,56 +1,56 @@
 add change set:
-  effective_from: 2020-01-01T00:00:00Z
+  effective: 2020-01-01T00:00:00Z
   notes: Park Calendars - 2020
   frames:
     - entity: park_calendar
       version: 1
       action: POST
       data:
-      - id: 13
-        park_code: DC
-        event: Park Open - Owners
-        occurs: 2020-03-01 00:00:00Z
-      - id: 14
-        park_code: DC
-        event: Park Open - Guests
-        occurs: 2020-03-15 00:00:00Z
-      - id: 15
-        park_code: DC
-        event: Park Close - Owners
-        occurs: 2020-11-30 00:00:00Z
-      - id: 16
-        park_code: DC
-        event: Park Close - Guests
-        occurs: 2020-11-15 00:00:00Z
-      - id: 17
-        park_code: PV
-        event: Park Open - Owners
-        occurs: 2020-03-01 00:00:00Z
-      - id: 18
-        park_code: PV
-        event: Park Open - Guests
-        occurs: 2020-03-15 00:00:00Z
-      - id: 19
-        park_code: PV
-        event: Park Close - Owners
-        occurs: 2020-11-30 00:00:00Z
-      - id: 20
-        park_code: PV
-        event: Park Close - Guests
-        occurs: 2020-11-15 00:00:00Z
-      - id: 21
-        park_code: GA
-        event: Park Open - Owners
-        occurs: 2020-03-01 00:00:00Z
-      - id: 22
-        park_code: GA
-        event: Park Open - Guests
-        occurs: 2020-03-15 00:00:00Z
-      - id: 23
-        park_code: GA
-        event: Park Close - Owners
-        occurs: 2020-11-30 00:00:00Z
-      - id: 24
-        park_code: GA
-        event: Park Close - Guests
-        occurs: 2020-11-15 00:00:00Z
+        - id: 13
+          park_code: DC
+          event: Park Open - Owners
+          occurs: 2020-03-01 00:00:00Z
+        - id: 14
+          park_code: DC
+          event: Park Open - Guests
+          occurs: 2020-03-15 00:00:00Z
+        - id: 15
+          park_code: DC
+          event: Park Close - Owners
+          occurs: 2020-11-30 00:00:00Z
+        - id: 16
+          park_code: DC
+          event: Park Close - Guests
+          occurs: 2020-11-15 00:00:00Z
+        - id: 17
+          park_code: PV
+          event: Park Open - Owners
+          occurs: 2020-03-01 00:00:00Z
+        - id: 18
+          park_code: PV
+          event: Park Open - Guests
+          occurs: 2020-03-15 00:00:00Z
+        - id: 19
+          park_code: PV
+          event: Park Close - Owners
+          occurs: 2020-11-30 00:00:00Z
+        - id: 20
+          park_code: PV
+          event: Park Close - Guests
+          occurs: 2020-11-15 00:00:00Z
+        - id: 21
+          park_code: GA
+          event: Park Open - Owners
+          occurs: 2020-03-01 00:00:00Z
+        - id: 22
+          park_code: GA
+          event: Park Open - Guests
+          occurs: 2020-03-15 00:00:00Z
+        - id: 23
+          park_code: GA
+          event: Park Close - Owners
+          occurs: 2020-11-30 00:00:00Z
+        - id: 24
+          park_code: GA
+          event: Park Close - Guests
+          occurs: 2020-11-15 00:00:00Z

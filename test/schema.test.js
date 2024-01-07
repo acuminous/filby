@@ -83,7 +83,7 @@ describe('Schema', () => {
     it('should prevent duplicate change sets', async () => {
 
       await rdf.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO rdf_change_set (id, effective_from) VALUES
+        await tx.query(`INSERT INTO rdf_change_set (id, effective) VALUES
           (1, '2023-01-01T00:00:00.000Z'),
           (2, '2023-01-01T00:00:00.000Z')
         `);
@@ -91,7 +91,7 @@ describe('Schema', () => {
 
       await rejects(async () => {
         await rdf.withTransaction(async (tx) => {
-          await tx.query(`INSERT INTO rdf_change_set (id, effective_from) VALUES
+          await tx.query(`INSERT INTO rdf_change_set (id, effective) VALUES
             (3, '2023-01-01T00:00:00.000Z'),
             (3, '2023-01-01T00:00:00.000Z')`
           );
@@ -102,10 +102,10 @@ describe('Schema', () => {
       })
     });
 
-    it('should enforce change sets have effective_from dates', async () => {
+    it('should enforce change sets have effective dates', async () => {
       await rejects(async () => {
         await rdf.withTransaction(async (tx) => {
-          await tx.query("INSERT INTO rdf_change_set (id, effective_from) VALUES (1, NULL)");
+          await tx.query("INSERT INTO rdf_change_set (id, effective) VALUES (1, NULL)");
         });
       }, (err) => {
         eq(err.code, '23502');
@@ -117,7 +117,7 @@ describe('Schema', () => {
       const before = new Date();
 
       await rdf.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO rdf_change_set (id, effective_from, notes) VALUES
+        await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries')`
         );
       });
@@ -128,7 +128,7 @@ describe('Schema', () => {
 
     it('should default entity tag to random hex', async () => {
       await rdf.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO rdf_change_set (id, effective_from, notes) VALUES
+        await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries')`
         );
       });

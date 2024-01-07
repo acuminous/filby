@@ -76,14 +76,14 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
 
   async getChangeLog(projection) {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT DISTINCT ON (change_set_id) change_set_id, effective_from, notes, last_modified, entity_tag FROM rdf_projection_change_log_vw WHERE projection_id = $1', [projection.id]);
+      const { rows } = await tx.query('SELECT DISTINCT ON (change_set_id) change_set_id, effective, notes, last_modified, entity_tag FROM rdf_projection_change_log_vw WHERE projection_id = $1', [projection.id]);
       return rows.map(toChangeSet);
     });
   };
 
   async getChangeSet(changeSetId) {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT id AS change_set_id, effective_from, notes, last_modified, entity_tag FROM rdf_change_set WHERE id = $1', [changeSetId]);
+      const { rows } = await tx.query('SELECT id AS change_set_id, effective, notes, last_modified, entity_tag FROM rdf_change_set WHERE id = $1', [changeSetId]);
       return rows.map(toChangeSet)[0];
     });
   }
@@ -147,7 +147,7 @@ WHERE h.id = $1`,
 function toChangeSet(row) {
   return {
     id: row.change_set_id,
-    effectiveFrom: new Date(row.effective_from),
+    effectiveFrom: new Date(row.effective),
     notes: row.notes,
     lastModified: new Date(row.last_modified),
     entityTag: row.entity_tag

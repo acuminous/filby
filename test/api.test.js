@@ -96,7 +96,7 @@ describe('API', () => {
           (2, 1),
           (2, 3)`
         );
-        await tx.query(`INSERT INTO rdf_change_set (id, effective_from, notes) VALUES
+        await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries'),
           (2, '2020-04-05T00:00:00.000Z', '2020 VAT Rates'),
           (3, '2020-04-05T00:00:00.000Z', '2020 CGT Rates'),
@@ -134,7 +134,7 @@ describe('API', () => {
           (1, 1),
           (1, 2)`
         );
-        await tx.query(`INSERT INTO rdf_change_set (id, effective_from, notes) VALUES
+        await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Everything')`
         );
         await tx.query(`INSERT INTO rdf_data_frame (change_set_id, entity_id, action) VALUES
@@ -152,7 +152,7 @@ describe('API', () => {
 
     it('should get change set by id', async () => {
       await rdf.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO rdf_change_set (id, effective_from, notes) VALUES
+        await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Countries'),
           (2, '2020-04-05T00:00:00.000Z', '2020 VAT Rates'),
           (3, '2020-04-05T00:00:00.000Z', '2020 CGT Rates')`

@@ -274,7 +274,7 @@ describe('DSL', () => {
           - name: type
             type: TEXT
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0 must have X required property 'identified by' or 'identified_by'"));
+        match(err.message, new RegExp("/define_entities/0 must have required property 'identified by' or 'identified_by'"));
         return true;
       });
 
@@ -290,11 +290,11 @@ describe('DSL', () => {
         match(err.message, new RegExp("/define_entities/0/identified_by must be an array"));
         return true;
       });
-    }, { exclusive: true });
+    });
   });
 
   describe('Change Sets', () => {
-    it('should require an effective from date', async (t) => {
+    it('should require an effective date', async (t) => {
       await rejects(() => apply(t.name, `
         add change set:
           - frames:
@@ -305,7 +305,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0 must have required property 'effective from' or 'effective_from'"));
+        match(err.message, new RegExp("/add_change_set/0 must have required property 'effective'"));
         return true;
       })
     })
@@ -313,7 +313,7 @@ describe('DSL', () => {
     it('should require at least one frame', async (t) => {
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0 must have required property 'frames'"));
         return true;
@@ -321,19 +321,18 @@ describe('DSL', () => {
 
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
           frames:
       `), (err) => {
         match(err.message, new RegExp("/add_change_set/0/frames must be an array"));
         return true;
       })
-
     })
 
     it('should require frames to specify an entity name', async (t) => {
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
           frames:
           - version: 1
             action: POST
@@ -349,7 +348,7 @@ describe('DSL', () => {
     it('should require frames to specify an entity version', async (t) => {
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             action: POST
@@ -365,7 +364,7 @@ describe('DSL', () => {
     it('should require frames to specify an valid action', async (t) => {
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -379,7 +378,7 @@ describe('DSL', () => {
 
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -396,7 +395,7 @@ describe('DSL', () => {
     it('should require frame data to specify at least one value', async (t) => {
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -410,7 +409,7 @@ describe('DSL', () => {
     it('should require frame data to specify at least one value', async (t) => {
       await rejects(() => apply(t.name, `
         add change set:
-        - effective from: 2020-04-05T00:00:00.000Z
+        - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -446,7 +445,7 @@ describe('DSL', () => {
 
         add change set:
         - notes: 2020 VAT Rates
-          effective from: 2020-04-05T00:00:00.000Z
+          effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -468,7 +467,7 @@ describe('DSL', () => {
               rate: 0
 
         - notes: 2021 VAT Rates
-          effective from: 2021-04-05T00:00:00.000Z
+          effective: 2021-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -490,7 +489,7 @@ describe('DSL', () => {
               rate: 0
 
         - notes: 2022 VAT Rates
-          effective from: 2022-04-05T00:00:00.000Z
+          effective: 2022-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -552,7 +551,7 @@ describe('DSL', () => {
 
         add change set:
         - notes: 2020 VAT Rates
-          effective from: 2020-04-05T00:00:00.000Z
+          effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -574,7 +573,7 @@ describe('DSL', () => {
               rate: 0
 
         - notes: 2021 VAT Rates
-          effective from: 2021-04-05T00:00:00.000Z
+          effective: 2021-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
@@ -596,7 +595,7 @@ describe('DSL', () => {
               rate: 0
 
         - notes: 2022 VAT Rates
-          effective from: 2022-04-05T00:00:00.000Z
+          effective: 2022-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
