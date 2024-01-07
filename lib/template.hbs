@@ -16,7 +16,7 @@ CREATE TABLE {{tableName name version}} (
   {{#fields}}
   {{name}} {{type}},
   {{/fields}}
-  CONSTRAINT {{table_name}}_frame_id_{{#identified_by}}{{table_name}}_{{#if @last}}uniq{{/if}}{{/identified_by}} UNIQUE (rdf_frame_id, {{#identified_by}}{{name}}{{/identified_by}}){{#if checks}},{{/if}}
+  CONSTRAINT {{tableName name version}}_frame_id_{{#identified_by}}{{tableName name version}}_{{#if @last}}uniq{{/if}}{{/identified_by}} UNIQUE (rdf_frame_id, {{#identified_by}}{{name}}{{/identified_by}}){{#if checks}},{{/if}}
   {{#each checks}}
   CONSTRAINT {{@key}}_chk CHECK ({{{this}}}){{#unless @last}},{{/unless}}
   {{/each}}

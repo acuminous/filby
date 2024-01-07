@@ -62,7 +62,6 @@
     "object-curly-spacing": 0,
     "object-shorthand": 0,
     "prefer-exponentiation-operator": 0,
-    "prefer-regex-literals": 0,
-    "prefer-rest-params": 0
+    "prefer-regex-literals": 0
   }
 }

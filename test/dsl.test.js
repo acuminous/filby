@@ -83,7 +83,7 @@ describe('DSL', () => {
             - entity: VAT Rate
               version: 1
       `), (err) => {
-        match(err.message, new RegExp("/add_projections/0 must have required property 'name'"));
+        match(err.message, new RegExp("^001.should-require-a-name.yaml: /add_projections/0 must have required property 'name'"));
         return true;
       });
     });
@@ -96,7 +96,7 @@ describe('DSL', () => {
             - entity: VAT Rate
               version: 1
       `), (err) => {
-        match(err.message, new RegExp("/add_projections/0 must have required property 'version'"));
+        match(err.message, new RegExp("^001.should-require-a-version.yaml: /add_projections/0 must have required property 'version'"));
         return true;
       });
     });
@@ -107,7 +107,7 @@ describe('DSL', () => {
           - name: VAT Rates
             version: 1
       `), (err) => {
-        match(err.message, new RegExp("/add_projections/0 must have required property 'dependencies'"));
+        match(err.message, new RegExp("^001.should-require-at-least-one-dependency.yaml: /add_projections/0 must have required property 'dependencies'"));
         return true;
       });
 
@@ -117,7 +117,7 @@ describe('DSL', () => {
             version: 1
             dependencies:
       `), (err) => {
-        match(err.message, new RegExp('/add_projections/0/dependencies must be an array'));
+        match(err.message, new RegExp('001.should-require-at-least-one-dependency.yaml: /add_projections/0/dependencies must be an array'));
         return true;
       });
     });
@@ -130,7 +130,7 @@ describe('DSL', () => {
             dependencies:
             - version: 1
       `), (err) => {
-        match(err.message, new RegExp("/add_projections/0/dependencies/0 must have required property 'entity'"));
+        match(err.message, new RegExp("^001.should-require-valid-dependencies.yaml: /add_projections/0/dependencies/0 must have required property 'entity'"));
         return true;
       });
 
@@ -141,7 +141,7 @@ describe('DSL', () => {
             dependencies:
             - entity: VAT Rate
       `), (err) => {
-        match(err.message, new RegExp("/add_projections/0/dependencies/0 must have required property 'version'"));
+        match(err.message, new RegExp("^001.should-require-valid-dependencies.yaml: /add_projections/0/dependencies/0 must have required property 'version'"));
         return true;
       });
     });
@@ -180,7 +180,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0 must have required property 'name'"));
+        match(err.message, new RegExp("^001.should-require-a-name.yaml: /define_entities/0 must have required property 'name'"));
         return true;
       });
     });
@@ -195,7 +195,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0 must have required property 'version'"));
+        match(err.message, new RegExp("^001.should-require-a-version.yaml: /define_entities/0 must have required property 'version'"));
         return true;
       });
     });
@@ -206,7 +206,7 @@ describe('DSL', () => {
         - name: VAT Rate
           version: 1
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0 must have required property 'fields'"));
+        match(err.message, new RegExp("^001.should-require-at-least-one-field.yaml: /define_entities/0 must have required property 'fields'"));
         return true;
       });
 
@@ -218,7 +218,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp('/define_entities/0/fields must be an array'));
+        match(err.message, new RegExp('^001.should-require-at-least-one-field.yaml: /define_entities/0/fields must be an array'));
         return true;
       });
     });
@@ -233,7 +233,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'name'"));
+        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /define_entities/0/fields/0 must have required property 'name'"));
         return true;
       });
 
@@ -246,7 +246,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'type'"));
+        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /define_entities/0/fields/0 must have required property 'type'"));
         return true;
       });
 
@@ -274,7 +274,7 @@ describe('DSL', () => {
           - name: type
             type: TEXT
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0 must have required property 'identified by' or 'identified_by'"));
+        match(err.message, new RegExp("^001.should-require-at-least-one-identifier-column.yaml: /define_entities/0 must have required property 'identified by' or 'identified_by'"));
         return true;
       });
 
@@ -287,7 +287,7 @@ describe('DSL', () => {
             type: TEXT
           identified by:
       `), (err) => {
-        match(err.message, new RegExp('/define_entities/0/identified_by must be an array'));
+        match(err.message, new RegExp('001.should-require-at-least-one-identifier-column.yaml: /define_entities/0/identified_by must be an array'));
         return true;
       });
     });
@@ -305,7 +305,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0 must have required property 'effective'"));
+        match(err.message, new RegExp("^001.should-require-an-effective-date.yaml: /add_change_set/0 must have required property 'effective'"));
         return true;
       });
     });
@@ -315,7 +315,7 @@ describe('DSL', () => {
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0 must have required property 'frames'"));
+        match(err.message, new RegExp("^001.should-require-at-least-one-frame.yaml: /add_change_set/0 must have required property 'frames'"));
         return true;
       });
 
@@ -324,7 +324,7 @@ describe('DSL', () => {
         - effective: 2020-04-05T00:00:00.000Z
           frames:
       `), (err) => {
-        match(err.message, new RegExp('/add_change_set/0/frames must be an array'));
+        match(err.message, new RegExp('^001.should-require-at-least-one-frame.yaml: /add_change_set/0/frames must be an array'));
         return true;
       });
     });
@@ -340,7 +340,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'entity'"));
+        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-name.yaml: /add_change_set/0/frames/0 must have required property 'entity'"));
         return true;
       });
     });
@@ -356,12 +356,12 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'version'"));
+        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-version.yaml: /add_change_set/0/frames/0 must have required property 'version'"));
         return true;
       });
     });
 
-    it('should require frames to specify an valid action', async (t) => {
+    it('should require frames to specify a valid action', async (t) => {
       await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
@@ -372,7 +372,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'action'"));
+        match(err.message, new RegExp("^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_set/0/frames/0 must have required property 'action'"));
         return true;
       });
 
@@ -387,7 +387,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp('/add_change_set/0/frames/0/action must be equal to one of the allowed values: POST, DELETE'));
+        match(err.message, new RegExp('^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_set/0/frames/0/action must be equal to one of the allowed values: POST, DELETE'));
         return true;
       });
     });
@@ -401,12 +401,10 @@ describe('DSL', () => {
             version: 1
             action: POST
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'data'"));
+        match(err.message, new RegExp("^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_set/0/frames/0 must have required property 'data'"));
         return true;
       });
-    });
 
-    it('should require frame data to specify at least one value', async (t) => {
       await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
@@ -416,7 +414,7 @@ describe('DSL', () => {
             action: POST
             data:
       `), (err) => {
-        match(err.message, new RegExp('/add_change_set/0/frames/0/data must be an array'));
+        match(err.message, new RegExp('^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_set/0/frames/0/data must be an array'));
         return true;
       });
     });
@@ -706,7 +704,7 @@ describe('DSL', () => {
 
     it('reports unsupported file types', async (t) => {
       await rejects(() => apply(t.name, 'UNSUPPORTED', 'yml'), (err) => {
-        eq(err.message, 'Unsupported file type: yml');
+        eq(err.message, 'Unsupported file type: 001.reports-unsupported-file-types.yml');
         return true;
       });
     });
@@ -755,7 +753,7 @@ describe('DSL', () => {
         - version: 1
           event: VAT Rates Change
       `), (err) => {
-        match(err.message, new RegExp("/add_hooks/0 must have required property 'projection'"));
+        match(err.message, new RegExp("^001.should-require-a-projection.yaml: /add_hooks/0 must have required property 'projection'"));
         return true;
       });
     });
@@ -766,7 +764,7 @@ describe('DSL', () => {
         - projection: VAT Rates
           event: VAT Rates Change
       `), (err) => {
-        match(err.message, new RegExp("/add_hooks/0 must have required property 'version'"));
+        match(err.message, new RegExp("^001.should-require-a-version.yaml: /add_hooks/0 must have required property 'version'"));
         return true;
       });
     });
@@ -777,7 +775,7 @@ describe('DSL', () => {
         - projection: VAT Rate
           version: 1
       `), (err) => {
-        match(err.message, new RegExp("/add_hooks/0 must have required property 'event'"));
+        match(err.message, new RegExp("^001.should-require-an-event.yaml: /add_hooks/0 must have required property 'event'"));
         return true;
       });
     });
