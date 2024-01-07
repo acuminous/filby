@@ -110,9 +110,14 @@ At first glance, accessing projections via change sets may seem an unnecessary o
 5. Projections provide multiple views of the same reference data, and can therefore be tailored to the needs of each client.
 6. Versioned projections supports backwards incompatible changes
 
-Refering back to the previous list of challenges, the above solution can go a long way to solving consistency, load times (tailored content, caching), reliability (caching), stale data, temporality, evolution (through versioning) and local testing (http is easy to nock).
+Refering back to the previous list of challenges:
 
-However, even a highly cachable API may still be unreachable, and cumbersome to use with BI tools. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
+- **Consistency** is solved by the changeSetId mechanic
+- **Load Times** and **Reliability** can be greatly reduced because the solution is designed to be highly cacheable. Alternatively keep a local copy of the relevant reference data and using the notification mechanism to update it.
+- **Stale Data** can be prevented by deploying reference data ahead of time, checking the changelog for changes and listening for notifications.
+- **Historic** data still accessible by using a previous changeSetId
+- **Evolution** of reference data is supported by versioned entities and projections
+- **Local Testing** is possible through HTTP mocking libraries.
 
 ## How it works
 RDF has the following important concepts
@@ -165,7 +170,9 @@ A data frame is a snapshot of an entity, associated with a **change set**. There
 A change set groups a set of data frames (potentially for different entities) into a single unit with a common effective date. The data frames will not be aggregated by their parent entities when building a projection for an earlier change set.
 
 ### Notifications
-Notifications are published whenever a new data frame is created. The framework works out which projections are affected, and notifies interested parties via a **hook**. If multiple data frames are created in quick succession (or part of a transaction) only a single notification is sent. Notifications are retried a configurable number of times using an exponential backoff algorithm. It is save for multiple instances of the framework to poll for notifications concurrently.
+Notifications are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
+
+Notifications are retried a configurable number of times using an exponential backoff algorithm. It is save for multiple instances of the framework to poll for notifications concurrently.
 
 ### Hook
 A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
