@@ -246,9 +246,9 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 ```yaml
 # migrations/0001.define-park-schema.yaml
 
-# Define enums for your reference data
+# add enums for your reference data
 # Equivalent of PostgreSQL's CREATE TYPE statement
-define enums:
+add enums:
 
   - name: park_calendar_event_type
     values:

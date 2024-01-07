@@ -1,4 +1,4 @@
-define enums:
+add enums:
   - name: park_calendar_event_type
     values:
       - Park Open - Owners

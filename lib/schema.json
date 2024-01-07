@@ -3,10 +3,10 @@
   "title": "JSON Schema for filby",
   "type": "object",
   "properties": {
-    "define enums": {
+    "add enums": {
       "$ref": "#/definitions/enumsType"
     },
-    "define_enums": {
+    "add_enums": {
       "$ref": "#/definitions/enumsType"
     },
     "define entities": {

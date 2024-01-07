@@ -1,12 +1,12 @@
 START TRANSACTION;
 
-{{#define_enums}}
+{{#add_enums}}
 CREATE TYPE {{name}} AS ENUM (
   {{#values}}
   '{{this}}'{{#unless @last}},{{/unless}}
   {{/values}}
 );
-{{/define_enums}}
+{{/add_enums}}
 
 {{#define_entities}}
 INSERT INTO fby_entity (name, version) VALUES ('{{name}}', {{version}});
