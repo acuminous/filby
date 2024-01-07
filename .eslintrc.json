@@ -9,6 +9,7 @@
     "ecmaVersion": "2022"
   },
   "rules": {
+    "prefer-regex-literals": 0,
     "quote-props": 0,
     "import/no-dynamic-require": 0,
     "prefer-destructuring": 0,
@@ -61,7 +62,6 @@
     "no-useless-return": 0,
     "object-curly-spacing": 0,
     "object-shorthand": 0,
-    "prefer-exponentiation-operator": 0,
-    "prefer-regex-literals": 0
+    "prefer-exponentiation-operator": 0
   }
 }
