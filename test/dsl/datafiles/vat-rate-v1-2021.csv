@@ -1,0 +1,4 @@
+action,type,rate
+POST,standard,0.125
+POST,reduced,0.07
+POST,zero,0

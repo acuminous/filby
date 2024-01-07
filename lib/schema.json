@@ -234,6 +234,9 @@
             "items": {
               "type": "object",
               "properties": {
+                "source": {
+                  "type": "string"
+                },
                 "entity": {
                   "type": "string"
                 },
@@ -255,11 +258,22 @@
                   }
                 }
               },
-              "required": [
-                "entity",
-                "version",
-                "action",
-                "data"
+              "oneOf": [
+                {
+                  "required": [
+                    "entity",
+                    "version",
+                    "source"
+                  ]
+                },
+                {
+                  "required": [
+                    "entity",
+                    "version",
+                    "action",
+                    "data"
+                  ]
+                }
               ]
             }
           }

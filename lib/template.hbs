@@ -1,5 +1,6 @@
 START TRANSACTION;
 
+-- Add Enums
 {{#add_enums}}
 CREATE TYPE {{name}} AS ENUM (
   {{#values}}
@@ -8,6 +9,7 @@ CREATE TYPE {{name}} AS ENUM (
 );
 {{/add_enums}}
 
+-- Add Entities
 {{#add_entities}}
 INSERT INTO fby_entity (name, version) VALUES ('{{name}}', {{version}});
 
@@ -60,6 +62,7 @@ $$ LANGUAGE plpgsql;
 
 {{/add_entities}}
 
+-- Add Projections
 {{#add_projections}}
 
 DO $$
@@ -85,6 +88,7 @@ $$ LANGUAGE plpgsql;
 
 {{/add_projections}}
 
+-- Add Hooks
 {{#add_hooks}}
 DO $$
 
@@ -101,6 +105,7 @@ $$ LANGUAGE plpgsql;
 
 {{/add_hooks}}
 
+-- Add Change Sets
 {{#add_change_set}}
 DO $$
   DECLARE
@@ -123,6 +128,18 @@ DO $$
     INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys .}}{{item}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
       (v_frame_id, {{#xvalues .}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
     {{/data}}
+    {{#if source}}
+    {{#loadCsv source}}
+    SELECT id INTO v_entity_id FROM fby_entity WHERE name = '{{../entity}}' AND version = {{../version}};
+
+    INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+      (v_change_set_id, v_entity_id, '{{action}}')
+    RETURNING id INTO v_frame_id;
+
+    INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys data}}{{item}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
+      (v_frame_id, {{#xvalues data}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
+    {{/loadCsv}}
+    {{/if}}
 
     PERFORM fby_notify('{{entity}}', {{version}});
 

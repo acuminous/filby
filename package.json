@@ -38,6 +38,7 @@
     "handlebars": "^4.7.8",
     "marv": "^6.0.0",
     "marv-pg-driver": "^5.0.0",
+    "papaparse": "^5.4.1",
     "parse-duration": "^1.1.0",
     "pg": "^8.11.3",
     "pipsqueak": "^2.7.0",
@@ -48,10 +49,10 @@
     "eslint": "^8.56.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.29.1",
+    "husky": "^8.0.0",
     "lint-staged": "^15.2.0",
     "nyc": "^15.1.0",
-    "zunit": "^4.0.2",
-    "husky": "^8.0.0"
+    "zunit": "^4.0.2"
   },
   "lint-staged": {
     "*.js": "eslint --fix"

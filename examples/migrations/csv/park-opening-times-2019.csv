@@ -1,0 +1,13 @@
+action,id,park_code,event,occurs
+POST,1,DC,Park Open - Owners,2019-03-01 00:00:00Z
+POST,2,DC,Park Open - Guests,2019-03-15 00:00:00Z
+POST,3,DC,Park Close - Owners,2019-11-30 00:00:00Z
+POST,4,DC,Park Close - Guests,2019-11-15 00:00:00Z
+POST,5,PV,Park Open - Owners,2019-03-01 00:00:00Z
+POST,6,PV,Park Open - Guests,2019-03-15 00:00:00Z
+POST,7,PV,Park Close - Owners,2019-11-30 00:00:00Z
+POST,8,PV,Park Close - Guests,2019-11-15 00:00:00Z
+POST,9,GA,Park Open - Owners,2019-03-01 00:00:00Z
+POST,10,GA,Park Open - Guests,2019-03-15 00:00:00Z
+POST,11,GA,Park Close - Owners,2019-11-30 00:00:00Z
+POST,12,GA,Park Close - Guests,2019-11-15 00:00:00Z

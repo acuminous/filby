@@ -1,0 +1,29 @@
+action,id,park_code,event,occurs
+DELETE,13,,,
+DELETE,14,,,
+DELETE,15,,,
+DELETE,16,,,
+DELETE,17,,,
+DELETE,18,,,
+DELETE,19,,,
+DELETE,20,,,
+DELETE,21,,,
+DELETE,22,,,
+DELETE,23,,,
+DELETE,24,,,
+POST,41,DC,Park Open - Owners,2022-03-01 00:00:00Z
+POST,42,DC,Park Open - Guests,2022-03-15 00:00:00Z
+POST,43,DC,Park Close - Owners,2022-11-30 00:00:00Z
+POST,44,DC,Park Close - Guests,2022-11-15 00:00:00Z
+POST,45,PV,Park Open - Owners,2022-03-01 00:00:00Z
+POST,46,PV,Park Open - Guests,2022-03-15 00:00:00Z
+POST,47,PV,Park Close - Owners,2022-11-30 00:00:00Z
+POST,48,PV,Park Close - Guests,2022-11-15 00:00:00Z
+POST,49,GA,Park Open - Owners,2022-03-01 00:00:00Z
+POST,50,GA,Park Open - Guests,2022-03-15 00:00:00Z
+POST,51,GA,Park Close - Owners,2022-11-30 00:00:00Z
+POST,52,GA,Park Close - Guests,2022-11-15 00:00:00Z
+POST,53,SK,Park Open - Owners,2022-03-01 00:00:00Z
+POST,54,SK,Park Open - Guests,2022-03-15 00:00:00Z
+POST,55,SK,Park Close - Owners,2022-11-30 00:00:00Z
+POST,56,SK,Park Close - Guests,2022-11-15 00:00:00Z

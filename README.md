@@ -249,7 +249,6 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # add enums for your reference data
 # Equivalent of PostgreSQL's CREATE TYPE statement
 add enums:
-
   - name: park_calendar_event_type
     values:
       - Park Open - Owners
@@ -262,9 +261,7 @@ add enums:
 # 1. Inserts a row into the 'fby_entity' table,
 # 2. Creates a table 'park_v1' for holding reference data
 # 3. Creates an aggregate function 'park_v1_aggregate' to be used by projections
-#
 add entities:
-
   - name: park
     version: 1
     fields:
@@ -283,21 +280,23 @@ add projections:
   - name: park
     version: 1
     dependencies:
-    - name: park
-      version: 1
-    - name: calendar
-      version: 1
+      - name: park
+        version: 1
+      - name: calendar
+        version: 1
 
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
 # reference data the projection changes.
 add hooks:
+
   # This is a projection specific hook, which only fires when the data
   # supporting the park v1 projection changes
   - projection: park
     version: 1
     event: park_v1_change
-  # This is a general hook, which only fires when the data
-  # supporting any projection changes
+
+    # This is a general hook, which only fires when the data
+    # supporting any projection changes
   - event: change
 ```
 
@@ -310,23 +309,35 @@ add change set:
     effective: 2019-01-01T00:00:00Z
     frames:
       - entity: park
-         version: 1
-         action: POST
-         data:
-         # Adds a data frame for Devon Cliffs
-         - code: DC
+        version: 1
+        action: POST
+        data:
+          # Adds a data frame for Devon Cliffs
+          - code: DC
             name: Devon Cliffs
-         # Adds a data frame for Primrose Valley
-         - code: PV
+          # Adds a data frame for Primrose Valley
+          - code: PV
             name: Primrose Valley
+
       - entity: park
-         version: 1
-         action: DELETE
-         data:
-         # Adds a data frame that will delete the entity identified
-         # by code XX from the effective data
-         - code: XX
+        version: 1
+        # Adds a data frame that will delete the entity identified
+        # by code HF from the effective data
+        action: DELETE
+        data:
+          - code: HF
+
+      # YAML can get verbose, so you can also import data frames from a local CSV
+      # action,code,
+      # POST,KC,Kent Coast
+      # POST,CA,Caistor
+      # etc
+      - entity: park
+        version: 1
+        source: ./data/park-data-2019.csv
 ```
+
+A JSON schema is available in /lib/schema.json
 
 ## Example Application
 This project includes proof of concept applications based on a Caravan Park business.
@@ -339,205 +350,29 @@ npm i
 ```
 
 ### TypeScript variant
-```
+```bash
 cd examples/typescript
 npm i
 npm run docker
 npm start
 ```
 
-### JavaScript Variant
+```bash
+Server is listening on port 3000
+See http://localhost:3000/documentation
+Use CTRL+D or kill -TERM 18964 to stop
 ```
+
+### JavaScript Variant
+```bash
 cd examples/javascript
 npm i
 npm run docker
 npm start
 ```
 
-```
-curl -s 'http://localhost:3000/api/changelog?projection=park&version=1' | json_pp
-```
-
-```json
-[
-   {
-      "changeSetId" : 1,
-      "eTag" : "3e47a70d88bc2f469764",
-      "effective" : "2019-01-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.782Z",
-      "notes" : "Initial park data"
-   },
-   {
-      "changeSetId" : 2,
-      "eTag" : "0deb60efb0fdece38ada",
-      "effective" : "2020-01-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.806Z",
-      "notes" : "Park Calendars - 2020"
-   },
-   {
-      "changeSetId" : 3,
-      "eTag" : "147a7c2b260a295eaeb0",
-      "effective" : "2021-01-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.817Z",
-      "notes" : "Park Calendars - 2021"
-   },
-   {
-      "changeSetId" : 4,
-      "eTag" : "6c3955258fad84d85e15",
-      "effective" : "2021-04-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.825Z",
-      "notes" : "Add Richmond"
-   },
-   {
-      "changeSetId" : 5,
-      "eTag" : "043b03799009dde539aa",
-      "effective" : "2021-06-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.830Z",
-      "notes" : "Rename Richmond to Skegness"
-   },
-   {
-      "changeSetId" : 6,
-      "eTag" : "2077eec54329f6d009b3",
-      "effective" : "2020-01-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.836Z",
-      "notes" : "Park Calendars - 2022"
-   },
-   {
-      "changeSetId" : 7,
-      "eTag" : "e91ee5644302d802278d",
-      "effective" : "2022-05-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.848Z",
-      "notes" : "Delete Greenacres"
-   },
-   {
-      "changeSetId" : 8,
-      "eTag" : "c481b71954adc1e6aa1b",
-      "effective" : "2020-01-01T00:00:00.000Z",
-      "lastModified" : "2023-12-30T12:15:10.850Z",
-      "notes" : "Park Calendars - 2023"
-   }
-]
-```
-
-```
-curl -s 'http://localhost:3000/api/projection/v1/park?changeSetId=8' | json_pp
-```
-
-```json
-[
-   {
-      "calendar" : [
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2022-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2022-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2022-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2022-11-30T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2023-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2023-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2023-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2023-11-30T00:00:00.000Z"
-         }
-      ],
-      "code" : "DC",
-      "name" : "Devon Cliffs"
-   },
-   {
-      "calendar" : [
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2022-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2022-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2022-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2022-11-30T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2023-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2023-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2023-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2023-11-30T00:00:00.000Z"
-         }
-      ],
-      "code" : "PV",
-      "name" : "Primrose Valley"
-   },
-   {
-      "calendar" : [
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2022-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2022-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2022-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2022-11-30T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Owners",
-            "occurs" : "2023-03-01T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Open - Guests",
-            "occurs" : "2023-03-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Guests",
-            "occurs" : "2023-11-15T00:00:00.000Z"
-         },
-         {
-            "event" : "Park Close - Owners",
-            "occurs" : "2023-11-30T00:00:00.000Z"
-         }
-      ],
-      "code" : "SK",
-      "name" : "Skegness"
-   }
-]
+```bash
+Server is listening on port 3000
+See http://localhost:3000/documentation
+Use CTRL+D or kill -TERM 18964 to stop
 ```

@@ -424,7 +424,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_set/0/frames/0 must have required property 'action'"));
+        match(err.message, new RegExp("^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_set/0/frames/0 must have required property 'source' or 'action'"));
         return true;
       });
 
@@ -453,7 +453,7 @@ describe('DSL', () => {
             version: 1
             action: POST
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_set/0/frames/0 must have required property 'data'"));
+        match(err.message, new RegExp("^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_set/0/frames/0 must have required property 'source' or 'data'"));
         return true;
       });
 
@@ -664,6 +664,64 @@ describe('DSL', () => {
             action: DELETE
             data:
             - type: zero
+      `);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+
+      await filby.withTransaction(async (tx) => {
+        const { rows: aggregate1 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [changeLog[0].id]);
+        eq(aggregate1.length, 3);
+        deq(aggregate1[0], { type: 'standard', rate: 0.10 });
+        deq(aggregate1[1], { type: 'reduced', rate: 0.05 });
+        deq(aggregate1[2], { type: 'zero', rate: 0 });
+
+        const { rows: aggregate3 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC NULLS LAST', [changeLog[2].id]);
+        eq(aggregate3.length, 2);
+        deq(aggregate3[0], { type: 'standard', rate: 0.15 });
+        deq(aggregate3[1], { type: 'reduced', rate: 0.10 });
+      });
+    });
+
+    it('should load data frames from csv files', async (t) => {
+      await applyYaml(t.name, `
+        add projections:
+        - name: VAT Rates
+          version: 1
+          dependencies:
+          - entity: VAT Rate
+            version: 1
+
+        add entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+          - name: rate
+            type: NUMERIC
+          identified by:
+          - type
+
+        add change set:
+        - notes: 2020 VAT Rates
+          effective: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            source: ./test/dsl/datafiles/vat-rate-v1-2020.csv
+        - notes: 2021 VAT Rates
+          effective: 2021-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            source: ./test/dsl/datafiles/vat-rate-v1-2021.csv
+        - notes: 2021 VAT Rates
+          effective: 2022-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            source: ./test/dsl/datafiles/vat-rate-v1-2022.csv
       `);
 
       const projection = await filby.getProjection('VAT Rates', 1);
