@@ -1,10 +1,11 @@
 # Reference Data Framework
-A framework for managing slow moving, temporal reference data.
 
 [![Node.js CI](https://github.com/acuminous/reference-data-framework/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/reference-data-framework/actions?query=workflow%3A%22Node.js+CI%22)
 [![Code Climate](https://codeclimate.com/github/acuminous/reference-data-framework/badges/gpa.svg)](https://codeclimate.com/github/acuminous/reference-data-framework)
 [![Test Coverage](https://codeclimate.com/github/acuminous/reference-data-framework/badges/coverage.svg)](https://codeclimate.com/github/acuminous/reference-data-framework/coverage)
 [![Discover zUnit](https://img.shields.io/badge/Discover-zUnit-brightgreen)](https://www.npmjs.com/package/zunit)
+
+A framework for managing slow moving, temporal reference data.
 
 ## Contents
 - [Introduction](#introduction)
