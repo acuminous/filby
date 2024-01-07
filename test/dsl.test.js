@@ -800,9 +800,9 @@ describe('DSL', () => {
 
   function deleteMigrations() {
     fs.readdirSync(path.join(__dirname, 'dsl'))
-      .filter(file => ['.yaml', '.json', '.sql', '.yml'].includes(path.extname(file).toLowerCase()))
-      .map(file => path.join(__dirname, 'dsl', file))
-      .forEach(file => fs.unlinkSync(file));
+      .filter((file) => ['.yaml', '.json', '.sql', '.yml'].includes(path.extname(file).toLowerCase()))
+      .map((file) => path.join(__dirname, 'dsl', file))
+      .forEach((file) => fs.unlinkSync(file));
   }
 
 });
