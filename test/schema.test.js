@@ -1,5 +1,9 @@
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
+const {
+  ok, strictEqual: eq, deepEqual: deq, rejects, match,
+} = require('node:assert');
+const {
+  describe, it, before, beforeEach, after, afterEach,
+} = require('zunit');
 
 const TestReferenceDataFramework = require('./TestReferenceDataFramework');
 

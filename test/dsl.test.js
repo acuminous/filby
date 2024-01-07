@@ -1,7 +1,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { ok, strictEqual: eq, deepEqual: deq, rejects, throws, match } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
+const {
+  ok, strictEqual: eq, deepEqual: deq, rejects, throws, match,
+} = require('node:assert');
+const {
+  describe, it, before, beforeEach, after, afterEach,
+} = require('zunit');
 
 const TestReferenceDataFramework = require('./TestReferenceDataFramework');
 

@@ -9,6 +9,7 @@
     "ecmaVersion": "2022"
   },
   "rules": {
+    "object-curly-newline": 0,
     "padded-blocks": 0,
     "arrow-body-style": 0,
     "no-dynamic-require": 0,
@@ -36,7 +37,6 @@
         "argsIgnorePattern": "^_\\w+"
       }
     ],
-    "no-use-before-define": 0,
-    "object-curly-newline": 0
+    "no-use-before-define": 0
   }
 }

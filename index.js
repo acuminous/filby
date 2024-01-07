@@ -112,7 +112,9 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
       } while (ok);
     };
 
-    return pipsqueak({ name: 'rdf-notifications', factory, interval, delay: initialDelay });
+    return pipsqueak({
+      name: 'rdf-notifications', factory, interval, delay: initialDelay,
+    });
   }
 
   async #getNextNotification(tx, maxAttempts) {

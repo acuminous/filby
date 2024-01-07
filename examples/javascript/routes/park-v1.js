@@ -87,7 +87,9 @@ module.exports = (fastify, { rdf }, done) => {
   }
 
   function toParkDictionary(dictionary, row) {
-    const { code, name, calendar_event: event, calendar_occurs: occurs } = row;
+    const {
+      code, name, calendar_event: event, calendar_occurs: occurs,
+    } = row;
     const park = dictionary.get(code) || { code, name, calendar: [] };
     park.calendar.push({ event, occurs });
     return dictionary.set(code, park);
