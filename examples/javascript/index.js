@@ -6,7 +6,7 @@ const Fastify = require('fastify');
 const swagger = require('@fastify/swagger');
 const swaggerUI = require('@fastify/swagger-ui');
 
-const config = require('./config');
+const config = require('./config.json');
 const changeLogRoute = require('./routes/changelog-v1');
 const ReferenceDataFramework = require('../..');
 
