@@ -78,6 +78,7 @@ async function registerChangelog() {
 async function registerProjections() {
   const projections = await rdf.getProjections();
   projections.forEach((projection) => {
+    // eslint-disable-next-line global-require
     const route = require(path.resolve(`routes/${projection.name}-v${projection.version}`));
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
     fastify.register(route, { prefix, rdf });
