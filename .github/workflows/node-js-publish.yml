@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: '20.x'
       - run: npm ci
-      # - run: npm run lint
+      - run: npm run lint
       - run: npm test
 
 
