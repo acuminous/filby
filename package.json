@@ -1,7 +1,7 @@
 {
   "name": "filby",
   "version": "1.0.0",
-  "description": "A framework for managing temporal reference data",
+  "description": "A framework for temporal reference data",
   "keywords": [
     "temporal",
     "time",
