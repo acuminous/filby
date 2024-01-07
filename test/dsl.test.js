@@ -274,7 +274,7 @@ describe('DSL', () => {
           - name: type
             type: TEXT
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0 must have required property 'identified by' or 'identified_by'"));
+        match(err.message, new RegExp("/define_entities/0 must have X required property 'identified by' or 'identified_by'"));
         return true;
       });
 
@@ -290,9 +290,138 @@ describe('DSL', () => {
         match(err.message, new RegExp("/define_entities/0/identified_by must be an array"));
         return true;
       });
-
-    });
+    }, { exclusive: true });
   });
+
+  describe('Change Sets', () => {
+    it('should require an effective from date', async (t) => {
+      await rejects(() => apply(t.name, `
+        add change set:
+          - frames:
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: standard
+              rate: 0.10
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0 must have required property 'effective from' or 'effective_from'"));
+        return true;
+      })
+    })
+
+    it('should require at least one frame', async (t) => {
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0 must have required property 'frames'"));
+        return true;
+      })
+
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+          frames:
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0/frames must be an array"));
+        return true;
+      })
+
+    })
+
+    it('should require frames to specify an entity name', async (t) => {
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+          frames:
+          - version: 1
+            action: POST
+            data:
+            - type: standard
+              rate: 0.10
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'entity'"));
+        return true;
+      })
+    })
+
+    it('should require frames to specify an entity version', async (t) => {
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            action: POST
+            data:
+            - type: standard
+              rate: 0.10
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'version'"));
+        return true;
+      })
+    })
+
+    it('should require frames to specify an valid action', async (t) => {
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            data:
+            - type: standard
+              rate: 0.10
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'action'"));
+        return true;
+      })
+
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            action: MEH
+            data:
+            - type: standard
+              rate: 0.10
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0/frames/0/action must be equal to one of the allowed values: POST, DELETE"));
+        return true;
+      })
+    })
+
+    it('should require frame data to specify at least one value', async (t) => {
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            action: POST
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0/frames/0 must have required property 'data'"));
+        return true;
+      })
+    })
+
+    it('should require frame data to specify at least one value', async (t) => {
+      await rejects(() => apply(t.name, `
+        add change set:
+        - effective from: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+      `), (err) => {
+        match(err.message, new RegExp("/add_change_set/0/frames/0/data must be an array"));
+        return true;
+      })
+    })
+  })
 
   describe('Aggregates', () => {
     it('should aggregate data frames up to the specified change set', async (t) => {
