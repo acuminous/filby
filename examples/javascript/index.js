@@ -2,11 +2,11 @@
 
 const path = require('node:path');
 
-const config = require('./config');
 const Fastify = require('fastify');
 const swagger = require('@fastify/swagger');
 const swaggerUI = require('@fastify/swagger-ui');
 
+const config = require('./config');
 const changeLogRoute = require('./routes/changelog-v1');
 const ReferenceDataFramework = require('../..');
 
