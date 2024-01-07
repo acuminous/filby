@@ -93,7 +93,7 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
     const interval = this.#config.notifications?.interval || '1m';
     const initialDelay = this.#config.notifications?.initialDelay || '10s';
 
-    const factory = async (ctx) => {
+    const factory = async () => {
       let ok = true;
       do {
         ok = await this.withTransaction(async (tx) => {

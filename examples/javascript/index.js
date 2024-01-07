@@ -10,37 +10,37 @@ const ReferenceDataFramework = require('../..');
 
 const fastify = Fastify(config.fastify);
 
-const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.database }});
+const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.database } });
 
 (async () => {
 
 	await fastify.register(swagger, {
-	  swagger: {
-	    info: {
-	      title: 'Holiday Park Data Service',
-	      description: 'A proof of concept reference data application',
-	      version: '1.0.0'
-	    },
-	    schemes: ['http'],
-	    consumes: ['application/json'],
-	    produces: ['application/json'],
-	  }
+		swagger: {
+			info: {
+				title: 'Holiday Park Data Service',
+				description: 'A proof of concept reference data application',
+				version: '1.0.0'
+			},
+			schemes: ['http'],
+			consumes: ['application/json'],
+			produces: ['application/json'],
+		}
 	});
 
 	await fastify.register(swaggerUI, {
-	  routePrefix: '/documentation',
-	  uiConfig: {
-	    docExpansion: 'full',
-	    deepLinking: false
-	  },
-	  uiHooks: {
-	    onRequest: function (request, reply, next) { next() },
-	    preHandler: function (request, reply, next) { next() }
-	  },
-	  staticCSP: true,
-	  transformStaticCSP: (header) => header,
-	  transformSpecification: (swaggerObject, request, reply) => { return swaggerObject },
-	  transformSpecificationClone: true
+		routePrefix: '/documentation',
+		uiConfig: {
+			docExpansion: 'full',
+			deepLinking: false
+		},
+		uiHooks: {
+			onRequest: function (_, __, next) { next() },
+			preHandler: function (_, __, next) { next() }
+		},
+		staticCSP: true,
+		transformStaticCSP: (header) => header,
+		transformSpecification: (swaggerObject) => { return swaggerObject },
+		transformSpecificationClone: true
 	});
 
 	try {
@@ -49,7 +49,7 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
 		await registerChangelog();
 		await registerProjections();
 
-	  await fastify.listen(config.server);
+		await fastify.listen(config.server);
 
 		rdf.on('park_v1_change', (event) => {
 			console.log({ event })
@@ -57,15 +57,15 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
 		rdf.on('change', (event) => {
 			console.log({ event })
 		});
-	  await rdf.startNotifications();
+		await rdf.startNotifications();
 
 		registerShutdownHooks();
-	  console.log(`Server is listening on port ${config.server?.port}`);
-	  console.log(`See http://localhost:${config.server?.port}/documentation`);
-	  console.log(`Use CTRL+D or kill -TERM ${process.pid} to stop`);
+		console.log(`Server is listening on port ${config.server?.port}`);
+		console.log(`See http://localhost:${config.server?.port}/documentation`);
+		console.log(`Use CTRL+D or kill -TERM ${process.pid} to stop`);
 	} catch (err) {
 		console.error(err);
-	  process.exit(1)
+		process.exit(1)
 	}
 })();
 
@@ -83,13 +83,13 @@ async function registerProjections() {
 }
 
 function registerShutdownHooks() {
-  process.once('SIGINT', () => process.emit('app_stop'));
-  process.once('SIGTERM', () => process.emit('app_stop'));
-  process.once('app_stop', async () => {
-  	process.removeAllListeners('app_stop');
-  	await rdf.stopNotifications();
+	process.once('SIGINT', () => process.emit('app_stop'));
+	process.once('SIGTERM', () => process.emit('app_stop'));
+	process.once('app_stop', async () => {
+		process.removeAllListeners('app_stop');
+		await rdf.stopNotifications();
 		await fastify.close();
 		await rdf.stop();
 		console.log('Server has stopped');
-  })
+	})
 }

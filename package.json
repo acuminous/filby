@@ -5,6 +5,7 @@
   "types": "index.d.ts",
   "scripts": {
     "docker": "docker-compose --file test/docker-compose.yaml up --detach",
+    "lint": "eslint .",
     "test": "zUnit",
     "coverage": "nyc --report html --reporter lcov --reporter text-summary zUnit"
   },
@@ -34,6 +35,9 @@
   ],
   "devDependencies": {
     "@types/pg": "^8.10.9",
+    "eslint": "^8.56.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.29.1",
     "nyc": "^15.1.0",
     "zunit": "^4.0.2"
   },
@@ -49,5 +53,5 @@
   "bugs": {
     "url": "https://github.com/acuminous/reference-data-framework/issues"
   },
-  "homepage": "https://github.com/acuminous/reference-data-framework#readme"
+  "homepage": "https://acuminous.github.io/reference-data-framework"
 }
