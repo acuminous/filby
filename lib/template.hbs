@@ -8,7 +8,7 @@ CREATE TYPE {{name}} AS ENUM (
 );
 {{/add_enums}}
 
-{{#define_entities}}
+{{#add_entities}}
 INSERT INTO fby_entity (name, version) VALUES ('{{name}}', {{version}});
 
 CREATE TABLE {{tableName name version}} (
@@ -58,7 +58,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-{{/define_entities}}
+{{/add_entities}}
 
 {{#add_projections}}
 

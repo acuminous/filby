@@ -6,7 +6,7 @@ add enums:
       - Park Close - Owners
       - Park Close - Guests
 
-define entities:
+add entities:
   - name: park
     version: 1
     fields:

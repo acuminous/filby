@@ -53,7 +53,7 @@ describe('DSL', () => {
   describe('Projections', () => {
     it('should add projections', async (t) => {
       await applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -152,7 +152,7 @@ describe('DSL', () => {
   describe('Entities', () => {
     it('should add entities', async (t) => {
       await applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -172,7 +172,7 @@ describe('DSL', () => {
 
     it('should require a name', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - version: 1
           fields:
           - name: type
@@ -180,14 +180,14 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-name.yaml: /define_entities/0 must have required property 'name'"));
+        match(err.message, new RegExp("^001.should-require-a-name.yaml: /add_entities/0 must have required property 'name'"));
         return true;
       });
     });
 
     it('should require a version', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           fields:
           - name: type
@@ -195,37 +195,37 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-version.yaml: /define_entities/0 must have required property 'version'"));
+        match(err.message, new RegExp("^001.should-require-a-version.yaml: /add_entities/0 must have required property 'version'"));
         return true;
       });
     });
 
     it('should require at least one field', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-field.yaml: /define_entities/0 must have required property 'fields'"));
+        match(err.message, new RegExp("^001.should-require-at-least-one-field.yaml: /add_entities/0 must have required property 'fields'"));
         return true;
       });
 
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-at-least-one-field.yaml: /define_entities/0/fields must be an array'));
+        match(err.message, new RegExp('^001.should-require-at-least-one-field.yaml: /add_entities/0/fields must be an array'));
         return true;
       });
     });
 
     it('should require valid fields', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -233,12 +233,12 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /define_entities/0/fields/0 must have required property 'name'"));
+        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /add_entities/0/fields/0 must have required property 'name'"));
         return true;
       });
 
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -246,12 +246,12 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /define_entities/0/fields/0 must have required property 'type'"));
+        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /add_entities/0/fields/0 must have required property 'type'"));
         return true;
       });
 
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -267,19 +267,19 @@ describe('DSL', () => {
 
     it('should require at least one identifier column', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
           - name: type
             type: TEXT
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-identifier-column.yaml: /define_entities/0 must have required property 'identified by' or 'identified_by'"));
+        match(err.message, new RegExp("^001.should-require-at-least-one-identifier-column.yaml: /add_entities/0 must have required property 'identified by' or 'identified_by'"));
         return true;
       });
 
       await rejects(() => applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -287,7 +287,7 @@ describe('DSL', () => {
             type: TEXT
           identified by:
       `), (err) => {
-        match(err.message, new RegExp('001.should-require-at-least-one-identifier-column.yaml: /define_entities/0/identified_by must be an array'));
+        match(err.message, new RegExp('001.should-require-at-least-one-identifier-column.yaml: /add_entities/0/identified_by must be an array'));
         return true;
       });
     });
@@ -430,7 +430,7 @@ describe('DSL', () => {
           - entity: VAT Rate
             version: 1
 
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -536,7 +536,7 @@ describe('DSL', () => {
           - entity: VAT Rate
             version: 1
 
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -635,7 +635,7 @@ describe('DSL', () => {
   describe('migrations', () => {
     it('supports YAML', async (t) => {
       await applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:
@@ -656,7 +656,7 @@ describe('DSL', () => {
     it('supports JSON', async (t) => {
       await applyJson(t.name, `
         {
-          "define_entities": [
+          "add_entities": [
             {
               "name": "VAT Rate",
               "version": 1,
@@ -707,7 +707,7 @@ describe('DSL', () => {
   describe('Hooks', () => {
     it('should add hooks', async (t) => {
       await applyYaml(t.name, `
-        define entities:
+        add entities:
         - name: VAT Rate
           version: 1
           fields:

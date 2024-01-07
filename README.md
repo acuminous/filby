@@ -263,7 +263,7 @@ add enums:
 # 2. Creates a table 'park_v1' for holding reference data
 # 3. Creates an aggregate function 'park_v1_aggregate' to be used by projections
 #
-define entities:
+add entities:
 
   - name: park
     version: 1

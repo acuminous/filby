@@ -9,10 +9,10 @@
     "add_enums": {
       "$ref": "#/definitions/enumsType"
     },
-    "define entities": {
+    "add entities": {
       "$ref": "#/definitions/entitiesType"
     },
-    "define_entities": {
+    "add_entities": {
       "$ref": "#/definitions/entitiesType"
     },
     "add projections": {
