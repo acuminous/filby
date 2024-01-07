@@ -32,27 +32,35 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 
 <pre>
                              Change
-                          Notification                                   Webhook
-                         ┌───────────┐    ┌────────────────────────────────────────────────────────────────────┐
-                         │           │    │                                                                    │
-                         │           ▼    │                                                                    ▼
-┌────────┐      ┌─────────────────┬──────────┐              GET /api/changelog?projection=$p&version=$v ┌──────────────┐
-│        │      │                 │          ├──────────────────────────────────────────────────────────│              │
-│        │      │    Reference    │          │                                                          │              │
-│   DB   │◀────▶│      Data       │   App    │                                                          │    Client    │
-│        │      │    Framework    │          │  GET /api/projection/:version/:projection?changeSetId=$c │              │
-│        │      │                 │          ├──────────────────────────────────────────────────────────│              │
-└────────┘      └─────────────────┴──────────┘                                                          └──────────────┘
+                          Notification                                      Webhook
+                         ┌───────────┐    ┌──────────────────────────────────────────────────────────────────────────────┐
+                         │           │    │                                                                              │
+                         │           ▼    │                                                                              ▼
+┌────────┐      ┌─────────────────┬──────────┐                 GET /api/changelog?projection=$p&version=$v  ┌────────────────────────┐
+│        │      │                 │          ├──────────────────────────────────────────────────────────────│                        │
+│        │      │    Reference    │          │                                                              │                        │
+│   DB   │◀────▶│      Data       │   App    │                                                              │         Client         │
+│        │      │    Framework    │          │     GET /api/projection/:version/:projection?changeSetId=$c  │                        │
+│        │      │                 │          ├──────────────────────────────────────────────────────────────│                        │
+└────────┘      └─────────────────┴──────────┘                                                              └────────────────────────┘
                          ▲
                          │
                          │
-            ┌────────────────────────┐
-            │                        │
-            │     Reference Data     │
-            │      Change Sets       │
-            │                        │
-            └────────────────────────┘
-</pre>
+  ┌─────────────────────────────────────────────┐
+  │                                             │
+  │               Reference Data                │
+  │                 Change Sets                 │
+  │                                             │
+  └─────────────────────────────────────────────┘
+       ▲           ▲           ▲           ▲
+       │           │           │           │
+       │           │           │           │
+  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+  │         │ │         │ │         │ │         │
+  │   CSV   │ │  YAML   │ │  JSON   │ │   SQL   │
+  │         │ │         │ │         │ │         │
+  └─────────┘ └─────────┘ └─────────┘ └─────────┘
+  </pre>
 
 The first of the two API calls, namely `/api/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
 
