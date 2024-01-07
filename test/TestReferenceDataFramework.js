@@ -1,4 +1,5 @@
 const ReferenceDataFramework = require('..');
+
 const noop = () => { };
 
 module.exports = class TestReferenceDataFramework extends ReferenceDataFramework {
