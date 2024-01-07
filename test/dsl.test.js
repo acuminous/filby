@@ -67,9 +67,7 @@ describe('DSL', () => {
           - entity: VAT Rate
             version: 1
         `);
-      const { rows: projections } = await rdf.withTransaction((tx) => {
-        return tx.query('SELECT name, version FROM rdf_projection');
-      });
+      const { rows: projections } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_projection'));
 
       eq(projections.length, 1);
       deq(projections[0], { name: 'VAT Rates', version: 1 });
@@ -162,9 +160,7 @@ describe('DSL', () => {
           - type
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => {
-        return tx.query('SELECT name, version FROM rdf_entity');
-      });
+      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -647,9 +643,7 @@ describe('DSL', () => {
           - type
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => {
-        return tx.query('SELECT name, version FROM rdf_entity');
-      });
+      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -680,9 +674,7 @@ describe('DSL', () => {
         }
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => {
-        return tx.query('SELECT name, version FROM rdf_entity');
-      });
+      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -694,9 +686,7 @@ describe('DSL', () => {
         (1, 'VAT Rate', 1);
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => {
-        return tx.query('SELECT name, version FROM rdf_entity');
-      });
+      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -738,9 +728,7 @@ describe('DSL', () => {
         - event: Any Change
       `);
 
-      const { rows: hooks } = await rdf.withTransaction((tx) => {
-        return tx.query('SELECT name, version, event FROM rdf_hook h LEFT JOIN rdf_projection p ON h.projection_id = p.id');
-      });
+      const { rows: hooks } = await rdf.withTransaction((tx) => tx.query('SELECT name, version, event FROM rdf_hook h LEFT JOIN rdf_projection p ON h.projection_id = p.id'));
 
       eq(hooks.length, 2);
       deq(hooks[0], { name: 'VAT Rates', version: 1, event: 'VAT Rates Change' });

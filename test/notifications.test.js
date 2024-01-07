@@ -132,9 +132,7 @@ describe('Notifications', () => {
     });
 
     setTimeout(async () => {
-      const { rows: notifications } = await rdf.withTransaction(async (tx) => {
-        return tx.query('SELECT * FROM rdf_notification');
-      });
+      const { rows: notifications } = await rdf.withTransaction(async (tx) => tx.query('SELECT * FROM rdf_notification'));
 
       eq(notifications.length, 1);
       eq(notifications[0].status, 'PENDING');
