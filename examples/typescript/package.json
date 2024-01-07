@@ -4,7 +4,7 @@
   "description": "An example project using the reference data framework",
   "scripts": {
     "start": "npx ts-node index.ts",
-    "docker": "docker run -d -p 5432:5432 --name postgres -e POSTGRES_PASSWORD=password postgres:16-alpine",
+    "docker": "docker-compose up --detach",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {

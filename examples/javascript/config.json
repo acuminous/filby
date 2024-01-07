@@ -6,9 +6,9 @@
     "port": 3000
   },
   "database": {
-    "user": "postgres",
-    "database": "postgres",
-    "password": "password"
+    "user": "rdf_example",
+    "database": "rdf_example",
+    "password": "rdf_example"
   },
   "rdf": {
     "migrations": "../migrations",
