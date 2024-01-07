@@ -121,7 +121,7 @@ describe('Notifications', () => {
   });
 
   it('should capture the last delivery error', async (t, done) => {
-    const before = new Date();
+    const checkpoint = new Date();
 
     await rdf.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
@@ -150,7 +150,7 @@ describe('Notifications', () => {
 
       eq(notifications.length, 1);
       eq(notifications[0].status, 'PENDING');
-      ok(notifications[0].last_attempted > before);
+      ok(notifications[0].last_attempted > checkpoint);
       match(notifications[0].last_error, /Oh Noes! 3/);
       done();
     }, 500);

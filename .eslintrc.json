@@ -58,7 +58,6 @@
     "no-mixed-spaces-and-tabs": 0,
     "no-multiple-empty-lines": 0,
     "no-param-reassign": 0,
-    "no-restricted-properties": 0,
-    "no-shadow": 0
+    "no-restricted-properties": 0
   }
 }

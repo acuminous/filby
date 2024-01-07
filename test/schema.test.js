@@ -114,7 +114,7 @@ describe('Schema', () => {
     });
 
     it('should default last modified date to now', async () => {
-      const before = new Date();
+      const checkpoint = new Date();
 
       await rdf.withTransaction(async (tx) => {
         await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
@@ -123,7 +123,7 @@ describe('Schema', () => {
       });
 
       const changeSet = await rdf.getChangeSet(1);
-      ok(changeSet.lastModified >= before);
+      ok(changeSet.lastModified >= checkpoint);
     });
 
     it('should default entity tag to random hex', async () => {
