@@ -49,7 +49,6 @@
     "import/extensions": 0,
     "import/newline-after-import": 0,
     "import/order": 0,
-    "indent": 0,
-    "no-confusing-arrow": 0
+    "indent": 0
   }
 }
