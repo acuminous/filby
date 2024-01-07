@@ -48,7 +48,7 @@ describe('DSL', () => {
 
   describe('Projections', () => {
     it('should add projections', async (t) => {
-      await apply(t.name, `
+      await applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -76,7 +76,7 @@ describe('DSL', () => {
     });
 
     it('should require a name', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add projections:
           - version: 1
             dependencies:
@@ -89,7 +89,7 @@ describe('DSL', () => {
     });
 
     it('should require a version', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add projections:
           - name: VAT Rates
             dependencies:
@@ -102,7 +102,7 @@ describe('DSL', () => {
     });
 
     it('should require at least one dependency', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add projections:
           - name: VAT Rates
             version: 1
@@ -111,7 +111,7 @@ describe('DSL', () => {
         return true;
       });
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add projections:
           - name: VAT Rates
             version: 1
@@ -123,7 +123,7 @@ describe('DSL', () => {
     });
 
     it('should require valid dependencies', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add projections:
           - name: VAT Rates
             version: 1
@@ -134,7 +134,7 @@ describe('DSL', () => {
         return true;
       });
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add projections:
           - name: VAT Rates
             version: 1
@@ -149,7 +149,7 @@ describe('DSL', () => {
 
   describe('Entities', () => {
     it('should add entities', async (t) => {
-      await apply(t.name, `
+      await applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -171,7 +171,7 @@ describe('DSL', () => {
     });
 
     it('should require a name', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - version: 1
           fields:
@@ -186,7 +186,7 @@ describe('DSL', () => {
     });
 
     it('should require a version', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           fields:
@@ -201,7 +201,7 @@ describe('DSL', () => {
     });
 
     it('should require at least one field', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -210,7 +210,7 @@ describe('DSL', () => {
         return true;
       });
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -224,7 +224,7 @@ describe('DSL', () => {
     });
 
     it('should require valid fields', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -237,7 +237,7 @@ describe('DSL', () => {
         return true;
       });
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -250,7 +250,7 @@ describe('DSL', () => {
         return true;
       });
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -266,7 +266,7 @@ describe('DSL', () => {
     });
 
     it('should require at least one identifier column', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -278,7 +278,7 @@ describe('DSL', () => {
         return true;
       });
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -295,7 +295,7 @@ describe('DSL', () => {
 
   describe('Change Sets', () => {
     it('should require an effective date', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
           - frames:
           - entity: VAT Rate
@@ -311,7 +311,7 @@ describe('DSL', () => {
     })
 
     it('should require at least one frame', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
       `), (err) => {
@@ -319,7 +319,7 @@ describe('DSL', () => {
         return true;
       })
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -330,7 +330,7 @@ describe('DSL', () => {
     })
 
     it('should require frames to specify an entity name', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -346,7 +346,7 @@ describe('DSL', () => {
     })
 
     it('should require frames to specify an entity version', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -362,7 +362,7 @@ describe('DSL', () => {
     })
 
     it('should require frames to specify an valid action', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -376,7 +376,7 @@ describe('DSL', () => {
         return true;
       })
 
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -393,7 +393,7 @@ describe('DSL', () => {
     })
 
     it('should require frame data to specify at least one value', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -407,7 +407,7 @@ describe('DSL', () => {
     })
 
     it('should require frame data to specify at least one value', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add change set:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -424,7 +424,7 @@ describe('DSL', () => {
 
   describe('Aggregates', () => {
     it('should aggregate data frames up to the specified change set', async (t) => {
-      await apply(t.name, `
+      await applyYaml(t.name, `
         add projections:
         - name: VAT Rates
           version: 1
@@ -530,7 +530,7 @@ describe('DSL', () => {
     });
 
     it('should exclude aggregates where the most recent frame was a delete', async (t) => {
-      await apply(t.name, `
+      await applyYaml(t.name, `
         add projections:
         - name: VAT Rates
           version: 1
@@ -634,9 +634,87 @@ describe('DSL', () => {
     });
   });
 
+  describe('migrations', () => {
+    it('supports YAML', async (t) => {
+      await applyYaml(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+          - name: rate
+            type: NUMERIC
+          identified by:
+          - type
+      `);
+
+      const { rows: entities } = await rdf.withTransaction((tx) => {
+        return tx.query('SELECT name, version FROM rdf_entity');
+      });
+
+      eq(entities.length, 1);
+      deq(entities[0], { name: 'VAT Rate', version: 1 });
+    });
+
+    it('supports JSON', async (t) => {
+      await applyJson(t.name, `
+        {
+          "define_entities": [
+            {
+              "name": "VAT Rate",
+              "version": 1,
+              "fields": [
+                {
+                  "name": "type",
+                  "type": "TEXT"
+                },
+                {
+                  "name": "rate",
+                  "type": "NUMERIC"
+                }
+              ],
+              "identified by": [
+                "type"
+              ]
+            }
+          ]
+        }
+      `);
+
+      const { rows: entities } = await rdf.withTransaction((tx) => {
+        return tx.query('SELECT name, version FROM rdf_entity');
+      });
+
+      eq(entities.length, 1);
+      deq(entities[0], { name: 'VAT Rate', version: 1 });
+    });
+
+    it('supports SQL', async (t) => {
+      await applySql(t.name, `
+        INSERT INTO rdf_entity (id, name, version) VALUES
+        (1, 'VAT Rate', 1);
+      `);
+
+      const { rows: entities } = await rdf.withTransaction((tx) => {
+        return tx.query('SELECT name, version FROM rdf_entity');
+      });
+
+      eq(entities.length, 1);
+      deq(entities[0], { name: 'VAT Rate', version: 1 });
+    });
+
+    it('reports unsupported file types', async (t) => {
+      await rejects(() => apply(t.name, 'UNSUPPORTED', 'yml'), (err) => {
+        eq(err.message, 'Unsupported file type: yml');
+        return true;
+      })
+    });
+  })
+
   describe('Hooks', () => {
     it('should add hooks', async (t) => {
-      await apply(t.name, `
+      await applyYaml(t.name, `
         define entities:
         - name: VAT Rate
           version: 1
@@ -672,7 +750,7 @@ describe('DSL', () => {
     });
 
     it('should require a projection', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add hooks:
         - version: 1
           event: VAT Rates Change
@@ -683,7 +761,7 @@ describe('DSL', () => {
     });
 
     it('should require a version', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add hooks:
         - projection: VAT Rates
           event: VAT Rates Change
@@ -694,7 +772,7 @@ describe('DSL', () => {
     });
 
     it('should require an event', async (t) => {
-      await rejects(() => apply(t.name, `
+      await rejects(() => applyYaml(t.name, `
         add hooks:
         - projection: VAT Rate
           version: 1
@@ -705,14 +783,26 @@ describe('DSL', () => {
     });
   });
 
-  async function apply(name, script) {
-    fs.writeFileSync(path.join(__dirname, 'dsl', `001.${name.replace(/ /g, '-')}.yaml`), script, { encoding: 'utf-8' });
+  async function applyYaml(name, script) {
+    return apply(name, script, 'yaml');
+  }
+
+  async function applyJson(name, script) {
+    return apply(name, script, 'json');
+  }
+
+  async function applySql(name, script) {
+    return apply(name, script, 'sql');
+  }
+
+  async function apply(name, script, extension) {
+    fs.writeFileSync(path.join(__dirname, 'dsl', `001.${name.replace(/ /g, '-')}.${extension}`), script, { encoding: 'utf-8' });
     return rdf.init();
   }
 
   function deleteMigrations() {
     fs.readdirSync(path.join(__dirname, 'dsl'))
-      .filter(file => path.extname(file).toLowerCase() === '.yaml')
+      .filter(file => ['.yaml', '.json', '.sql', '.yml'].includes(path.extname(file).toLowerCase()))
       .map(file => path.join(__dirname, 'dsl', file))
       .forEach(file => fs.unlinkSync(file));
   }

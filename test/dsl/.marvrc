@@ -1,6 +1,6 @@
 {
   "namespace": "dsl",
-  "filter": "(?:\\.sql|\\.yaml|\\.json)$",
+  "filter": "(?:\\.sql|\\.yaml|\\.json|\\.yml)$",
   "directives": {
     "audit": false
   }
