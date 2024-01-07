@@ -34,8 +34,8 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
       deepLinking: false
     },
     uiHooks: {
-      onRequest: function (_, __, next) { next(); },
-      preHandler: function (_, __, next) { next(); }
+      onRequest(_, __, next) { next(); },
+      preHandler(_, __, next) { next(); }
     },
     staticCSP: true,
     transformStaticCSP: (header) => header,
