@@ -806,9 +806,9 @@ describe('DSL', () => {
       deq(entities[0], { name: 'VAT Rate', version: 1 });
     });
 
-    it('reports unsupported file types', async (t) => {
+    it('should report unsupported file types', async (t) => {
       await rejects(() => apply(t.name, 'UNSUPPORTED', 'yml'), (err) => {
-        eq(err.message, 'Unsupported file type: 001.reports-unsupported-file-types.yml');
+        eq(err.message, 'Unsupported file type: 001.should-report-unsupported-file-types.yml');
         return true;
       });
     });
