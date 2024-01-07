@@ -294,26 +294,26 @@ add hooks:
 
 # Add a change set containing one or more data frames for the previously defined entities
 add change set:
-  effective: 2019-01-01T00:00:00Z
-  notes: Initial Data
-  frames:
-    - entity: park
-      version: 1
-      action: POST
-      data:
-        # Adds a data frame for Devon Cliffs
-        - code: DC
-          name: Devon Cliffs
-        # Adds a data frame for Primrose Valley
-        - code: PV
-          name: Primrose Valley
-    - entity: park
-      version: 1
-      action: DELETE
-      data:
-        # Adds a data frame that will delete the entity identified
-        # by code XX from the effective data
-        - code: XX
+  - notes: Initial Data
+    effective: 2019-01-01T00:00:00Z
+    frames:
+      - entity: park
+         version: 1
+         action: POST
+         data:
+         # Adds a data frame for Devon Cliffs
+         - code: DC
+            name: Devon Cliffs
+         # Adds a data frame for Primrose Valley
+         - code: PV
+            name: Primrose Valley
+      - entity: park
+         version: 1
+         action: DELETE
+         data:
+         # Adds a data frame that will delete the entity identified
+         # by code XX from the effective data
+         - code: XX
 ```
 
 ## Example Application
