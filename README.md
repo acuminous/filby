@@ -1,4 +1,4 @@
-# Filby - A framework for managing temporal reference data
+# Filby - A framework for temporal reference data
 
 [![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
 [![Code Climate](https://codeclimate.com/github/acuminous/filby/badges/gpa.svg)](https://codeclimate.com/github/acuminous/filby)
