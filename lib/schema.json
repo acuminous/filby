@@ -187,20 +187,32 @@
             "type": "string"
           }
         },
-        "anyOf": [
-          {
-            "required": [
-              "projection",
-              "version",
-              "event"
-            ]
-          },
-          {
-            "required": [
-              "event"
-            ]
-          }
-        ]
+        "if": {
+          "anyOf": [
+            {
+              "required": [
+                "projection"
+              ]
+            },
+            {
+              "required": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "then": {
+          "required": [
+            "projection",
+            "version",
+            "event"
+          ]
+        },
+        "else": {
+          "required": [
+            "event"
+          ]
+        }
       }
     },
     "changeSetType": {

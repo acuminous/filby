@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
+const { ok, strictEqual: eq, deepEqual: deq, rejects, throws, match } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 
 const TestReferenceDataFramework = require('./TestReferenceDataFramework');
@@ -74,6 +74,77 @@ describe('DSL', () => {
       eq(projections.length, 1);
       deq(projections[0], { name: 'VAT Rates', version: 1 });
     });
+
+    it('should require a name', async (t) => {
+      await rejects(() => apply(t.name, `
+        add projections:
+          - version: 1
+            dependencies:
+            - entity: VAT Rate
+              version: 1
+      `), (err) => {
+        match(err.message, new RegExp("/add_projections/0 must have required property 'name'"));
+        return true;
+      });
+    });
+
+    it('should require a version', async (t) => {
+      await rejects(() => apply(t.name, `
+        add projections:
+          - name: VAT Rates
+            dependencies:
+            - entity: VAT Rate
+              version: 1
+      `), (err) => {
+        match(err.message, new RegExp("/add_projections/0 must have required property 'version'"));
+        return true;
+      });
+    });
+
+    it('should require at least one dependency', async (t) => {
+      await rejects(() => apply(t.name, `
+        add projections:
+          - name: VAT Rates
+            version: 1
+      `), (err) => {
+        match(err.message, new RegExp("/add_projections/0 must have required property 'dependencies'"));
+        return true;
+      });
+
+      await rejects(() => apply(t.name, `
+        add projections:
+          - name: VAT Rates
+            version: 1
+            dependencies:
+      `), (err) => {
+        match(err.message, new RegExp("/add_projections/0/dependencies must be an array"));
+        return true;
+      });
+    });
+
+    it('should require valid dependencies', async (t) => {
+      await rejects(() => apply(t.name, `
+        add projections:
+          - name: VAT Rates
+            version: 1
+            dependencies:
+            - version: 1
+      `), (err) => {
+        match(err.message, new RegExp("/add_projections/0/dependencies/0 must have required property 'entity'"));
+        return true;
+      });
+
+      await rejects(() => apply(t.name, `
+        add projections:
+          - name: VAT Rates
+            version: 1
+            dependencies:
+            - entity: VAT Rate
+      `), (err) => {
+        match(err.message, new RegExp("/add_projections/0/dependencies/0 must have required property 'version'"));
+        return true;
+      });
+    });
   });
 
   describe('Entities', () => {
@@ -99,6 +170,131 @@ describe('DSL', () => {
       deq(entities[0], { name: 'VAT Rate', version: 1 });
     });
 
+    it('should require a name', async (t) => {
+      await rejects(() => apply(t.name, `
+        define entities:
+        - version: 1
+          fields:
+          - name: type
+            type: TEXT
+          identified by:
+          - type
+      `), (err) => {
+        match(err.message, new RegExp("/define_entities/0 must have required property 'name'"));
+        return true;
+      });
+    });
+
+    it('should require a version', async (t) => {
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          fields:
+          - name: type
+            type: TEXT
+          identified by:
+          - type
+      `), (err) => {
+        match(err.message, new RegExp("/define_entities/0 must have required property 'version'"));
+        return true;
+      });
+    });
+
+    it('should require at least one field', async (t) => {
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+      `), (err) => {
+        match(err.message, new RegExp("/define_entities/0 must have required property 'fields'"));
+        return true;
+      });
+
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          identified by:
+          - type
+      `), (err) => {
+        match(err.message, new RegExp("/define_entities/0/fields must be an array"));
+        return true;
+      });
+    });
+
+    it('should require valid fields', async (t) => {
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - type: TEXT
+          identified by:
+          - type
+      `), (err) => {
+        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'name'"))
+        return true;
+      });
+
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+          identified by:
+          - type
+      `), (err) => {
+        match(err.message, new RegExp("define_entities/0/fields/0 must have required property 'type'"))
+        return true;
+      });
+
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: UNSUPPORTED BY POSTGRES
+          identified by:
+          - type
+      `), (err) => {
+        eq(err.code, '42601');
+        return true;
+      });
+    });
+
+    it('should require at least one identifier column', async (t) => {
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+      `), (err) => {
+        match(err.message, new RegExp("/define_entities/0 must have required property 'identified by' or 'identified_by'"));
+        return true;
+      });
+
+      await rejects(() => apply(t.name, `
+        define entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+          identified by:
+      `), (err) => {
+        match(err.message, new RegExp("/define_entities/0/identified_by must be an array"));
+        return true;
+      });
+
+    });
+  });
+
+  describe('Aggregates', () => {
     it('should aggregate data frames up to the specified change set', async (t) => {
       await apply(t.name, `
         add projections:
@@ -346,11 +542,44 @@ describe('DSL', () => {
       deq(hooks[0], { name: 'VAT Rates', version: 1, event: 'VAT Rates Change' });
       deq(hooks[1], { name: null, version: null, event: 'Any Change' });
     });
+
+    it('should require a projection', async (t) => {
+      await rejects(() => apply(t.name, `
+        add hooks:
+        - version: 1
+          event: VAT Rates Change
+      `), (err) => {
+        match(err.message, new RegExp("/add_hooks/0 must have required property 'projection'"));
+        return true;
+      });
+    });
+
+    it('should require a version', async (t) => {
+      await rejects(() => apply(t.name, `
+        add hooks:
+        - projection: VAT Rates
+          event: VAT Rates Change
+      `), (err) => {
+        match(err.message, new RegExp("/add_hooks/0 must have required property 'version'"));
+        return true;
+      });
+    });
+
+    it('should require an event', async (t) => {
+      await rejects(() => apply(t.name, `
+        add hooks:
+        - projection: VAT Rate
+          version: 1
+      `), (err) => {
+        match(err.message, new RegExp("/add_hooks/0 must have required property 'event'"));
+        return true;
+      });
+    });
   });
 
   async function apply(name, script) {
     fs.writeFileSync(path.join(__dirname, 'dsl', `001.${name.replace(/ /g, '-')}.yaml`), script, { encoding: 'utf-8' });
-    await rdf.init();
+    return rdf.init();
   }
 
   function deleteMigrations() {
