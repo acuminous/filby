@@ -9,6 +9,8 @@
     "ecmaVersion": "2022"
   },
   "rules": {
+    "import/no-dynamic-require": 0,
+    "prefer-destructuring": 0,
     "consistent-return": 0,
     "class-methods-use-this": 0,
     "max-classes-per-file": 0,
@@ -55,7 +57,6 @@
     "no-param-reassign": 0,
     "no-restricted-properties": 0,
     "no-shadow": 0,
-    "no-tabs": 0,
     "no-useless-return": 0,
     "object-curly-spacing": 0,
     "object-shorthand": 0,
@@ -63,8 +64,6 @@
     "prefer-regex-literals": 0,
     "prefer-rest-params": 0,
     "quote-props": 0,
-    "quotes": 0,
-    "import/no-dynamic-require": 0,
-    "prefer-destructuring": 0
+    "quotes": 0
   }
 }
