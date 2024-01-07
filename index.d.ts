@@ -1,7 +1,7 @@
 import { EventEmitter2 as EventEmitter } from 'eventemitter2';
 import { PoolClient, PoolConfig } from 'pg';
 
-export default class ReferenceDataFramework extends EventEmitter {
+export default class Filby extends EventEmitter {
   constructor(config: RdfConfig);
   init(): Promise<void>;
   startNotifications(): Promise<void>;

@@ -2,7 +2,7 @@ START TRANSACTION;
 
 CREATE EXTENSION pgcrypto;
 
-CREATE TABLE rdf_change_set (
+CREATE TABLE fby_change_set (
   id SERIAL PRIMARY KEY,
   effective TIMESTAMP WITH TIME ZONE NOT NULL,
   notes TEXT,
@@ -10,9 +10,9 @@ CREATE TABLE rdf_change_set (
   entity_tag TEXT NOT NULL
 );
 
-CREATE INDEX rdf_change_set_effective_idx ON rdf_change_set (effective DESC);
+CREATE INDEX fby_change_set_effective_idx ON fby_change_set (effective DESC);
 
-CREATE FUNCTION rdf_on_new_change_set()
+CREATE FUNCTION fby_on_new_change_set()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.last_modified := now();
@@ -21,9 +21,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER rdf_change_set_insert_trigger
-BEFORE INSERT ON rdf_change_set
+CREATE TRIGGER fby_change_set_insert_trigger
+BEFORE INSERT ON fby_change_set
 FOR EACH ROW
-EXECUTE FUNCTION rdf_on_new_change_set();
+EXECUTE FUNCTION fby_on_new_change_set();
 
 END TRANSACTION;

@@ -1,11 +1,11 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createError from 'http-errors';
-import ReferenceDataFramework from '../../..';
+import Filby from '../../..';
 
 const getChangelogSchema = {
 	querystring: {
 		type: "object",
-	  required: ["projection", "version"],
+		required: ["projection", "version"],
 		properties: {
 			projection: {
 				type: "string"
@@ -17,7 +17,7 @@ const getChangelogSchema = {
 	}
 } as const;
 
-export default (fastify: FastifyInstance, { rdf } : { rdf: ReferenceDataFramework }, done: (err?: Error) => void) => {
+export default (fastify: FastifyInstance, { filby }: { filby: Filby }, done: (err?: Error) => void) => {
 
 	fastify.get<{
 		Querystring: typeof getChangelogSchema.querystring.properties
@@ -25,7 +25,7 @@ export default (fastify: FastifyInstance, { rdf } : { rdf: ReferenceDataFramewor
 
 		const projection = await getProjection(request)
 
-		const changeLog = await rdf.getChangeLog(projection);
+		const changeLog = await filby.getChangeLog(projection);
 		if (changeLog.length === 0) throw createError(404, `Projection ${projection.name}-v${projection.version} has no change sets`);
 
 		const changeSet = changeLog[changeLog.length - 1];
@@ -42,7 +42,7 @@ export default (fastify: FastifyInstance, { rdf } : { rdf: ReferenceDataFramewor
 	async function getProjection(request: FastifyRequest<{ Querystring: typeof getChangelogSchema.querystring.properties }>) {
 		const name = String(request.query.projection);
 		const version = Number(request.query.version);
-		const projection = await rdf.getProjection(name, version);
+		const projection = await filby.getProjection(name, version);
 		if (!projection) throw createError(404, `Projection not found: ${name}-v${version}`);
 		return projection;
 	}

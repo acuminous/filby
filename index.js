@@ -6,9 +6,9 @@ const marv = require('marv/api/promise');
 const { Pool } = require('pg');
 const parseDuration = require('parse-duration');
 
-const driver = require('./lib/marv-rdf-driver');
+const driver = require('./lib/marv-filby-driver');
 
-module.exports = class ReferenceDataFramework extends EventEmitter {
+module.exports = class Filby extends EventEmitter {
 
   #config;
   #maxRescheduleDelay;
@@ -61,28 +61,28 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
 
   async getProjections() {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT id, name, version FROM rdf_projection');
+      const { rows } = await tx.query('SELECT id, name, version FROM fby_projection');
       return rows;
     });
   }
 
   async getProjection(name, version) {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT id, name, version FROM rdf_projection WHERE name = $1 AND version = $2', [name, version]);
+      const { rows } = await tx.query('SELECT id, name, version FROM fby_projection WHERE name = $1 AND version = $2', [name, version]);
       return rows[0];
     });
   }
 
   async getChangeLog(projection) {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT DISTINCT ON (change_set_id) change_set_id, effective, notes, last_modified, entity_tag FROM rdf_projection_change_log_vw WHERE projection_id = $1', [projection.id]);
+      const { rows } = await tx.query('SELECT DISTINCT ON (change_set_id) change_set_id, effective, notes, last_modified, entity_tag FROM fby_projection_change_log_vw WHERE projection_id = $1', [projection.id]);
       return rows.map(toChangeSet);
     });
   }
 
   async getChangeSet(changeSetId) {
     return this.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT id AS change_set_id, effective, notes, last_modified, entity_tag FROM rdf_change_set WHERE id = $1', [changeSetId]);
+      const { rows } = await tx.query('SELECT id AS change_set_id, effective, notes, last_modified, entity_tag FROM fby_change_set WHERE id = $1', [changeSetId]);
       return rows.map(toChangeSet)[0];
     });
   }
@@ -113,21 +113,21 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
     };
 
     return pipsqueak({
-      name: 'rdf-notifications', factory, interval, delay: initialDelay,
+      name: 'filby-notifications', factory, interval, delay: initialDelay,
     });
   }
 
   async #getNextNotification(tx, maxAttempts) {
-    const { rows } = await tx.query('SELECT id, hook_id, attempts FROM rdf_get_next_notification($1)', [maxAttempts]);
+    const { rows } = await tx.query('SELECT id, hook_id, attempts FROM fby_get_next_notification($1)', [maxAttempts]);
     const notifications = rows.map((row) => ({ id: row.id, hookId: row.hook_id, attempts: row.attempts }));
     return notifications[0];
   }
 
   async #getHook(tx, notification) {
     const { rows } = await tx.query(
-      `SELECT h.event, p.id, p.name, p.version FROM rdf_hook h
-INNER JOIN rdf_notification n ON n.hook_id = h.id
-INNER JOIN rdf_projection p ON p.id = n.projection_id
+      `SELECT h.event, p.id, p.name, p.version FROM fby_hook h
+INNER JOIN fby_notification n ON n.hook_id = h.id
+INNER JOIN fby_projection p ON p.id = n.projection_id
 WHERE h.id = $1`,
       [notification.hookId],
     );
@@ -136,13 +136,13 @@ WHERE h.id = $1`,
   }
 
   async #passNotification(tx, notification) {
-    await tx.query('SELECT rdf_pass_notification($1)', [notification.id]);
+    await tx.query('SELECT fby_pass_notification($1)', [notification.id]);
   }
 
   async #failNotification(tx, notification, err) {
     const rescheduleDelay = Math.min(2 ** notification.attempts * 1000, this.#maxRescheduleDelay);
     const scheduledFor = new Date(Date.now() + rescheduleDelay);
-    await tx.query('SELECT rdf_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.stack]);
+    await tx.query('SELECT fby_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.stack]);
   }
 };
 

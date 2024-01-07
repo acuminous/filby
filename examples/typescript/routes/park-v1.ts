@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createError from 'http-errors';
-import ReferenceDataFramework, { RdfChangeSet } from '../../..';
+import Filby, { RdfChangeSet } from '../../..';
 
-export default (fastify: FastifyInstance, { rdf }: { rdf: ReferenceDataFramework }, done: (err?: Error) => void) => {
+export default (fastify: FastifyInstance, { filby }: { filby: Filby }, done: (err?: Error) => void) => {
 
   const getParksSchema = {
     querystring: {
@@ -72,13 +72,13 @@ export default (fastify: FastifyInstance, { rdf }: { rdf: ReferenceDataFramework
 
   async function getChangeSet(request: FastifyRequest<{ Querystring: typeof getParksSchema.querystring.properties }> | FastifyRequest<{ Querystring: typeof getParkSchema.querystring.properties }>) {
     const changeSetId = Number(request.query.changeSetId);
-    const changeSet = await rdf.getChangeSet(changeSetId);
+    const changeSet = await filby.getChangeSet(changeSetId);
     if (!changeSet) throw createError(400, `Invalid changeSetId`)
     return changeSet;
   }
 
   async function getParks(changeSet: RdfChangeSet) {
-    return rdf.withTransaction(async (tx) => {
+    return filby.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1)', [changeSet.id]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
       return Array.from(parkDictionary.values());
@@ -86,7 +86,7 @@ export default (fastify: FastifyInstance, { rdf }: { rdf: ReferenceDataFramework
   }
 
   async function getPark(changeSet: RdfChangeSet, code: string) {
-    return rdf.withTransaction(async (tx) => {
+    return filby.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1) WHERE code = upper($2)', [changeSet.id, code]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
       return parkDictionary.get(code);

@@ -8,11 +8,11 @@ const swaggerUI = require('@fastify/swagger-ui');
 
 const config = require('./config.json');
 const changeLogRoute = require('./routes/changelog-v1');
-const ReferenceDataFramework = require('../..');
+const Filby = require('../..');
 
 const fastify = Fastify(config.fastify);
 
-const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.database } });
+const filby = new Filby({ ...config.filby, ...{ database: config.database } });
 
 (async () => {
 
@@ -20,7 +20,7 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
     swagger: {
       info: {
         title: 'Holiday Park Data Service',
-        description: 'A proof of concept reference data application',
+        description: 'A proof of concept Filby application',
         version: '1.0.0',
       },
       schemes: ['http'],
@@ -46,20 +46,20 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
   });
 
   try {
-    await rdf.init();
+    await filby.init();
 
     await registerChangelog();
     await registerProjections();
 
     await fastify.listen(config.server);
 
-    rdf.on('park_v1_change', (event) => {
+    filby.on('park_v1_change', (event) => {
       console.log({ event });
     });
-    rdf.on('change', (event) => {
+    filby.on('change', (event) => {
       console.log({ event });
     });
-    await rdf.startNotifications();
+    await filby.startNotifications();
 
     registerShutdownHooks();
     console.log(`Server is listening on port ${config.server?.port}`);
@@ -72,16 +72,16 @@ const rdf = new ReferenceDataFramework({ ...config.rdf, ...{ database: config.da
 })();
 
 async function registerChangelog() {
-  fastify.register(changeLogRoute, { prefix: '/api/changelog', rdf });
+  fastify.register(changeLogRoute, { prefix: '/api/changelog', filby });
 }
 
 async function registerProjections() {
-  const projections = await rdf.getProjections();
+  const projections = await filby.getProjections();
   projections.forEach((projection) => {
     // eslint-disable-next-line global-require
     const route = require(path.resolve(`routes/${projection.name}-v${projection.version}`));
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
-    fastify.register(route, { prefix, rdf });
+    fastify.register(route, { prefix, filby });
   });
 }
 
@@ -90,9 +90,9 @@ function registerShutdownHooks() {
   process.once('SIGTERM', () => process.emit('app_stop'));
   process.once('app_stop', async () => {
     process.removeAllListeners('app_stop');
-    await rdf.stopNotifications();
+    await filby.stopNotifications();
     await fastify.close();
-    await rdf.stop();
+    await filby.stop();
     console.log('Server has stopped');
   });
 }

@@ -5,13 +5,13 @@ const {
   describe, it, before, beforeEach, after, afterEach,
 } = require('zunit');
 
-const TestReferenceDataFramework = require('./TestReferenceDataFramework');
+const TestFilby = require('./TestFilby');
 
 const config = {
   migrations: 'test',
   database: {
-    user: 'rdf_test',
-    password: 'rdf_test',
+    user: 'fby_test',
+    password: 'fby_test',
   },
   notifications: {
     initialDelay: '0ms',
@@ -26,83 +26,83 @@ const config = {
 
 describe('Notifications', () => {
 
-  let rdf;
+  let filby;
 
   before(async () => {
-    rdf = new TestReferenceDataFramework(config);
-    await rdf.reset();
+    filby = new TestFilby(config);
+    await filby.reset();
   });
 
   beforeEach(async () => {
-    rdf.removeAllListeners();
-    await rdf.wipe();
+    filby.removeAllListeners();
+    await filby.wipe();
   });
 
   afterEach(async () => {
-    await rdf.stopNotifications();
-    rdf.removeAllListeners();
+    await filby.stopNotifications();
+    filby.removeAllListeners();
   });
 
   after(async () => {
-    await rdf.stop();
+    await filby.stop();
   });
 
   it('should notify interested parties of projection changes', async (t, done) => {
-    await rdf.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
           (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+      await tx.query(`INSERT INTO fby_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
           (2, 2, 'CGT Rate Changed')`);
-      await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id, scheduled_for) VALUES
           (1, 1, now())`);
     });
 
-    rdf.once('VAT Rate Changed', ({ event, projection }) => {
+    filby.once('VAT Rate Changed', ({ event, projection }) => {
       eq(event, 'VAT Rate Changed');
       deq(projection, { name: 'VAT Rates', version: 1 });
       done();
     });
 
-    rdf.startNotifications();
+    filby.startNotifications();
   });
 
   it('should not redeliver successful notifications', async (t, done) => {
-    await rdf.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
           (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+      await tx.query(`INSERT INTO fby_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
           (2, 2, 'CGT Rate Changed')`);
-      await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id, scheduled_for) VALUES
           (1, 1, now())`);
     });
 
-    rdf.on('VAT Rate Changed', ({ event, projection }) => {
+    filby.on('VAT Rate Changed', ({ event, projection }) => {
       eq(event, 'VAT Rate Changed');
       deq(projection, { name: 'VAT Rates', version: 1 });
       setTimeout(done, 1000);
     });
 
-    rdf.startNotifications();
+    filby.startNotifications();
   });
 
   it('should redeliver unsuccessful notifications up to the maximum number of attempts', async (t, done) => {
-    await rdf.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
           (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+      await tx.query(`INSERT INTO fby_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
           (2, 2, 'CGT Rate Changed')`);
-      await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id, scheduled_for) VALUES
           (1, 1, now())`);
     });
 
     let attempt = 0;
-    rdf.on('VAT Rate Changed', async () => {
+    filby.on('VAT Rate Changed', async () => {
       attempt++;
       throw new Error('Oh Noes!');
     });
@@ -112,31 +112,31 @@ describe('Notifications', () => {
       done();
     }, 500);
 
-    rdf.startNotifications();
+    filby.startNotifications();
   });
 
   it('should capture the last delivery error', async (t, done) => {
     const checkpoint = new Date();
 
-    await rdf.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
           (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
+      await tx.query(`INSERT INTO fby_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
           (2, 2, 'CGT Rate Changed')`);
-      await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id, scheduled_for) VALUES
           (1, 1, now())`);
     });
 
     let attempt = 0;
-    rdf.on('VAT Rate Changed', () => {
+    filby.on('VAT Rate Changed', () => {
       attempt++;
       throw new Error(`Oh Noes! ${attempt}`);
     });
 
     setTimeout(async () => {
-      const { rows: notifications } = await rdf.withTransaction(async (tx) => tx.query('SELECT * FROM rdf_notification'));
+      const { rows: notifications } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification'));
 
       eq(notifications.length, 1);
       eq(notifications[0].status, 'PENDING');
@@ -145,6 +145,6 @@ describe('Notifications', () => {
       done();
     }, 500);
 
-    rdf.startNotifications();
+    filby.startNotifications();
   });
 });

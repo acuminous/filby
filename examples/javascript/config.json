@@ -6,11 +6,11 @@
     "port": 3000
   },
   "database": {
-    "user": "rdf_example",
-    "database": "rdf_example",
-    "password": "rdf_example"
+    "user": "fby_example",
+    "database": "fby_example",
+    "password": "fby_example"
   },
-  "rdf": {
+  "filby": {
     "migrations": "../migrations",
     "notifications": {
       "interval": "5s",

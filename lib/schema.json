@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "JSON Schema for RDF",
+  "title": "JSON Schema for filby",
   "type": "object",
   "properties": {
     "define enums": {

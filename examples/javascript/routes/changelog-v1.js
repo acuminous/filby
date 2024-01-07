@@ -15,13 +15,13 @@ const getChangelogSchema = {
   },
 };
 
-module.exports = (fastify, { rdf }, done) => {
+module.exports = (fastify, { filby }, done) => {
 
   fastify.get('/', { schema: getChangelogSchema }, async (request, reply) => {
 
     const projection = await getProjection(request);
 
-    const changeLog = await rdf.getChangeLog(projection);
+    const changeLog = await filby.getChangeLog(projection);
     if (changeLog.length === 0) throw createError(404, `Projection ${projection.name}-v${projection.version} has no change sets`);
 
     const changeSet = changeLog[changeLog.length - 1];
@@ -38,7 +38,7 @@ module.exports = (fastify, { rdf }, done) => {
   async function getProjection(request) {
     const name = String(request.query.projection);
     const version = Number(request.query.version);
-    const projection = await rdf.getProjection(name, version);
+    const projection = await filby.getProjection(name, version);
     if (!projection) throw createError(404, `Projection not found: ${name}-v${version}`);
     return projection;
   }

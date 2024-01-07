@@ -7,13 +7,13 @@ const {
   describe, it, before, beforeEach, after, afterEach,
 } = require('zunit');
 
-const TestReferenceDataFramework = require('./TestReferenceDataFramework');
+const TestFilby = require('./TestFilby');
 
 const config = {
   migrations: 'test/dsl',
   database: {
-    user: 'rdf_test',
-    password: 'rdf_test',
+    user: 'fby_test',
+    password: 'fby_test',
   },
   notifications: {
     initialDelay: '0ms',
@@ -33,21 +33,21 @@ const config = {
 
 describe('DSL', () => {
 
-  let rdf;
+  let filby;
 
   before(async () => {
     deleteMigrations();
-    rdf = new TestReferenceDataFramework(config);
-    await rdf.reset();
+    filby = new TestFilby(config);
+    await filby.reset();
   });
 
   beforeEach(async () => {
     deleteMigrations();
-    await rdf.wipe();
+    await filby.wipe();
   });
 
   after(async () => {
-    await rdf.stop();
+    await filby.stop();
   });
 
   describe('Projections', () => {
@@ -71,7 +71,7 @@ describe('DSL', () => {
           - entity: VAT Rate
             version: 1
         `);
-      const { rows: projections } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_projection'));
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_projection'));
 
       eq(projections.length, 1);
       deq(projections[0], { name: 'VAT Rates', version: 1 });
@@ -164,7 +164,7 @@ describe('DSL', () => {
           - type
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -509,10 +509,10 @@ describe('DSL', () => {
               rate: 0
       `);
 
-      const projection = await rdf.getProjection('VAT Rates', 1);
-      const changeLog = await rdf.getChangeLog(projection);
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
 
-      await rdf.withTransaction(async (tx) => {
+      await filby.withTransaction(async (tx) => {
         const { rows: aggregate1 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [changeLog[0].id]);
         eq(aggregate1.length, 3);
         deq(aggregate1[0], { type: 'standard', rate: 0.10 });
@@ -614,10 +614,10 @@ describe('DSL', () => {
             - type: zero
       `);
 
-      const projection = await rdf.getProjection('VAT Rates', 1);
-      const changeLog = await rdf.getChangeLog(projection);
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
 
-      await rdf.withTransaction(async (tx) => {
+      await filby.withTransaction(async (tx) => {
         const { rows: aggregate1 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [changeLog[0].id]);
         eq(aggregate1.length, 3);
         deq(aggregate1[0], { type: 'standard', rate: 0.10 });
@@ -647,7 +647,7 @@ describe('DSL', () => {
           - type
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -678,7 +678,7 @@ describe('DSL', () => {
         }
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -686,11 +686,11 @@ describe('DSL', () => {
 
     it('supports SQL', async (t) => {
       await applySql(t.name, `
-        INSERT INTO rdf_entity (id, name, version) VALUES
+        INSERT INTO fby_entity (id, name, version) VALUES
         (1, 'VAT Rate', 1);
       `);
 
-      const { rows: entities } = await rdf.withTransaction((tx) => tx.query('SELECT name, version FROM rdf_entity'));
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
 
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
@@ -732,7 +732,7 @@ describe('DSL', () => {
         - event: Any Change
       `);
 
-      const { rows: hooks } = await rdf.withTransaction((tx) => tx.query('SELECT name, version, event FROM rdf_hook h LEFT JOIN rdf_projection p ON h.projection_id = p.id'));
+      const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT name, version, event FROM fby_hook h LEFT JOIN fby_projection p ON h.projection_id = p.id'));
 
       eq(hooks.length, 2);
       deq(hooks[0], { name: 'VAT Rates', version: 1, event: 'VAT Rates Change' });
@@ -787,7 +787,7 @@ describe('DSL', () => {
 
   async function apply(name, script, extension) {
     fs.writeFileSync(path.join(__dirname, 'dsl', `001.${name.replace(/ /g, '-')}.${extension}`), script, { encoding: 'utf-8' });
-    return rdf.init();
+    return filby.init();
   }
 
   function deleteMigrations() {

@@ -1,7 +1,7 @@
 {
-  "name": "rdf-example",
+  "name": "filby-example",
   "version": "1.0.0",
-  "description": "An example project using the reference data framework",
+  "description": "An example project using Filbyk",
   "scripts": {
     "start": "npx ts-node index.ts",
     "docker": "docker-compose up --detach",

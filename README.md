@@ -1,8 +1,8 @@
 # Filby - A framework for managing temporal reference data
 
-[![Node.js CI](https://github.com/acuminous/reference-data-framework/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/reference-data-framework/actions?query=workflow%3A%22Node.js+CI%22)
-[![Code Climate](https://codeclimate.com/github/acuminous/reference-data-framework/badges/gpa.svg)](https://codeclimate.com/github/acuminous/reference-data-framework)
-[![Test Coverage](https://codeclimate.com/github/acuminous/reference-data-framework/badges/coverage.svg)](https://codeclimate.com/github/acuminous/reference-data-framework/coverage)
+[![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
+[![Code Climate](https://codeclimate.com/github/acuminous/filby/badges/gpa.svg)](https://codeclimate.com/github/acuminous/filby)
+[![Test Coverage](https://codeclimate.com/github/acuminous/filby/badges/coverage.svg)](https://codeclimate.com/github/acuminous/filby/coverage)
 [![Discover zUnit](https://img.shields.io/badge/Discover-zUnit-brightgreen)](https://www.npmjs.com/package/zunit)
 
 *There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
@@ -28,7 +28,7 @@ Most applications require slow moving reference data, which presents the followi
 | Evolution     | Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known. |
 | Local Testing | Applications may be tested locally, and therefore any solution sould work well on a development laptop.                                                                                                                                                                                                                                                                                                                                                                        |
 
-Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing slow moving, time dependent reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. An [example application](#example-application) is provided to demonstrate how.
+Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing temporal reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. An [example application](#example-application) is provided to demonstrate how.
 
 <pre>
                              Change
@@ -121,7 +121,7 @@ Refering back to the previous list of challenges:
 - **Local Testing** is possible through HTTP mocking libraries.
 
 ## How it works
-RDF has the following important concepts
+filby has the following important concepts
 <pre>
 ┌─────────────────┐
 │                 │
@@ -173,39 +173,39 @@ A change set groups a set of data frames (potentially for different entities) in
 ### Notifications
 Notifications are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
-Notifications are retried a configurable number of times using an exponential backoff algorithm. It is save for multiple instances of the framework to poll for notifications concurrently.
+Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently.
 
 ### Hook
 A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## API
-RDF provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
+filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
 
-#### rdf.init(config: RdfConfig): Promise&lt;void&gt;
+#### filby.init(config: RdfConfig): Promise&lt;void&gt;
 Connects to the database and runs migrations
 
-#### rdf.startNotifications(): Promise&lt;void&gt;
+#### filby.startNotifications(): Promise&lt;void&gt;
 Starts polling the database for notifications
 
-#### rdf.stopNotifications(): Promise&lt;void&gt;
+#### filby.stopNotifications(): Promise&lt;void&gt;
 Stops polling the database for notifications, and waits for any inflight notifications to complete.
 
-#### rdf.stop(): Promise&lt;void&gt;
+#### filby.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
 
-#### rdf.getProjections(): Promise&lt;RdfProjection&gt;[]
+#### filby.getProjections(): Promise&lt;RdfProjection&gt;[]
 Returns the list of projections.
 
-#### rdf.getProjection(name: string, version: number): Promise&lt;RdfProjection&gt;
+#### filby.getProjection(name: string, version: number): Promise&lt;RdfProjection&gt;
 Returns the specified projection.
 
-#### rdf.getChangeLog(projection): Promise&lt;RdfChangeSet[]&gt;
+#### filby.getChangeLog(projection): Promise&lt;RdfChangeSet[]&gt;
 Returns the change log (an ordered list of change sets) for the given projection.
 
-#### rdf.getChangeSet(changeSetId): Promise&lt;RdfChangeSet&gt;
+#### filby.getChangeSet(changeSetId): Promise&lt;RdfChangeSet&gt;
 Returns the specified change set
 
-#### rdf.withTransaction(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise<T&gt;
+#### filby.withTransaction(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise<T&gt;
 Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to query the aggregate entities for your projections, e.g.
 
 ```sql
@@ -217,7 +217,7 @@ ORDER BY p.code ASC, pc.occurs ASC;
 
 ```js
 function getParks(changeSetId) {
-  return rdf.withTransaction(async (client) => {
+  return filby.withTransaction(async (client) => {
     const { rows } = await client.query(query, [changeSetId]);
     return rows.map(toPark);
   });
@@ -259,7 +259,7 @@ define enums:
 
 # Defining entities performs the following:
 #
-# 1. Inserts a row into the 'rdf_entity' table,
+# 1. Inserts a row into the 'fby_entity' table,
 # 2. Creates a table 'park_v1' for holding reference data
 # 3. Creates an aggregate function 'park_v1_aggregate' to be used by projections
 #
@@ -278,7 +278,7 @@ define entities:
       park_code_len: LENGTH(code) >= 2 # Creates PostgreSQL check constraints
 
 # Defining projections and their dependent entities
-# RDF uses the dependencies to work out what projections are affected by reference data updates
+# filby uses the dependencies to work out what projections are affected by reference data updates
 add projections:
   - name: park
     version: 1
@@ -333,8 +333,8 @@ This project includes proof of concept applications based on a Caravan Park busi
 
 ### Installation
 ```bash
-git clone git@github.com:acuminous/reference-data-framework.git
-cd reference-data-framework
+git clone git@github.com:acuminous/filby.git
+cd filby
 npm i
 ```
 

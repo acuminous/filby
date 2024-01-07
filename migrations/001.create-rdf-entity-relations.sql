@@ -1,10 +1,10 @@
 START TRANSACTION;
 
-CREATE TABLE rdf_entity (
+CREATE TABLE fby_entity (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   version INTEGER NOT NULL,
-  CONSTRAINT rdf_entity_name_version_uniq UNIQUE (name, version)
+  CONSTRAINT fby_entity_name_version_uniq UNIQUE (name, version)
 );
 
 END TRANSACTION;
