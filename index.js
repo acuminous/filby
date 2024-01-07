@@ -6,7 +6,6 @@ const marv = require('marv/api/promise');
 const { Pool } = require('pg');
 const parseDuration = require('parse-duration');
 
-
 const driver = require('./lib/marv-rdf-driver');
 
 module.exports = class ReferenceDataFramework extends EventEmitter {

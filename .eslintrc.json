@@ -54,7 +54,6 @@
     "no-dynamic-require": 0,
     "no-else-return": 0,
     "no-extra-semi": 0,
-    "no-mixed-spaces-and-tabs": 0,
-    "no-multiple-empty-lines": 0
+    "no-mixed-spaces-and-tabs": 0
   }
 }
