@@ -1,4 +1,5 @@
 const ReferenceDataFramework = require('..');
+const noop = () => { };
 
 module.exports = class TestReferenceDataFramework extends ReferenceDataFramework {
 
@@ -7,8 +8,8 @@ module.exports = class TestReferenceDataFramework extends ReferenceDataFramework
 
   constructor(config) {
     super(config);
-    this.#nukeCustomObjects = config.nukeCustomObjects;
-    this.#wipeCustomData = config.wipeCustomData;
+    this.#nukeCustomObjects = config.nukeCustomObjects || noop;
+    this.#wipeCustomData = config.wipeCustomData || noop;
   }
 
   async reset() {
@@ -23,6 +24,18 @@ module.exports = class TestReferenceDataFramework extends ReferenceDataFramework
     await this.withTransaction(async (tx) => {
       await this.#wipeCustomData(tx);
       await this.#wipeRdfData(tx);
+    })
+  }
+
+  async nukeCustomObjects() {
+    return this.withTransaction((tx) => {
+      return this.#nukeCustomObjects(tx);
+    })
+  }
+
+  async wipeRdfData() {
+    return this.withTransaction((tx) => {
+      return this.#wipeRdfData(tx);
     })
   }
 

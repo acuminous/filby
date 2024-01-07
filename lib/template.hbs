@@ -11,7 +11,7 @@ CREATE TYPE {{name}} AS ENUM (
 {{#define_entities}}
 INSERT INTO rdf_entity (name, version) VALUES ('{{name}}', {{version}});
 
-CREATE TABLE {{table_name}}_v{{version}} (
+CREATE TABLE {{tableName name version}} (
   rdf_frame_id INTEGER PRIMARY KEY REFERENCES rdf_data_frame (id),
   {{#fields}}
   {{name}} {{type}},
@@ -22,7 +22,7 @@ CREATE TABLE {{table_name}}_v{{version}} (
   {{/each}}
 );
 
-CREATE FUNCTION get_{{table_name}}_v{{version}}_aggregate(
+CREATE FUNCTION get_{{tableName name version}}_aggregate(
   p_change_set_id INTEGER
 ) RETURNS TABLE (
   {{#fields}}
@@ -42,7 +42,7 @@ BEGIN
     FROM
       rdf_data_frame f
     INNER JOIN rdf_entity e ON e.id = f.entity_id
-    INNER JOIN {{table_name}}_v{{version}} x ON x.rdf_frame_id = f.id
+    INNER JOIN {{tableName name version}} x ON x.rdf_frame_id = f.id
     WHERE e.name = '{{name}}' AND e.version = {{version}}
       AND f.change_set_id <= p_change_set_id
     ORDER BY
@@ -120,7 +120,7 @@ DO $$
       (v_change_set_id, v_entity_id, '{{../action}}')
     RETURNING id INTO v_frame_id;
 
-    INSERT INTO {{../entity}}_v{{../version}} (rdf_frame_id, {{#xkeys .}}{{item}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
+    INSERT INTO {{tableName ../entity ../version}} (rdf_frame_id, {{#xkeys .}}{{item}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
       (v_frame_id, {{#xvalues .}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
     {{/data}}
 

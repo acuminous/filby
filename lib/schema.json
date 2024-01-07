@@ -95,6 +95,13 @@
               "type": "string"
             }
           },
+          "identified_by": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
           "checks": {
             "type": "object",
             "minProperties": 1,
@@ -197,67 +204,73 @@
       }
     },
     "changeSetType": {
-      "type": "object",
-      "properties": {
-        "effective_from": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "notes": {
-          "type": "string"
-        },
-        "frames": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "properties": {
-              "entity": {
-                "type": "string"
-              },
-              "version": {
-                "type": "integer"
-              },
-              "action": {
-                "type": "string",
-                "enum": [
-                  "POST",
-                  "DELETE"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": "object"
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "effective from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "frames": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "integer"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "POST",
+                    "DELETE"
+                  ]
+                },
+                "data": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object"
+                  }
                 }
-              }
-            },
+              },
+              "required": [
+                "entity",
+                "version",
+                "action",
+                "data"
+              ]
+            }
+          }
+        },
+        "oneOf": [
+          {
             "required": [
-              "entity",
-              "version",
-              "action",
-              "data"
+              "effective from",
+              "frames"
+            ]
+          },
+          {
+            "required": [
+              "effective_from",
+              "frames"
             ]
           }
-        }
-      },
-      "oneOf": [
-        {
-          "required": [
-            "effective_from",
-            "notes",
-            "frames"
-          ]
-        },
-        {
-          "required": [
-            "effective from",
-            "notes",
-            "frames"
-          ]
-        }
-      ]
+        ]
+      }
     }
   },
   "required": []
