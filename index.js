@@ -138,7 +138,7 @@ WHERE h.id = $1`,
   }
 
   async #failNotification(tx, notification, err) {
-    const rescheduleDelay = Math.min(Math.pow(2, notification.attempts) * 1000, this.#maxRescheduleDelay);
+    const rescheduleDelay = Math.min(2 ** notification.attempts * 1000, this.#maxRescheduleDelay);
     const scheduledFor = new Date(Date.now() + rescheduleDelay);
     await tx.query('SELECT rdf_fail_notification($1, $2, $3)', [notification.id, scheduledFor, err.stack]);
   }
