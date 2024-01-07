@@ -28,6 +28,7 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v2_aggregate');
     await tx.query('DROP TABLE IF EXISTS cgt_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
+    await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
   },
 };
 
@@ -48,6 +49,57 @@ describe('DSL', () => {
 
   after(async () => {
     await filby.stop();
+  });
+
+  describe('Enums', () => {
+    it('should add enums', async (t) => {
+      await applyYaml(t.name, `
+        add enums:
+        - name: vat_tax_rate
+          values:
+            - standard
+            - reduced
+            - zero
+      `);
+      const { rows: labels } = await filby.withTransaction((tx) => tx.query("SELECT enumlabel AS label FROM pg_enum WHERE enumtypid = 'vat_tax_rate'::regtype"));
+
+      eq(labels.length, 3);
+      deq(labels[0], { label: 'standard' });
+      deq(labels[1], { label: 'reduced' });
+      deq(labels[2], { label: 'zero' });
+    });
+
+    it('should require a name', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        add enums:
+          - values:
+            - standard
+            - reduced
+            - zero
+      `), (err) => {
+        match(err.message, new RegExp("^001.should-require-a-name.yaml: /add_enums/0 must have required property 'name'"));
+        return true;
+      });
+    });
+
+    it('should require at least one value', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        add enums:
+          - name: vat_tax_rate
+      `), (err) => {
+        match(err.message, new RegExp("^001.should-require-at-least-one-value.yaml: /add_enums/0 must have required property 'values'"));
+        return true;
+      });
+
+      await rejects(() => applyYaml(t.name, `
+        add enums:
+          - name: vat_tax_rate
+            values:
+      `), (err) => {
+        match(err.message, new RegExp('^001.should-require-at-least-one-value.yaml: /add_enums/0/values must be an array'));
+        return true;
+      });
+    });
   });
 
   describe('Projections', () => {
