@@ -78,7 +78,7 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
       const { rows } = await tx.query('SELECT DISTINCT ON (change_set_id) change_set_id, effective, notes, last_modified, entity_tag FROM rdf_projection_change_log_vw WHERE projection_id = $1', [projection.id]);
       return rows.map(toChangeSet);
     });
-  };
+  }
 
   async getChangeSet(changeSetId) {
     return this.withTransaction(async (tx) => {

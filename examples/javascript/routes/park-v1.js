@@ -84,7 +84,7 @@ module.exports = (fastify, { rdf }, done) => {
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
       return parkDictionary.get(code);
     });
-  };
+  }
 
   function toParkDictionary(dictionary, row) {
     const { code, name, calendar_event, calendar_occurs } = row;

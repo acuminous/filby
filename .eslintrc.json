@@ -52,8 +52,6 @@
     "no-confusing-arrow": 0,
     "no-console": 0,
     "no-dynamic-require": 0,
-    "no-else-return": 0,
-    "no-extra-semi": 0,
-    "no-mixed-spaces-and-tabs": 0
+    "no-else-return": 0
   }
 }
