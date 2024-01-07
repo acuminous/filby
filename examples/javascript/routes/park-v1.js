@@ -4,11 +4,11 @@ module.exports = (fastify, { rdf }, done) => {
 
   const getParksSchema = {
     querystring: {
-      type: "object",
-      required: ["changeSetId"],
+      type: 'object',
+      required: ['changeSetId'],
       properties: {
         changeSetId: {
-          type: "integer"
+          type: 'integer'
         }
       }
     }
@@ -29,20 +29,20 @@ module.exports = (fastify, { rdf }, done) => {
 
   const getParkSchema = {
     querystring: {
-      type: "object",
-      required: ["changeSetId"],
+      type: 'object',
+      required: ['changeSetId'],
       properties: {
         changeSetId: {
-          type: "integer"
+          type: 'integer'
         }
       }
     },
     params: {
-      type: "object",
-      required: ["code"],
+      type: 'object',
+      required: ['code'],
       properties: {
         code: {
-          type: "string"
+          type: 'string'
         }
       }
     }
@@ -66,7 +66,7 @@ module.exports = (fastify, { rdf }, done) => {
   async function getChangeSet(request) {
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await rdf.getChangeSet(changeSetId);
-    if (!changeSet) throw createError(400, `Invalid changeSetId`);
+    if (!changeSet) throw createError(400, 'Invalid changeSetId');
     return changeSet;
   }
 

@@ -2,14 +2,14 @@ const createError = require('http-errors');
 
 const getChangelogSchema = {
   querystring: {
-    type: "object",
-    required: ["projection", "version"],
+    type: 'object',
+    required: ['projection', 'version'],
     properties: {
       projection: {
-        type: "string"
+        type: 'string'
       },
       version: {
-        type: "integer"
+        type: 'integer'
       }
     }
   }

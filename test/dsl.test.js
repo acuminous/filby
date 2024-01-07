@@ -117,7 +117,7 @@ describe('DSL', () => {
             version: 1
             dependencies:
       `), (err) => {
-        match(err.message, new RegExp("/add_projections/0/dependencies must be an array"));
+        match(err.message, new RegExp('/add_projections/0/dependencies must be an array'));
         return true;
       });
     });
@@ -218,7 +218,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0/fields must be an array"));
+        match(err.message, new RegExp('/define_entities/0/fields must be an array'));
         return true;
       });
     });
@@ -287,7 +287,7 @@ describe('DSL', () => {
             type: TEXT
           identified by:
       `), (err) => {
-        match(err.message, new RegExp("/define_entities/0/identified_by must be an array"));
+        match(err.message, new RegExp('/define_entities/0/identified_by must be an array'));
         return true;
       });
     });
@@ -324,7 +324,7 @@ describe('DSL', () => {
         - effective: 2020-04-05T00:00:00.000Z
           frames:
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0/frames must be an array"));
+        match(err.message, new RegExp('/add_change_set/0/frames must be an array'));
         return true;
       });
     });
@@ -387,7 +387,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0/frames/0/action must be equal to one of the allowed values: POST, DELETE"));
+        match(err.message, new RegExp('/add_change_set/0/frames/0/action must be equal to one of the allowed values: POST, DELETE'));
         return true;
       });
     });
@@ -416,7 +416,7 @@ describe('DSL', () => {
             action: POST
             data:
       `), (err) => {
-        match(err.message, new RegExp("/add_change_set/0/frames/0/data must be an array"));
+        match(err.message, new RegExp('/add_change_set/0/frames/0/data must be an array'));
         return true;
       });
     });

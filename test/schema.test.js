@@ -59,7 +59,7 @@ describe('Schema', () => {
     it('should enforce projections are named', async () => {
       await rejects(async () => {
         await rdf.withTransaction(async (tx) => {
-          await tx.query("INSERT INTO rdf_projection (name, version) VALUES (NULL, 1)");
+          await tx.query('INSERT INTO rdf_projection (name, version) VALUES (NULL, 1)');
         });
       }, (err) => {
         eq(err.code, '23502');
@@ -105,7 +105,7 @@ describe('Schema', () => {
     it('should enforce change sets have effective dates', async () => {
       await rejects(async () => {
         await rdf.withTransaction(async (tx) => {
-          await tx.query("INSERT INTO rdf_change_set (id, effective) VALUES (1, NULL)");
+          await tx.query('INSERT INTO rdf_change_set (id, effective) VALUES (1, NULL)');
         });
       }, (err) => {
         eq(err.code, '23502');
