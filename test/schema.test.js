@@ -93,8 +93,7 @@ describe('Schema', () => {
         await rdf.withTransaction(async (tx) => {
           await tx.query(`INSERT INTO rdf_change_set (id, effective) VALUES
             (3, '2023-01-01T00:00:00.000Z'),
-            (3, '2023-01-01T00:00:00.000Z')`
-          );
+            (3, '2023-01-01T00:00:00.000Z')`);
         });
       }, (err) => {
         eq(err.code, '23505');
@@ -118,8 +117,7 @@ describe('Schema', () => {
 
       await rdf.withTransaction(async (tx) => {
         await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
-          (1, '2020-04-05T00:00:00.000Z', 'Countries')`
-        );
+          (1, '2020-04-05T00:00:00.000Z', 'Countries')`);
       });
 
       const changeSet = await rdf.getChangeSet(1);
@@ -129,8 +127,7 @@ describe('Schema', () => {
     it('should default entity tag to random hex', async () => {
       await rdf.withTransaction(async (tx) => {
         await tx.query(`INSERT INTO rdf_change_set (id, effective, notes) VALUES
-          (1, '2020-04-05T00:00:00.000Z', 'Countries')`
-        );
+          (1, '2020-04-05T00:00:00.000Z', 'Countries')`);
       });
 
       const changeSet = await rdf.getChangeSet(1);

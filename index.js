@@ -127,7 +127,8 @@ module.exports = class ReferenceDataFramework extends EventEmitter {
 INNER JOIN rdf_notification n ON n.hook_id = h.id
 INNER JOIN rdf_projection p ON p.id = n.projection_id
 WHERE h.id = $1`,
-      [notification.hookId]);
+      [notification.hookId]
+    );
     const hooks = rows.map((row) => ({ event: row.event, projection: { name: row.name, version: row.version } }));
     return hooks[0];
   }

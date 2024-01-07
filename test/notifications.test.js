@@ -47,15 +47,12 @@ describe('Notifications', () => {
     await rdf.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
-          (2, 'CGT Rates', 1)`
-      );
+          (2, 'CGT Rates', 1)`);
       await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
-          (2, 2, 'CGT Rate Changed')`
-      );
+          (2, 2, 'CGT Rate Changed')`);
       await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
-          (1, 1, now())`
-      );
+          (1, 1, now())`);
     });
 
     rdf.once('VAT Rate Changed', ({ event, projection }) => {
@@ -71,15 +68,12 @@ describe('Notifications', () => {
     await rdf.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
-          (2, 'CGT Rates', 1)`
-      );
+          (2, 'CGT Rates', 1)`);
       await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
-          (2, 2, 'CGT Rate Changed')`
-      );
+          (2, 2, 'CGT Rate Changed')`);
       await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
-          (1, 1, now())`
-      );
+          (1, 1, now())`);
     });
 
     rdf.on('VAT Rate Changed', ({ event, projection }) => {
@@ -95,15 +89,12 @@ describe('Notifications', () => {
     await rdf.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
-          (2, 'CGT Rates', 1)`
-      );
+          (2, 'CGT Rates', 1)`);
       await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
-          (2, 2, 'CGT Rate Changed')`
-      );
+          (2, 2, 'CGT Rate Changed')`);
       await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
-          (1, 1, now())`
-      );
+          (1, 1, now())`);
     });
 
     let attempt = 0;
@@ -126,15 +117,12 @@ describe('Notifications', () => {
     await rdf.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO rdf_projection (id, name, version) VALUES
           (1, 'VAT Rates', 1),
-          (2, 'CGT Rates', 1)`
-      );
+          (2, 'CGT Rates', 1)`);
       await tx.query(`INSERT INTO rdf_hook (id, projection_id, event) VALUES
           (1, 1, 'VAT Rate Changed'),
-          (2, 2, 'CGT Rate Changed')`
-      );
+          (2, 2, 'CGT Rate Changed')`);
       await tx.query(`INSERT INTO rdf_notification (hook_id, projection_id, scheduled_for) VALUES
-          (1, 1, now())`
-      );
+          (1, 1, now())`);
     });
 
     let attempt = 0;
