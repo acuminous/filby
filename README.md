@@ -365,12 +365,6 @@ npm run docker
 npm start
 ```
 
-```bash
-Server is listening on port 3000
-See http://localhost:3000/documentation
-Use CTRL+D or kill -TERM 18964 to stop
-```
-
 ### JavaScript Variant
 ```bash
 cd examples/javascript
@@ -379,6 +373,7 @@ npm run docker
 npm start
 ```
 
+### Output
 ```bash
 Server is listening on port 3000
 See http://localhost:3000/documentation
