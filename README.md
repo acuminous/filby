@@ -62,14 +62,14 @@ GET /api/changelog?projection=park&version=1
 [
   {
     "changeSetId": 1,
-    "effectiveFrom": "2019-01-01T00:00:00.000Z",
+    "effective": "2019-01-01T00:00:00.000Z",
     "notes": "Initial park data",
     "lastModified": "2018-12-01T16:20:34.383Z",
     "eTag": "142475a5eddeec8f0786"
   },
   {
      "changeSetId": 2,
-     "effectiveFrom": "2020-01-01T00:00:00.000Z",
+     "effective": "2020-01-01T00:00:00.000Z",
      "notes": "Park Calendars - 2020",
      "lastModified": "2029-12-01T14:49:34.405Z",
      "eTag": "a3dc15aa8d59d26e349d"
@@ -351,56 +351,56 @@ curl -s 'http://localhost:3000/api/changelog?projection=park&version=1' | json_p
    {
       "changeSetId" : 1,
       "eTag" : "3e47a70d88bc2f469764",
-      "effectiveFrom" : "2019-01-01T00:00:00.000Z",
+      "effective" : "2019-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.782Z",
       "notes" : "Initial park data"
    },
    {
       "changeSetId" : 2,
       "eTag" : "0deb60efb0fdece38ada",
-      "effectiveFrom" : "2020-01-01T00:00:00.000Z",
+      "effective" : "2020-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.806Z",
       "notes" : "Park Calendars - 2020"
    },
    {
       "changeSetId" : 3,
       "eTag" : "147a7c2b260a295eaeb0",
-      "effectiveFrom" : "2021-01-01T00:00:00.000Z",
+      "effective" : "2021-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.817Z",
       "notes" : "Park Calendars - 2021"
    },
    {
       "changeSetId" : 4,
       "eTag" : "6c3955258fad84d85e15",
-      "effectiveFrom" : "2021-04-01T00:00:00.000Z",
+      "effective" : "2021-04-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.825Z",
       "notes" : "Add Richmond"
    },
    {
       "changeSetId" : 5,
       "eTag" : "043b03799009dde539aa",
-      "effectiveFrom" : "2021-06-01T00:00:00.000Z",
+      "effective" : "2021-06-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.830Z",
       "notes" : "Rename Richmond to Skegness"
    },
    {
       "changeSetId" : 6,
       "eTag" : "2077eec54329f6d009b3",
-      "effectiveFrom" : "2020-01-01T00:00:00.000Z",
+      "effective" : "2020-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.836Z",
       "notes" : "Park Calendars - 2022"
    },
    {
       "changeSetId" : 7,
       "eTag" : "e91ee5644302d802278d",
-      "effectiveFrom" : "2022-05-01T00:00:00.000Z",
+      "effective" : "2022-05-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.848Z",
       "notes" : "Delete Greenacres"
    },
    {
       "changeSetId" : 8,
       "eTag" : "c481b71954adc1e6aa1b",
-      "effectiveFrom" : "2020-01-01T00:00:00.000Z",
+      "effective" : "2020-01-01T00:00:00.000Z",
       "lastModified" : "2023-12-30T12:15:10.850Z",
       "notes" : "Park Calendars - 2023"
    }

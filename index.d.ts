@@ -3,10 +3,10 @@ import { PoolClient, PoolConfig } from 'pg';
 
 export default class ReferenceDataFramework extends EventEmitter {
   constructor(config: RdfConfig);
-  init() : Promise<void>;
+  init(): Promise<void>;
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
-  stop() : Promise<void>;
+  stop(): Promise<void>;
   withTransaction(callback: (client: PoolClient) => Promise<any>);
   getProjections(): Promise<RdfProjection[]>;
   getProjection(name: string, version: number): Promise<RdfProjection>;
@@ -32,7 +32,7 @@ export type RdfProjection = {
 
 export type RdfChangeSet = {
   id: number;
-  effectiveFrom: Date;
+  effective: Date;
   notes: string;
   lastModified: Date;
   entityTag: string;

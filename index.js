@@ -147,7 +147,7 @@ WHERE h.id = $1`,
 function toChangeSet(row) {
   return {
     id: row.change_set_id,
-    effectiveFrom: new Date(row.effective),
+    effective: new Date(row.effective),
     notes: row.notes,
     lastModified: new Date(row.last_modified),
     entityTag: row.entity_tag

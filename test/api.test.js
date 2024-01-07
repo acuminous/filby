@@ -113,12 +113,12 @@ describe('API', () => {
       });
 
       const projection = await rdf.getProjection('VAT Rates', 1);
-      const changelog = (await rdf.getChangeLog(projection)).map(({ id, effectiveFrom, notes }) => ({ id, effectiveFrom: effectiveFrom.toISOString(), notes }));
+      const changelog = (await rdf.getChangeLog(projection)).map(({ id, effective, notes }) => ({ id, effective: effective.toISOString(), notes }));
 
       eq(changelog.length, 3);
-      deq(changelog[0], { id: 1, effectiveFrom: '2020-04-05T00:00:00.000Z', notes: 'Countries' });
-      deq(changelog[1], { id: 2, effectiveFrom: '2020-04-05T00:00:00.000Z', notes: '2020 VAT Rates' });
-      deq(changelog[2], { id: 4, effectiveFrom: '2021-04-05T00:00:00.000Z', notes: '2021 VAT Rates' });
+      deq(changelog[0], { id: 1, effective: '2020-04-05T00:00:00.000Z', notes: 'Countries' });
+      deq(changelog[1], { id: 2, effective: '2020-04-05T00:00:00.000Z', notes: '2020 VAT Rates' });
+      deq(changelog[2], { id: 4, effective: '2021-04-05T00:00:00.000Z', notes: '2021 VAT Rates' });
     });
 
     it('should dedupe change sets', async () => {
@@ -145,9 +145,9 @@ describe('API', () => {
       });
 
       const projection = await rdf.getProjection('VAT Rates', 1);
-      const changelog = (await rdf.getChangeLog(projection)).map(({ id, effectiveFrom, notes }) => ({ id, effectiveFrom: effectiveFrom.toISOString(), notes }));
+      const changelog = (await rdf.getChangeLog(projection)).map(({ id, effective, notes }) => ({ id, effective: effective.toISOString(), notes }));
       eq(changelog.length, 1);
-      deq(changelog[0], { id: 1, effectiveFrom: '2020-04-05T00:00:00.000Z', notes: 'Everything' });
+      deq(changelog[0], { id: 1, effective: '2020-04-05T00:00:00.000Z', notes: 'Everything' });
     });
 
     it('should get change set by id', async () => {
@@ -161,7 +161,7 @@ describe('API', () => {
 
       const changeSet = await rdf.getChangeSet(2);
       eq(changeSet.id, 2);
-      eq(changeSet.effectiveFrom.toISOString(), '2020-04-05T00:00:00.000Z');
+      eq(changeSet.effective.toISOString(), '2020-04-05T00:00:00.000Z');
       eq(changeSet.notes, '2020 VAT Rates');
     });
   });
