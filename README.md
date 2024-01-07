@@ -38,9 +38,9 @@ Solving such a complex problem becomes simpler when broken down. This project pr
                          │           ▼    │                                                                              ▼
 ┌────────┐      ┌─────────────────┬──────────┐                 GET /api/changelog?projection=$p&version=$v  ┌────────────────────────┐
 │        │      │                 │          ├──────────────────────────────────────────────────────────────│                        │
-│        │      │    Reference    │          │                                                              │                        │
-│   DB   │◀────▶│      Data       │   App    │                                                              │         Client         │
-│        │      │    Framework    │          │     GET /api/projection/:version/:projection?changeSetId=$c  │                        │
+│        │      │                 │          │                                                              │                        │
+│   DB   │◀────▶│     Filby       │   App    │                                                              │         Client         │
+│        │      │                 │          │     GET /api/projection/:version/:projection?changeSetId=$c  │                        │
 │        │      │                 │          ├──────────────────────────────────────────────────────────────│                        │
 └────────┘      └─────────────────┴──────────┘                                                              └────────────────────────┘
                          ▲
