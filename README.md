@@ -8,6 +8,10 @@
 *There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
 <p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
 
+## TL;DR
+The easiest way to explain Filby is that it's like source control for reference data. In systems like git, you have a commit log, comprising a sequence of commits. Each commit is uniquely identified by a commit hash, and typically bundles related source code changes (but doesn't have to).
+With Filby you have a change log, comprising a sequence of reference data 'change sets'. Each change set is uniquely identified by an id, and typically bundles releated reference data changes (but again, doesn't have to). Similar to when you checkout a commit, your applications can use the Filby API to retrieve a desired set of reference data for a given change set id. You can also inspect the changelog to find which change set was in effect at a given point in time, and be notified when reference data you are interested in receives new updates.
+
 ## Contents
 - [Introduction](#introduction)
 - [How it works](#how-it-works)
