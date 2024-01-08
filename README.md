@@ -222,7 +222,7 @@ Returns the change log (an ordered list of change sets) for the given projection
 #### filby.getChangeSet(changeSetId: number): Promise&lt;ChangeSet&gt;
 Returns the specified change set
 
-#### filby.getAggregates<T>(changeSetId: number, name: string, version: number): Promise&lt;<T[]>&gt;
+#### filby.getAggregates<T>(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
 Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
 
 #### filby.withTransaction<T>(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
