@@ -8,7 +8,6 @@
 *There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
 <p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
 
-## TL;DR
 The easiest way to explain Filby is that it's like source control for reference data. In systems like git, you have a commit log, comprising a sequence of commits. Each commit is uniquely identified by a commit hash, and typically bundles related source code changes (but doesn't have to).<br/>
 <br/>
 With Filby you have a change log, comprising a sequence of reference data 'change sets'. Each change set is uniquely identified by an id, and typically bundles releated reference data changes (but again, doesn't have to).<br/>
