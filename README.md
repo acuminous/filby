@@ -41,7 +41,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 
 <pre>
                          Change
-                     Notification                                 Webhook
+                      Notification                                Webhook
                       ┌─────────┐   ┌──────────────────────────────────────────────────────────────────┐
                       │         │   │                                                                  │
                       │         ▼   │                                                                  ▼
