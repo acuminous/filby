@@ -201,14 +201,17 @@ filby provides a set of lifecycle methods and an API for retrieving change sets 
 #### filby.init(config: Config): Promise&lt;void&gt;
 Connects to the database and runs migrations
 
+#### filby.stop(): Promise&lt;void&gt;
+Stops polling for notifications then disconnects from the database
+
 #### filby.startNotifications(): Promise&lt;void&gt;
 Starts polling the database for notifications
 
 #### filby.stopNotifications(): Promise&lt;void&gt;
 Stops polling the database for notifications, and waits for any inflight notifications to complete.
 
-#### filby.stop(): Promise&lt;void&gt;
-Stops polling for notifications then disconnects from the database
+#### filby.on(event: string, callback: (data: Event) => Promise<any>): Filby|Listener
+Filby extends [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. If the task throws an exception it will be caught by Filby and the notifiation retried up to a maximum number of times, with an incremental backoff delay.
 
 #### filby.getProjections(): Promise&lt;Projection[]&gt;
 Returns the list of projections.
@@ -264,9 +267,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
-
-#### filby.on(event: string, callback: (data: Event) => Promise<any>): Filby|Listener
-Filby extends [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. If the task throws an exception it will be caught by Filby and the notifiation retried up to a maximum number of times, with an incremental backoff delay.
 
 ## Configuration
 All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON.
