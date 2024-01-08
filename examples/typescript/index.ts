@@ -1,10 +1,11 @@
 import path from 'node:path';
 
-import config from './config.json';
 import Fastify from 'fastify';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
+import axios from 'axios';
 
+import config from './config.json';
 import changeLogRoute from './routes/changelog-v1';
 import Filby, { Projection, Event } from '../..';
 
@@ -57,11 +58,12 @@ const app: AppProcess = process;
 
     await fastify.listen(config.server);
 
-    filby.on('park_v1_change', (event: Event) => {
-      console.log({ event })
+    filby.on('park_v1_change', async (event: Event) => {
+      await axios.post('https://httpbin.org/status/200', event);
     });
-    filby.on('change', (event: Event) => {
-      console.log({ event })
+    filby.on('change', async (event: Event) => {
+      // Demonstrate a webhook with retry behaviour
+      await axios.post('https://httpbin.org/status/500', event);
     });
     await filby.startNotifications();
 

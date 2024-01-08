@@ -1,10 +1,9 @@
-/* eslint-disable no-console */
-
 const path = require('node:path');
 
 const Fastify = require('fastify');
 const swagger = require('@fastify/swagger');
 const swaggerUI = require('@fastify/swagger-ui');
+const axios = require('axios');
 
 const config = require('./config.json');
 const changeLogRoute = require('./routes/changelog-v1');
@@ -53,11 +52,12 @@ const filby = new Filby({ ...config.filby, ...{ database: config.database } });
 
     await fastify.listen(config.server);
 
-    filby.on('park_v1_change', (event) => {
-      console.log({ event });
+    filby.on('park_v1_change', async (event) => {
+      await axios.post('https://httpbin.org/status/200', event);
     });
-    filby.on('change', (event) => {
-      console.log({ event });
+    filby.on('change', async (event) => {
+      // Demonstrate a webhook with retry behaviour
+      await axios.post('https://httpbin.org/status/500', event);
     });
     await filby.startNotifications();
 
