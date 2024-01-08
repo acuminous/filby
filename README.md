@@ -249,7 +249,7 @@ async function getParks(changeSetId) {
 };
 ```
 
-**PRO TIP:** Since the results for the specified change set should not change, consider externalising queries like the above in an immutable PostgreSQL function so the output can be cached.
+#####PRO TIP: Since the results for the specified change set should not change, consider externalising queries like the above in an immutable PostgreSQL function so the output can be cached.
 ```sql
 -- migrations/0002.create-get-park-v1-function.sql
 CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
@@ -265,7 +265,7 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
 
-### filby.on(event: string, callback: (data: Event) => Promise<any>): Filby|Listener
+#### filby.on(event: string, callback: (data: Event) => Promise<any>): Filby|Listener
 Filby extends [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. If the task throws an exception it will be caught by Filby and the notifiation retried up to a maximum number of times, with an incremental backoff delay.
 
 ## Configuration
