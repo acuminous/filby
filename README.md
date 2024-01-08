@@ -225,11 +225,18 @@ Returns the specified change set
 #### filby.getAggregates&lt;T&gt;(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
 Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
 
+```js
+async function getParks(changeSetId) {
+  const rows = await filby.getAggregates(changeSetId, 'Park', 1);
+  return rows.map(toParkStructure);
+};
+```
+
 #### filby.withTransaction&lt;T&gt;(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
 Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
 
 ```js
-function getParks(changeSetId) {
+async function getParks(changeSetId) {
   return filby.withTransaction(async (client) => {
     const { rows } = await client.query(`
       SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
@@ -237,11 +244,10 @@ function getParks(changeSetId) {
       LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
       ORDER BY p.code ASC, pc.occurs ASC;
     `, [changeSetId]);
-    return rows.map(toPark);
+    return rows.map(toParkStructure);
   });
 };
 ```
-
 
 **PRO TIP:** Since the results for the specified change set should not change, consider externalising queries like the above in an immutable PostgreSQL function so the output can be cached.
 ```sql
@@ -258,6 +264,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
+
+### filby.on(event: string, callback: (data: Event) => Promise<any>): Filby|Listener
+Filby extends [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. If the task throws an exception it will be caught by Filby and the notifiation retried up to a maximum number of times, with an incremental backoff delay.
 
 ## Configuration
 All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON.
