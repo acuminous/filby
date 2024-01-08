@@ -11,7 +11,9 @@
 ## TL;DR
 The easiest way to explain Filby is that it's like source control for reference data. In systems like git, you have a commit log, comprising a sequence of commits. Each commit is uniquely identified by a commit hash, and typically bundles related source code changes (but doesn't have to).<br/>
 <br/>
-With Filby you have a change log, comprising a sequence of reference data 'change sets'. Each change set is uniquely identified by an id, and typically bundles releated reference data changes (but again, doesn't have to). Like checking out a commit, your applications can use the Filby API to retrieve a desired set of reference data for a given change set id. You can also inspect the changelog to find which change set was in effect at a given point in time, and be notified when reference data you are interested in receives new updates.
+With Filby you have a change log, comprising a sequence of reference data 'change sets'. Each change set is uniquely identified by an id, and typically bundles releated reference data changes (but again, doesn't have to).<br/>
+<br/>
+Like checking out a commit, your applications can use the Filby API to retrieve a desired set of reference data for a given change set id. You can also inspect the changelog to find which change set was in effect at a given point in time, and be notified when reference data you are interested in receives new updates.
 
 ## Contents
 - [Introduction](#introduction)
