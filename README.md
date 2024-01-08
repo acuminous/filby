@@ -201,7 +201,7 @@ Stops polling the database for notifications, and waits for any inflight notific
 #### filby.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
 
-#### filby.getProjections(): Promise&lt;Projection&gt;[]
+#### filby.getProjections(): Promise&lt;Projection[]&gt;
 Returns the list of projections.
 
 #### filby.getProjection(name: string, version: number): Promise&lt;Projection&gt;
@@ -213,7 +213,7 @@ Returns the change log (an ordered list of change sets) for the given projection
 #### filby.getChangeSet(changeSetId): Promise&lt;ChangeSet&gt;
 Returns the specified change set
 
-#### filby.withTransaction(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise<T&gt;
+#### filby.withTransaction(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
 Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to query the aggregate entities for your projections, e.g.
 
 ```sql
