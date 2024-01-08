@@ -348,7 +348,7 @@ add change set:
 A JSON schema is available in /lib/schema.json
 
 ## Example Application
-This project includes proof of concept applications based on a Caravan Park business.
+This project includes [proof of concept applications](https://github.com/acuminous/filby/tree/main/examples) based on a Caravan Park business.
 
 ### Installation
 ```bash
@@ -373,9 +373,156 @@ npm run docker
 npm start
 ```
 
-### Output
+Once successfully started you should see the following output.
+
 ```bash
 Server is listening on port 3000
 See http://localhost:3000/documentation
 Use CTRL+D or kill -TERM 18964 to stop
+```
+
+The applications include swagger documentation for the APIs but for a headstart try the following
+
+```bash
+GET http://localhost:3000/api/changelog?projection=park&version=1
+```
+
+This will return the changelog for the applications 'Park' projection.
+
+```json
+[
+  {
+    "id":1,
+    "effective":"2019-01-01T00:00:00.000Z",
+    "description":"Initial Data",
+    "lastModified":"2024-01-08T07:37:55.415Z",
+    "entityTag":"e008f04be41843dd58cb"
+  },
+  {
+    "id":2,
+    "effective":"2020-01-01T00:00:00.000Z",
+    "description":"Park Calendars - 2020",
+    "lastModified":"2024-01-08T07:37:55.434Z",
+    "entityTag":"fc32163580c134bec0c0"
+  },
+  {
+    "id":3,
+    "effective":"2021-01-01T00:00:00.000Z",
+    "description":"Park Calendars - 2021",
+    "lastModified":"2024-01-08T07:37:55.444Z",
+    "entityTag":"c4240f6bab231fd059e2"
+  },
+  {
+    "id":4,
+    "effective":"2021-04-01T00:00:00.000Z",
+    "description":"Add Richmond",
+    "lastModified":"2024-01-08T07:37:55.458Z",
+    "entityTag":"a40672de82626c2518ef"
+  },
+  {
+    "id":5,
+    "effective":"2021-06-01T00:00:00.000Z",
+    "description":"Rename Richmond to Skegness",
+    "lastModified":"2024-01-08T07:37:55.466Z",
+    "entityTag":"d9766661224782a96ca6"
+  },
+  {
+    "id":6,
+    "effective":"2022-01-01T00:00:00.000Z",
+    "description":"Park Calendars - 2022",
+    "lastModified":"2024-01-08T07:37:55.476Z",
+    "entityTag":"841b9acde0c757decc20"
+  },
+  {
+    "id":7,
+    "effective":"2022-05-01T00:00:00.000Z",
+    "description":"Delete Greenacres",
+    "lastModified":"2024-01-08T07:37:55.489Z",
+    "entityTag":"56aae19316c7eed13adb"
+  },
+  {
+    "id":8,
+    "effective":"2023-01-01T00:00:00.000Z",
+    "description":"Park Calendars - 2023",
+    "lastModified":"2024-01-08T07:37:55.495Z",
+    "entityTag":"25c02cea536038f310e7"
+  }
+]
+```
+
+Now pick a change set id and request the Park data at that point in time...
+
+```bash
+GET http://localhost:3000/api/projection/v1/park?changeSetId=1
+```
+
+```json
+[
+  {
+    "code":"DC",
+    "name":"Devon Cliffs",
+    "calendar":[
+      {
+        "event":"Park Open - Owners",
+        "occurs":"2019-03-01T00:00:00.000Z"
+      },
+      {
+        "event":"Park Open - Guests",
+        "occurs":"2019-03-15T00:00:00.000Z"
+      },
+      {
+        "event":"Park Close - Guests",
+        "occurs":"2019-11-15T00:00:00.000Z"
+      },
+      {
+        "event":"Park Close - Owners",
+        "occurs":"2019-11-30T00:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "code":"GA",
+    "name":"Greenacres",
+    "calendar":[
+      {
+        "event":"Park Open - Owners",
+        "occurs":"2019-03-01T00:00:00.000Z"
+      },
+      {
+        "event":"Park Open - Guests",
+        "occurs":"2019-03-15T00:00:00.000Z"
+      },
+      {
+        "event":"Park Close - Guests",
+        "occurs":"2019-11-15T00:00:00.000Z"
+      },
+      {
+        "event":"Park Close - Owners",
+        "occurs":"2019-11-30T00:00:00.000Z"
+      }
+    ]
+  },
+  {
+    "code":"PV",
+    "name":"Primrose Valley",
+    "calendar":[
+      {
+        "event":"Park Open - Owners",
+        "occurs":"2019-03-01T00:00:00.000Z"
+      },
+      {
+        "event":"Park Open - Guests",
+        "occurs":"2019-03-15T00:00:00.000Z"
+      },
+      {
+        "event":"Park Close - Guests",
+        "occurs":"2019-11-15T00:00:00.000Z"
+      },
+      {
+        "event":"Park Close - Owners",
+        "occurs":"2019-11-30T00:00:00.000Z"
+      }
+    ]
+  }
+]
 ```
