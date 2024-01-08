@@ -40,36 +40,36 @@ Most applications require slow moving reference data, which presents the followi
 Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing temporal reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. An [example application](#example-application) is provided to demonstrate how.
 
 <pre>
-                             Change
-                          Notification                                      Webhook
-                         ┌───────────┐    ┌──────────────────────────────────────────────────────────────────────────────┐
-                         │           │    │                                                                              │
-                         │           ▼    │                                                                              ▼
-┌────────┐      ┌─────────────────┬──────────┐                 GET /api/changelog?projection=$p&version=$v  ┌────────────────────────┐
-│        │      │                 │          ├──────────────────────────────────────────────────────────────│                        │
-│        │      │                 │          │                                                              │                        │
-│   DB   │◀────▶│     Filby       │   App    │                                                              │         Client         │
-│        │      │                 │          │     GET /api/projection/:version/:projection?changeSetId=$c  │                        │
-│        │      │                 │          ├──────────────────────────────────────────────────────────────│                        │
-└────────┘      └─────────────────┴──────────┘                                                              └────────────────────────┘
-                         ▲
-                         │
-                         │
-  ┌─────────────────────────────────────────────┐
-  │                                             │
-  │               Reference Data                │
-  │                 Change Sets                 │
-  │                                             │
-  └─────────────────────────────────────────────┘
-       ▲           ▲           ▲           ▲
-       │           │           │           │
-       │           │           │           │
-  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-  │         │ │         │ │         │ │         │
-  │   CSV   │ │  YAML   │ │  JSON   │ │   SQL   │
-  │         │ │         │ │         │ │         │
-  └─────────┘ └─────────┘ └─────────┘ └─────────┘
-  </pre>
+                         Change
+                     Notification                                 Webhook
+                      ┌─────────┐   ┌──────────────────────────────────────────────────────────────────┐
+                      │         │   │                                                                  │
+                      │         ▼   │                                                                  ▼
+┌────────┐      ┌───────────┬──────────┐              GET /api/changelog?projection=$p&version=$v ┌──────────┐
+│        │      │           │          ├──────────────────────────────────────────────────────────│          │
+│        │      │           │          │                                                          │          │
+│   DB   │◀────▶│   Filby   │   App    │                                                          │  Client  │
+│        │      │           │          │  GET /api/projection/:version/:projection?changeSetId=$c │          │
+│        │      │           │          ├──────────────────────────────────────────────────────────│          │
+└────────┘      └───────────┴──────────┘                                                          └──────────┘
+                      ▲
+                      │
+                      │
+┌─────────────────────────────────────────────┐
+│                                             │
+│               Reference Data                │
+│                 Change Sets                 │
+│                                             │
+└─────────────────────────────────────────────┘
+     ▲           ▲           ▲           ▲
+     │           │           │           │
+     │           │           │           │
+┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│         │ │         │ │         │ │         │
+│   CSV   │ │  YAML   │ │  JSON   │ │   SQL   │
+│         │ │         │ │         │ │         │
+└─────────┘ └─────────┘ └─────────┘ └─────────┘
+</pre>
 
 The first of the two API calls, namely `/api/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
 
