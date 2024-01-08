@@ -5,6 +5,12 @@
 [![Test Coverage](https://codeclimate.com/github/acuminous/filby/badges/coverage.svg)](https://codeclimate.com/github/acuminous/filby/coverage)
 [![Discover zUnit](https://img.shields.io/badge/Discover-zUnit-brightgreen)](https://www.npmjs.com/package/zunit)
 
+
+*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
+<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
+
+## tl;dr
+
 The easiest way to explain Filby is that it's like source control for reference data. In systems like git, you have a commit log, comprising a sequence of commits. Each commit is uniquely identified by a commit hash, and typically bundles related source code changes (but doesn't have to).<br/>
 <br/>
 With Filby you have a change log, comprising a sequence of reference data 'change sets'. Each change set is uniquely identified by an id, and typically bundles releated reference data changes (but again, doesn't have to).<br/>
@@ -531,6 +537,3 @@ GET http://localhost:3000/api/projection/v1/park?changeSetId=1
   }
 ]
 ```
-
-*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
-<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
