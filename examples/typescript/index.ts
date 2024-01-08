@@ -6,7 +6,7 @@ import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 
 import changeLogRoute from './routes/changelog-v1';
-import Filby, { RdfProjection, RdfEvent } from '../..';
+import Filby, { Projection, Event } from '../..';
 
 const fastify = Fastify(config.fastify);
 
@@ -57,10 +57,10 @@ const app: AppProcess = process;
 
     await fastify.listen(config.server);
 
-    filby.on('park_v1_change', (event: RdfEvent) => {
+    filby.on('park_v1_change', (event: Event) => {
       console.log({ event })
     });
-    filby.on('change', (event: RdfEvent) => {
+    filby.on('change', (event: Event) => {
       console.log({ event })
     });
     await filby.startNotifications();
@@ -81,7 +81,7 @@ async function registerChangelog() {
 
 async function registerProjections() {
   const projections = await filby.getProjections();
-  projections.forEach((projection: RdfProjection) => {
+  projections.forEach((projection: Projection) => {
     const route = require(path.resolve(`routes/${projection.name}-v${projection.version}`));
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
     fastify.register(route, { prefix, filby });

@@ -19,11 +19,11 @@ module.exports = class TestFilby extends Filby {
   async wipe() {
     await this.withTransaction(async (tx) => {
       await this.#nukeCustomObjects(tx);
-      await this.#wipeRdfData(tx);
+      await this.#wipeData(tx);
     });
   }
 
-  async #wipeRdfData(tx) {
+  async #wipeData(tx) {
     await tx.query('DELETE FROM fby_notification');
     await tx.query('DELETE FROM fby_hook');
     await tx.query('DELETE FROM fby_data_frame');

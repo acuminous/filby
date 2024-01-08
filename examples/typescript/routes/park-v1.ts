@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createError from 'http-errors';
-import Filby, { RdfChangeSet } from '../../..';
+import Filby, { ChangeSet } from '../../..';
 
 export default (fastify: FastifyInstance, { filby }: { filby: Filby }, done: (err?: Error) => void) => {
 
@@ -77,7 +77,7 @@ export default (fastify: FastifyInstance, { filby }: { filby: Filby }, done: (er
     return changeSet;
   }
 
-  async function getParks(changeSet: RdfChangeSet) {
+  async function getParks(changeSet: ChangeSet) {
     return filby.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1)', [changeSet.id]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
@@ -85,7 +85,7 @@ export default (fastify: FastifyInstance, { filby }: { filby: Filby }, done: (er
     });
   }
 
-  async function getPark(changeSet: RdfChangeSet, code: string) {
+  async function getPark(changeSet: ChangeSet, code: string) {
     return filby.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1) WHERE code = upper($2)', [changeSet.id, code]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());

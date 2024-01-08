@@ -23,10 +23,10 @@ module.exports = class Filby extends EventEmitter {
   }
 
   async init() {
-    const rdfMigrationsDir = path.join(__dirname, 'migrations');
+    const filbyMigrationsDir = path.join(__dirname, 'migrations');
     const customMigrationsDir = this.#config.migrations || 'migrations';
 
-    await this.#migrate(this.#config.database, rdfMigrationsDir);
+    await this.#migrate(this.#config.database, filbyMigrationsDir);
     await this.#migrate(this.#config.database, path.resolve(customMigrationsDir));
   }
 

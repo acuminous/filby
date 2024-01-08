@@ -189,7 +189,7 @@ A hook is an event the framework will emit to whenenver a data frame used to bui
 ## API
 filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
 
-#### filby.init(config: RdfConfig): Promise&lt;void&gt;
+#### filby.init(config: Config): Promise&lt;void&gt;
 Connects to the database and runs migrations
 
 #### filby.startNotifications(): Promise&lt;void&gt;
@@ -201,16 +201,16 @@ Stops polling the database for notifications, and waits for any inflight notific
 #### filby.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
 
-#### filby.getProjections(): Promise&lt;RdfProjection&gt;[]
+#### filby.getProjections(): Promise&lt;Projection&gt;[]
 Returns the list of projections.
 
-#### filby.getProjection(name: string, version: number): Promise&lt;RdfProjection&gt;
+#### filby.getProjection(name: string, version: number): Promise&lt;Projection&gt;
 Returns the specified projection.
 
-#### filby.getChangeLog(projection): Promise&lt;RdfChangeSet[]&gt;
+#### filby.getChangeLog(projection): Promise&lt;ChangeSet[]&gt;
 Returns the change log (an ordered list of change sets) for the given projection.
 
-#### filby.getChangeSet(changeSetId): Promise&lt;RdfChangeSet&gt;
+#### filby.getChangeSet(changeSetId): Promise&lt;ChangeSet&gt;
 Returns the specified change set
 
 #### filby.withTransaction(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise<T&gt;
