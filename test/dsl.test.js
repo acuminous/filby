@@ -740,6 +740,127 @@ describe('DSL', () => {
         deq(aggregate3[1], { type: 'reduced', rate: 0.10 });
       });
     });
+
+    it('should make aggregates available from the API', async (t) => {
+      await applyYaml(t.name, `
+        add projections:
+        - name: VAT Rates
+          version: 1
+          dependencies:
+          - entity: VAT Rate
+            version: 1
+
+        add entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+          - name: rate
+            type: NUMERIC
+          identified by:
+          - type
+
+        add change set:
+        - description: 2020 VAT Rates
+          effective: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: standard
+              rate: 0.10
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: reduced
+              rate: 0.05
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: zero
+              rate: 0
+
+        - description: 2021 VAT Rates
+          effective: 2021-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: standard
+              rate: 0.125
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: reduced
+              rate: 0.07
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: zero
+              rate: 0
+
+        - description: 2022 VAT Rates
+          effective: 2022-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: standard
+              rate: 0.15
+          - entity: VAT Rate
+            version: 1
+            action: POST
+            data:
+            - type: reduced
+              rate: 0.10
+          - entity: VAT Rate
+            version: 1
+            action: DELETE
+            data:
+            - type: zero
+      `);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+
+      const aggregate1 = await filby.getAggregates(changeLog[0].id, 'VAT Rate', 1);
+      eq(aggregate1.length, 3);
+      deq(aggregate1[0], { type: 'reduced', rate: 0.05 });
+      deq(aggregate1[1], { type: 'standard', rate: 0.10 });
+      deq(aggregate1[2], { type: 'zero', rate: 0 });
+
+      const aggregate3 = await filby.getAggregates(changeLog[2].id, 'VAT Rate', 1);
+      eq(aggregate3.length, 2);
+      deq(aggregate3[0], { type: 'reduced', rate: 0.1 });
+      deq(aggregate3[1], { type: 'standard', rate: 0.15 });
+    });
+
+    it('should report aggregates that dont exist', async () => {
+      await rejects(filby.getAggregates(99, 'VAT Rate', 2), (err) => {
+        eq(err.message, "Function 'get_vat_rate_v2_aggregate' does not exist");
+        return true;
+      });
+
+      await rejects(filby.getAggregates(99, 'Dummy', 1), (err) => {
+        eq(err.message, "Function 'get_dummy_v1_aggregate' does not exist");
+        return true;
+      });
+    });
+
+    it('should report sql injection attempts', async () => {
+      await rejects(filby.getAggregates(99, 'VAT Rate;DROP DATABASE fby_test;', 2), (err) => {
+        eq(err.message, "Function 'get_vat_rate;drop_database_fby_test;_v2_aggregate' does not exist");
+        return true;
+      });
+    });
   });
 
   describe('migrations', () => {

@@ -7,6 +7,7 @@ const { Pool } = require('pg');
 const parseDuration = require('parse-duration');
 
 const driver = require('./lib/marv-filby-driver');
+const { tableName } = require('./lib/helpers');
 
 module.exports = class Filby extends EventEmitter {
 
@@ -84,6 +85,17 @@ module.exports = class Filby extends EventEmitter {
     return this.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT id AS change_set_id, effective, description, last_modified, entity_tag FROM fby_change_set WHERE id = $1', [changeSetId]);
       return rows.map(toChangeSet)[0];
+    });
+  }
+
+  async getAggregates(changeSetId, name, version) {
+    return this.withTransaction(async (tx) => {
+      const functionName = `get_${tableName(name, version)}_aggregate`;
+      const { rowCount: exists } = await tx.query('SELECT 1 FROM pg_proc WHERE proname = $1', [functionName]);
+      if (!exists) throw new Error(`Function '${functionName}' does not exist`);
+
+      const { rows } = await tx.query(`SELECT * FROM ${functionName}($1)`, [changeSetId]);
+      return rows;
     });
   }
 

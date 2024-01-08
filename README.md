@@ -211,32 +211,34 @@ Returns the list of projections.
 #### filby.getProjection(name: string, version: number): Promise&lt;Projection&gt;
 Returns the specified projection.
 
-#### filby.getChangeLog(projection): Promise&lt;ChangeSet[]&gt;
+#### filby.getChangeLog(projection: Projection): Promise&lt;ChangeSet[]&gt;
 Returns the change log (an ordered list of change sets) for the given projection.
 
-#### filby.getChangeSet(changeSetId): Promise&lt;ChangeSet&gt;
+#### filby.getChangeSet(changeSetId: number): Promise&lt;ChangeSet&gt;
 Returns the specified change set
 
-#### filby.withTransaction(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
-Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to query the aggregate entities for your projections, e.g.
+#### filby.getAggregates<T>(changeSetId: number, name: string, version: number): Promise&lt;<T[]>&gt;
+Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
 
-```sql
-SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
-FROM get_park_v1_aggregate($1) p
-LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
-ORDER BY p.code ASC, pc.occurs ASC;
-```
+#### filby.withTransaction<T>(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
+Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
 
 ```js
 function getParks(changeSetId) {
   return filby.withTransaction(async (client) => {
-    const { rows } = await client.query(query, [changeSetId]);
+    const { rows } = await client.query(`
+      SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
+      FROM get_park_v1_aggregate($1) p
+      LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
+      ORDER BY p.code ASC, pc.occurs ASC;
+    `, [changeSetId]);
     return rows.map(toPark);
   });
 };
 ```
 
-**PRO TIP:** Since the results for the specified change set should not change, consider wrapping queries like the above in an immutable PostgreSQL function so the output can be cached.
+
+**PRO TIP:** Since the results for the specified change set should not change, consider externalising queries like the above in an immutable PostgreSQL function so the output can be cached.
 ```sql
 -- migrations/0002.create-get-park-v1-function.sql
 CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
