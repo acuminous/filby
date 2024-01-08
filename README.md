@@ -222,10 +222,10 @@ Returns the change log (an ordered list of change sets) for the given projection
 #### filby.getChangeSet(changeSetId: number): Promise&lt;ChangeSet&gt;
 Returns the specified change set
 
-#### filby.getAggregates<T>(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
+#### filby.getAggregates&lt;T&gt;(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
 Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
 
-#### filby.withTransaction<T>(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
+#### filby.withTransaction&lt;T&gt;(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
 Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
 
 ```js
