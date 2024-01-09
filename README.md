@@ -368,7 +368,7 @@ add change set:
 ```
 
 ## Configuration
-```
+```js
   "filby": {
      // All the database configuration is passed through to https://www.npmjs.com/package/pg 
     "database": {
