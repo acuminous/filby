@@ -2,6 +2,7 @@ import { EventEmitter2 as EventEmitter } from 'eventemitter2';
 import { PoolClient, PoolConfig } from 'pg';
 
 export default class Filby extends EventEmitter {
+  static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
   constructor(config: Config);
   init(): Promise<void>;
   startNotifications(): Promise<void>;
@@ -39,8 +40,9 @@ export type ChangeSet = {
   entityTag: string;
 };
 
-export type Event = {
+export type Notification = {
   event: string;
+  attempts: number;
 } & Projection;
 
 export type Entity = {

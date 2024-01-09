@@ -16,6 +16,8 @@ module.exports = class Filby extends EventEmitter {
   #pool;
   #scheduler;
 
+  static HOOK_MAX_ATTEMPTS_EXHAUSTED = 'HOOK_ATTEMPTS_EXHAUSTED';
+
   constructor(config) {
     super();
     this.#config = config;
@@ -111,12 +113,13 @@ module.exports = class Filby extends EventEmitter {
           const notification = await this.#getNextNotification(tx, maxAttempts);
           if (!notification) return false;
 
+          const context = await this.#getNotificationContext(tx, notification);
           try {
-            const hook = await this.#getHook(tx, notification);
-            await this.emitAsync(hook.event, hook);
+            await this.emitAsync(context.event, context);
             await this.#passNotification(tx, notification);
           } catch (err) {
             await this.#failNotification(tx, notification, err);
+            if (notification.attempts >= maxAttempts) this.emitAsync(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, err, context);
           }
 
           return true;
@@ -135,16 +138,19 @@ module.exports = class Filby extends EventEmitter {
     return notifications[0];
   }
 
-  async #getHook(tx, notification) {
+  async #getNotificationContext(tx, notification) {
     const { rows } = await tx.query(
-      `SELECT h.event, p.id, p.name, p.version FROM fby_hook h
+      `SELECT h.event, p.id, p.name AS projection, p.version FROM fby_hook h
 INNER JOIN fby_notification n ON n.hook_id = h.id
 INNER JOIN fby_projection p ON p.id = n.projection_id
 WHERE h.id = $1`,
       [notification.hookId],
     );
-    const hooks = rows.map((row) => ({ event: row.event, projection: { name: row.name, version: row.version } }));
-    return hooks[0];
+    return rows.map((row) => ({
+      event: row.event,
+      projection: { name: row.projection, version: row.version },
+      attempts: notification.attempts,
+    }))[0];
   }
 
   async #passNotification(tx, notification) {

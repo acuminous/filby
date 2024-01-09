@@ -60,7 +60,7 @@ BEGIN
   SELECT
     n.id,
     n.hook_id,
-    n.attempts
+    n.attempts + 1 AS attempts
   FROM
     fby_notification n
   WHERE n.status = 'PENDING'

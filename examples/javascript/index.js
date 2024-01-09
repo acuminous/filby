@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const path = require('node:path');
 
 const Fastify = require('fastify');
@@ -52,12 +53,16 @@ const filby = new Filby({ ...config.filby, ...{ database: config.database } });
 
     await fastify.listen(config.server);
 
-    filby.on('park_v1_change', async (event) => {
-      await axios.post('https://httpbin.org/status/200', event);
+    filby.on(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (err, context) => {
+      console.error('Hook failed', context);
+      console.error(err.stack);
     });
-    filby.on('change', async (event) => {
+    filby.on('park_v1_change', async (context) => {
+      await axios.post('https://httpbin.org/status/200', context);
+    });
+    filby.on('change', async (context) => {
       // Demonstrate a webhook with retry behaviour
-      await axios.post('https://httpbin.org/status/500', event);
+      await axios.post('https://httpbin.org/status/500', context);
     });
     await filby.startNotifications();
 

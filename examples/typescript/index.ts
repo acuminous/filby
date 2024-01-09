@@ -7,7 +7,7 @@ import axios from 'axios';
 
 import config from './config.json';
 import changeLogRoute from './routes/changelog-v1';
-import Filby, { Projection, Event } from '../..';
+import Filby, { Projection, Notification } from '../..';
 
 const fastify = Fastify(config.fastify);
 
@@ -58,12 +58,16 @@ const app: AppProcess = process;
 
     await fastify.listen(config.server);
 
-    filby.on('park_v1_change', async (event: Event) => {
-      await axios.post('https://httpbin.org/status/200', event);
+    filby.on(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (err, context) => {
+      console.error(`Hook failed`, context);
+      console.error(err.stack);
     });
-    filby.on('change', async (event: Event) => {
+    filby.on('park_v1_change', async (context: Notification) => {
+      await axios.post('https://httpbin.org/status/200', context);
+    });
+    filby.on('change', async (context: Notification) => {
       // Demonstrate a webhook with retry behaviour
-      await axios.post('https://httpbin.org/status/500', event);
+      await axios.post('https://httpbin.org/status/500', context);
     });
     await filby.startNotifications();
 

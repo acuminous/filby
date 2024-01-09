@@ -1,9 +1,5 @@
-const {
-  ok, strictEqual: eq, deepEqual: deq, rejects, match,
-} = require('node:assert');
-const {
-  describe, it, before, beforeEach, after, afterEach,
-} = require('zunit');
+const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
+const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 
 const TestFilby = require('./TestFilby');
 
@@ -59,9 +55,10 @@ describe('Notifications', () => {
           (1, 1, now())`);
     });
 
-    filby.once('VAT Rate Changed', ({ event, projection }) => {
-      eq(event, 'VAT Rate Changed');
-      deq(projection, { name: 'VAT Rates', version: 1 });
+    filby.once('VAT Rate Changed', (context) => {
+      eq(context.event, 'VAT Rate Changed');
+      deq(context.projection, { name: 'VAT Rates', version: 1 });
+      eq(context.attempts, 1);
       done();
     });
 
@@ -80,9 +77,9 @@ describe('Notifications', () => {
           (1, 1, now())`);
     });
 
-    filby.on('VAT Rate Changed', ({ event, projection }) => {
-      eq(event, 'VAT Rate Changed');
-      deq(projection, { name: 'VAT Rates', version: 1 });
+    let attempts = 0;
+    filby.on('VAT Rate Changed', () => {
+      eq(++attempts, 1);
       setTimeout(done, 1000);
     });
 
@@ -144,6 +141,33 @@ describe('Notifications', () => {
       match(notifications[0].last_error, /Oh Noes! 3/);
       done();
     }, 500);
+
+    filby.startNotifications();
+  });
+
+  it('should emit an event when the last notification attempt fails', async (t, done) => {
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
+          (1, 'VAT Rates', 1),
+          (2, 'CGT Rates', 1)`);
+      await tx.query(`INSERT INTO fby_hook (id, projection_id, event) VALUES
+          (1, 1, 'VAT Rate Changed'),
+          (2, 2, 'CGT Rate Changed')`);
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id, scheduled_for) VALUES
+          (1, 1, now())`);
+    });
+
+    filby.on('VAT Rate Changed', () => {
+      throw new Error('Oh Noes!');
+    });
+
+    filby.on(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (err, context) => {
+      eq(err.message, 'Oh Noes!');
+      eq(context.event, 'VAT Rate Changed');
+      deq(context.projection, { name: 'VAT Rates', version: 1 });
+      eq(context.attempts, 3);
+      setTimeout(done, 1000);
+    });
 
     filby.startNotifications();
   });
