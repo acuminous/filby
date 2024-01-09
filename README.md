@@ -199,7 +199,10 @@ A hook is an event the framework will emit to whenenver a data frame used to bui
 ## API
 Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
 
-#### filby.init(config: Config): Promise&lt;void&gt;
+#### new Filby(config: Config)
+Constructs a new Filby instance
+
+#### filby.init(): Promise&lt;void&gt;
 Connects to the database and runs migrations
 
 #### filby.stop(): Promise&lt;void&gt;
