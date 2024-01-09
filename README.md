@@ -369,27 +369,27 @@ add change set:
 
 ## Configuration
 ```js
-  "filby": {
-     // All the database configuration is passed through to https://www.npmjs.com/package/pg 
-    "database": {
-      "user": "fby_example",
-      "database": "fby_example",
-      "password": "fby_example"
-    },
-    // Specifies the path to the migrations folder. Defaults to "migrations"
-    "migrations": "path/to/migrations/folder",
-    "notifications": {
-      // The frequency Filby will check for new notifications
-      "interval": "5s",
-      // The initial delay before Filby starts checking for notifications
-      // (you still have to call filby.startNotifications)
-      "intialDelay": "1s",
-      // THe maximum number of times Filby will attempt to deliver a hook
-      "maxAttempts": 20,
-      // The maximum amount of time Filby will wait before retrying a failed hook
-      "maxRescheduleDelay": "30s"
-    }
+{
+  // All the database configuration is passed through to https://www.npmjs.com/package/pg 
+  "database": {
+    "user": "fby_example",
+    "database": "fby_example",
+    "password": "fby_example"
+  },
+  // Specifies the path to the migrations folder. Defaults to "migrations"
+  "migrations": "path/to/migrations/folder",
+  "notifications": {
+    // The frequency Filby will check for new notifications
+    "interval": "5s",
+    // The initial delay before Filby starts checking for notifications
+    // (you still have to call filby.startNotifications)
+    "intialDelay": "1s",
+    // THe maximum number of times Filby will attempt to deliver a hook
+    "maxAttempts": 20,
+    // The maximum amount of time Filby will wait before retrying a failed hook
+    "maxRescheduleDelay": "30s"
   }
+}
 ```
 
 ## Example Application
