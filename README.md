@@ -17,9 +17,9 @@ With Filby you have a change log, comprising a sequence of reference data 'chang
 <br/>
 Like checking out a commit, your applications can use the Filby API to retrieve a desired set of reference data for a given change set id. They can also inspect the changelog to find which change set was in effect at a given point in time, and be notified when the reference data they are interested in changes.
 
-## Concepts
+## Contents
 - [Introduction](#introduction)
-- [How it works](#how-it-works)
+- [Concepts](#concepts)
 - [API](#api)
 - [Configuration](#configuration)
 - [Example Application](#example-application)
