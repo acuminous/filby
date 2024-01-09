@@ -21,6 +21,7 @@ Like checking out a commit, your applications can use the Filby API to retrieve 
 - [Introduction](#introduction)
 - [Concepts](#concepts)
 - [API](#api)
+- [Data Definition](#data-definition)
 - [Configuration](#configuration)
 - [Example Application](#example-application)
 
@@ -268,8 +269,8 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
 
-## Configuration
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON.
+## Data Definition
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON. A JSON schema is available in /lib/schema.json
 
 ```yaml
 # migrations/0001.define-park-schema.yaml
@@ -356,18 +357,40 @@ add change set:
         # YAML can get verbose, so you can also import data frames from a local CSV
         # The CSV requires a header row, starting with the action column and
         # followed by the column names of your entity. When deleting data you
-        # only need to include the fields that identify the entity, e.g.
+        # only need to include the fields that identify the entity
+      - entity: park
+        version: 1
+        source: ./data/park-data-2019.csv
         # action,code,name
         # POST,KC,Kent Coast
         # POST,CA,Caistor
         # DELETE,TP,
-        # etc
-      - entity: park
-        version: 1
-        source: ./data/park-data-2019.csv
 ```
 
-A JSON schema is available in /lib/schema.json
+## Configuration
+```json
+  "filby": {
+     // All the database configuration is passed through to https://www.npmjs.com/package/pg 
+    "database": {
+      "user": "fby_example",
+      "database": "fby_example",
+      "password": "fby_example"
+    },
+    // Specifies the path to the migrations folder. Defaults to "migrations"
+    "migrations": "path/to/migrations/folder",
+    "notifications": {
+      // The frequency Filby will check for new notifications
+      "interval": "5s",
+      // The initial delay before Filby starts checking for notifications
+      // (you still have to call filby.startNotifications)
+      "intialDelay": "1s",
+      // THe maximum number of times Filby will attempt to deliver a hook
+      "maxAttempts": 20,
+      // The maximum amount of time Filby will wait before retrying a failed hook
+      "maxRescheduleDelay": "30s"
+    }
+  }
+```
 
 ## Example Application
 This project includes [proof of concept applications](https://github.com/acuminous/filby/tree/main/examples) based on a Caravan Park business.
