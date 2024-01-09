@@ -218,8 +218,8 @@ Stops polling the database for notifications, and waits for any inflight notific
 Filby extends [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. The event name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
 
 ```js
-filby.on('VAT Rate chnaged', async (event) => {
-  await axios.post('https://httpbin.org/status/200', event);
+filby.on('VAT Rate chnaged', async (context) => {
+  await axios.post('https://httpbin.org/status/200', context);
 });
 ```
 
