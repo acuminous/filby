@@ -138,7 +138,7 @@ Refering back to the previous list of challenges:
 - **Local Testing** is possible through HTTP mocking libraries.
 
 ## Concepts
-filby has the following important concepts
+Filby has the following important concepts
 <pre>
 ┌─────────────────┐
 │                 │
@@ -196,7 +196,7 @@ Notifications are retried a configurable number of times using an exponential ba
 A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## API
-filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
+Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
 
 #### filby.init(config: Config): Promise&lt;void&gt;
 Connects to the database and runs migrations
@@ -274,7 +274,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 ```yaml
 # migrations/0001.define-park-schema.yaml
 
-# add enums for your reference data
+# Add enums for your reference data
 # Equivalent of PostgreSQL's CREATE TYPE statement
 add enums:
   - name: park_calendar_event_type
@@ -284,11 +284,10 @@ add enums:
       - Park Close - Owners
       - Park Close - Guests
 
-# Defining entities performs the following:
-#
+# Adding entities performs the following:
 # 1. Inserts a row into the 'fby_entity' table,
 # 2. Creates a table 'park_v1' for holding reference data
-# 3. Creates an aggregate function 'park_v1_aggregate' to be used by projections
+# 3. Creates an aggregate function 'get_park_v1_aggregate' to be used by projections
 add entities:
   - name: park
     version: 1
@@ -303,7 +302,7 @@ add entities:
       park_code_len: LENGTH(code) >= 2 # Creates PostgreSQL check constraints
 
 # Defining projections and their dependent entities
-# filby uses the dependencies to work out what projections are affected by reference data updates
+# Filby uses the dependencies to work out what projections are affected by reference data updates
 add projections:
   - name: park
     version: 1
@@ -316,9 +315,8 @@ add projections:
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
 # reference data the projection changes.
 add hooks:
-
-  # This is a projection specific hook, which only fires when the data
-  # supporting the park v1 projection changes
+    # This is a projection specific hook, which only fires when the data
+    # supporting the park v1 projection changes
   - projection: park
     version: 1
     event: park_v1_change
@@ -340,10 +338,10 @@ add change set:
         version: 1
         action: POST
         data:
-          # Adds a data frame for Devon Cliffs
+            # Adds a data frame for Devon Cliffs
           - code: DC
             name: Devon Cliffs
-          # Adds a data frame for Primrose Valley
+            # Adds a data frame for Primrose Valley
           - code: PV
             name: Primrose Valley
 
@@ -355,11 +353,15 @@ add change set:
         data:
           - code: HF
 
-      # YAML can get verbose, so you can also import data frames from a local CSV
-      # action,code,
-      # POST,KC,Kent Coast
-      # POST,CA,Caistor
-      # etc
+        # YAML can get verbose, so you can also import data frames from a local CSV
+        # The CSV requires a header row, starting with the action column and
+        # followed by the column names of your entity. When deleting data you
+        # only need to include the fields that identify the entity, e.g.
+        # action,code,name
+        # POST,KC,Kent Coast
+        # POST,CA,Caistor
+        # DELETE,TP,
+        # etc
       - entity: park
         version: 1
         source: ./data/park-data-2019.csv
