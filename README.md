@@ -379,17 +379,27 @@ add change set:
     "database": "fby_example",
     "password": "fby_example"
   },
+
   // Specifies the path to the migrations folder. Defaults to "migrations"
   "migrations": "path/to/migrations/folder",
+
   "notifications": {
+
     // The frequency Filby will check for new notifications
+    // Defaults to 1 minute
     "interval": "5s",
+
     // The initial delay before Filby starts checking for notifications
     // (you still have to call filby.startNotifications)
+    // Defaults to 10s
     "intialDelay": "1s",
+
     // THe maximum number of times Filby will attempt to deliver a hook
+    // Defaults to 10
     "maxAttempts": 20,
+
     // The maximum amount of time Filby will wait before retrying a failed hook
+    // Defaults to 1 hour
     "maxRescheduleDelay": "30s"
   }
 }
