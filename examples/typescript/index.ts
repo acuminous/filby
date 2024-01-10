@@ -90,7 +90,7 @@ async function registerProjections() {
   projections.forEach((projection: Projection) => {
     const route = require(path.resolve(`routes/${projection.name}-v${projection.version}`));
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
-    fastify.register(route, { prefix, filby });
+    fastify.register(route, { prefix, projection, filby });
   })
 }
 

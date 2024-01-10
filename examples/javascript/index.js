@@ -86,7 +86,7 @@ async function registerProjections() {
     // eslint-disable-next-line global-require
     const route = require(path.resolve(`routes/${projection.name}-v${projection.version}`));
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
-    fastify.register(route, { prefix, filby });
+    fastify.register(route, { prefix, projection, filby });
   });
 }
 

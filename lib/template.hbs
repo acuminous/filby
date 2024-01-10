@@ -3,9 +3,9 @@ START TRANSACTION;
 -- Add Enums
 {{#add_enums}}
 CREATE TYPE {{name}} AS ENUM (
-  {{#values}}
-  '{{this}}'{{#unless @last}},{{/unless}}
-  {{/values}}
+{{#values}}
+'{{this}}'{{#unless @last}},{{/unless}}
+{{/values}}
 );
 {{/add_enums}}
 
@@ -14,140 +14,136 @@ CREATE TYPE {{name}} AS ENUM (
 INSERT INTO fby_entity (name, version) VALUES ('{{name}}', {{version}});
 
 CREATE TABLE {{tableName name version}} (
-  fby_frame_id INTEGER PRIMARY KEY REFERENCES fby_data_frame (id),
-  {{#fields}}
-  {{name}} {{type}},
-  {{/fields}}
-  CONSTRAINT {{tableName name version}}_frame_id_{{#identified_by}}{{tableName name version}}_{{#if @last}}uniq{{/if}}{{/identified_by}} UNIQUE (fby_frame_id, {{#identified_by}}{{name}}{{/identified_by}}){{#if checks}},{{/if}}
-  {{#each checks}}
-  CONSTRAINT {{@key}}_chk CHECK ({{{this}}}){{#unless @last}},{{/unless}}
-  {{/each}}
+fby_frame_id INTEGER PRIMARY KEY REFERENCES fby_data_frame (id),
+{{#fields}}
+{{name}} {{type}},
+{{/fields}}
+CONSTRAINT {{tableName name version}}_frame_id_{{#identified_by}}{{tableName name version}}_{{#if
+@last}}uniq{{/if}}{{/identified_by}} UNIQUE (fby_frame_id, {{#identified_by}}{{name}}{{/identified_by}}){{#if
+checks}},{{/if}}
+{{#each checks}}
+CONSTRAINT {{@key}}_chk CHECK ({{{this}}}){{#unless @last}},{{/unless}}
+{{/each}}
 );
 
 CREATE FUNCTION get_{{tableName name version}}_aggregate(
-  p_change_set_id INTEGER
+p_change_set_id INTEGER
 ) RETURNS TABLE (
-  {{#fields}}
-  {{name}} {{type}}{{#unless @last}},{{/unless}}
-  {{/fields}}
+{{#fields}}
+{{name}} {{type}}{{#unless @last}},{{/unless}}
+{{/fields}}
 )
 AS $$
 BEGIN
-  RETURN QUERY
-  WITH aggregated AS (
-    SELECT
-      DISTINCT ON ({{#identified_by}}{{name}}{{#unless @last}},{{/unless}}{{/identified_by}})
-      f.action AS fby_action,
-      {{#fields}}
-      x.{{name}}{{#unless @last}},{{/unless}}
-      {{/fields}}
-    FROM
-      fby_data_frame f
-    INNER JOIN fby_entity e ON e.id = f.entity_id
-    INNER JOIN {{tableName name version}} x ON x.fby_frame_id = f.id
-    WHERE e.name = '{{name}}' AND e.version = {{version}}
-      AND f.change_set_id <= p_change_set_id
-    ORDER BY
-      {{#identified_by}}x.{{name}}{{/identified_by}} ASC,
-      x.fby_frame_id DESC
-  )
-  SELECT
-    {{#fields}}
-      a.{{name}}{{#unless @last}},{{/unless}}
-    {{/fields}}
-  FROM aggregated a
-  WHERE a.fby_action <> 'DELETE';
-END;
-$$ LANGUAGE plpgsql;
+RETURN QUERY
+WITH aggregated AS (
+SELECT
+DISTINCT ON ({{#identified_by}}{{name}}{{#unless @last}},{{/unless}}{{/identified_by}})
+f.action AS fby_action,
+{{#fields}}
+x.{{name}}{{#unless @last}},{{/unless}}
+{{/fields}}
+FROM
+fby_data_frame f
+INNER JOIN fby_entity e ON e.id = f.entity_id
+INNER JOIN {{tableName name version}} x ON x.fby_frame_id = f.id
+WHERE e.name = '{{name}}' AND e.version = {{version}}
+AND f.change_set_id <= p_change_set_id ORDER BY {{#identified_by}}x.{{name}}{{/identified_by}} ASC, x.fby_frame_id DESC
+  ) SELECT {{#fields}} a.{{name}}{{#unless @last}},{{/unless}} {{/fields}} FROM aggregated a WHERE a.fby_action <>
+  'DELETE';
+  END;
+  $$ LANGUAGE plpgsql;
 
-{{/add_entities}}
+  {{/add_entities}}
 
--- Add Projections
-{{#add_projections}}
+  -- Add Projections
+  {{#add_projections}}
 
-DO $$
+  DO $$
 
-DECLARE
+  DECLARE
   v_projection_id INTEGER;
   v_entity_id INTEGER;
 
-BEGIN
+  BEGIN
   INSERT INTO fby_projection (name, version) VALUES
-    ('{{name}}', {{version}})
+  ('{{name}}', {{version}})
   RETURNING id INTO v_projection_id;
 
   {{#dependencies}}
   SELECT id INTO v_entity_id FROM fby_entity WHERE name = '{{entity}}' AND version = {{version}};
 
   INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
-    (v_projection_id, v_entity_id);
+  (v_projection_id, v_entity_id);
 
   {{/dependencies}}
-END;
-$$ LANGUAGE plpgsql;
+  END;
+  $$ LANGUAGE plpgsql;
 
-{{/add_projections}}
+  {{/add_projections}}
 
--- Add Hooks
-{{#add_hooks}}
-DO $$
+  -- Add Hooks
+  {{#add_hooks}}
+  DO $$
 
-DECLARE
+  DECLARE
   v_projection_id INTEGER;
 
-BEGIN
+  BEGIN
   {{#if (and projection version)}}
   SELECT id INTO v_projection_id FROM fby_projection WHERE name = '{{projection}}' AND version = {{version}};
   {{/if}}
   INSERT INTO fby_hook (projection_id, event) VALUES (v_projection_id, '{{event}}');
-END;
-$$ LANGUAGE plpgsql;
+  END;
+  $$ LANGUAGE plpgsql;
 
-{{/add_hooks}}
+  {{/add_hooks}}
 
--- Add Change Sets
-{{#add_change_set}}
-DO $$
+  -- Add Change Sets
+  {{#add_change_set}}
+  DO $$
   DECLARE
-    v_change_set_id INTEGER;
-    v_entity_id INTEGER;
-    v_frame_id INTEGER;
+  v_change_set_id INTEGER;
+  v_entity_id INTEGER;
+  v_frame_id INTEGER;
   BEGIN
-    INSERT INTO fby_change_set (effective, description) VALUES
-      ('{{effective}}', '{{description}}')
-    RETURNING id INTO v_change_set_id;
+  INSERT INTO fby_change_set (effective, description) VALUES
+  ('{{effective}}', '{{description}}')
+  RETURNING id INTO v_change_set_id;
 
-    {{#frames}}
-    {{#data}}
-    SELECT id INTO v_entity_id FROM fby_entity WHERE name = '{{../entity}}' AND version = {{../version}};
+  {{#frames}}
+  {{#data}}
+  SELECT id INTO v_entity_id FROM fby_entity WHERE name = '{{../entity}}' AND version = {{../version}};
 
-    INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
-      (v_change_set_id, v_entity_id, '{{../action}}')
-    RETURNING id INTO v_frame_id;
+  INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+  (v_change_set_id, v_entity_id, '{{../action}}')
+  RETURNING id INTO v_frame_id;
 
-    INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys .}}{{item}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
-      (v_frame_id, {{#xvalues .}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
-    {{/data}}
-    {{#if source}}
-    {{#loadCsv source}}
-    SELECT id INTO v_entity_id FROM fby_entity WHERE name = '{{../entity}}' AND version = {{../version}};
+  INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys .}}{{item}}{{#unless isLast}},
+  {{/unless}}{{/xkeys}}) VALUES
+  (v_frame_id, {{#xvalues .}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
+  {{/data}}
+  {{#if source}}
+  {{#loadCsv source}}
+  SELECT id INTO v_entity_id FROM fby_entity WHERE name = '{{../entity}}' AND version = {{../version}};
 
-    INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
-      (v_change_set_id, v_entity_id, '{{action}}')
-    RETURNING id INTO v_frame_id;
+  INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+  (v_change_set_id, v_entity_id, '{{action}}')
+  RETURNING id INTO v_frame_id;
 
-    INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys data}}{{item}}{{#unless isLast}}, {{/unless}}{{/xkeys}}) VALUES
-      (v_frame_id, {{#xvalues data}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
-    {{/loadCsv}}
-    {{/if}}
+  INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys data}}{{item}}{{#unless isLast}},
+  {{/unless}}{{/xkeys}}) VALUES
+  (v_frame_id, {{#xvalues data}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
+  {{/loadCsv}}
+  {{/if}}
 
-    PERFORM fby_notify('{{entity}}', {{version}});
+  PERFORM fby_notify('{{entity}}', {{version}});
 
-    {{/frames}}
+  {{/frames}}
 
   END;
-$$ LANGUAGE plpgsql;
+  $$ LANGUAGE plpgsql;
 
-{{/add_change_set}}
+  {{/add_change_set}}
 
-END TRANSACTION;
+  END TRANSACTION;

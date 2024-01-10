@@ -1,56 +1,29 @@
 const createError = require('http-errors');
+const uri = require('fast-uri');
 
-module.exports = (fastify, { filby }, done) => {
+const getParksSchema = require('../../schemas/get-parks-schema.json');
+const getParkSchema = require('../../schemas/get-park-schema.json');
 
-  const getParksSchema = {
-    querystring: {
-      type: 'object',
-      required: ['changeSetId'],
-      properties: {
-        changeSetId: {
-          type: 'integer',
-        },
-      },
-    },
-  };
+module.exports = (fastify, { projection, filby }, done) => {
 
   fastify.get('/', { schema: getParksSchema }, async (request, reply) => {
-    const changeSet = await getChangeSet(request);
+    if (request.query.changeSetId === 'current') return redirectToCurrentChangeSet(request, reply);
+    const changeSetId = Number(request.query.changeSetId);
+    const changeSet = await getChangeSet(changeSetId);
     const parks = await getParks(changeSet);
-
     reply.headers({
       'Last-Modified': changeSet.lastModified.toUTCString(),
       'ETag': changeSet.entityTag,
       'Cache-Control': 'max-age=31536000, immutable',
     });
-
     return parks;
   });
 
-  const getParkSchema = {
-    querystring: {
-      type: 'object',
-      required: ['changeSetId'],
-      properties: {
-        changeSetId: {
-          type: 'integer',
-        },
-      },
-    },
-    params: {
-      type: 'object',
-      required: ['code'],
-      properties: {
-        code: {
-          type: 'string',
-        },
-      },
-    },
-  };
-
-  fastify.get('/:code', { schema: getParkSchema }, async (request, reply) => {
-    const changeSet = await getChangeSet(request);
-    const code = String(request.params.code);
+  fastify.get('/code/:code', { schema: getParkSchema }, async (request, reply) => {
+    if (request.query.changeSetId === 'current') return redirectToCurrentChangeSet(request, reply);
+    const code = String(request.params.code).toUpperCase();
+    const changeSetId = Number(request.query.changeSetId);
+    const changeSet = await getChangeSet(changeSetId);
     const park = await getPark(changeSet, code);
     if (!park) throw createError(404, `Park not found: ${code}`);
 
@@ -63,10 +36,15 @@ module.exports = (fastify, { filby }, done) => {
     return park;
   });
 
-  async function getChangeSet(request) {
-    const changeSetId = Number(request.query.changeSetId);
+  async function redirectToCurrentChangeSet(request, reply) {
+    const { path } = uri.parse(request.url);
+    const changeSet = await filby.getCurrentChangeSet(projection);
+    reply.redirect(307, `${path}?changeSetId=${changeSet.id}`);
+  }
+
+  async function getChangeSet(changeSetId) {
     const changeSet = await filby.getChangeSet(changeSetId);
-    if (!changeSet) throw createError(400, 'Invalid changeSetId');
+    if (!changeSet) throw createError(400, `Invalid changeSetId: ${changeSetId}`);
     return changeSet;
   }
 
@@ -87,9 +65,7 @@ module.exports = (fastify, { filby }, done) => {
   }
 
   function toParkDictionary(dictionary, row) {
-    const {
-      code, name, calendar_event: event, calendar_occurs: occurs,
-    } = row;
+    const { code, name, calendar_event: event, calendar_occurs: occurs } = row;
     const park = dictionary.get(code) || { code, name, calendar: [] };
     park.calendar.push({ event, occurs });
     return dictionary.set(code, park);

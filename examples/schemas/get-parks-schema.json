@@ -1,0 +1,23 @@
+{
+  "querystring": {
+    "type": "object",
+    "required": [
+      "changeSetId"
+    ],
+    "properties": {
+      "changeSetId": {
+        "oneOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string",
+            "enum": [
+              "current"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

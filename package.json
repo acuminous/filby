@@ -24,7 +24,7 @@
     "test": "test"
   },
   "scripts": {
-    "docker": "docker-compose --file test/docker-compose.yaml up --detach",
+    "docker": "docker-compose up --detach",
     "lint": "eslint .",
     "lint-staged": "lint-staged",
     "test": "zUnit",

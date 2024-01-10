@@ -12,6 +12,7 @@ export default class Filby extends EventEmitter {
   getProjections(): Promise<Projection[]>;
   getProjection(name: string, version: number): Promise<Projection>;
   getChangeLog(projection: Projection): Promise<ChangeSet[]>;
+  getCurrentChangeSet(projection: Projection): Promise<ChangeSet>;
   getChangeSet(id: number): Promise<ChangeSet>;
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
 };

@@ -81,6 +81,73 @@ describe('API', () => {
 
   describe('Change Sets', () => {
 
+    it('should yield current change set for the given projection', async () => {
+      const currentYear = new Date().getFullYear();
+      const previousYear = currentYear - 1;
+      const nextYear = currentYear + 1;
+
+      await filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
+            (1, 'VAT Rates', 1),
+            (2, 'CGT Rates', 1)`);
+        await tx.query(`INSERT INTO fby_entity (id, name, version) VALUES
+            (1, 'VAT Rate', 1),
+            (2, 'CGT Rate', 1)
+          `);
+        await tx.query(`INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
+            (1, 1),
+            (2, 2)`);
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
+            (1, '${previousYear}-01-05T00:00:00.000Z', '${previousYear} VAT Rates'),
+            (2, '${previousYear}-01-05T00:00:00.000Z', '${previousYear} CGT Rates'),
+            (3, '${currentYear}-01-05T00:00:00.000Z', '${currentYear} VAT Rates'),
+            (4, '${currentYear}-01-05T00:00:00.000Z', '${currentYear} CGT Rates'),
+            (5, '${nextYear}-01-01T00:00:00.000Z', '${nextYear} VAT Rates'),
+            (6, '${nextYear}-01-01T00:00:00.000Z', '${nextYear} CGT Rates')`);
+        await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+            (1, 1, 'POST'),
+            (2, 2, 'POST'),
+            (3, 1, 'POST'),
+            (4, 2, 'POST'),
+            (5, 1, 'POST'),
+            (6, 2, 'POST')`);
+      });
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSet = await filby.getCurrentChangeSet(projection);
+      eq(changeSet.id, 3);
+    });
+
+    it('should yield null change set for the given projection when there is no current data', async () => {
+      const currentYear = new Date().getFullYear();
+      const nextYear = currentYear + 1;
+
+      await filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
+            (1, 'VAT Rates', 1),
+            (2, 'CGT Rates', 1)`);
+        await tx.query(`INSERT INTO fby_entity (id, name, version) VALUES
+            (1, 'VAT Rate', 1),
+            (2, 'CGT Rate', 1)
+          `);
+        await tx.query(`INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
+            (1, 1),
+            (2, 2)`);
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
+            (1, '${nextYear}-01-05T00:00:00.000Z', '${nextYear} VAT Rates'),
+            (2, '${nextYear}-01-05T00:00:00.000Z', '${nextYear} CGT Rates')`);
+        await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+            (1, 1, 'POST'),
+            (2, 2, 'POST')`);
+      });
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSet = await filby.getCurrentChangeSet(projection);
+      eq(changeSet.id, 0);
+      eq(changeSet.description, 'Null Change Set - DO NOT DELETE');
+      eq(changeSet.effective.toISOString(), '0001-01-01T00:00:00.000Z');
+    });
+
     it('should list change sets for the given projection', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES

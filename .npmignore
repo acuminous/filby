@@ -4,3 +4,4 @@ coverage
 examples
 node_modules
 .gitignore
+docker-compose.yaml

@@ -83,6 +83,21 @@ module.exports = class Filby extends EventEmitter {
     });
   }
 
+  async getCurrentChangeSet(projection) {
+    return this.withTransaction(async (tx) => {
+      const { rows } = await tx.query(`
+SELECT change_set_id, effective, description, last_modified, entity_tag
+FROM fby_projection_change_log_vw
+WHERE projection_id = $1 AND effective <= now()
+UNION SELECT id AS change_set_id, effective, description, last_modified, entity_tag
+FROM fby_change_set
+WHERE id = 0
+ORDER BY effective DESC, change_set_id DESC
+LIMIT 1`, [projection.id]);
+      return rows.map(toChangeSet)[0];
+    });
+  }
+
   async getChangeSet(changeSetId) {
     return this.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT id AS change_set_id, effective, description, last_modified, entity_tag FROM fby_change_set WHERE id = $1', [changeSetId]);

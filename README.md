@@ -19,6 +19,7 @@ Like checking out a commit, your applications can use the Filby API to retrieve 
 
 ## Contents
 - [Introduction](#introduction)
+- [Benefits](#benefits)
 - [Concepts](#concepts)
 - [API](#api)
 - [Data Definition](#data-definition)
@@ -48,8 +49,8 @@ Solving such a complex problem becomes simpler when broken down. This project pr
                       │         ▼   │                                                                  ▼
 ┌────────┐      ┌───────────┬──────────┐              GET /api/changelog?projection=$p&version=$v ┌──────────┐
 │        │      │           │          ├──────────────────────────────────────────────────────────│          │
-│        │      │           │          │                                                          │          │
-│   DB   │◀────▶│   Filby   │   App    │                                                          │  Client  │
+│        │      │           │ RESTful  │                                                          │          │
+│   DB   │◀────▶│   Filby   │   API    │                                                          │  Client  │
 │        │      │           │          │  GET /api/projection/:version/:projection?changeSetId=$c │          │
 │        │      │           │          ├──────────────────────────────────────────────────────────│          │
 └────────┘      └───────────┴──────────┘                                                          └──────────┘
@@ -119,6 +120,10 @@ GET /api/projection/v1/park?changeSetId=2
   }
 ]
 ```
+
+The example applications include a convenience feature `/api/v1/projection/park?changeSetId=current`. This responds with a temporary redirect to the current changeSetId. We advise against returning data from a convenience endpoint like this one, since you cannot safely cache the response.
+
+## Benefits
 
 At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of valuable benefits.
 
@@ -240,6 +245,9 @@ Returns the specified projection.
 
 #### filby.getChangeLog(projection: Projection): Promise&lt;ChangeSet[]&gt;
 Returns the change log (an ordered list of change sets) for the given projection.
+
+#### filby.getCurrentChangeSet(projection: Projection): Promise&lt;ChangeSet&gt;
+Returns the current changeset for the given projection based on the database's current time.
 
 #### filby.getChangeSet(changeSetId: number): Promise&lt;ChangeSet&gt;
 Returns the specified change set
@@ -428,13 +436,13 @@ This project includes [proof of concept applications](https://github.com/acumino
 git clone git@github.com:acuminous/filby.git
 cd filby
 npm i
+npm run docker
 ```
 
 ### TypeScript variant
 ```bash
 cd examples/typescript
 npm i
-npm run docker
 npm start
 ```
 
@@ -442,13 +450,12 @@ npm start
 ```bash
 cd examples/javascript
 npm i
-npm run docker
 npm start
 ```
 
 Once successfully started you should see the following output.
 
-```bash
+```
 Server is listening on port 3000
 See http://localhost:3000/documentation
 Use CTRL+D or kill -TERM 18964 to stop
@@ -456,7 +463,7 @@ Use CTRL+D or kill -TERM 18964 to stop
 
 The applications include swagger documentation for the APIs but for a headstart try the following
 
-```bash
+```
 GET http://localhost:3000/api/changelog?projection=park&version=1
 ```
 
@@ -525,7 +532,7 @@ This will return the changelog for the applications 'Park' projection.
 
 Now pick a change set id and request the Park data at that point in time...
 
-```bash
+```
 GET http://localhost:3000/api/projection/v1/park?changeSetId=1
 ```
 
@@ -599,3 +606,8 @@ GET http://localhost:3000/api/projection/v1/park?changeSetId=1
   }
 ]
 ```
+You can also try
+```
+GET http://localhost:3000/api/projection/v1/park?changeSetId=current
+```
+Which will redirect you to `http://localhost:3000/api/projection/v1/park?changeSetId=8`

@@ -4,13 +4,13 @@
   "description": "An example project using Filby",
   "scripts": {
     "start": "node index.js",
-    "docker": "docker-compose up --detach",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@fastify/swagger": "^8.12.2",
     "@fastify/swagger-ui": "^2.0.1",
     "axios": "^1.6.5",
+    "fast-uri": "^2.3.0",
     "fastify": "^4.25.2",
     "http-errors": "^2.0.0"
   },
