@@ -1,8 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const {
-  ok, strictEqual: eq, deepEqual: deq, rejects, throws, match,
-} = require('node:assert');
+const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
 const {
   describe, it, before, beforeEach, after, afterEach,
 } = require('zunit');
@@ -738,6 +736,39 @@ describe('DSL', () => {
         eq(aggregate3.length, 2);
         deq(aggregate3[0], { type: 'standard', rate: 0.15 });
         deq(aggregate3[1], { type: 'reduced', rate: 0.10 });
+      });
+    });
+
+    it('should report bad csv files', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        add projections:
+        - name: VAT Rates
+          version: 1
+          dependencies:
+          - entity: VAT Rate
+            version: 1
+
+        add entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+          - name: rate
+            type: NUMERIC
+          identified by:
+          - type
+
+        add change set:
+        - description: 2020 VAT Rates
+          effective: 2020-04-05T00:00:00.000Z
+          frames:
+          - entity: VAT Rate
+            version: 1
+            source: ./test/dsl/datafiles/bad.csv
+      `), (err) => {
+        eq(err.message, 'Error parsing ./test/dsl/datafiles/bad.csv:3 - Too few fields: expected 3 fields but parsed 2');
+        return true;
       });
     });
 
