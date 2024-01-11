@@ -50,6 +50,7 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
   async function redirectToCurrentChangeSet(request: FastifyRequest, reply: FastifyReply) {
     const { path } = uri.parse(request.url);
     const changeSet = await filby.getCurrentChangeSet(projection);
+    if (!changeSet) throw createError(404, `No current change set for projection: ${projection.name} ${projection.version}`);
     reply.redirect(307, `${path}?changeSetId=${changeSet.id}`);
   }
 

@@ -29,7 +29,7 @@ module.exports = class TestFilby extends Filby {
     await tx.query('DELETE FROM fby_data_frame');
     await tx.query('DELETE FROM fby_projection_entity');
     await tx.query('DELETE FROM fby_entity');
-    await tx.query('DELETE FROM fby_change_set WHERE id > 0');
+    await tx.query('DELETE FROM fby_change_set');
     await tx.query('DELETE FROM fby_projection');
   }
 };

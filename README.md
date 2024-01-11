@@ -121,7 +121,7 @@ GET /api/projection/v1/park?changeSetId=2
 ]
 ```
 
-The example applications include a convenience feature `/api/v1/projection/park?changeSetId=current`. This responds with a temporary redirect to the current changeSetId. We advise against returning data from a convenience endpoint like this one, since you cannot safely cache the response.
+The example applications include a convenience feature where changeSetId can be set to the value `current`. This causes the application to redirect to the same url, but with the current changeSetId.
 
 ## Benefits
 

@@ -118,7 +118,7 @@ describe('API', () => {
       eq(changeSet.id, 3);
     });
 
-    it('should yield null change set for the given projection when there is no current data', async () => {
+    it('should yield undefined for the given projection when there is no current data', async () => {
       const currentYear = new Date().getFullYear();
       const nextYear = currentYear + 1;
 
@@ -143,9 +143,7 @@ describe('API', () => {
 
       const projection = await filby.getProjection('VAT Rates', 1);
       const changeSet = await filby.getCurrentChangeSet(projection);
-      eq(changeSet.id, 0);
-      eq(changeSet.description, 'Null Change Set - DO NOT DELETE');
-      eq(changeSet.effective.toISOString(), '0001-01-01T00:00:00.000Z');
+      eq(changeSet, undefined);
     });
 
     it('should list change sets for the given projection', async () => {

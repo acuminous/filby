@@ -39,6 +39,7 @@ module.exports = (fastify, { projection, filby }, done) => {
   async function redirectToCurrentChangeSet(request, reply) {
     const { path } = uri.parse(request.url);
     const changeSet = await filby.getCurrentChangeSet(projection);
+    if (!changeSet) throw createError(404, `No current change set for projection: ${projection.name} ${projection.version}`);
     reply.redirect(307, `${path}?changeSetId=${changeSet.id}`);
   }
 
