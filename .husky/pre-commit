@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
+npm run lint-staged
 rm -rf examples/typescript/dist && pushd examples/typescript && npx tsc && popd && rm -rf examples/typescript/dist
 pushd examples/javascript && npm test && popd
-npm run lint-staged && npm test
+npm test
