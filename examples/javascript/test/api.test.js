@@ -67,10 +67,18 @@ describe('API', () => {
       assertPark(parks1[0], { code: 'DC', name: 'Devon Cliffs' });
       assertPark(parks1[2], { code: 'PV', name: 'Primrose Valley' });
 
-      const { data: park8 } = await get('api/projection/v1/park?changeSetId=8');
-      eq(park8.length, 3);
-      assertPark(park8[0], { code: 'DC', name: 'Devon Cliffs' });
-      assertPark(park8[2], { code: 'SK', name: 'Skegness' });
+      eq(parks1[0].calendar.length, 4);
+      assertCalendarEvent(parks1[0].calendar[0], { event: 'Park Open - Owners', occurs: '2019-03-01T00:00:00.000Z' });
+      assertCalendarEvent(parks1[0].calendar[3], { event: 'Park Close - Owners', occurs: '2019-11-30T00:00:00.000Z' });
+
+      const { data: parks8 } = await get('api/projection/v1/park?changeSetId=8');
+      eq(parks8.length, 3);
+      assertPark(parks8[0], { code: 'DC', name: 'Devon Cliffs' });
+      assertPark(parks8[2], { code: 'SK', name: 'Skegness' });
+
+      eq(parks8[0].calendar.length, 8);
+      assertCalendarEvent(parks8[0].calendar[0], { event: 'Park Open - Owners', occurs: '2022-03-01T00:00:00.000Z' });
+      assertCalendarEvent(parks8[0].calendar[7], { event: 'Park Close - Owners', occurs: '2023-11-30T00:00:00.000Z' });
     });
 
     it('should respond with 404 when projection does not exist', async () => {
@@ -91,7 +99,7 @@ describe('API', () => {
     });
   });
 
-  describe('GET /api/projection/v1/park/code/DC', () => {
+  describe('GET /api/projection/v1/park/code/:code', () => {
     it('should redirect to current change set', async () => {
       const { status, headers } = await get('api/projection/v1/park/code/DC');
       eq(status, 307);
@@ -99,18 +107,27 @@ describe('API', () => {
     });
 
     it('should response with park for specified change set', async () => {
-      const { data: park1 } = await get('api/projection/v1/park/code/GA?changeSetId=1');
-      assertPark(park1, { code: 'GA', name: 'Greenacres' });
+      const { data: greenacres } = await get('api/projection/v1/park/code/GA?changeSetId=1');
+      assertPark(greenacres, { code: 'GA', name: 'Greenacres' });
+      eq(greenacres.calendar.length, 4);
+      assertCalendarEvent(greenacres.calendar[0], { event: 'Park Open - Owners', occurs: '2019-03-01T00:00:00.000Z' });
+      assertCalendarEvent(greenacres.calendar[3], { event: 'Park Close - Owners', occurs: '2019-11-30T00:00:00.000Z' });
 
-      const { status: status1 } = await get('api/projection/v1/park/code/GA?changeSetId=8');
-      eq(status1, 404);
+      const { data: skegness } = await get('api/projection/v1/park/code/SK?changeSetId=8');
+      assertPark(skegness, { code: 'SK', name: 'Skegness' });
+      eq(skegness.calendar.length, 8);
+      assertCalendarEvent(skegness.calendar[0], { event: 'Park Open - Owners', occurs: '2022-03-01T00:00:00.000Z' });
+      assertCalendarEvent(skegness.calendar[7], { event: 'Park Close - Owners', occurs: '2023-11-30T00:00:00.000Z' });
+    });
 
-      const { status: status8 } = await get('api/projection/v1/park/code/SK?changeSetId=1');
-      eq(status8, 404);
+    it('should response with 404 before park was created', async () => {
+      const { status } = await get('api/projection/v1/park/code/SK?changeSetId=1');
+      eq(status, 404);
+    });
 
-      const { data: park8 } = await get('api/projection/v1/park/code/SK?changeSetId=8');
-      assertPark(park8, { code: 'SK', name: 'Skegness' });
-
+    it('should response with 404 after park was deleted', async () => {
+      const { status } = await get('api/projection/v1/park/code/GA?changeSetId=8');
+      eq(status, 404);
     });
 
     it('should respond with 404 when projection does not exist', async () => {
@@ -147,6 +164,11 @@ describe('API', () => {
   function assertPark(actual, expected) {
     eq(actual.code, expected.code);
     eq(actual.name, expected.name);
+  }
+
+  function assertCalendarEvent(actual, expected) {
+    eq(actual.event, expected.event);
+    eq(actual.occurs, expected.occurs);
   }
 
   async function get(path, options = { method: 'GET', validateStatus: () => true, maxRedirects: 0 }) {
