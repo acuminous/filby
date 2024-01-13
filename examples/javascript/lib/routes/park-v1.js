@@ -7,7 +7,7 @@ const getParkSchema = require('../../../schemas/get-park-schema.json');
 module.exports = (fastify, { projection, filby }, done) => {
 
   fastify.get('/', { schema: getParksSchema }, async (request, reply) => {
-    if (request.query.changeSetId === 'current') return redirectToCurrentChangeSet(request, reply);
+    if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await getChangeSet(changeSetId);
     const parks = await getParks(changeSet);
@@ -15,12 +15,13 @@ module.exports = (fastify, { projection, filby }, done) => {
       'Last-Modified': changeSet.lastModified.toUTCString(),
       'ETag': changeSet.entityTag,
       'Cache-Control': 'max-age=31536000, immutable',
+      'Connection': 'close',
     });
     return parks;
   });
 
   fastify.get('/code/:code', { schema: getParkSchema }, async (request, reply) => {
-    if (request.query.changeSetId === 'current') return redirectToCurrentChangeSet(request, reply);
+    if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);
     const code = String(request.params.code).toUpperCase();
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await getChangeSet(changeSetId);
@@ -31,6 +32,7 @@ module.exports = (fastify, { projection, filby }, done) => {
       'Last-Modified': changeSet.lastModified.toUTCString(),
       'ETag': changeSet.entityTag,
       'Cache-Control': 'max-age=31536000, immutable',
+      'Connection': 'close',
     });
 
     return park;

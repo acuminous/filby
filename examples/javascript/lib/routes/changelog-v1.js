@@ -29,7 +29,7 @@ module.exports = (fastify, { filby }, done) => {
     reply.headers({
       'Last-Modified': changeSet.lastModified.toUTCString(),
       'ETag': changeSet.entityTag,
-      'Cache-Control': 'max-age=600, stale-while-revalidate=600, stale-if-error=86400',
+      'Connection': 'close',
     });
 
     return changeLog;

@@ -3,6 +3,7 @@ const path = require('node:path');
 const Fastify = require('fastify');
 const swagger = require('@fastify/swagger');
 const swaggerUI = require('@fastify/swagger-ui');
+const cors = require('@fastify/cors');
 const axios = require('axios');
 
 const pkg = require('../package.json');
@@ -19,7 +20,7 @@ module.exports = class Application {
   constructor({ config, logger }) {
     this.#config = config;
     this.#logger = logger;
-  };
+  }
 
   async start() {
     await this.#initFilby();
@@ -39,7 +40,7 @@ module.exports = class Application {
     await this.#filby.init();
     await this.#handleHookFailures();
     await this.#regsiterWebhooks();
-  };
+  }
 
   async #handleHookFailures() {
     this.#filby.on(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (err, context) => {
@@ -65,6 +66,10 @@ module.exports = class Application {
 
   async #initFastify() {
     this.#fastify = Fastify(this.#config.fastify);
+    await this.#fastify.register(cors, {
+      origin: '*',
+      methods: ['GET'],
+    });
     await this.#registerSwagger();
     await this.#registerChangelog();
     await this.#registerProjections();
@@ -119,4 +124,4 @@ module.exports = class Application {
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
     await this.#fastify.register(route, { prefix, projection, filby: this.#filby });
   }
-}
+};

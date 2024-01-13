@@ -1,9 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const {
-  describe, it, before, beforeEach, after, afterEach,
-} = require('zunit');
+const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 
 const TestFilby = require('./TestFilby');
 
