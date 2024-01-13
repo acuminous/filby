@@ -31,8 +31,8 @@ Most applications require slow moving reference data, which presents the followi
 
 | Challenge     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Consistency   | Whenever we duplicate our reference data, we increase the likelihood of inconsistency. Even if we have one authoritive source of truth, we may cache the reference data in multiple systems, resulting in temporary inconsisenty unless cache updates are sychronised. Given the reference data is slow moving, a short period of inconsistency may be acceptable.                                                                                                            |
-| Load Times    | Some reference data sets may be too large to desirably load over a network connection for web and mobile applications. Therefore we should discourage accidentally including large data sets into a client bundle, or requesting large data sets over a network.                                                                                                                                                                                                                |
+| Consistency   | Whenever we duplicate our reference data, we increase the likelihood of inconsistency. Even if we have one authoritive source of truth, we may cache the reference data in multiple systems, resulting in temporary inconsisenty unless cache updates are sychronised. Given the reference data is slow moving, a short period of inconsistency may be acceptable.                                                                                                             |
+| Load Times    | Some reference data sets may be too large to desirably load over a network connection for web and mobile applications. Therefore we should discourage accidentally including large data sets into a client bundle, or requesting large data sets over a network.                                                                                                                                                                                                               |
 | Reliability   | Requesting data sets over a network may fail, especially when mobile. Bundling local copies of reference data into the application (providing they are not too large) will aleviate this, but increase the potential for stale data.                                                                                                                                                                                                                                           |
 | Stale Data    | Even though reference data is slow moving, it will still change occasionally. Therefore we need a strategy for refreshing reference data.                                                                                                                                                                                                                                                                                                                                      |
 | Temporality   | When reference data changes, the previous values may still be required for historic comparisons. Therefore all reference data should have an effective date. Effective dates can also be used to synchronise updates by including future records when the values are known in advance. This comes at the cost of increased size, and there may still be some inconsistency due to clock drift and cache expiry times.                                                          |
@@ -49,8 +49,8 @@ Solving such a complex problem becomes simpler when broken down. This project pr
                       │         ▼   │                                                                  ▼
 ┌────────┐      ┌───────────┬──────────┐              GET /api/changelog?projection=$p&version=$v ┌──────────┐
 │        │      │           │          ├──────────────────────────────────────────────────────────│          │
-│        │      │           │ RESTful  │                                                          │          │
-│   DB   │◀────▶│   Filby   │   API    │                                                          │  Client  │
+│        │      │           │ Example  │                                                          │          │
+│   DB   │◀────▶│   Filby   │   App    │                                                          │  Client  │
 │        │      │           │          │  GET /api/projection/:version/:projection?changeSetId=$c │          │
 │        │      │           │          ├──────────────────────────────────────────────────────────│          │
 └────────┘      └───────────┴──────────┘                                                          └──────────┘
@@ -121,11 +121,20 @@ GET /api/projection/v1/park?changeSetId=2
 ]
 ```
 
-The example applications include a convenience feature where changeSetId can be set to the value `current`. This causes the application to redirect to the same url, but with the current changeSetId.
+The example applications include a convenience feature where if the changeSetId is omitted, the client will be redirected to the same url for the current change set.
+
+```
+GET /api/projection/v1/park
+```
+
+```
+HTTP/1.1 307 Temporary Redirect
+location: /api/projection/v1/park?changeSetId=8
+```
 
 ## Benefits
 
-At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of valuable benefits.
+At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of worthwhile benefits.
 
 1. Reference data can be safely released (and potentially pre-cached) ahead of time
 2. Clients can receive consistent reference data by fixing the changeSetId at the start of a transaction
