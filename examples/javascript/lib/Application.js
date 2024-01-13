@@ -30,9 +30,9 @@ module.exports = class Application {
   }
 
   async stop() {
-    await this.#filby.stopNotifications();
-    await this.#fastify.close();
-    await this.#filby.stop();
+    await this.#filby?.stopNotifications();
+    await this.#fastify?.close();
+    await this.#filby?.stop();
   }
 
   async #initFilby() {
