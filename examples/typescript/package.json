@@ -1,5 +1,5 @@
 {
-  "name": "filby-example",
+  "name": "holiday-park-data-service",
   "version": "1.0.0",
   "title": "Holiday Park Data Service",
   "description": "An example project using Filby",
@@ -24,6 +24,6 @@
     "zunit": "^4.0.2"
   },
   "zUnit": {
-    "pattern": "^.*\\.test\\.ts$"
+    "name": "Holiday Park Data Service [TypeScript]"
   }
 }

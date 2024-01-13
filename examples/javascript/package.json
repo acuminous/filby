@@ -20,5 +20,8 @@
   "license": "ISC",
   "devDependencies": {
     "zunit": "^4.0.2"
+  },
+  "zUnit": {
+    "name": "Holiday Park Data Service [JavaScript]"
   }
 }
