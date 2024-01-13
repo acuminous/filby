@@ -1,0 +1,9 @@
+-- Add Enums
+{{#enums}}
+CREATE TYPE {{name}} AS ENUM (
+  {{#values}}
+  '{{this}}'{{#unless @last}},{{/unless}}
+  {{/values}}
+);
+
+{{/enums}}

@@ -1,0 +1,49 @@
+-- Add Change Sets
+{{#changeSets}}
+DO $$
+DECLARE
+  v_change_set_id INTEGER;
+  v_entity_id INTEGER;
+  v_frame_id INTEGER;
+BEGIN
+  INSERT INTO fby_change_set (effective, description) VALUES
+  ('{{effective}}', '{{description}}')
+  RETURNING id INTO v_change_set_id;
+
+  {{#frames}}
+  {{#data}}
+  SELECT id INTO v_entity_id
+  FROM fby_entity
+  WHERE name = '{{../entity}}'
+    AND version = {{../version}};
+
+  INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+  (v_change_set_id, v_entity_id, '{{../action}}')
+  RETURNING id INTO v_frame_id;
+
+  INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys .}}{{item}}{{#unless isLast}},{{/unless}}{{/xkeys}}) VALUES
+  (v_frame_id, {{#xvalues .}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
+  {{/data}}
+
+  {{#if source}}
+  {{#loadCsv source}}
+  SELECT id INTO v_entity_id
+  FROM fby_entity
+  WHERE name = '{{../entity}}'
+    AND version = {{../version}};
+
+  INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+  (v_change_set_id, v_entity_id, '{{action}}')
+  RETURNING id INTO v_frame_id;
+
+  INSERT INTO {{tableName ../entity ../version}} (fby_frame_id, {{#xkeys data}}{{item}}{{#unless isLast}},{{/unless}}{{/xkeys}}) VALUES
+  (v_frame_id, {{#xvalues data}}'{{item}}'{{#unless isLast}}, {{/unless}}{{/xvalues}});
+  {{/loadCsv}}
+  {{/if}}
+
+  PERFORM fby_notify('{{entity}}', {{version}});
+  {{/frames}}
+END;
+$$ LANGUAGE plpgsql;
+
+{{/changeSets}}

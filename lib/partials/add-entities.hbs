@@ -1,0 +1,43 @@
+-- Add Entities
+{{#entities}}
+INSERT INTO fby_entity (name, version) VALUES ('{{name}}', {{version}});
+
+CREATE TABLE {{tableName name version}} (
+  fby_frame_id INTEGER PRIMARY KEY REFERENCES fby_data_frame (id),
+  {{#fields}}
+  {{name}} {{type}},
+  {{/fields}}
+  CONSTRAINT {{tableName name version}}_frame_id_{{#identified_by}}{{tableName name version}}_{{#if @last}}uniq{{/if}}{{/identified_by}} UNIQUE (fby_frame_id, {{#identified_by}}{{name}}{{/identified_by}}){{#if checks}},{{/if}}
+  {{#each checks}}
+  CONSTRAINT {{@key}}_chk CHECK ({{{this}}}){{#unless @last}},{{/unless}}
+  {{/each}}
+);
+
+CREATE FUNCTION get_{{tableName name version}}_aggregate(p_change_set_id INTEGER) RETURNS TABLE (
+  {{#fields}}
+  {{name}} {{type}}{{#unless @last}},{{/unless}}
+  {{/fields}}
+)
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH aggregated AS (
+    SELECT
+      DISTINCT ON ({{#identified_by}}{{name}}{{#unless @last}},{{/unless}}{{/identified_by}})
+      f.action AS fby_action,
+      {{#fields}}x.{{name}}{{#unless @last}},{{/unless}}{{/fields}}
+    FROM
+      fby_data_frame f
+    INNER JOIN fby_entity e ON e.id = f.entity_id
+    INNER JOIN {{tableName name version}} x ON x.fby_frame_id = f.id
+    WHERE e.name = '{{name}}'
+      AND e.version = {{version}}
+      AND f.change_set_id <= p_change_set_id ORDER BY {{#identified_by}}x.{{name}}{{/identified_by}} ASC, x.fby_frame_id DESC
+  )
+  SELECT {{#fields}} a.{{name}}{{#unless @last}},{{/unless}} {{/fields}}
+  FROM aggregated a
+  WHERE a.fby_action <> 'DELETE';
+END;
+$$ LANGUAGE plpgsql;
+
+{{/entities}}

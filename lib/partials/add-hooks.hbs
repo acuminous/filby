@@ -1,0 +1,17 @@
+  -- Add Hooks
+  {{#hooks}}
+  DO $$
+  DECLARE
+    v_projection_id INTEGER;
+  BEGIN
+    {{#if (and projection version)}}
+    SELECT id INTO v_projection_id
+    FROM fby_projection
+    WHERE name = '{{projection}}'
+      AND version = {{version}};
+    {{/if}}
+    INSERT INTO fby_hook (projection_id, event) VALUES (v_projection_id, '{{event}}');
+  END;
+
+  $$ LANGUAGE plpgsql;
+  {{/hooks}}
