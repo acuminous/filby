@@ -366,7 +366,7 @@ add hooks:
 # migrations/0002.initial-data-load.yaml
 
 # Add a change set containing one or more data frames for the previously defined entities
-add change set:
+add change sets:
   - description: Initial Data
     effective: 2019-01-01T00:00:00Z
     frames:
@@ -615,4 +615,3 @@ GET http://localhost:3000/api/projection/v1/park?changeSetId=1
   }
 ]
 ```
-

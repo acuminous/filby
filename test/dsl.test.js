@@ -344,7 +344,7 @@ describe('DSL', () => {
   describe('Change Sets', () => {
     it('should require an effective date', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
           - frames:
           - entity: VAT Rate
             version: 1
@@ -353,33 +353,33 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-an-effective-date.yaml: /add_change_set/0 must have required property 'effective'"));
+        match(err.message, new RegExp("^001.should-require-an-effective-date.yaml: /add_change_sets/0 must have required property 'effective'"));
         return true;
       });
     });
 
     it('should require at least one frame', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-frame.yaml: /add_change_set/0 must have required property 'frames'"));
+        match(err.message, new RegExp("^001.should-require-at-least-one-frame.yaml: /add_change_sets/0 must have required property 'frames'"));
         return true;
       });
 
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-at-least-one-frame.yaml: /add_change_set/0/frames must be an array'));
+        match(err.message, new RegExp('^001.should-require-at-least-one-frame.yaml: /add_change_sets/0/frames must be an array'));
         return true;
       });
     });
 
     it('should require frames to specify an entity name', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
           - version: 1
@@ -388,14 +388,14 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-name.yaml: /add_change_set/0/frames/0 must have required property 'entity'"));
+        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-name.yaml: /add_change_sets/0/frames/0 must have required property 'entity'"));
         return true;
       });
     });
 
     it('should require frames to specify an entity version', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -404,14 +404,14 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-version.yaml: /add_change_set/0/frames/0 must have required property 'version'"));
+        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-version.yaml: /add_change_sets/0/frames/0 must have required property 'version'"));
         return true;
       });
     });
 
     it('should require frames to specify a valid action', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -420,12 +420,12 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_set/0/frames/0 must have required property 'source' or 'action'"));
+        match(err.message, new RegExp("^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_sets/0/frames/0 must have required property 'source' or 'action'"));
         return true;
       });
 
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -435,26 +435,26 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_set/0/frames/0/action must be equal to one of the allowed values: POST, DELETE'));
+        match(err.message, new RegExp('^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_sets/0/frames/0/action must be equal to one of the allowed values: POST, DELETE'));
         return true;
       });
     });
 
     it('should require frame data to specify at least one value', async (t) => {
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
             version: 1
             action: POST
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_set/0/frames/0 must have required property 'source' or 'data'"));
+        match(err.message, new RegExp("^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_sets/0/frames/0 must have required property 'source' or 'data'"));
         return true;
       });
 
       await rejects(() => applyYaml(t.name, `
-        add change set:
+        add change sets:
         - effective: 2020-04-05T00:00:00.000Z
           frames:
           - entity: VAT Rate
@@ -462,7 +462,7 @@ describe('DSL', () => {
             action: POST
             data:
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_set/0/frames/0/data must be an array'));
+        match(err.message, new RegExp('^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_sets/0/frames/0/data must be an array'));
         return true;
       });
     });
@@ -489,7 +489,7 @@ describe('DSL', () => {
           identified by:
           - type
 
-        add change set:
+        add change sets:
         - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -595,7 +595,7 @@ describe('DSL', () => {
           identified by:
           - type
 
-        add change set:
+        add change sets:
         - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -699,7 +699,7 @@ describe('DSL', () => {
           identified by:
           - type
 
-        add change set:
+        add change sets:
         - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -757,7 +757,7 @@ describe('DSL', () => {
           identified by:
           - type
 
-        add change set:
+        add change sets:
         - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:
@@ -790,7 +790,7 @@ describe('DSL', () => {
           identified by:
           - type
 
-        add change set:
+        add change sets:
         - description: 2020 VAT Rates
           effective: 2020-04-05T00:00:00.000Z
           frames:

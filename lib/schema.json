@@ -27,10 +27,10 @@
     "add_hooks": {
       "$ref": "#/definitions/hooksType"
     },
-    "add change set": {
+    "add change sets": {
       "$ref": "#/definitions/changeSetType"
     },
-    "add_change_set": {
+    "add_change_sets": {
       "$ref": "#/definitions/changeSetType"
     }
   },
