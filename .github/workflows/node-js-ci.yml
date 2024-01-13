@@ -6,7 +6,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     services:
-      postgres:
+      fby_example:
+        image: postgres:16-alpine
+        ports:
+          - 5433:5433
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: fby_example
+          POSTGRES_USER: fby_example
+          POSTGRES_PASSWORD: fby_example
+      fby_test:
         image: postgres:16-alpine
         ports:
           - 5432:5432
@@ -15,6 +24,7 @@ jobs:
           POSTGRES_DB: fby_test
           POSTGRES_USER: fby_test
           POSTGRES_PASSWORD: fby_test
+          services:
     strategy:
       matrix:
         node-version: [18.x, 20.x]
