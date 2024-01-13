@@ -615,8 +615,4 @@ GET http://localhost:3000/api/projection/v1/park?changeSetId=1
   }
 ]
 ```
-You can also try
-```
-GET http://localhost:3000/api/projection/v1/park?changeSetId=current
-```
-Which will redirect you to `http://localhost:3000/api/projection/v1/park?changeSetId=8`
+
