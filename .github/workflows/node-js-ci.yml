@@ -6,15 +6,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     services:
-      fby_example:
-        image: postgres:16-alpine
-        ports:
-          - 5433:5432
-        env:
-          POSTGRES_HOST_AUTH_METHOD: trust
-          POSTGRES_DB: fby_example
-          POSTGRES_USER: fby_example
-          POSTGRES_PASSWORD: fby_example
       fby_test:
         image: postgres:16-alpine
         ports:
@@ -25,6 +16,24 @@ jobs:
           POSTGRES_USER: fby_test
           POSTGRES_PASSWORD: fby_test
           services:
+      fby_js_example:
+        image: postgres:16-alpine
+        ports:
+          - 5433:5432
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: fby_example
+          POSTGRES_USER: fby_example
+          POSTGRES_PASSWORD: fby_example
+      fby_ts_example:
+        image: postgres:16-alpine
+        ports:
+          - 5434:5432
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: fby_example
+          POSTGRES_USER: fby_example
+          POSTGRES_PASSWORD: fby_example
     strategy:
       matrix:
         node-version: [18.x, 20.x]
@@ -35,6 +44,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
       - run: pushd examples/javascript && npm ci && npm test
+      - run: pushd examples/typescript && npm ci && npm test
       - run: npm run lint
       - run: npm test
 

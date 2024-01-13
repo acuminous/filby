@@ -1,12 +1,14 @@
 {
   "name": "filby-example",
   "version": "1.0.0",
+  "title": "Holiday Park Data Service",
   "description": "An example project using Filby",
   "scripts": {
-    "start": "npx ts-node index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "ts-node index.ts",
+    "test": "ts-node test"
   },
   "dependencies": {
+    "@fastify/cors": "^8.5.0",
     "@fastify/swagger": "^8.12.2",
     "@fastify/swagger-ui": "^2.0.1",
     "axios": "^1.6.5",
@@ -18,6 +20,10 @@
   "devDependencies": {
     "@types/http-errors": "^2.0.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "zunit": "^4.0.2"
+  },
+  "zUnit": {
+    "pattern": "^.*\\.test\\.ts$"
   }
 }

@@ -17,6 +17,8 @@ export default class Filby extends EventEmitter {
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
 };
 
+export type PoolConfig = PoolConfig;
+
 export type Config = {
   migrations?: string;
   database?: PoolConfig;

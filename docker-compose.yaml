@@ -1,16 +1,6 @@
 version: '3.8'
 
 services:
-  fby_example:
-    image: postgres:16-alpine
-    container_name: fby_example
-    environment:
-      POSTGRES_DB: fby_example
-      POSTGRES_USER: fby_example
-      POSTGRES_PASSWORD: fby_example
-    ports:
-      - "5433:5432"
-
   fby_test:
     image: postgres:16-alpine
     container_name: fby_test
@@ -20,3 +10,23 @@ services:
       POSTGRES_PASSWORD: fby_test
     ports:
       - "5432:5432"
+
+  fby_js_example:
+    image: postgres:16-alpine
+    container_name: fby_js_example
+    environment:
+      POSTGRES_DB: fby_example
+      POSTGRES_USER: fby_example
+      POSTGRES_PASSWORD: fby_example
+    ports:
+      - "5433:5432"
+
+  fby_ts_example:
+    image: postgres:16-alpine
+    container_name: fby_ts_example
+    environment:
+      POSTGRES_DB: fby_example
+      POSTGRES_USER: fby_example
+      POSTGRES_PASSWORD: fby_example
+    ports:
+      - "5434:5432"

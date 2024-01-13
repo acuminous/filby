@@ -1,23 +1,40 @@
-const path = require('node:path');
+import path from 'node:path';
 
-const Fastify = require('fastify');
-const swagger = require('@fastify/swagger');
-const swaggerUI = require('@fastify/swagger-ui');
-const cors = require('@fastify/cors');
-const axios = require('axios');
+import Fastify, { FastifyInstance } from 'fastify';
+import swagger from '@fastify/swagger';
+import swaggerUI from '@fastify/swagger-ui';
+import cors from '@fastify/cors';
+import axios from 'axios';
 
-const pkg = require('../package.json');
-const Filby = require('../../..');
-const changeLogRoute = require('./routes/changelog-v1');
+import pkg from '../package.json';
+import Filby, { Config as FilbyConfig, Projection, PoolConfig } from '../../..';
+import changeLogRoute from './routes/changelog-v1';
 
-module.exports = class Application {
+export type ApplicationConfig = {
+  database: PoolConfig;
+  fastify: {
+    logger: boolean;
+  };
+  filby: FilbyConfig;
+  server: {
+    port: number;
+  }
+  swagger: {
+    prefix: string;
+  }
+  webhooks: {
+    [key: string]: string;
+  };
+}
+
+export default class Application {
 
   #config;
   #logger;
-  #fastify;
-  #filby;
+  #filby: Filby;
+  #fastify: FastifyInstance;
 
-  constructor({ config }) {
+  constructor({ config }: { config: ApplicationConfig }) {
     this.#config = config;
     this.#filby = new Filby({ ...this.#config.filby, ...{ database: this.#config.database } });
     this.#fastify = Fastify(this.#config.fastify);
@@ -44,8 +61,8 @@ module.exports = class Application {
   }
 
   async #handleHookFailures() {
-    this.#filby.on(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (err, context) => {
-      this.#logger.error('Hook failed', context);
+    this.#filby.on(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (err: Error, notification: Notification) => {
+      this.#logger.error('Hook failed', notification);
       this.#logger.error(err.stack);
     });
   }
@@ -59,7 +76,7 @@ module.exports = class Application {
     }
   }
 
-  async #registerWebhook(event, url) {
+  async #registerWebhook(event: string, url: string) {
     this.#filby.on(event, async (context) => {
       await axios.post(url, context);
     });
@@ -117,7 +134,7 @@ module.exports = class Application {
     }
   }
 
-  async #registerProjection(projection) {
+  async #registerProjection(projection: Projection) {
     const routePath = path.resolve(path.join('lib', 'routes', `${projection.name}-v${projection.version}`));
     // eslint-disable-next-line global-require
     const route = require(routePath);

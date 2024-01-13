@@ -3,7 +3,7 @@ const config = require('./config.json');
 const Application = require('./lib/Application');
 
 (async () => {
-  const application = new Application({ config, logger: console });
+  const application = new Application({ config });
   await application.start();
 
   process.on('SIGINT', (event) => process.emit('APPLICATION_STOP', event));
