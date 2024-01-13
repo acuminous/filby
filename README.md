@@ -121,7 +121,7 @@ GET /api/projection/v1/park?changeSetId=2
 ]
 ```
 
-The example applications include a convenience feature where if the changeSetId is omitted, the client will be redirected to the same url for the current change set.
+The example applications include a convenience feature where if the changeSetId is omitted, the client will be redirected to projection at the current change set.
 
 ```
 GET /api/projection/v1/park
