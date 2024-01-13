@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 const config = require('./config.json');
-const Application = require('./lib/routes/Application');
+const Application = require('./lib/Application');
 
 (async () => {
   const application = new Application({ config, logger: console });

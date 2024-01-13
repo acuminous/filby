@@ -5,7 +5,7 @@
   "description": "A proof of concept Filby application",
   "scripts": {
     "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "zUnit"
   },
   "dependencies": {
     "@fastify/swagger": "^8.12.2",
@@ -16,5 +16,8 @@
     "http-errors": "^2.0.0"
   },
   "author": "Stephen Cresswell",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "zunit": "^4.0.2"
+  }
 }
