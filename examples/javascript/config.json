@@ -2,6 +2,9 @@
   "fastify": {
     "logger": true
   },
+  "swagger": {
+    "prefix": "documentation"
+  },
   "server": {
     "port": 3000
   },
@@ -19,5 +22,9 @@
       "maxAttempts": 20,
       "maxRescheduleDelay": "30s"
     }
+  },
+  "webhooks": {
+    "park_v1_change": "https://httpbin.org/status/200",
+    "change": "https://httpbin.org/status/500"
   }
 }

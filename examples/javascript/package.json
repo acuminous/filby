@@ -1,7 +1,8 @@
 {
-  "name": "filby-example",
+  "name": "holiday-park-data-service",
   "version": "1.0.0",
-  "description": "An example project using Filby",
+  "title": "Holiday Park Data Service",
+  "description": "A proof of concept Filby application",
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"

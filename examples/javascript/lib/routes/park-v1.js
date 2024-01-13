@@ -1,8 +1,8 @@
 const createError = require('http-errors');
 const uri = require('fast-uri');
 
-const getParksSchema = require('../../schemas/get-parks-schema.json');
-const getParkSchema = require('../../schemas/get-park-schema.json');
+const getParksSchema = require('../../../schemas/get-parks-schema.json');
+const getParkSchema = require('../../../schemas/get-park-schema.json');
 
 module.exports = (fastify, { projection, filby }, done) => {
 
