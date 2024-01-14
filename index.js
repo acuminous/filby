@@ -48,12 +48,12 @@ module.exports = class Filby {
     await this.#scheduler?.stop();
   }
 
-  subscribe(event, handler) {
-    this.#emitter.addListener(event, handler);
+  subscribe(name, handler) {
+    this.#emitter.addListener(name, handler);
   }
 
-  unsubscribe(event, handler) {
-    this.#emitter.removeListener(event, handler);
+  unsubscribe(name, handler) {
+    this.#emitter.removeListener(name, handler);
   }
 
   unsubscribeAll(...args) {
@@ -140,11 +140,11 @@ LIMIT 1`, [projection.id]);
 
           const context = await this.#getNotificationContext(tx, notification);
           try {
-            await this.#emitter.emitAsync(context.event, context);
+            await this.#emitter.emitAsync(context.name, context);
             await this.#passNotification(tx, notification);
           } catch (err) {
             await this.#failNotification(tx, notification, err);
-            if (notification.attempts >= maxAttempts) this.#emitter.emitAsync(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, err, context);
+            if (notification.attempts >= maxAttempts) this.#emitter.emitAsync(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, { ...context, err });
           }
 
           return true;
@@ -165,13 +165,14 @@ LIMIT 1`, [projection.id]);
 
   async #getNotificationContext(tx, notification) {
     const { rows } = await tx.query(
-      `SELECT h.event, p.id, p.name AS projection, p.version FROM fby_hook h
+      `SELECT h.name, h.event, p.id, p.name AS projection, p.version FROM fby_hook h
 INNER JOIN fby_notification n ON n.hook_id = h.id
 INNER JOIN fby_projection p ON p.id = n.projection_id
 WHERE h.id = $1`,
       [notification.hookId],
     );
     return rows.map((row) => ({
+      name: row.name,
       event: row.event,
       projection: { name: row.projection, version: row.version },
       attempts: notification.attempts,

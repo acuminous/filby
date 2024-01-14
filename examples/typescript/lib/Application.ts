@@ -7,7 +7,7 @@ import cors from '@fastify/cors';
 import axios from 'axios';
 
 import pkg from '../package.json';
-import Filby, { Config as FilbyConfig, Projection, PoolConfig, NotificationError } from '../../..';
+import Filby, { Config as FilbyConfig, Projection, PoolConfig, ErrorNotification } from '../../..';
 import changeLogRoute from './routes/changelog-v1';
 
 export type ApplicationConfig = {
@@ -61,7 +61,7 @@ export default class Application {
   }
 
   async #handleHookFailures() {
-    this.#filby.subscribe<NotificationError>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (notification: NotificationError) => {
+    this.#filby.subscribe<ErrorNotification>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (notification: ErrorNotification) => {
       this.#logger.error('Hook failed', notification);
       this.#logger.error(notification.err.stack);
     });

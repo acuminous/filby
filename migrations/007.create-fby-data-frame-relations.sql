@@ -1,6 +1,9 @@
 START TRANSACTION;
 
-CREATE TYPE fby_action_type AS ENUM ('POST', 'DELETE');
+CREATE TYPE fby_action_type AS ENUM (
+  'POST',
+  'DELETE'
+);
 
 CREATE TABLE fby_data_frame (
   id SERIAL PRIMARY KEY,

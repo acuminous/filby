@@ -60,8 +60,8 @@ module.exports = class Application {
   }
 
   async #registerWebhook(event, url) {
-    this.#filby.subscribe(event, async (context) => {
-      await axios.post(url, context);
+    this.#filby.subscribe(event, async (notification) => {
+      await axios.post(url, notification);
     });
   }
 

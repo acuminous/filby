@@ -230,7 +230,7 @@ Starts polling the database for notifications
 Stops polling the database for notifications, and waits for any inflight notifications to complete.
 
 #### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T&lt;T&gt;) => Promise&lt;void&gt;): void
-Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. The event name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
+Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for hooks and perform of asynchronous tasks like making an HTTP request for a webhook. The hook name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
 
 ```js
 filby.subscribe('VAT Rate changed', async (notification) => {
@@ -238,7 +238,7 @@ filby.subscribe('VAT Rate changed', async (notification) => {
 });
 ```
 
-If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a maximum number of times, with an incremental backoff delay. If the maximum attempts are exceeded then Filby emits dedicated event, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The first parameter to the callback is the Error object, and the second the Notification context, e.g.
+If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a maximum number of times, with an incremental backoff delay. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
 
 ```js
 filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {

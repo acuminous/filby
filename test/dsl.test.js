@@ -86,7 +86,7 @@ describe('DSL', () => {
             - reduced
             - zero
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-name.yaml: /add_enums/0 must have required property 'name'$"));
+        eq(err.message, "001.should-require-a-name.yaml: /add_enums/0 must have required property 'name'");
         return true;
       });
     });
@@ -96,7 +96,7 @@ describe('DSL', () => {
         add enums:
           - name: vat_tax_rate
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-value.yaml: /add_enums/0 must have required property 'values'$"));
+        eq(err.message, "001.should-require-at-least-one-value.yaml: /add_enums/0 must have required property 'values'");
         return true;
       });
 
@@ -105,7 +105,7 @@ describe('DSL', () => {
           - name: vat_tax_rate
             values:
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-at-least-one-value.yaml: /add_enums/0/values must be an array$'));
+        eq(err.message, '001.should-require-at-least-one-value.yaml: /add_enums/0/values must be an array');
         return true;
       });
     });
@@ -120,7 +120,7 @@ describe('DSL', () => {
               - zero
             wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /add_enums/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties.yaml: /add_enums/0 must NOT have additional properties');
         return true;
       });
     });
@@ -150,7 +150,7 @@ describe('DSL', () => {
         drop enums:
           - x: meh
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-name.yaml: /drop_enums/0 must have required property 'name'$"));
+        eq(err.message, "001.should-require-a-name.yaml: /drop_enums/0 must have required property 'name'");
         return true;
       });
     });
@@ -161,7 +161,7 @@ describe('DSL', () => {
           - name: vat_tax_rate
             wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /drop_enums/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties.yaml: /drop_enums/0 must NOT have additional properties');
         return true;
       });
     });
@@ -202,7 +202,7 @@ describe('DSL', () => {
             - entity: VAT Rate
               version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-name.yaml: /add_projections/0 must have required property 'name'$"));
+        eq(err.message, "001.should-require-a-name.yaml: /add_projections/0 must have required property 'name'");
         return true;
       });
     });
@@ -215,7 +215,7 @@ describe('DSL', () => {
             - entity: VAT Rate
               version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-version.yaml: /add_projections/0 must have required property 'version'$"));
+        eq(err.message, "001.should-require-a-version.yaml: /add_projections/0 must have required property 'version'");
         return true;
       });
     });
@@ -226,7 +226,7 @@ describe('DSL', () => {
           - name: VAT Rates
             version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-dependency.yaml: /add_projections/0 must have required property 'dependencies'$"));
+        eq(err.message, "001.should-require-at-least-one-dependency.yaml: /add_projections/0 must have required property 'dependencies'");
         return true;
       });
 
@@ -236,7 +236,7 @@ describe('DSL', () => {
             version: 1
             dependencies:
       `), (err) => {
-        match(err.message, new RegExp('001.should-require-at-least-one-dependency.yaml: /add_projections/0/dependencies must be an array$'));
+        eq(err.message, '001.should-require-at-least-one-dependency.yaml: /add_projections/0/dependencies must be an array');
         return true;
       });
     });
@@ -249,7 +249,7 @@ describe('DSL', () => {
             dependencies:
             - version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-valid-dependencies.yaml: /add_projections/0/dependencies/0 must have required property 'entity'$"));
+        eq(err.message, "001.should-require-valid-dependencies.yaml: /add_projections/0/dependencies/0 must have required property 'entity'");
         return true;
       });
 
@@ -260,7 +260,7 @@ describe('DSL', () => {
             dependencies:
             - entity: VAT Rate
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-valid-dependencies.yaml: /add_projections/0/dependencies/0 must have required property 'version'$"));
+        eq(err.message, "001.should-require-valid-dependencies.yaml: /add_projections/0/dependencies/0 must have required property 'version'");
         return true;
       });
     });
@@ -275,7 +275,7 @@ describe('DSL', () => {
             version: 1
           wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /add_projections/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties.yaml: /add_projections/0 must NOT have additional properties');
         return true;
       });
     });
@@ -290,7 +290,7 @@ describe('DSL', () => {
             version: 1
             wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties-in-dependencies.yaml: /add_projections/0/dependencies/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties-in-dependencies.yaml: /add_projections/0/dependencies/0 must NOT have additional properties');
         return true;
       });
     });
@@ -364,7 +364,7 @@ describe('DSL', () => {
         drop projections:
           - version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-name.yaml: /drop_projections/0 must have required property 'name'$"));
+        eq(err.message, "001.should-require-a-name.yaml: /drop_projections/0 must have required property 'name'");
         return true;
       });
     });
@@ -374,7 +374,7 @@ describe('DSL', () => {
         drop projections:
           - name: VAT Rates
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-version.yaml: /drop_projections/0 must have required property 'version'$"));
+        eq(err.message, "001.should-require-a-version.yaml: /drop_projections/0 must have required property 'version'");
         return true;
       });
     });
@@ -397,7 +397,7 @@ describe('DSL', () => {
           version: 1
           wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /drop_projections/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties.yaml: /drop_projections/0 must NOT have additional properties');
         return true;
       });
     });
@@ -434,7 +434,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-name.yaml: /add_entities/0 must have required property 'name'$"));
+        eq(err.message, "001.should-require-a-name.yaml: /add_entities/0 must have required property 'name'");
         return true;
       });
     });
@@ -449,7 +449,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-version.yaml: /add_entities/0 must have required property 'version'$"));
+        eq(err.message, "001.should-require-a-version.yaml: /add_entities/0 must have required property 'version'");
         return true;
       });
     });
@@ -460,7 +460,7 @@ describe('DSL', () => {
         - name: VAT Rate
           version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-field.yaml: /add_entities/0 must have required property 'fields'$"));
+        eq(err.message, "001.should-require-at-least-one-field.yaml: /add_entities/0 must have required property 'fields'");
         return true;
       });
 
@@ -472,7 +472,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-at-least-one-field.yaml: /add_entities/0/fields must be an array$'));
+        eq(err.message, '001.should-require-at-least-one-field.yaml: /add_entities/0/fields must be an array');
         return true;
       });
     });
@@ -487,7 +487,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /add_entities/0/fields/0 must have required property 'name'$"));
+        eq(err.message, "001.should-require-valid-fields.yaml: /add_entities/0/fields/0 must have required property 'name'");
         return true;
       });
 
@@ -500,7 +500,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-valid-fields.yaml: /add_entities/0/fields/0 must have required property 'type'$"));
+        eq(err.message, "001.should-require-valid-fields.yaml: /add_entities/0/fields/0 must have required property 'type'");
         return true;
       });
 
@@ -528,7 +528,7 @@ describe('DSL', () => {
           - name: type
             type: TEXT
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-identifier-column.yaml: /add_entities/0 must have required property 'identified by' or 'identified_by'$"));
+        eq(err.message, "001.should-require-at-least-one-identifier-column.yaml: /add_entities/0 must have required property 'identified by' or 'identified_by'");
         return true;
       });
 
@@ -541,7 +541,7 @@ describe('DSL', () => {
             type: TEXT
           identified by:
       `), (err) => {
-        match(err.message, new RegExp('001.should-require-at-least-one-identifier-column.yaml: /add_entities/0/identified_by must be an array$'));
+        eq(err.message, '001.should-require-at-least-one-identifier-column.yaml: /add_entities/0/identified_by must be an array');
         return true;
       });
     });
@@ -560,7 +560,7 @@ describe('DSL', () => {
           - type
           wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /add_entities/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties.yaml: /add_entities/0 must NOT have additional properties');
         return true;
       });
     });
@@ -579,7 +579,7 @@ describe('DSL', () => {
           identified by:
           - type
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties-in-fields.yaml: /add_entities/0/fields/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties-in-fields.yaml: /add_entities/0/fields/0 must NOT have additional properties');
         return true;
       });
     });
@@ -655,7 +655,7 @@ describe('DSL', () => {
         drop entities:
         - version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-name.yaml: /drop_entities/0 must have required property 'name'$"));
+        eq(err.message, "001.should-require-a-name.yaml: /drop_entities/0 must have required property 'name'");
         return true;
       });
     });
@@ -665,7 +665,7 @@ describe('DSL', () => {
         drop entities:
         - name: VAT Rate
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-version.yaml: /drop_entities/0 must have required property 'version'$"));
+        eq(err.message, "001.should-require-a-version.yaml: /drop_entities/0 must have required property 'version'");
         return true;
       });
     });
@@ -677,7 +677,7 @@ describe('DSL', () => {
           version: 1
           wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /drop_entities/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties.yaml: /drop_entities/0 must NOT have additional properties');
         return true;
       });
     });
@@ -695,7 +695,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-an-effective-date.yaml: /add_change_sets/0 must have required property 'effective'$"));
+        eq(err.message, "001.should-require-an-effective-date.yaml: /add_change_sets/0 must have required property 'effective'");
         return true;
       });
     });
@@ -705,7 +705,7 @@ describe('DSL', () => {
         add change sets:
         - effective: 2020-04-05T00:00:00.000Z
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-at-least-one-frame.yaml: /add_change_sets/0 must have required property 'frames'$"));
+        eq(err.message, "001.should-require-at-least-one-frame.yaml: /add_change_sets/0 must have required property 'frames'");
         return true;
       });
 
@@ -714,7 +714,7 @@ describe('DSL', () => {
         - effective: 2020-04-05T00:00:00.000Z
           frames:
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-at-least-one-frame.yaml: /add_change_sets/0/frames must be an array$'));
+        eq(err.message, '001.should-require-at-least-one-frame.yaml: /add_change_sets/0/frames must be an array');
         return true;
       });
     });
@@ -730,7 +730,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-name.yaml: /add_change_sets/0/frames/0 must have required property 'entity'$"));
+        eq(err.message, "001.should-require-frames-to-specify-an-entity-name.yaml: /add_change_sets/0/frames/0 must have required property 'entity'");
         return true;
       });
     });
@@ -746,7 +746,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frames-to-specify-an-entity-version.yaml: /add_change_sets/0/frames/0 must have required property 'version'$"));
+        eq(err.message, "001.should-require-frames-to-specify-an-entity-version.yaml: /add_change_sets/0/frames/0 must have required property 'version'");
         return true;
       });
     });
@@ -762,7 +762,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_sets/0/frames/0 must have required property 'source' or 'action'$"));
+        eq(err.message, "001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_sets/0/frames/0 must have required property 'source' or 'action'");
         return true;
       });
 
@@ -777,7 +777,7 @@ describe('DSL', () => {
             - type: standard
               rate: 0.10
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_sets/0/frames/0/action must be equal to one of the allowed values: POST, DELETE$'));
+        eq(err.message, '001.should-require-frames-to-specify-a-valid-action.yaml: /add_change_sets/0/frames/0/action must be equal to one of the allowed values: POST, DELETE');
         return true;
       });
     });
@@ -791,7 +791,7 @@ describe('DSL', () => {
             version: 1
             action: POST
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_sets/0/frames/0 must have required property 'source' or 'data'$"));
+        eq(err.message, "001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_sets/0/frames/0 must have required property 'source' or 'data'");
         return true;
       });
 
@@ -804,7 +804,7 @@ describe('DSL', () => {
             action: POST
             data:
       `), (err) => {
-        match(err.message, new RegExp('^001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_sets/0/frames/0/data must be an array$'));
+        eq(err.message, '001.should-require-frame-data-to-specify-at-least-one-value.yaml: /add_change_sets/0/frames/0/data must be an array');
         return true;
       });
     });
@@ -822,7 +822,7 @@ describe('DSL', () => {
               rate: 0.10
           wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /add_change_sets/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties.yaml: /add_change_sets/0 must NOT have additional properties');
         return true;
       });
     });
@@ -840,7 +840,7 @@ describe('DSL', () => {
               rate: 0.10
             wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties-in-frames.yaml: /add_change_sets/0/frames/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties-in-frames.yaml: /add_change_sets/0/frames/0 must NOT have additional properties');
         return true;
       });
     });
@@ -1364,26 +1364,30 @@ describe('DSL', () => {
             version: 1
 
         add hooks:
-        - projection: VAT Rates
+        - name: VAT Rates Change
+          event: ADD_CHANGE_SET
+          projection: VAT Rates
           version: 1
-          event: VAT Rates Change
-        - event: Any Change
+        - name: Any Change
+          event: ADD_CHANGE_SET
       `);
 
-      const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT name, version, event FROM fby_hook h LEFT JOIN fby_projection p ON h.projection_id = p.id'));
+      const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT h.name, h.event, p.name AS projection, version FROM fby_hook h LEFT JOIN fby_projection p ON h.projection_id = p.id'));
 
       eq(hooks.length, 2);
-      deq(hooks[0], { name: 'VAT Rates', version: 1, event: 'VAT Rates Change' });
-      deq(hooks[1], { name: null, version: null, event: 'Any Change' });
+      deq(hooks[0], { name: 'VAT Rates Change', event: 'ADD_CHANGE_SET', projection: 'VAT Rates', version: 1 });
+      deq(hooks[1], { name: 'Any Change', event: 'ADD_CHANGE_SET', projection: null, version: null });
     });
 
     it('should require a projection', async (t) => {
       await rejects(() => applyYaml(t.name, `
         add hooks:
-        - version: 1
-          event: VAT Rates Change
+        - name: VAT Rates Change
+          event: ADD_CHANGE_SET
+          version: 1
+
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-projection.yaml: /add_hooks/0 must have required property 'projection'$"));
+        eq(err.message, "001.should-require-a-projection.yaml: /add_hooks/0 must have required property 'projection'");
         return true;
       });
     });
@@ -1391,10 +1395,11 @@ describe('DSL', () => {
     it('should require a version', async (t) => {
       await rejects(() => applyYaml(t.name, `
         add hooks:
-        - projection: VAT Rates
-          event: VAT Rates Change
+        - name: VAT Rates Change
+          event: ADD_CHANGE_SET
+          projection: VAT Rates
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-a-version.yaml: /add_hooks/0 must have required property 'version'$"));
+        eq(err.message, "001.should-require-a-version.yaml: /add_hooks/0 must have required property 'version'");
         return true;
       });
     });
@@ -1402,10 +1407,11 @@ describe('DSL', () => {
     it('should require an event', async (t) => {
       await rejects(() => applyYaml(t.name, `
         add hooks:
-        - projection: VAT Rate
+        - name: VAT Rates Change
+          projection: VAT Rate
           version: 1
       `), (err) => {
-        match(err.message, new RegExp("^001.should-require-an-event.yaml: /add_hooks/0 must have required property 'event'$"));
+        eq(err.message, "001.should-require-an-event.yaml: /add_hooks/0 must have required property 'event'");
         return true;
       });
     });
@@ -1413,12 +1419,13 @@ describe('DSL', () => {
     it('should forbid additional properties in specific hooks', async (t) => {
       await rejects(() => applyYaml(t.name, `
         add hooks:
-        - projection: VAT Rates
+        - name: VAT Rates Change
+          event: ADD_CHANGE_SET
+          projection: VAT Rates
           version: 1
-          event: VAT Rates Change
           wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties-in-specific-hooks.yaml: /add_hooks/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties-in-specific-hooks.yaml: /add_hooks/0 must NOT have additional properties');
         return true;
       });
     });
@@ -1426,10 +1433,11 @@ describe('DSL', () => {
     it('should forbid additional properties in general hooks', async (t) => {
       await rejects(() => applyYaml(t.name, `
         add hooks:
-        - event: VAT Rates Change
+        - name: VAT Rates Change
+          event: ADD_CHANGE_SET
           wombat: Freddy
       `), (err) => {
-        match(err.message, new RegExp('^001.should-forbid-additional-properties-in-general-hooks.yaml: /add_hooks/0 must NOT have additional properties$'));
+        eq(err.message, '001.should-forbid-additional-properties-in-general-hooks.yaml: /add_hooks/0 must NOT have additional properties');
         return true;
       });
     });
@@ -1459,14 +1467,13 @@ describe('DSL', () => {
               version: 1
 
           add hooks:
-          - projection: VAT Rates
+          - name: VAT Rates Change
+            event: ADD_CHANGE_SET
+            projection: VAT Rates
             version: 1
-            event: VAT Rates Change
 
           drop hooks:
-          - projection: VAT Rates
-            version: 1
-            event: VAT Rates Change
+          - name: VAT Rates Change
         `);
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
@@ -1494,18 +1501,19 @@ describe('DSL', () => {
               version: 1
 
           add hooks:
-          - projection: VAT Rates
+          - name: VAT Rates Change A
+            event: ADD_CHANGE_SET
+            projection: VAT Rates
             version: 1
-            event: VAT Rates Change A
-          - projection: VAT Rates
+          - name: VAT Rates Change B
+            event: ADD_CHANGE_SET
+            projection: VAT Rates
             version: 1
-            event: VAT Rates Change B
-          - event: Any Change
+          - name: Any Change
+            event: ADD_CHANGE_SET
 
           drop hooks:
-          - projection: VAT Rates
-            version: 1
-            event: VAT Rates Change A
+          - name: VAT Rates Change A
         `);
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
@@ -1515,44 +1523,19 @@ describe('DSL', () => {
       it('should report missing specific projection hooks', async (t) => {
         await rejects(() => applyYaml(t.name, `
           drop hooks:
-          - projection: VAT Rates
-            version: 1
-            event: VAT Rates Change
+          - name: VAT Rates Change
         `), (err) => {
-          eq(err.message, "VAT Rates v1 projection hook 'VAT Rates Change' does not exist");
+          eq(err.message, "Hook 'VAT Rates Change' does not exist");
           return true;
         });
       });
 
-      it('should require a projection', async (t) => {
+      it('should require a name', async (t) => {
         await rejects(() => applyYaml(t.name, `
           drop hooks:
-          - version: 1
-            event: VAT Rates Change
+          - {}
         `), (err) => {
-          match(err.message, new RegExp("^001.should-require-a-projection.yaml: /drop_hooks/0 must have required property 'projection'$"));
-          return true;
-        });
-      });
-
-      it('should require a version', async (t) => {
-        await rejects(() => applyYaml(t.name, `
-          drop hooks:
-          - projection: VAT Rates
-            event: VAT Rates Change
-        `), (err) => {
-          match(err.message, new RegExp("^001.should-require-a-version.yaml: /drop_hooks/0 must have required property 'version'$"));
-          return true;
-        });
-      });
-
-      it('should require an event', async (t) => {
-        await rejects(() => applyYaml(t.name, `
-          drop hooks:
-          - projection: VAT Rate
-            version: 1
-        `), (err) => {
-          match(err.message, new RegExp("^001.should-require-an-event.yaml: /drop_hooks/0 must have required property 'event'$"));
+          eq(err.message, "001.should-require-a-name.yaml: /drop_hooks/0 must have required property 'name'");
           return true;
         });
       });
@@ -1560,12 +1543,10 @@ describe('DSL', () => {
       it('should forbid additional properties in specific hooks', async (t) => {
         await rejects(() => applyYaml(t.name, `
           drop hooks:
-          - projection: VAT Rates
-            version: 1
-            event: VAT Rates Change
+          - name: VAT Rates Change
             wombat: Freddy
         `), (err) => {
-          match(err.message, new RegExp('^001.should-forbid-additional-properties-in-specific-hooks.yaml: /drop_hooks/0 must NOT have additional properties$'));
+          eq(err.message, '001.should-forbid-additional-properties-in-specific-hooks.yaml: /drop_hooks/0 must NOT have additional properties');
           return true;
         });
       });
@@ -1593,10 +1574,11 @@ describe('DSL', () => {
               version: 1
 
           add hooks:
-          - event: Any Change
+          - name: Any Change
+            event: ADD_CHANGE_SET
 
           drop hooks:
-          - event: Any Change
+          - name: Any Change
         `);
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
@@ -1624,16 +1606,19 @@ describe('DSL', () => {
               version: 1
 
           add hooks:
-          - projection: VAT Rates
+          - name: VAT Rates Change A
+            event: ADD_CHANGE_SET
+            projection: VAT Rates
             version: 1
-            event: VAT Rates Change A
-          - projection: VAT Rates
+          - name: VAT Rates Change B
+            event: ADD_CHANGE_SET
+            projection: VAT Rates
             version: 1
-            event: VAT Rates Change B
-          - event: Any Change
+          - name: Any Change
+            event: ADD_CHANGE_SET
 
           drop hooks:
-          - event: Any Change
+          - name: Any Change
         `);
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
@@ -1643,18 +1628,9 @@ describe('DSL', () => {
       it('should report missing general projection hooks', async (t) => {
         await rejects(() => applyYaml(t.name, `
           drop hooks:
-          - event: Any Change
+          - name: Any Change
         `), (err) => {
-          eq(err.message, "General projection hook 'Any Change' does not exist");
-          return true;
-        });
-      });
-
-      it('should require an event', async (t) => {
-        await rejects(() => applyYaml(t.name, `
-          drop hooks:
-        `), (err) => {
-          match(err.message, new RegExp('^001.should-require-an-event.yaml: /drop_hooks must be an array$'));
+          eq(err.message, "Hook 'Any Change' does not exist");
           return true;
         });
       });
@@ -1662,10 +1638,10 @@ describe('DSL', () => {
       it('should forbid additional properties in general hooks', async (t) => {
         await rejects(() => applyYaml(t.name, `
           drop hooks:
-          - event: VAT Rates Change
+          - name: VAT Rates Change
             wombat: Freddy
         `), (err) => {
-          match(err.message, new RegExp('^001.should-forbid-additional-properties-in-general-hooks.yaml: /drop_hooks/0 must NOT have additional properties$'));
+          eq(err.message, '001.should-forbid-additional-properties-in-general-hooks.yaml: /drop_hooks/0 must NOT have additional properties');
           return true;
         });
       });

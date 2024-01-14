@@ -207,14 +207,17 @@
       "items": {
         "type": "object",
         "properties": {
+          "name": {
+            "type": "string"
+          },
+          "event": {
+            "$ref": "#/definitions/eventType"
+          },
           "projection": {
             "type": "string"
           },
           "version": {
             "type": "integer"
-          },
-          "event": {
-            "type": "string"
           }
         },
         "additionalProperties": false,
@@ -234,13 +237,15 @@
         },
         "then": {
           "required": [
+            "name",
+            "event",
             "projection",
-            "version",
-            "event"
+            "version"
           ]
         },
         "else": {
           "required": [
+            "name",
             "event"
           ]
         }
@@ -343,43 +348,14 @@
       "items": {
         "type": "object",
         "properties": {
-          "projection": {
-            "type": "string"
-          },
-          "version": {
-            "type": "integer"
-          },
-          "event": {
+          "name": {
             "type": "string"
           }
         },
         "additionalProperties": false,
-        "if": {
-          "anyOf": [
-            {
-              "required": [
-                "projection"
-              ]
-            },
-            {
-              "required": [
-                "version"
-              ]
-            }
-          ]
-        },
-        "then": {
-          "required": [
-            "projection",
-            "version",
-            "event"
-          ]
-        },
-        "else": {
-          "required": [
-            "event"
-          ]
-        }
+        "required": [
+          "name"
+        ]
       }
     },
     "dropEntitiesType": {
@@ -417,6 +393,14 @@
           "name"
         ]
       }
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "ADD_PROJECTION",
+        "DROP_PROJECTION",
+        "ADD_CHANGE_SET"
+      ]
     }
   }
 }

@@ -43,7 +43,9 @@ add projections:
         version: 1
 
 add hooks:
-  - projection: park
+  - name: httpbin/add-change-set/park-v1
+    event: ADD_CHANGE_SET
+    projection: park
     version: 1
-    event: park_v1_change
-  - event: change
+  - name: httpbin/add-change-set/*
+    event: ADD_CHANGE_SET

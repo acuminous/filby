@@ -50,7 +50,7 @@ export type Notification = {
   attempts: number;
 } & Projection;
 
-export type NotificationError = {
+export type ErrorNotification = {
   err: Error;
 } & Notification
 
