@@ -361,14 +361,16 @@ add hooks:
     # This is a projection specific hook, which only fires when the data
     # supporting the park v1 projection changes
     # The event must be unique for the projection
-  - projection: parks
+  - name: search-service/add-change-set/parks-v1
+    event: ADD_CHANGE_SET
+    projection: parks
     version: 1
-    event: parks_v1_change
 
     # This is a general hook, which only fires when the data
     # supporting any projection changes
     # The event must be unique
-  - event: any_change
+  - name: data-lake/add-change-set/*
+    event: ADD_CHANGE_SET
 ```
 
 ```yaml
@@ -414,29 +416,9 @@ add change sets:
 ```yaml
 # migrations/0003.drop-unused-objects.yaml
 
-# Deletes the specified hooks and assocaited notifications
+# Deletes the specified hooks and associated notifications
 drop hooks:
-  - projection: parks
-    version: 1
-    event: park_v1_change
-
-  - event: any_change
-
-# Deletes the specified projections, any associated hooks, and notifications
-drop projections:
-  - name: parks
-    version: 1
-
-# Deletes the specified entities and associated data frames
-# Fails if the entities are still depended on by projections
-drop entities:
-  - name: park
-    version: 1
-
-# Deletes the specified enums
-# Fails if the enums are still use
-drop enum:
-  - name: park_calendar_event_type
+  - name: search-service/add-change-set/park-v1
 ```
 
 ## Configuration
