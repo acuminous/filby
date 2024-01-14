@@ -6,7 +6,6 @@
 [![Test Coverage](https://codeclimate.com/github/acuminous/filby/badges/coverage.svg)](https://codeclimate.com/github/acuminous/filby/coverage)
 [![Discover zUnit](https://img.shields.io/badge/Discover-zUnit-brightgreen)](https://www.npmjs.com/package/zunit)
 
-
 *There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
 <p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
 
@@ -419,6 +418,17 @@ add change sets:
 # Deletes the specified hooks and associated notifications
 drop hooks:
   - name: search-service/add-change-set/park-v1
+
+# Deletes the specified entities and associated data frames
+# Fails if the entities are still depended on by projections
+drop entities:
+  - name: park
+    version: 1
+
+# Deletes the specified enums
+# Fails if the enums are still use
+drop enum:
+  - name: park_calendar_event_type
 ```
 
 ## Configuration
