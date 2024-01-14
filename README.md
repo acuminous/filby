@@ -403,22 +403,10 @@ add change sets:
         # POST,KC,Kent Coast
         # POST,CA,Caistor
         # DELETE,TP,
+```
 
-# Deletes the specified enums
-# Fails if the enums are still use
-drop enum:
-  - name: park_calendar_event_type
-
-# Deletes the specified entities and associated data frames
-# Fails if the entities are still depended on by projections
-drop entities:
-  - name: park
-    version: 1
-
-# Deletes the specified projections, any associated hooks, and notifications
-drop projections:
-  - name: parks
-    version: 1
+```yaml
+# migrations/0003.drop-unused-objects.yaml
 
 # Deletes the specified hooks and assocaited notifications
 drop hooks:
@@ -427,6 +415,22 @@ drop hooks:
     event: park_v1_change
 
   - event: any_change
+
+# Deletes the specified projections, any associated hooks, and notifications
+drop projections:
+  - name: parks
+    version: 1
+
+# Deletes the specified entities and associated data frames
+# Fails if the entities are still depended on by projections
+drop entities:
+  - name: park
+    version: 1
+
+# Deletes the specified enums
+# Fails if the enums are still use
+drop enum:
+  - name: park_calendar_event_type
 ```
 
 ## Configuration
