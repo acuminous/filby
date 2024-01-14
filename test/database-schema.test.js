@@ -17,7 +17,7 @@ const config = {
   },
 };
 
-describe('Schema', () => {
+describe('Database Schema', () => {
 
   let filby;
 
@@ -77,6 +77,18 @@ describe('Schema', () => {
         return true;
       });
     });
+
+    it('should dereference dependencies when deleted', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Parks', 1)");
+        await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query('INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES (1, 1)');
+        await tx.query('DELETE FROM fby_projection');
+      });
+
+      const { rows: dependencies } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_projection_entity'));
+      eq(dependencies.length, 0);
+    });
   });
 
   describe('Hooks', () => {
@@ -108,6 +120,43 @@ describe('Schema', () => {
         eq(err.code, '23505');
         return true;
       });
+    });
+
+    it('should be deleted when the parent projection is deleted', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query("INSERT INTO fby_hook (projection_id, event) VALUES (1, 'change')");
+        await tx.query('DELETE FROM fby_projection');
+      });
+
+      const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_hook'));
+      eq(hooks.length, 0);
+    });
+  });
+
+  describe('Notifications', () => {
+    it('should be deleted when the parent projection is deleted', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query("INSERT INTO fby_hook (id, projection_id, event) VALUES (1, 1, 'change')");
+        await tx.query('INSERT INTO fby_notification (id, hook_id, projection_id) VALUES (1, 1, 1)');
+        await tx.query('DELETE FROM fby_projection');
+      });
+
+      const { rows: notifications } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_notification'));
+      eq(notifications.length, 0);
+    });
+
+    it('should be deleted when the parent hook is deleted', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query("INSERT INTO fby_hook (id, projection_id, event) VALUES (1, 1, 'change')");
+        await tx.query('INSERT INTO fby_notification (id, hook_id, projection_id) VALUES (1, 1, 1)');
+        await tx.query('DELETE FROM fby_hook');
+      });
+
+      const { rows: notifications } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_notification'));
+      eq(notifications.length, 0);
     });
   });
 

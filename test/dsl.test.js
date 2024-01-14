@@ -337,111 +337,6 @@ describe('DSL', () => {
       });
     });
 
-    it('should dereference dependent entities', async (t) => {
-      await applyYaml(t.name, `
-        add entities:
-        - name: VAT Rate
-          version: 1
-          fields:
-          - name: type
-            type: TEXT
-          - name: rate
-            type: NUMERIC
-          identified by:
-          - type
-
-        add projections:
-        - name: VAT Rates
-          version: 1
-          dependencies:
-          - entity: VAT Rate
-            version: 1
-
-        drop projections:
-        - name: VAT Rates
-          version: 1
-        `);
-      const { rows: dependencies } = await filby.withTransaction((tx) => tx.query(`
-        SELECT * FROM fby_entity e
-        INNER JOIN fby_projection_entity jt ON jt.entity_id = e.id
-        INNER JOIN fby_projection p ON p.id = jt.projection_id
-        WHERE p.name = $1
-          AND p.version = $2
-      `, ['VAT Rates', 1]));
-      eq(dependencies.length, 0);
-    });
-
-    it('should drop related hooks', async (t) => {
-      await applyYaml(t.name, `
-        add entities:
-        - name: VAT Rate
-          version: 1
-          fields:
-          - name: type
-            type: TEXT
-          - name: rate
-            type: NUMERIC
-          identified by:
-          - type
-
-        add projections:
-        - name: VAT Rates
-          version: 1
-          dependencies:
-          - entity: VAT Rate
-            version: 1
-
-        add hooks:
-        - projection: VAT Rates
-          version: 1
-          event: change
-
-        drop projections:
-        - name: VAT Rates
-          version: 1
-        `);
-      const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
-      eq(hooks.length, 0);
-    });
-
-    it('should ignore unrelated hooks', async (t) => {
-      await applyYaml(t.name, `
-        add entities:
-        - name: VAT Rate
-          version: 1
-          fields:
-          - name: type
-            type: TEXT
-          - name: rate
-            type: NUMERIC
-          identified by:
-          - type
-
-        add projections:
-        - name: VAT Rates
-          version: 1
-          dependencies:
-          - entity: VAT Rate
-            version: 1
-        - name: VAT Rates
-          version: 2
-          dependencies:
-          - entity: VAT Rate
-            version: 1
-
-        add hooks:
-        - projection: VAT Rates
-          version: 2
-          event: change
-
-        drop projections:
-        - name: VAT Rates
-          version: 1
-        `);
-      const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
-      eq(hooks.length, 1);
-    });
-
     it('should report missing projections', async (t) => {
       await rejects(() => applyYaml(t.name, `
         drop projections:
@@ -1396,6 +1291,243 @@ describe('DSL', () => {
       `), (err) => {
         match(err.message, new RegExp('^001.should-forbid-additional-properties-in-general-hooks.yaml: /add_hooks/0 must NOT have additional properties$'));
         return true;
+      });
+    });
+  });
+
+  describe('Drop Hooks', () => {
+
+    describe('Specific Projection Hooks', () => {
+      it('should drop specific projection hooks', async (t) => {
+        await applyYaml(t.name, `
+          add entities:
+          - name: VAT Rate
+            version: 1
+            fields:
+            - name: type
+              type: TEXT
+            - name: rate
+              type: NUMERIC
+            identified by:
+            - type
+
+          add projections:
+          - name: VAT Rates
+            version: 1
+            dependencies:
+            - entity: VAT Rate
+              version: 1
+
+          add hooks:
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change
+
+          drop hooks:
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change
+        `);
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
+        eq(hooks.length, 0);
+      });
+
+      it('should ignore other hooks', async (t) => {
+        await applyYaml(t.name, `
+          add entities:
+          - name: VAT Rate
+            version: 1
+            fields:
+            - name: type
+              type: TEXT
+            - name: rate
+              type: NUMERIC
+            identified by:
+            - type
+
+          add projections:
+          - name: VAT Rates
+            version: 1
+            dependencies:
+            - entity: VAT Rate
+              version: 1
+
+          add hooks:
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change A
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change B
+          - event: Any Change
+
+          drop hooks:
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change A
+        `);
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
+        eq(hooks.length, 2);
+      });
+
+      it('should report missing specific projection hooks', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change
+        `), (err) => {
+          eq(err.message, "VAT Rates v1 projection hook 'VAT Rates Change' does not exist");
+          return true;
+        });
+      });
+
+      it('should require a projection', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+          - version: 1
+            event: VAT Rates Change
+        `), (err) => {
+          match(err.message, new RegExp("^001.should-require-a-projection.yaml: /drop_hooks/0 must have required property 'projection'$"));
+          return true;
+        });
+      });
+
+      it('should require a version', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+          - projection: VAT Rates
+            event: VAT Rates Change
+        `), (err) => {
+          match(err.message, new RegExp("^001.should-require-a-version.yaml: /drop_hooks/0 must have required property 'version'$"));
+          return true;
+        });
+      });
+
+      it('should require an event', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+          - projection: VAT Rate
+            version: 1
+        `), (err) => {
+          match(err.message, new RegExp("^001.should-require-an-event.yaml: /drop_hooks/0 must have required property 'event'$"));
+          return true;
+        });
+      });
+
+      it('should forbid additional properties in specific hooks', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change
+            wombat: Freddy
+        `), (err) => {
+          match(err.message, new RegExp('^001.should-forbid-additional-properties-in-specific-hooks.yaml: /drop_hooks/0 must NOT have additional properties$'));
+          return true;
+        });
+      });
+    });
+
+    describe('General Projection Hooks', () => {
+      it('should drop general projection hooks', async (t) => {
+        await applyYaml(t.name, `
+          add entities:
+          - name: VAT Rate
+            version: 1
+            fields:
+            - name: type
+              type: TEXT
+            - name: rate
+              type: NUMERIC
+            identified by:
+            - type
+
+          add projections:
+          - name: VAT Rates
+            version: 1
+            dependencies:
+            - entity: VAT Rate
+              version: 1
+
+          add hooks:
+          - event: Any Change
+
+          drop hooks:
+          - event: Any Change
+        `);
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
+        eq(hooks.length, 0);
+      });
+
+      it('should ignore other projection hooks', async (t) => {
+        await applyYaml(t.name, `
+          add entities:
+          - name: VAT Rate
+            version: 1
+            fields:
+            - name: type
+              type: TEXT
+            - name: rate
+              type: NUMERIC
+            identified by:
+            - type
+
+          add projections:
+          - name: VAT Rates
+            version: 1
+            dependencies:
+            - entity: VAT Rate
+              version: 1
+
+          add hooks:
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change A
+          - projection: VAT Rates
+            version: 1
+            event: VAT Rates Change B
+          - event: Any Change
+
+          drop hooks:
+          - event: Any Change
+        `);
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
+        eq(hooks.length, 2);
+      });
+
+      it('should report missing general projection hooks', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+          - event: Any Change
+        `), (err) => {
+          eq(err.message, "General projection hook 'Any Change' does not exist");
+          return true;
+        });
+      });
+
+      it('should require an event', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+        `), (err) => {
+          match(err.message, new RegExp('^001.should-require-an-event.yaml: /drop_hooks must be an array$'));
+          return true;
+        });
+      });
+
+      it('should forbid additional properties in general hooks', async (t) => {
+        await rejects(() => applyYaml(t.name, `
+          drop hooks:
+          - event: VAT Rates Change
+            wombat: Freddy
+        `), (err) => {
+          match(err.message, new RegExp('^001.should-forbid-additional-properties-in-general-hooks.yaml: /drop_hooks/0 must NOT have additional properties$'));
+          return true;
+        });
       });
     });
   });

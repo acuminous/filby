@@ -38,6 +38,12 @@
     },
     "drop_projections": {
       "$ref": "#/definitions/dropProjectionsType"
+    },
+    "drop hooks": {
+      "$ref": "#/definitions/dropHooksType"
+    },
+    "drop_hooks": {
+      "$ref": "#/definitions/dropHooksType"
     }
   },
   "additionalProperties": false,
@@ -317,6 +323,51 @@
           "name",
           "version"
         ]
+      }
+    },
+    "dropHooksType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "projection": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "event": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "if": {
+          "anyOf": [
+            {
+              "required": [
+                "projection"
+              ]
+            },
+            {
+              "required": [
+                "version"
+              ]
+            }
+          ]
+        },
+        "then": {
+          "required": [
+            "projection",
+            "version",
+            "event"
+          ]
+        },
+        "else": {
+          "required": [
+            "event"
+          ]
+        }
       }
     }
   }

@@ -1,0 +1,33 @@
+{{#if hooks}}-- Drop Hooks{{/if}}
+{{#hooks}}
+DO $$
+DECLARE
+  v_hook_id INTEGER;
+BEGIN
+  {{#if (and projection version)}}
+  SELECT h.id INTO v_hook_id
+  FROM fby_hook h
+  INNER JOIN fby_projection p ON p.id = h.projection_id
+  WHERE p.name = '{{projection}}'
+    AND p.version = {{version}}
+    AND h.event = '{{event}}';
+
+  IF v_hook_id IS NULL THEN
+    RAISE EXCEPTION '{{projection}} v{{version}} projection hook ''{{event}}'' does not exist';
+  END IF;
+  {{else}}
+  SELECT h.id INTO v_hook_id
+  FROM fby_hook h
+  WHERE h.event = '{{event}}';
+
+  IF v_hook_id IS NULL THEN
+    RAISE EXCEPTION 'General projection hook ''{{event}}'' does not exist';
+  END IF;
+  {{/if}}
+
+  DELETE FROM fby_hook
+  WHERE id = v_hook_id;
+END;
+$$ LANGUAGE plpgsql;
+
+{{/hooks}}

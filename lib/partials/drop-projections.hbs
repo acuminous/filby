@@ -1,27 +1,21 @@
-  -- Drop Projections
-  {{#projections}}
-  DO $$
-  DECLARE
-    v_projection_id INTEGER;
-  BEGIN
-    SELECT id INTO v_projection_id
-      FROM fby_projection
-     WHERE name = '{{name}}'
-       AND version = {{version}};
+{{#if hooks}}-- Drop Projections{{/if}}
+{{#projections}}
+DO $$
+DECLARE
+  v_projection_id INTEGER;
+BEGIN
+  SELECT id INTO v_projection_id
+  FROM fby_projection
+  WHERE name = '{{name}}'
+    AND version = {{version}};
 
-    IF v_projection_id IS NULL THEN
-      RAISE EXCEPTION 'Projection {{name}} v{{version}} does not exist';
-    END IF;
+  IF v_projection_id IS NULL THEN
+    RAISE EXCEPTION 'Projection {{name}} v{{version}} does not exist';
+  END IF;
 
-    DELETE FROM fby_projection_entity
-     WHERE projection_id = v_projection_id;
+  DELETE FROM fby_projection
+  WHERE id = v_projection_id;
+END;
+$$ LANGUAGE plpgsql;
 
-    DELETE FROM fby_hook
-     WHERE projection_id = v_projection_id;
-
-    DELETE FROM fby_projection
-     WHERE id = v_projection_id;
-  END;
-  $$ LANGUAGE plpgsql;
-
-  {{/projections}}
+{{/projections}}

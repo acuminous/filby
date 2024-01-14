@@ -414,12 +414,13 @@ drop entities:
   - name: park
     version: 1
 
-# Deletes the specified projections and associated hooks
+# Deletes the specified projections and any associated hooks
+# including their notifications
 drop projections:
   - name: parks
     version: 1
 
-# Deletes the specified hooks
+# Deletes the specified hooks and all related notifications
 drop hooks:
   - projection: parks
     version: 1
