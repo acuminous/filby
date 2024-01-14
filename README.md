@@ -353,12 +353,14 @@ add projections:
 add hooks:
     # This is a projection specific hook, which only fires when the data
     # supporting the park v1 projection changes
+    # The event must be unique for the projection
   - projection: parks
     version: 1
     event: parks_v1_change
 
     # This is a general hook, which only fires when the data
     # supporting any projection changes
+    # The event must be unique
   - event: any_change
 ```
 

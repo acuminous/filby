@@ -79,6 +79,38 @@ describe('Schema', () => {
     });
   });
 
+  describe('Hooks', () => {
+    it('should prevent duplicate projection hooks', async () => {
+
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (2, 'Park', 2)");
+
+        await tx.query("INSERT INTO fby_hook (projection_id, event) VALUES (1, 'change')");
+        await tx.query("INSERT INTO fby_hook (projection_id, event) VALUES (2, 'change')");
+        await tx.query("INSERT INTO fby_hook (projection_id, event) VALUES (NULL ,'change')");
+      });
+
+      await rejects(async () => {
+        await filby.withTransaction(async (tx) => {
+          await tx.query("INSERT INTO fby_hook (projection_id, event) VALUES (1, 'change')");
+        });
+      }, (err) => {
+        eq(err.code, '23505');
+        return true;
+      });
+
+      await rejects(async () => {
+        await filby.withTransaction(async (tx) => {
+          await tx.query("INSERT INTO fby_hook (projection_id, event) VALUES (NULL, 'change')");
+        });
+      }, (err) => {
+        eq(err.code, '23505');
+        return true;
+      });
+    });
+  });
+
   describe('Change Sets', () => {
     it('should prevent duplicate change sets', async () => {
 
