@@ -125,6 +125,47 @@ describe('DSL', () => {
     });
   });
 
+  describe('Drop Enums', () => {
+    it('should drop enums', async (t) => {
+      await applyYaml(t.name, `
+        add enums:
+        - name: vat_tax_rate
+          values:
+            - standard
+            - reduced
+            - zero
+
+        drop enums:
+        - name: vat_tax_rate
+      `);
+      await rejects(() => filby.withTransaction((tx) => tx.query("SELECT * FROM pg_enum WHERE enumtypid = 'vat_tax_rate'::regtype")), (err) => {
+        eq(err.code, '42704');
+        return true;
+      });
+    });
+
+    it('should require a name', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        drop enums:
+          - x: meh
+      `), (err) => {
+        match(err.message, new RegExp("^001.should-require-a-name.yaml: /drop_enums/0 must have required property 'name'$"));
+        return true;
+      });
+    });
+
+    it('should forbid additional properties', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        drop enums:
+          - name: vat_tax_rate
+            wombat: Freddy
+      `), (err) => {
+        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /drop_enums/0 must NOT have additional properties$'));
+        return true;
+      });
+    });
+  });
+
   describe('Add Projections', () => {
     it('should add projections', async (t) => {
       await applyYaml(t.name, `

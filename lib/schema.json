@@ -44,6 +44,12 @@
     },
     "drop_hooks": {
       "$ref": "#/definitions/dropHooksType"
+    },
+    "drop enums": {
+      "$ref": "#/definitions/dropEnumsType"
+    },
+    "drop_enums": {
+      "$ref": "#/definitions/dropEnumsType"
     }
   },
   "additionalProperties": false,
@@ -368,6 +374,22 @@
             "event"
           ]
         }
+      }
+    },
+    "dropEnumsType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ]
       }
     }
   }
