@@ -76,7 +76,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 
 The first of the two API calls, namely `/api/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
 
-```bash
+```
 GET /api/changelog?projection=park&version=1
 ```
 
