@@ -340,7 +340,7 @@ add entities:
 # Defining projections and their dependent entities
 # Filby uses the dependencies to work out what projections are affected by reference data updates
 add projections:
-  - name: park
+  - name: parks
     version: 1
     dependencies:
       - name: park
@@ -353,13 +353,13 @@ add projections:
 add hooks:
     # This is a projection specific hook, which only fires when the data
     # supporting the park v1 projection changes
-  - projection: park
+  - projection: parks
     version: 1
-    event: park_v1_change
+    event: parks_v1_change
 
     # This is a general hook, which only fires when the data
     # supporting any projection changes
-  - event: change
+  - event: any_change
 ```
 
 ```yaml
@@ -400,6 +400,30 @@ add change sets:
         # POST,KC,Kent Coast
         # POST,CA,Caistor
         # DELETE,TP,
+
+# Deletes the specified enums
+# Will fail if the enum is still use
+drop enum:
+  - name: park_calendar_event_type
+
+# Deletes the specified entities and associated data frames
+# Will fail if the entities are still referenced by projections
+drop entities:
+  - name: park
+    version: 1
+
+# Deletes the specified projections and associated hooks
+drop projections:
+  - name: parks
+    version: 1
+
+# Deletes the specified hooks
+drop hooks:
+  - projection: parks
+    version: 1
+    event: park_v1_change
+
+  - event: any_change
 ```
 
 ## Configuration
