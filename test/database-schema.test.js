@@ -91,6 +91,33 @@ describe('Database Schema', () => {
     });
   });
 
+  describe('Entities', () => {
+
+    it('should prevent deletion when there are dependent projections', async () => {
+      await rejects(() => filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Parks', 1)");
+        await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query('INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES (1, 1)');
+        await tx.query('DELETE FROM fby_entity');
+      }), (err) => {
+        eq(err.code, '23503');
+        return true;
+      });
+    });
+
+    it('should cascade deletes to data frames', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query('INSERT INTO fby_change_set (id, effective) VALUES (1, now())');
+        await tx.query("INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES (1, 1, 1, 'POST')");
+        await tx.query('DELETE FROM fby_entity');
+      });
+
+      const { rows: frames } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_data_frame'));
+      eq(frames.length, 0);
+    });
+  });
+
   describe('Hooks', () => {
     it('should prevent duplicate projection hooks', async () => {
 

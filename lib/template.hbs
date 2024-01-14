@@ -7,6 +7,7 @@ START TRANSACTION;
 {{> addChangeSets changeSets=add_change_sets}}
 {{> dropProjections projections=drop_projections}}
 {{> dropHooks hooks=drop_hooks}}
+{{> dropEntities entities=drop_entities}}
 {{> dropEnums enums=drop_enums}}
 
 END TRANSACTION;

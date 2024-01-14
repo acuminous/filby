@@ -3,6 +3,7 @@ const path = require('node:path');
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 
+const { tableName, aggregateFunctionName } = require('../lib/helpers');
 const TestFilby = require('./TestFilby');
 
 const config = {
@@ -579,6 +580,104 @@ describe('DSL', () => {
           - type
       `), (err) => {
         match(err.message, new RegExp('^001.should-forbid-additional-properties-in-fields.yaml: /add_entities/0/fields/0 must NOT have additional properties$'));
+        return true;
+      });
+    });
+  });
+
+  describe('Drop Entities', () => {
+    it('should drop entities', async (t) => {
+      await applyYaml(t.name, `
+        add entities:
+          - name: VAT Rate
+            version: 1
+            fields:
+            - name: type
+              type: TEXT
+            - name: rate
+              type: NUMERIC
+            identified by:
+            - type
+        drop entities:
+          - name: VAT Rate
+            version: 1
+      `);
+
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_entity'));
+      eq(entities.length, 0);
+
+      const { rows: tables } = await filby.withTransaction((tx) => tx.query('SELECT * FROM information_schema.tables WHERE table_name = $1', [tableName('vat_rate', 1)]));
+      eq(tables.length, 0);
+
+      const { rows: functions } = await filby.withTransaction((tx) => tx.query('SELECT * FROM pg_proc WHERE proname = $1', [aggregateFunctionName('vat_rate', 1)]));
+      eq(functions.length, 0);
+    });
+
+    it('should ignore other entities', async (t) => {
+      await applyYaml(t.name, `
+        add entities:
+        - name: VAT Rate
+          version: 1
+          fields:
+          - name: type
+            type: TEXT
+          - name: rate
+            type: NUMERIC
+          identified by:
+          - type
+        - name: VAT Rate
+          version: 2
+          fields:
+          - name: type
+            type: TEXT
+          - name: rate
+            type: NUMERIC
+          identified by:
+          - type
+
+        drop entities:
+          - name: VAT Rate
+            version: 1
+      `);
+
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_entity'));
+      eq(entities.length, 1);
+
+      const { rows: tables } = await filby.withTransaction((tx) => tx.query('SELECT * FROM information_schema.tables WHERE table_name = $1', [tableName('vat_rate', 2)]));
+      eq(tables.length, 1);
+
+      const { rows: functions } = await filby.withTransaction((tx) => tx.query('SELECT * FROM pg_proc WHERE proname = $1', [aggregateFunctionName('vat_rate', 2)]));
+      eq(functions.length, 1);
+    });
+
+    it('should require a name', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        drop entities:
+        - version: 1
+      `), (err) => {
+        match(err.message, new RegExp("^001.should-require-a-name.yaml: /drop_entities/0 must have required property 'name'$"));
+        return true;
+      });
+    });
+
+    it('should require a version', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        drop entities:
+        - name: VAT Rate
+      `), (err) => {
+        match(err.message, new RegExp("^001.should-require-a-version.yaml: /drop_entities/0 must have required property 'version'$"));
+        return true;
+      });
+    });
+
+    it('should forbid additional properties', async (t) => {
+      await rejects(() => applyYaml(t.name, `
+        drop entities:
+        - name: VAT Rate
+          version: 1
+          wombat: Freddy
+      `), (err) => {
+        match(err.message, new RegExp('^001.should-forbid-additional-properties.yaml: /drop_entities/0 must NOT have additional properties$'));
         return true;
       });
     });

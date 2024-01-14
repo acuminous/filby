@@ -13,7 +13,7 @@ CREATE TABLE {{tableName name version}} (
   {{/each}}
 );
 
-CREATE FUNCTION get_{{tableName name version}}_aggregate(p_change_set_id INTEGER) RETURNS TABLE (
+CREATE FUNCTION {{aggregateFunctionName name version}}(p_change_set_id INTEGER) RETURNS TABLE (
   {{#fields}}
   {{name}} {{type}}{{#unless @last}},{{/unless}}
   {{/fields}}

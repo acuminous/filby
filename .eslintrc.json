@@ -17,6 +17,7 @@
     "max-classes-per-file": 0,
     "max-len": 0,
     "no-await-in-loop": 0,
+    "no-console": "error",
     "no-dynamic-require": 0,
     "no-empty-function": 0,
     "no-plusplus": 0,

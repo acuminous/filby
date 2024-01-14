@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const parseDuration = require('parse-duration');
 
 const driver = require('./lib/marv-filby-driver');
-const { tableName } = require('./lib/helpers');
+const { aggregateFunctionName } = require('./lib/helpers');
 
 module.exports = class Filby extends EventEmitter {
 
@@ -104,7 +104,7 @@ LIMIT 1`, [projection.id]);
 
   async getAggregates(changeSetId, name, version) {
     return this.withTransaction(async (tx) => {
-      const functionName = `get_${tableName(name, version)}_aggregate`;
+      const functionName = aggregateFunctionName(name, version);
       const { rowCount: exists } = await tx.query('SELECT 1 FROM pg_proc WHERE proname = $1', [functionName]);
       if (!exists) throw new Error(`Function '${functionName}' does not exist`);
 
