@@ -1,12 +1,14 @@
-import { EventEmitter2 as EventEmitter } from 'eventemitter2';
 import { PoolClient, PoolConfig } from 'pg';
 
-export default class Filby extends EventEmitter {
+export default class Filby {
   static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
   constructor(config: Config);
   init(): Promise<void>;
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
+  subscribe<T>(event: string, handler: (notification: T) => Promise<void>);
+  unsubscribe<T>(event: string, handler: (notification: T) => Promise<void>);
+  unsubscribeAll(event?: string);
   stop(): Promise<void>;
   withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
   getProjections(): Promise<Projection[]>;
@@ -47,6 +49,10 @@ export type Notification = {
   event: string;
   attempts: number;
 } & Projection;
+
+export type NotificationError = {
+  err: Error;
+} & Notification
 
 export type Entity = {
   name: string;

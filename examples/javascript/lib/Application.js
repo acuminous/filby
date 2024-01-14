@@ -44,9 +44,9 @@ module.exports = class Application {
   }
 
   async #handleHookFailures() {
-    this.#filby.on(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (err, context) => {
-      this.#logger.error('Hook failed', context);
-      this.#logger.error(err.stack);
+    this.#filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (notification) => {
+      this.#logger.error('Hook failed', notification);
+      this.#logger.error(notification.err.stack);
     });
   }
 
@@ -60,7 +60,7 @@ module.exports = class Application {
   }
 
   async #registerWebhook(event, url) {
-    this.#filby.on(event, async (context) => {
+    this.#filby.subscribe(event, async (context) => {
       await axios.post(url, context);
     });
   }

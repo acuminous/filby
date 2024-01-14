@@ -30,13 +30,13 @@ describe('Notifications', () => {
   });
 
   beforeEach(async () => {
-    filby.removeAllListeners();
+    filby.unsubscribeAll();
     await filby.wipe();
   });
 
   afterEach(async () => {
+    filby.unsubscribeAll();
     await filby.stopNotifications();
-    filby.removeAllListeners();
   });
 
   after(async () => {
@@ -55,7 +55,7 @@ describe('Notifications', () => {
           (1, 1, now())`);
     });
 
-    filby.once('VAT Rate Changed', (context) => {
+    filby.subscribe('VAT Rate Changed', (context) => {
       eq(context.event, 'VAT Rate Changed');
       deq(context.projection, { name: 'VAT Rates', version: 1 });
       eq(context.attempts, 1);
@@ -78,7 +78,7 @@ describe('Notifications', () => {
     });
 
     let attempts = 0;
-    filby.on('VAT Rate Changed', () => {
+    filby.subscribe('VAT Rate Changed', () => {
       eq(++attempts, 1);
       setTimeout(done, 1000);
     });
@@ -99,7 +99,7 @@ describe('Notifications', () => {
     });
 
     let attempt = 0;
-    filby.on('VAT Rate Changed', async () => {
+    filby.subscribe('VAT Rate Changed', async () => {
       attempt++;
       throw new Error('Oh Noes!');
     });
@@ -127,7 +127,7 @@ describe('Notifications', () => {
     });
 
     let attempt = 0;
-    filby.on('VAT Rate Changed', () => {
+    filby.subscribe('VAT Rate Changed', () => {
       attempt++;
       throw new Error(`Oh Noes! ${attempt}`);
     });
@@ -157,11 +157,11 @@ describe('Notifications', () => {
           (1, 1, now())`);
     });
 
-    filby.on('VAT Rate Changed', () => {
+    filby.subscribe('VAT Rate Changed', () => {
       throw new Error('Oh Noes!');
     });
 
-    filby.on(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (err, context) => {
+    filby.subscribe(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (err, context) => {
       eq(err.message, 'Oh Noes!');
       eq(context.event, 'VAT Rate Changed');
       deq(context.projection, { name: 'VAT Rates', version: 1 });

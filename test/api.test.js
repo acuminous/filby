@@ -32,13 +32,11 @@ describe('API', () => {
   });
 
   beforeEach(async () => {
-    filby.removeAllListeners();
     await filby.wipe();
   });
 
   afterEach(async () => {
     await filby.stopNotifications();
-    filby.removeAllListeners();
   });
 
   after(async () => {

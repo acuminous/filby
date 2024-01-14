@@ -229,23 +229,29 @@ Starts polling the database for notifications
 #### filby.stopNotifications(): Promise&lt;void&gt;
 Stops polling the database for notifications, and waits for any inflight notifications to complete.
 
-#### filby.on(event: symbol|string, callback: (...values: any[]) => void): Filby|Listener
-Filby extends [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. The event name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
+#### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T&lt;T&gt;) => Promise&lt;void&gt;): void
+Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for change notifications and perform of asynchronous tasks like making an HTTP request for a webhook. The event name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
 
 ```js
-filby.on('VAT Rate chnaged', async (context) => {
-  await axios.post('https://httpbin.org/status/200', context);
+filby.subscribe('VAT Rate changed', async (notification) => {
+  await axios.post('https://httpbin.org/status/200', notification);
 });
 ```
 
 If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a maximum number of times, with an incremental backoff delay. If the maximum attempts are exceeded then Filby emits dedicated event, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The first parameter to the callback is the Error object, and the second the Notification context, e.g.
 
 ```js
-filby.on(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (err, context) => {
-  console.error('Hook Failed', context);
-  console.error('Hook Failed', err.stack); // Careful not to log secrets that may be on the error
+filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
+  console.error('Hook Failed', notification);
+  console.error('Hook Failed', notification.err.stack); // Careful not to log secrets that may be on the error
 });
 ```
+
+#### filby.unsubscribe&lt;T&gt;(event: string, handler: (notification: T&lt;T&gt;) => Promise&lt;void&gt;): void
+Unsubscribes the handler from the specified events
+
+#### filby.unsubscribe&lt;T&gt;(event?: string): void
+Unsubscribes all handlers from the specified event, or all events if none is specified
 
 #### filby.getProjections(): Promise&lt;Projection[]&gt;
 Returns the list of projections.

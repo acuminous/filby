@@ -9,20 +9,21 @@ const parseDuration = require('parse-duration');
 const driver = require('./lib/marv-filby-driver');
 const { aggregateFunctionName } = require('./lib/helpers');
 
-module.exports = class Filby extends EventEmitter {
+module.exports = class Filby {
 
   #config;
   #maxRescheduleDelay;
   #pool;
+  #emitter;
   #scheduler;
 
   static HOOK_MAX_ATTEMPTS_EXHAUSTED = 'HOOK_ATTEMPTS_EXHAUSTED';
 
   constructor(config) {
-    super();
     this.#config = config;
     this.#maxRescheduleDelay = parseDuration(this.#config.notifications?.maxRescheduleDelay || '1h');
     this.#pool = new Pool(config.database);
+    this.#emitter = new EventEmitter();
   }
 
   async init() {
@@ -45,6 +46,18 @@ module.exports = class Filby extends EventEmitter {
 
   async stopNotifications() {
     await this.#scheduler?.stop();
+  }
+
+  subscribe(event, handler) {
+    this.#emitter.addListener(event, handler);
+  }
+
+  unsubscribe(event, handler) {
+    this.#emitter.removeListener(event, handler);
+  }
+
+  unsubscribeAll(...args) {
+    this.#emitter.removeAllListeners(...args);
   }
 
   async stop() {
@@ -127,11 +140,11 @@ LIMIT 1`, [projection.id]);
 
           const context = await this.#getNotificationContext(tx, notification);
           try {
-            await this.emitAsync(context.event, context);
+            await this.#emitter.emitAsync(context.event, context);
             await this.#passNotification(tx, notification);
           } catch (err) {
             await this.#failNotification(tx, notification, err);
-            if (notification.attempts >= maxAttempts) this.emitAsync(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, err, context);
+            if (notification.attempts >= maxAttempts) this.#emitter.emitAsync(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, err, context);
           }
 
           return true;
