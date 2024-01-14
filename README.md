@@ -404,23 +404,22 @@ add change sets:
         # DELETE,TP,
 
 # Deletes the specified enums
-# Will fail if the enum is still use
+# Fails if the enums are still use
 drop enum:
   - name: park_calendar_event_type
 
 # Deletes the specified entities and associated data frames
-# Will fail if the entities are still referenced by projections
+# Fails if the entities are still depended on by projections
 drop entities:
   - name: park
     version: 1
 
-# Deletes the specified projections and any associated hooks
-# including their notifications
+# Deletes the specified projections, any associated hooks, and notifications
 drop projections:
   - name: parks
     version: 1
 
-# Deletes the specified hooks and all related notifications
+# Deletes the specified hooks and assocaited notifications
 drop hooks:
   - projection: parks
     version: 1
