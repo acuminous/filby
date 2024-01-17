@@ -1185,13 +1185,11 @@ describe('DSL', () => {
         (yaml) => transform(yaml).del('2.frames.0.data'),
         (yaml) => transform(yaml).del('2.frames.1'),
         (yaml) => transform(yaml).del('2.frames.1'),
-        (yaml) => transform(yaml).del('3'),
-        (yaml) => transform(yaml).del('4'),
       ];
 
       const yaml = transforms.reduce((document, tx) => {
         return tx(document);
-      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3].join('\n'));
+      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET].join('\n'));
 
       await rejects(() => applyYaml(t.name, yaml), (err) => {
         eq(err.message, 'Error parsing ./test/dsl/datafiles/bad.csv:3 - Too few fields: expected 3 fields but parsed 2');
