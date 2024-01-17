@@ -1,7 +1,7 @@
-add change sets:
-  - description: Park Calendars - 2022
-    effective: 2022-01-01T00:00:00Z
-    frames:
-      - entity: park_calendar
-        version: 1
-        source: ../migrations/csv/park-opening-times-2022.csv
+- operation: ADD_CHANGE_SET
+  description: Park Calendars - 2022
+  effective: 2022-01-01T00:00:00Z
+  frames:
+    - entity: park_calendar
+      version: 1
+      source: ../migrations/csv/park-opening-times-2022.csv

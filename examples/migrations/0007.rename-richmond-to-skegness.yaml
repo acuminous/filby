@@ -1,37 +1,37 @@
-add change sets:
-  - description: Rename Richmond to Skegness
-    effective: 2021-06-01T00:00:00Z
-    frames:
-      - entity: park
-        version: 1
-        action: DELETE
-        data:
-          - code: RI
+- operation: ADD_CHANGE_SET
+  description: Rename Richmond to Skegness
+  effective: 2021-06-01T00:00:00Z
+  frames:
+    - entity: park
+      version: 1
+      action: DELETE
+      data:
+        - code: RI
 
-      - entity: park
-        version: 1
-        action: POST
-        data:
-          - code: SK
-            name: Skegness
+    - entity: park
+      version: 1
+      action: POST
+      data:
+        - code: SK
+          name: Skegness
 
-      - entity: park_calendar
-        version: 1
-        action: POST
-        data:
-          - id: 37
-            park_code: SK
-            event: Park Open - Owners
-            occurs: 2021-05-01T00:00:00Z
-          - id: 38
-            park_code: SK
-            event: Park Open - Guests
-            occurs: 2021-05-15T00:00:00Z
-          - id: 39
-            park_code: SK
-            event: Park Close - Owners
-            occurs: 2021-11-30T00:00:00Z
-          - id: 40
-            park_code: SK
-            event: Park Close - Guests
-            occurs: 2021-11-15T00:00:00Z
+    - entity: park_calendar
+      version: 1
+      action: POST
+      data:
+        - id: 37
+          park_code: SK
+          event: Park Open - Owners
+          occurs: 2021-05-01T00:00:00Z
+        - id: 38
+          park_code: SK
+          event: Park Open - Guests
+          occurs: 2021-05-15T00:00:00Z
+        - id: 39
+          park_code: SK
+          event: Park Close - Owners
+          occurs: 2021-11-30T00:00:00Z
+        - id: 40
+          park_code: SK
+          event: Park Close - Guests
+          occurs: 2021-11-15T00:00:00Z

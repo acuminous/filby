@@ -1,20 +1,19 @@
-{
-  "add change sets": [
-    {
-      "description": "Delete Greenacres",
-      "effective": "2022-05-01T00:00:00Z",
-      "frames": [
-        {
-          "entity": "park",
-          "version": 1,
-          "action": "DELETE",
-          "data": [
-            {
-              "code": "GA"
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
+[
+  {
+    "operation": "ADD_CHANGE_SET",
+    "description": "Delete Greenacres",
+    "effective": "2022-05-01T00:00:00Z",
+    "frames": [
+      {
+        "entity": "park",
+        "version": 1,
+        "action": "DELETE",
+        "data": [
+          {
+            "code": "GA"
+          }
+        ]
+      }
+    ]
+  }
+]

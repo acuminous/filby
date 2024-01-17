@@ -1,5 +1,4 @@
-{{#if changeSets}}-- Add Change Sets{{/if}}
-{{#changeSets}}
+-- add change sets {{description}}
 DO $$
 DECLARE
   v_change_set_id INTEGER;
@@ -9,6 +8,8 @@ BEGIN
   INSERT INTO fby_change_set (effective, description) VALUES
   ('{{effective}}', '{{description}}')
   RETURNING id INTO v_change_set_id;
+
+
 
   {{#frames}}
   {{#data}}
@@ -45,5 +46,3 @@ BEGIN
   {{/frames}}
 END;
 $$ LANGUAGE plpgsql;
-
-{{/changeSets}}

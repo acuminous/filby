@@ -5,7 +5,8 @@
   "description": "A proof of concept Filby application",
   "scripts": {
     "start": "node index.js",
-    "test": "zUnit"
+    "test": "zUnit",
+    "docker": "pushd ../.. && npm run docker && popd"
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",

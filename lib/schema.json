@@ -1,406 +1,552 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "JSON Schema for filby",
-  "type": "object",
-  "properties": {
-    "add enums": {
-      "$ref": "#/definitions/addEnumsType"
-    },
-    "add_enums": {
-      "$ref": "#/definitions/addEnumsType"
-    },
-    "add entities": {
-      "$ref": "#/definitions/addEntitiesType"
-    },
-    "add_entities": {
-      "$ref": "#/definitions/addEntitiesType"
-    },
-    "add projections": {
-      "$ref": "#/definitions/addProjectionsType"
-    },
-    "add_projections": {
-      "$ref": "#/definitions/addProjectionsType"
-    },
-    "add hooks": {
-      "$ref": "#/definitions/addHooksType"
-    },
-    "add_hooks": {
-      "$ref": "#/definitions/addHooksType"
-    },
-    "add change sets": {
-      "$ref": "#/definitions/addChangeSetType"
-    },
-    "add_change_sets": {
-      "$ref": "#/definitions/addChangeSetType"
-    },
-    "drop projections": {
-      "$ref": "#/definitions/dropProjectionsType"
-    },
-    "drop_projections": {
-      "$ref": "#/definitions/dropProjectionsType"
-    },
-    "drop hooks": {
-      "$ref": "#/definitions/dropHooksType"
-    },
-    "drop_hooks": {
-      "$ref": "#/definitions/dropHooksType"
-    },
-    "drop entities": {
-      "$ref": "#/definitions/dropEntitiesType"
-    },
-    "drop_entities": {
-      "$ref": "#/definitions/dropEntitiesType"
-    },
-    "drop enums": {
-      "$ref": "#/definitions/dropEnumsType"
-    },
-    "drop_enums": {
-      "$ref": "#/definitions/dropEnumsType"
-    }
-  },
-  "additionalProperties": false,
-  "definitions": {
-    "addEnumsType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
+  "title": "JSON Schema for Filby",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "allOf": [
+      {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string"
-          },
-          "values": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "values"
-        ]
-      }
-    },
-    "addEntitiesType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "integer"
-          },
-          "fields": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "type": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "name",
-                "type"
-              ]
-            }
-          },
-          "identified by": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "string"
-            }
-          },
-          "identified_by": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "string"
-            }
-          },
-          "checks": {
-            "type": "object",
-            "minProperties": 1,
-            "patternProperties": {
-              ".+": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "additionalProperties": false,
-        "oneOf": [
-          {
-            "required": [
-              "name",
-              "version",
-              "fields",
-              "identified by"
-            ]
-          },
-          {
-            "required": [
-              "name",
-              "version",
-              "fields",
-              "identified_by"
-            ]
-          }
-        ]
-      }
-    },
-    "addProjectionsType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "integer"
-          },
-          "dependencies": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "entity": {
-                  "type": "string"
-                },
-                "version": {
-                  "type": "integer"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "entity",
-                "version"
-              ]
-            }
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "name",
-          "version",
-          "dependencies"
-        ]
-      }
-    },
-    "addHooksType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "event": {
-            "$ref": "#/definitions/eventType"
-          },
-          "projection": {
-            "type": "string"
-          },
-          "version": {
-            "type": "integer"
-          }
-        },
-        "additionalProperties": false,
-        "if": {
-          "anyOf": [
-            {
-              "required": [
-                "projection"
-              ]
-            },
-            {
-              "required": [
-                "version"
-              ]
-            }
-          ]
-        },
-        "then": {
-          "required": [
-            "name",
-            "event",
-            "projection",
-            "version"
-          ]
-        },
-        "else": {
-          "required": [
-            "name",
-            "event"
-          ]
-        }
-      }
-    },
-    "addChangeSetType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "effective": {
+          "operation": {
             "type": "string",
-            "format": "date-time"
-          },
-          "description": {
-            "type": "string"
-          },
-          "frames": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "source": {
-                  "type": "string"
-                },
-                "entity": {
-                  "type": "string"
-                },
-                "version": {
-                  "type": "integer"
-                },
-                "action": {
-                  "type": "string",
-                  "enum": [
-                    "POST",
-                    "DELETE"
-                  ]
-                },
-                "data": {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "type": "object"
+            "enum": [
+              "ADD_ENUM",
+              "ADD_ENTITY",
+              "ADD_PROJECTION",
+              "ADD_HOOK",
+              "ADD_CHANGE_SET",
+              "DROP_ENUM",
+              "DROP_ENTITY",
+              "DROP_PROJECTION",
+              "DROP_HOOK"
+            ]
+          }
+        }
+      },
+      {
+        "anyOf": [
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/AddEnumOperationType"
                   }
                 }
               },
-              "additionalProperties": false,
-              "oneOf": [
-                {
-                  "required": [
-                    "entity",
-                    "version",
-                    "source"
-                  ]
-                },
-                {
-                  "required": [
-                    "entity",
-                    "version",
-                    "action",
-                    "data"
-                  ]
+              {
+                "$ref": "#/definitions/AddEnumType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/AddEntityOperationType"
+                  }
                 }
-              ]
+              },
+              {
+                "$ref": "#/definitions/AddEntityType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/AddProjectionOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/AddProjectionType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/AddHookOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/AddHookType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/AddChangeSetOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/AddChangeSetType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/DropEnumOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/DropEnumType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/DropEntityOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/DropEntityType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/DropProjectionOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/DropProjectionType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/DropHookOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/DropHookType"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "definitions": {
+    "AddEnumType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AddEnumOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "values": {
+          "$ref": "#/definitions/StringListType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name",
+        "values"
+      ]
+    },
+    "AddEntityType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AddEntityOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "type"
+            ]
+          }
+        },
+        "identified_by": {
+          "$ref": "#/definitions/StringListType"
+        },
+        "checks": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            ".+": {
+              "type": "string"
             }
           }
-        },
-        "additionalProperties": false,
-        "required": [
-          "effective",
-          "frames"
-        ]
-      }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name",
+        "version",
+        "fields",
+        "identified_by"
+      ]
     },
-    "dropProjectionsType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "integer"
-          }
+    "AddProjectionType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AddProjectionOperationType"
         },
-        "additionalProperties": false,
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "dependencies": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "entity": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "entity",
+              "version"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name",
+        "version",
+        "dependencies"
+      ]
+    },
+    "AddHookType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AddHookOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "event": {
+          "$ref": "#/definitions/EventType"
+        },
+        "projection": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "if": {
+        "anyOf": [
+          {
+            "required": [
+              "projection"
+            ]
+          },
+          {
+            "required": [
+              "version"
+            ]
+          }
+        ]
+      },
+      "then": {
         "required": [
+          "operation",
           "name",
+          "event",
+          "projection",
           "version"
         ]
-      }
-    },
-    "dropHooksType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false,
+      },
+      "else": {
         "required": [
-          "name"
-        ]
-      }
-    },
-    "dropEntitiesType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "integer"
-          }
-        },
-        "additionalProperties": false,
-        "required": [
+          "operation",
           "name",
-          "version"
+          "event"
         ]
       }
     },
-    "dropEnumsType": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          }
+    "AddChangeSetType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AddChangeSetOperationType"
         },
-        "additionalProperties": false,
-        "required": [
-          "name"
-        ]
-      }
+        "description": {
+          "type": "string"
+        },
+        "effective": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "frames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "entity": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "POST",
+                  "DELETE"
+                ]
+              },
+              "data": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "entity",
+                  "version",
+                  "source"
+                ]
+              },
+              {
+                "required": [
+                  "entity",
+                  "version",
+                  "action",
+                  "data"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "description",
+        "effective",
+        "frames"
+      ]
     },
-    "eventType": {
+    "DropEnumType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/DropEnumOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name"
+      ]
+    },
+    "DropEntityType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/DropEntityOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ]
+    },
+    "DropProjectionType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/DropProjectionOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name",
+        "version"
+      ]
+    },
+    "DropHookType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/DropHookOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name"
+      ]
+    },
+    "AddEnumOperationType": {
+      "const": "ADD_ENUM"
+    },
+    "AddEntityOperationType": {
+      "const": "ADD_ENTITY"
+    },
+    "AddProjectionOperationType": {
+      "const": "ADD_PROJECTION"
+    },
+    "AddHookOperationType": {
+      "const": "ADD_HOOK"
+    },
+    "AddChangeSetOperationType": {
+      "const": "ADD_CHANGE_SET"
+    },
+    "DropEnumOperationType": {
+      "const": "DROP_ENUM"
+    },
+    "DropEntityOperationType": {
+      "const": "DROP_ENTITY"
+    },
+    "DropProjectionOperationType": {
+      "const": "DROP_PROJECTION"
+    },
+    "DropHookOperationType": {
+      "const": "DROP_HOOK"
+    },
+    "DropChangeSetOperationType": {
+      "const": "DROP_CHANGE_SET"
+    },
+    "EventType": {
       "type": "string",
       "enum": [
         "ADD_PROJECTION",
         "DROP_PROJECTION",
         "ADD_CHANGE_SET"
       ]
+    },
+    "StringListType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "SafeStringType": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_]+$"
     }
   }
 }

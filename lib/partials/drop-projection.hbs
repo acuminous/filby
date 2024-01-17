@@ -1,0 +1,21 @@
+-- drop projection {{name}} v{{version}}
+DO $$
+DECLARE
+  v_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+    FROM fby_projection
+    WHERE name = '{{name}}'
+      AND version = {{version}}
+  ) INTO v_exists;
+
+  IF NOT v_exists THEN
+    RAISE EXCEPTION 'Projection ''{{name}} v{{version}}'' does not exist';
+  END IF;
+
+  DELETE FROM fby_projection
+  WHERE name = '{{name}}'
+    AND version = {{version}};
+END;
+$$ LANGUAGE plpgsql;

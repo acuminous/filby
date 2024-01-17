@@ -1,13 +1,5 @@
 START TRANSACTION;
-
-{{> addEnums enums=add_enums}}
-{{> addEntities entities=add_entities}}
-{{> addProjections projections=add_projections}}
-{{> addHooks hooks=add_hooks}}
-{{> addChangeSets changeSets=add_change_sets}}
-{{> dropProjections projections=drop_projections}}
-{{> dropHooks hooks=drop_hooks}}
-{{> dropEntities entities=drop_entities}}
-{{> dropEnums enums=drop_enums}}
-
+{{#each .}}
+{{partial operation }}
+{{/each}}
 END TRANSACTION;

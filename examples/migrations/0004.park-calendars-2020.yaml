@@ -1,8 +1,8 @@
-add change sets:
-  - description: Park Calendars - 2020
-    effective: 2020-01-01T00:00:00Z
-    frames:
-      - entity: park_calendar
-        version: 1
-        action: POST
-        source: ../migrations/csv/park-opening-times-2020.csv
+- operation: ADD_CHANGE_SET
+  description: Park Calendars - 2020
+  effective: 2020-01-01T00:00:00Z
+  frames:
+    - entity: park_calendar
+      version: 1
+      action: POST
+      source: ../migrations/csv/park-opening-times-2020.csv

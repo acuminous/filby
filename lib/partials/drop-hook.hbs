@@ -1,5 +1,4 @@
-{{#if hooks}}-- Drop Hooks{{/if}}
-{{#hooks}}
+-- drop hooks {{name}}
 DO $$
 DECLARE
   v_hook_id INTEGER;
@@ -16,5 +15,3 @@ BEGIN
   WHERE id = v_hook_id;
 END;
 $$ LANGUAGE plpgsql;
-
-{{/hooks}}

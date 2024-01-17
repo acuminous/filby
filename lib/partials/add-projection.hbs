@@ -1,13 +1,17 @@
-{{#if projections}}-- Add Projections{{/if}}
-{{#projections}}
+-- add projection {{name}} v{{version}}
 DO $$
 DECLARE
   v_projection_id INTEGER;
   v_entity_id INTEGER;
 BEGIN
-  INSERT INTO fby_projection (name, version) VALUES
-  ('{{name}}', {{version}})
-  RETURNING id INTO v_projection_id;
+  BEGIN
+    INSERT INTO fby_projection (name, version) VALUES
+    ('{{name}}', {{version}})
+    RETURNING id INTO v_projection_id;
+  EXCEPTION
+    WHEN unique_violation
+    THEN RAISE EXCEPTION 'Projection ''{{name}} v{{version}}'' already exists';
+  END;
 
   {{#dependencies}}
   SELECT id INTO v_entity_id
@@ -20,5 +24,3 @@ BEGIN
   {{/dependencies}}
 END;
 $$ LANGUAGE plpgsql;
-
-{{/projections}}

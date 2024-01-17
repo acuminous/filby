@@ -5,7 +5,8 @@
   "description": "An example project using Filby",
   "scripts": {
     "start": "ts-node index.ts",
-    "test": "ts-node test"
+    "test": "ts-node test",
+    "docker": "pushd ../.. && npm run docker && popd"
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",

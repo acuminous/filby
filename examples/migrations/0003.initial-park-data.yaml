@@ -1,17 +1,17 @@
-add change sets:
-  - description: Initial Data
-    effective: 2019-01-01T00:00:00Z
-    frames:
-      - entity: park
-        version: 1
-        action: POST
-        data:
-          - code: DC
-            name: Devon Cliffs
-          - code: PV
-            name: Primrose Valley
-          - code: GA
-            name: Greenacres
-      - entity: park_calendar
-        version: 1
-        source: ../migrations/csv/park-opening-times-2019.csv
+- operation: ADD_CHANGE_SET
+  description: Initial Data
+  effective: 2019-01-01T00:00:00Z
+  frames:
+    - entity: park
+      version: 1
+      action: POST
+      data:
+        - code: DC
+          name: Devon Cliffs
+        - code: PV
+          name: Primrose Valley
+        - code: GA
+          name: Greenacres
+    - entity: park_calendar
+      version: 1
+      source: ../migrations/csv/park-opening-times-2019.csv

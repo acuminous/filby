@@ -1,6 +1,14 @@
-{{#if entities}}-- Add Entities{{/if}}
-{{#entities}}
-INSERT INTO fby_entity (name, version) VALUES ('{{name}}', {{version}});
+-- add entity {{name}} v{{version}}
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO fby_entity (name, version) VALUES ('{{name}}', {{version}});
+  EXCEPTION
+    WHEN unique_violation
+    THEN RAISE EXCEPTION 'Entity ''{{name}} v{{version}}'' already exists';
+  END;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE TABLE {{tableName name version}} (
   fby_frame_id INTEGER PRIMARY KEY REFERENCES fby_data_frame (id),
@@ -39,5 +47,3 @@ BEGIN
   WHERE a.fby_action <> 'DELETE';
 END;
 $$ LANGUAGE plpgsql;
-
-{{/entities}}

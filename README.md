@@ -318,117 +318,123 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 
 # Add enums for your reference data
 # Equivalent of PostgreSQL's CREATE TYPE statement
-add enums:
-  - name: park_calendar_event_type
-    values:
-      - Park Open - Owners
-      - Park Open - Guests
-      - Park Close - Owners
-      - Park Close - Guests
+- operation: ADD_ENUM
+  name: park_calendar_event_type
+  values:
+    - Park Open - Owners
+    - Park Open - Guests
+    - Park Close - Owners
+    - Park Close - Guests
 
 # Adding entities performs the following:
 # 1. Inserts a row into the 'fby_entity' table,
 # 2. Creates a table 'park_v1' for holding reference data
 # 3. Creates an aggregate function 'get_park_v1_aggregate' to be used by projections
-add entities:
-  - name: park
-    version: 1
-    fields:
-      - name: code
-        type: TEXT # Any valid PostgreSQL type (including enums) are supported
-      - name: name
-        type: TEXT
-    identified by:
-      - code # Used to aggregate the data frames
-    checks:
-      park_code_len: LENGTH(code) >= 2 # Creates PostgreSQL check constraints
+- operation: ADD_ENTITY
+  name: park
+  version: 1
+  fields:
+    - name: code
+      type: TEXT # Any valid PostgreSQL type (including enums) are supported
+    - name: name
+      type: TEXT
+  identified_by:
+    - code # Used to aggregate the data frames
+  checks:
+    park_code_len: LENGTH(code) >= 2 # Creates PostgreSQL check constraints
 
 # Defining projections and their dependent entities
 # Filby uses the dependencies to work out what projections are affected by reference data updates
-add projections:
-  - name: parks
-    version: 1
-    dependencies:
-      - name: park
-        version: 1
-      - name: calendar
-        version: 1
+- operation: ADD_PROJECTION
+  name: parks
+  version: 1
+  dependencies:
+    - name: park
+      version: 1
+    - name: calendar_event
+      version: 1
 
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
 # reference data the projection changes.
-add hooks:
-    # This is a projection specific hook, which only fires when the data
-    # supporting the park v1 projection changes
-    # The event must be unique for the projection
-  - name: search-service/add-change-set/parks-v1
-    event: ADD_CHANGE_SET
-    projection: parks
-    version: 1
 
-    # This is a general hook, which only fires when the data
-    # supporting any projection changes
-    # The event must be unique
-  - name: data-lake/add-change-set/*
-    event: ADD_CHANGE_SET
+# This is a projection specific hook which fires when the data
+# supporting the specified projection changes
+- operation: ADD_HOOK
+  name: sns/add-change-set/parks-v1 # Must be unique
+  event: ADD_CHANGE_SET
+  projection: Parks
+  version: 1
+
+# This is a general hook that fires when the data
+# supporting any projection changes
+- operation: ADD_HOOK
+  name: data-lake/add-change-set/* # Must be unique
+  event: ADD_CHANGE_SET
 ```
 
 ```yaml
 # migrations/0002.initial-data-load.yaml
 
 # Add a change set containing one or more data frames for the previously defined entities
-add change sets:
-  - description: Initial Data
-    effective: 2019-01-01T00:00:00Z
-    frames:
-      - entity: park
-        version: 1
-        action: POST
-        data:
-            # Adds a data frame for Devon Cliffs
-          - code: DC
-            name: Devon Cliffs
-            # Adds a data frame for Primrose Valley
-          - code: PV
-            name: Primrose Valley
+- operation: ADD_CHANGE_SET
+  description: Initial Data
+  effective: 2019-01-01T00:00:00Z
+  frames:
+    - entity: park
+      version: 1
+      action: POST
+      data:
+          # Adds a data frame for Devon Cliffs
+        - code: DC
+          name: Devon Cliffs
+          # Adds a data frame for Primrose Valley
+        - code: PV
+          name: Primrose Valley
 
-      - entity: park
-        version: 1
-        # Adds a data frame that will delete the entity identified
-        # by code HF from the effective data
-        action: DELETE
-        data:
-          - code: HF
+    - entity: park
+      version: 1
+      # Adds a data frame that will delete the entity identified
+      # by code HF from the effective data
+      action: DELETE
+      data:
+        - code: HF
 
-        # YAML can get verbose, so you can also import data frames from a local CSV
-        # The CSV requires a header row, starting with the action column and
-        # followed by the column names of your entity. When deleting data you
-        # only need to include the fields that identify the entity
-      - entity: park
-        version: 1
-        source: ./data/park-data-2019.csv
-        # action,code,name
-        # POST,KC,Kent Coast
-        # POST,CA,Caistor
-        # DELETE,TP,
+      # YAML can get verbose, so you can also import data frames from a local CSV
+      # The CSV requires a header row, starting with the action column and
+      # followed by the column names of your entity. When deleting data you
+      # only need to include the fields that identify the entity
+    - entity: park
+      version: 1
+      source: ./data/park-data-2019.csv
+      # action,code,name
+      # POST,KC,Kent Coast
+      # POST,CA,Caistor
+      # DELETE,TP,
 ```
 
 ```yaml
 # migrations/0003.drop-unused-objects.yaml
 
-# Deletes the specified hooks and associated notifications
-drop hooks:
-  - name: search-service/add-change-set/park-v1
-
-# Deletes the specified entities and associated data frames
-# Fails if the entities are still depended on by projections
-drop entities:
-  - name: park
-    version: 1
-
-# Deletes the specified enums
+# Deletes the specified enum
 # Fails if the enums are still use
-drop enum:
-  - name: park_calendar_event_type
+- operation: DROP_ENUM
+  name: park_calendar_event_type
+
+# Deletes the specified entity and associated data frames
+# Fails if the entities are still depended on by projections
+- operation: DROP_ENTITY
+  name: park
+  version: 1
+
+# Deletes the specified projection and associated hooks
+# Fails if the entities are still depended on by projections
+- operation: DROP_PROJECTION
+  name: parks
+  version: 1
+
+# Deletes the specified hook and associated notifications
+- operation: DROP_HOOK
+  name: sns/add-change-set/park-v1
 ```
 
 ## Configuration

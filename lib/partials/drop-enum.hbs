@@ -1,0 +1,18 @@
+-- drop enum {{name}}
+DO $$
+DECLARE
+  v_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_type
+    WHERE typname = '{{name}}' AND typtype = 'e'
+  ) INTO v_exists;
+
+  IF NOT v_exists THEN
+    RAISE EXCEPTION 'Enum ''{{name}}'' does not exist';
+  END IF;
+
+  DROP TYPE {{name}};
+END;
+$$ LANGUAGE plpgsql;

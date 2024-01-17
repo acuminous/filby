@@ -1,5 +1,4 @@
-{{#if hooks}}-- Add Hooks{{/if}}
-{{#hooks}}
+-- add hook {{name}}
 DO $$
 DECLARE
   v_projection_id INTEGER;
@@ -12,8 +11,12 @@ BEGIN
     AND version = {{version}};
   {{/if}}
   {{/if}}
-  INSERT INTO fby_hook (name, event, projection_id) VALUES ('{{name}}', '{{event}}', v_projection_id);
-END;
 
+  BEGIN
+    INSERT INTO fby_hook (name, event, projection_id) VALUES ('{{name}}', '{{event}}', v_projection_id);
+  EXCEPTION
+    WHEN unique_violation
+    THEN RAISE EXCEPTION 'Hook ''{{name}}'' already exists';
+  END;
+END;
 $$ LANGUAGE plpgsql;
-{{/hooks}}

@@ -1,0 +1,15 @@
+-- add enum {{name}}
+DO $$
+BEGIN
+  BEGIN
+    CREATE TYPE {{name}} AS ENUM (
+      {{#values}}
+      '{{this}}'{{#unless @last}},{{/unless}}
+      {{/values}}
+    );
+  EXCEPTION
+    WHEN duplicate_object
+    THEN RAISE EXCEPTION 'Enum ''{{name}}'' already exists';
+  END;
+END;
+$$ LANGUAGE plpgsql;
