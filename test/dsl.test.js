@@ -29,6 +29,8 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
     await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
     await tx.query('DROP TYPE IF EXISTS cgt_tax_rate');
+    await tx.query('DROP TYPE IF EXISTS pwned');
+    await tx.query('DROP TYPE IF EXISTS "pwned AS ENUM (); RAISE EXCEPTION $💀$You have been pwned!$"');
   },
 };
 
@@ -201,6 +203,12 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape name', async (t) => {
+      await applyYaml(t.name, transform(ADD_ENUM).set('0.name', 'pwned AS ENUM (); RAISE EXCEPTION $💀$You have been pwned!$💀$; CREATE TYPE vat_tax_rate'));
+      const { rows: labels } = await filby.withTransaction((tx) => tx.query("SELECT * FROM pg_type WHERE typname LIKE 'pwned%' AND typtype = 'e'"));
+      eq(labels.length, 1);
+    });
+
     it('should require at least one value', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENUM).del('0.values')), (err) => {
         eq(err.message, "001.should-require-at-least-one-value.yaml: /0 must have required property 'values'");
@@ -221,6 +229,13 @@ describe('DSL', () => {
     it('should require values to be strings', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENUM).set('0.values.0', 1)), (err) => {
         eq(err.message, "001.should-require-values-to-be-strings.yaml: /0/values/0 must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should escape values', async (t) => {
+      await rejects(applyYaml(t.name, transform(ADD_ENUM).set('0.values.0', "pwned'); RAISE EXCEPTION $💀$You have been pwned!$💀$; CREATE TYPE pwned AS ENUM ('standard")), (err) => {
+        eq(err.code, '42602');
         return true;
       });
     });
