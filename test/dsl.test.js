@@ -225,6 +225,17 @@ describe('DSL', () => {
       });
     });
 
+    it('should allow a description', async (t) => {
+      await applyYaml(t.name, transform(ADD_ENUM).merge('0.description', 'wombat'));
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_ENUM).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
+        return true;
+      });
+    });
+
     it('should forbid additional properties', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENUM).merge('0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
@@ -267,6 +278,17 @@ describe('DSL', () => {
     it('should require name to be a string', async (t) => {
       await rejects(() => applyYaml(t.name, transform(DROP_ENUM).set('0.name', 1)), (err) => {
         eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should allow a description', async (t) => {
+      await applyYaml(t.name, ADD_ENUM, transform(DROP_ENUM).merge('0.description', 'wombat'));
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(DROP_ENUM).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
         return true;
       });
     });
@@ -408,6 +430,17 @@ describe('DSL', () => {
       });
     });
 
+    it('should allow a description', async (t) => {
+      await applyYaml(t.name, transform(ADD_ENTITY).merge('0.description', 'wombat'));
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
+        return true;
+      });
+    });
+
     it('should forbid additional properties', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).merge('0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
@@ -480,6 +513,17 @@ describe('DSL', () => {
     it('should require version to be a string', async (t) => {
       await rejects(() => applyYaml(t.name, transform(DROP_ENTITY).set('0.version', 'wombat')), (err) => {
         eq(err.message, "001.should-require-version-to-be-a-string.yaml: /0/version must be of type 'integer'");
+        return true;
+      });
+    });
+
+    it('should allow a description', async (t) => {
+      await applyYaml(t.name, ADD_ENTITY, transform(DROP_ENTITY).merge('0.description', 'wombat'));
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(DROP_ENTITY).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
         return true;
       });
     });
@@ -596,6 +640,17 @@ describe('DSL', () => {
       });
     });
 
+    it('should allow a description', async (t) => {
+      await applyYaml(t.name, transform(ADD_ENTITY, ADD_PROJECTION).merge('0.description', 'wombat'));
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
+        return true;
+      });
+    });
+
     it('should forbid additional properties', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION).merge('0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
@@ -657,6 +712,17 @@ describe('DSL', () => {
     it('should report missing projections', async (t) => {
       await rejects(() => applyYaml(t.name, DROP_PROJECTION), (err) => {
         eq(err.message, "Projection 'VAT Rates v1' does not exist");
+        return true;
+      });
+    });
+
+    it('should allow a description', async (t) => {
+      await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(DROP_PROJECTION).merge('0.description', 'wombat'));
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
         return true;
       });
     });
@@ -892,6 +958,17 @@ describe('DSL', () => {
         });
       });
 
+      it('should allow a description', async (t) => {
+        await applyYaml(t.name, transform(ADD_PROJECTION_HOOK).merge('0.description', 'wombat'));
+      });
+
+      it('should require description to be a string', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).merge('0.description', 1)), (err) => {
+          eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
+          return true;
+        });
+      });
+
       it('should forbid additional properties', async (t) => {
         await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).merge('0', { wombat: 1 })), (err) => {
           eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
@@ -936,6 +1013,17 @@ describe('DSL', () => {
         });
       });
 
+      it('should allow a description', async (t) => {
+        await applyYaml(t.name, transform(ADD_GENERAL_HOOK).merge('0.description', 'wombat'));
+      });
+
+      it('should require description to be a string', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_GENERAL_HOOK).merge('0.description', 1)), (err) => {
+          eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
+          return true;
+        });
+      });
+
       it('should forbid additional properties', async (t) => {
         await rejects(() => applyYaml(t.name, transform(ADD_GENERAL_HOOK).merge('0', { wombat: 1 })), (err) => {
           eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
@@ -963,7 +1051,14 @@ describe('DSL', () => {
   projection: VAT Rates
   version: 1
 `;
-        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_PROJECTION_HOOK, ADD_ANOTHER_PROJECTION_HOOK, DROP_PROJECTION_HOOK);
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          ADD_PROJECTION_HOOK,
+          ADD_ANOTHER_PROJECTION_HOOK,
+          DROP_PROJECTION_HOOK,
+        );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
         eq(hooks.length, 1);
@@ -979,6 +1074,23 @@ describe('DSL', () => {
       it('should require name to be a string', async (t) => {
         await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION_HOOK).set('0.name', 1)), (err) => {
           eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
+          return true;
+        });
+      });
+
+      it('should allow a description', async (t) => {
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          ADD_PROJECTION_HOOK,
+          transform(DROP_PROJECTION_HOOK).merge('0.description', 'wombat'),
+        );
+      });
+
+      it('should require description to be a string', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION_HOOK).merge('0.description', 1)), (err) => {
+          eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
       });
@@ -1028,6 +1140,17 @@ describe('DSL', () => {
       it('should require name to be a string', async (t) => {
         await rejects(() => applyYaml(t.name, transform(DROP_GENERAL_HOOK).set('0.name', 1)), (err) => {
           eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
+          return true;
+        });
+      });
+
+      it('should allow a description', async (t) => {
+        await applyYaml(t.name, ADD_GENERAL_HOOK, transform(DROP_GENERAL_HOOK).merge('0.description', 'wombat'));
+      });
+
+      it('should require description to be a string', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_GENERAL_HOOK).merge('0.description', 1)), (err) => {
+          eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
       });

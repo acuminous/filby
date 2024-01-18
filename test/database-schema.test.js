@@ -220,7 +220,7 @@ describe('Database Schema', () => {
       });
 
       const changeSet = await filby.getChangeSet(1);
-      ok(changeSet.lastModified >= checkpoint);
+      ok(changeSet.lastModified >= checkpoint, `${changeSet.lastModified} was less than ${checkpoint}`);
     });
 
     it('should default entity tag to random hex', async () => {
