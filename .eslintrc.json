@@ -26,7 +26,7 @@
     "no-unused-vars": [
       "error",
       {
-        "varsIgnorePattern": "^debug|ok|eq|neq|deq|match|throws|rejects|describe|it|before|after|beforeEach|afterEach$",
+        "varsIgnorePattern": "^_|debug|ok|eq|neq|deq|match|throws|rejects|describe|it|before|after|beforeEach|afterEach$",
         "argsIgnorePattern": "^_\\w+"
       }
     ],

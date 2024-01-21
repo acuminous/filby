@@ -1,4 +1,4 @@
--- drop entity {{name}} v{{version}}
+-- drop entity
 DO $$
 DECLARE
   v_exists BOOLEAN;
@@ -6,20 +6,20 @@ BEGIN
   SELECT EXISTS (
     SELECT 1
     FROM fby_entity
-    WHERE name = '{{name}}'
-      AND version = {{version}}
+    WHERE name = {{literal name}}
+      AND version = {{literal version}}
   ) INTO v_exists;
 
   IF NOT v_exists THEN
-    RAISE EXCEPTION 'Entity ''{{name}} v{{version}}'' does not exist';
+    RAISE EXCEPTION 'Entity '{{literal name (v version)}}' does not exist';
   END IF;
 
   DELETE FROM fby_entity
-  WHERE name = '{{name}}'
-    AND version = {{version}};
+  WHERE name = {{literal name}}
+    AND version = {{literal version}};
 
-  DROP TABLE {{tableName name version}};
+  DROP TABLE {{identifier (table name version)}};
 
-  DROP FUNCTION {{aggregateFunctionName name version}};
+  DROP FUNCTION {{identifier (aggregate name version)}};
 END;
 $$ LANGUAGE plpgsql;

@@ -1,15 +1,15 @@
--- add enum {{escapeIdentifier name}}
+-- add enum
 DO $$
 BEGIN
   BEGIN
-    CREATE TYPE {{escapeIdentifier name}} AS ENUM (
+    CREATE TYPE {{identifier name}} AS ENUM (
       {{#values}}
-      {{escapeLiteral this}}{{#unless @last}},{{/unless}}
+      {{literal this}}{{#unless @last}},{{/unless}}
       {{/values}}
     );
   EXCEPTION
     WHEN duplicate_object
-    THEN RAISE EXCEPTION 'Enum '{{escapeLiteral name}}' already exists';
+    THEN RAISE EXCEPTION 'Enum '{{literal name}}' already exists';
   END;
 END;
 $$ LANGUAGE plpgsql;

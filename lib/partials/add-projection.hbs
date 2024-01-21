@@ -1,4 +1,4 @@
--- add projection {{name}} v{{version}}
+-- add projection
 DO $$
 DECLARE
   v_projection_id INTEGER;
@@ -6,18 +6,18 @@ DECLARE
 BEGIN
   BEGIN
     INSERT INTO fby_projection (name, version) VALUES
-    ('{{name}}', {{version}})
+    ({{literal name}}, {{literal version}})
     RETURNING id INTO v_projection_id;
   EXCEPTION
     WHEN unique_violation
-    THEN RAISE EXCEPTION 'Projection ''{{name}} v{{version}}'' already exists';
+    THEN RAISE EXCEPTION 'Projection '{{literal name (v version)}}' already exists';
   END;
 
   {{#dependencies}}
   SELECT id INTO v_entity_id
   FROM fby_entity
-  WHERE name = '{{entity}}'
-    AND version = {{version}};
+  WHERE name = {{literal entity}}
+    AND version = {{literal version}};
 
   INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
   (v_projection_id, v_entity_id);

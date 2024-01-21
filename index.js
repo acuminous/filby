@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const parseDuration = require('parse-duration');
 
 const driver = require('./lib/marv-filby-driver');
-const { aggregateFunctionName } = require('./lib/helpers');
+const { aggregate } = require('./lib/helpers');
 
 module.exports = class Filby {
 
@@ -30,13 +30,13 @@ module.exports = class Filby {
     const filbyMigrationsDir = path.join(__dirname, 'migrations');
     const customMigrationsDir = this.#config.migrations || 'migrations';
 
-    await this.#migrate(this.#config.database, filbyMigrationsDir);
-    await this.#migrate(this.#config.database, path.resolve(customMigrationsDir));
+    await this.#migrate(this.#config, filbyMigrationsDir);
+    await this.#migrate(this.#config, path.resolve(customMigrationsDir));
   }
 
-  async #migrate(connection, directory) {
+  async #migrate(config, directory) {
     const migrations = await marv.scan(directory);
-    await marv.migrate(migrations, driver({ connection }));
+    await marv.migrate(migrations, driver(config));
   }
 
   async startNotifications() {
@@ -117,7 +117,7 @@ LIMIT 1`, [projection.id]);
 
   async getAggregates(changeSetId, name, version) {
     return this.withTransaction(async (tx) => {
-      const functionName = aggregateFunctionName(name, version);
+      const functionName = aggregate(name, version);
       const { rowCount: exists } = await tx.query('SELECT 1 FROM pg_proc WHERE proname = $1', [functionName]);
       if (!exists) throw new Error(`Function '${functionName}' does not exist`);
 

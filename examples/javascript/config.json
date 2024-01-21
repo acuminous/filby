@@ -15,6 +15,9 @@
     "password": "fby_example"
   },
   "filby": {
+    "dsl": {
+      "enableCheckConstraints": true
+    },
     "migrations": "../migrations",
     "notifications": {
       "interval": "5s",

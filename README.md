@@ -340,8 +340,11 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
       type: TEXT
   identified_by:
     - code # Used to aggregate the data frames
+
+  # Creates PostgreSQL check constraints
+  # This must be explicitly enabled in config since they introduce the potential for SQL Injection
   checks:
-    park_code_len: LENGTH(code) >= 2 # Creates PostgreSQL check constraints
+    park_code_len: LENGTH(code) >= 2
 
 # Defining projections and their dependent entities
 # Filby uses the dependencies to work out what projections are affected by reference data updates
@@ -440,6 +443,12 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 ## Configuration
 ```js
 {
+  "dsl": {
+    // Enables PostgreSQL check constraints (defaults to false).
+    // Check constraints carry an inherent risk of SQL injection since the expression cannot be escaped or validated
+    "enableCheckConstraints": true
+  }
+
   // All the database configuration is passed through to https://www.npmjs.com/package/pg
   "database": {
     "user": "fby_example",

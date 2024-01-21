@@ -1,14 +1,14 @@
--- drop hooks {{name}}
+-- drop hook
 DO $$
 DECLARE
   v_hook_id INTEGER;
 BEGIN
   SELECT h.id INTO v_hook_id
   FROM fby_hook h
-  WHERE h.name = '{{name}}';
+  WHERE h.name = {{literal name}};
 
   IF v_hook_id IS NULL THEN
-    RAISE EXCEPTION 'Hook ''{{name}}'' does not exist';
+    RAISE EXCEPTION 'Hook '{{literal name}}' does not exist';
   END IF;
 
   DELETE FROM fby_hook

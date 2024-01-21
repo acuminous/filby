@@ -1,0 +1,11 @@
+SELECT id INTO v_entity_id
+FROM fby_entity
+WHERE name = {{literal entity}}
+  AND version = {{literal version}};
+
+INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+(v_change_set_id, v_entity_id, {{literal action}})
+RETURNING id INTO v_frame_id;
+
+INSERT INTO {{identifier (table entity version)}} (fby_frame_id, {{#xkeys data}}{{identifier item}}{{#unless isLast}},{{/unless}}{{/xkeys}}) VALUES
+(v_frame_id, {{#xvalues data}}{{literal item}}{{#unless isLast}}, {{/unless}}{{/xvalues}});

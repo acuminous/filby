@@ -1,4 +1,4 @@
--- add hook {{name}}
+-- add hook
 DO $$
 DECLARE
   v_projection_id INTEGER;
@@ -7,16 +7,20 @@ BEGIN
   {{#if (and projection version)}}
   SELECT id INTO v_projection_id
   FROM fby_projection
-  WHERE name = '{{projection}}'
-    AND version = {{version}};
+  WHERE name = {{literal projection}}
+    AND version = {{literal version}};
+
+  IF v_projection_id IS NULL THEN
+    RAISE EXCEPTION 'Hook '{{literal name}}' references a non existent projection '{{literal projection (v version)}}'';
+  END IF;
   {{/if}}
   {{/if}}
 
   BEGIN
-    INSERT INTO fby_hook (name, event, projection_id) VALUES ('{{name}}', '{{event}}', v_projection_id);
+    INSERT INTO fby_hook (name, event, projection_id) VALUES ({{literal name}}, {{literal event}}, v_projection_id);
   EXCEPTION
     WHEN unique_violation
-    THEN RAISE EXCEPTION 'Hook ''{{name}}'' already exists';
+    THEN RAISE EXCEPTION 'Hook '{{literal name}}' already exists';
   END;
 END;
 $$ LANGUAGE plpgsql;

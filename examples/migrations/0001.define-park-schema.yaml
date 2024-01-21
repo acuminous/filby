@@ -17,7 +17,7 @@
   identified_by:
     - code
   checks:
-    park_code_len: LENGTH(code) >= 2
+    park_code_len: (LENGTH(code) >= 2)
 
 - operation: ADD_ENTITY
   name: park_calendar

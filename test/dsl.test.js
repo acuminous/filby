@@ -5,8 +5,8 @@ const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
 
-const { tableName, aggregateFunctionName } = require('../lib/helpers');
 const TestFilby = require('./TestFilby');
+const { table } = require('../lib/helpers');
 
 const config = {
   migrations: 'test/dsl',
@@ -30,7 +30,9 @@ const config = {
     await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
     await tx.query('DROP TYPE IF EXISTS cgt_tax_rate');
     await tx.query('DROP TYPE IF EXISTS pwned');
-    await tx.query('DROP TYPE IF EXISTS "pwned AS ENUM (); RAISE EXCEPTION $💀$You have been pwned!$"');
+    await tx.query('DROP TYPE IF EXISTS "pwned_as_enum_();_raise_exception_$💀$you_have_been_pwned!$💀$;_create_type_vat_tax_rate"');
+    await tx.query('DROP TABLE IF EXISTS "pwned\',_1);raise_exception_$💀$you_have_been_pwned!$💀$;_v1"');
+    await tx.query('DROP FUNCTION IF EXISTS "get_pwned\',_1);raise_exception_$💀$you_have_been_pwned!$💀$;_v1_aggregate"');
   },
 };
 
@@ -297,6 +299,13 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape name', async (t) => {
+      await rejects(() => applyYaml(t.name, ADD_ENUM, transform(DROP_ENUM).set('0.name', 'vat_tax_rate; RAISE EXCEPTION $💀$You have been pwned!$💀$;')), (err) => {
+        eq(err.message, "Enum 'vat_tax_rate; RAISE EXCEPTION $💀$You have been pwned!$💀$;' does not exist");
+        return true;
+      });
+    });
+
     it('should allow a description', async (t) => {
       await applyYaml(t.name, ADD_ENUM, transform(DROP_ENUM).merge('0.description', 'wombat'));
     });
@@ -355,6 +364,13 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape name', async (t) => {
+      await applyYaml(t.name, transform(ADD_ENTITY).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"));
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
+      eq(entities.length, 1);
+      deq(entities[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", version: 1 });
+    });
+
     it('should require a version', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).del('0.version')), (err) => {
         eq(err.message, "001.should-require-a-version.yaml: /0 must have required property 'version'");
@@ -400,6 +416,25 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape field names', async (t) => {
+      const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+
+      const transforms = [
+        (yaml) => transform(yaml).set('0.fields.0.name', injection),
+        (yaml) => transform(yaml).set('0.identified_by', [injection]),
+      ];
+
+      const yaml = transforms.reduce((document, tx) => {
+        return tx(document);
+      }, [ADD_ENTITY].join('\n'));
+
+      await applyYaml(t.name, yaml);
+
+      const { rows: columns } = await filby.withTransaction((tx) => tx.query("SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'vat_rate_v1';"));
+      eq(columns.length, 3);
+      eq(columns[1].name, "pwned',_1);raise_exception_$💀$you_have_been_pwned!$💀$;");
+    });
+
     it('should require fields to have a type', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).del('0.fields.0.type')), (err) => {
         eq(err.message, "001.should-require-fields-to-have-a-type.yaml: /0/fields/0 must have required property 'type'");
@@ -421,6 +456,13 @@ describe('DSL', () => {
       });
     });
 
+    it('should protect field types from sql injections', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.0.type', 'TEXT);RAISE EXCEPTION $💀$You have been pwned!$💀$;')), (err) => {
+        eq(err.message, "Invalid PostgreSQL TYPE 'TEXT);RAISE EXCEPTION $💀$You have been pwned!$💀$;'");
+        return true;
+      });
+    });
+
     it('should require at least one identifier column', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).del('0.identified_by')), (err) => {
         eq(err.message, "001.should-require-at-least-one-identifier-column.yaml: /0 must have required property 'identified_by'");
@@ -434,6 +476,20 @@ describe('DSL', () => {
 
       await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).set('0.identified_by', [])), (err) => {
         eq(err.message, '001.should-require-at-least-one-identifier-column.yaml: /0/identified_by must NOT have fewer than 1 items');
+        return true;
+      });
+    });
+
+    it('should require identifiers to be strings', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).set('0.identified_by.0', 1)), (err) => {
+        eq(err.message, "001.should-require-identifiers-to-be-strings.yaml: /0/identified_by/0 must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should require identifiers to be entity field names', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).set('0.identified_by.0', 'wombat')), (err) => {
+        eq(err.message, "Identifier 'wombat' does not match one of the 'VAT Rate' entity field names");
         return true;
       });
     });
@@ -456,6 +512,35 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject checks by default', async (t) => {
+      await rejects(() => applyYaml(
+        t.name,
+        transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' }),
+      ), (err) => {
+        eq(err.message, 'Check constraints must be explicity enabled in the Filby config due to risk of SQL Injection');
+        return true;
+      });
+    });
+
+    it('should honour checks when enabled', async (t) => {
+      filby = new TestFilby(op.set(config, 'dsl.enableCheckConstraints', true));
+      await rejects(() => applyYaml(
+        t.name,
+        transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' }),
+        transform(ADD_CHANGE_SET).set('0.frames.0.data.0.rate', 1.1),
+      ), (err) => {
+        eq(err.code, '23514');
+        return true;
+      });
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
+        return true;
+      });
+    });
+
     it('should forbid additional properties', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).merge('0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
@@ -467,16 +552,15 @@ describe('DSL', () => {
   describe('Drop Entity', () => {
 
     it('should drop entity', async (t) => {
-      await applyYaml(t.name, ADD_ENTITY, DROP_ENTITY);
+      await applyYaml(t.name, ADD_ENTITY);
 
-      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_entity'));
-      eq(entities.length, 0);
+      ok(await hasTable('vat_rate_v1'));
+      ok(await hasFunction('get_vat_rate_v1_aggregate'));
 
-      const { rows: tables } = await filby.withTransaction((tx) => tx.query('SELECT * FROM information_schema.tables WHERE table_name = $1', [tableName('vat_rate', 1)]));
-      eq(tables.length, 0);
+      await applyYaml(t.name, DROP_ENTITY);
 
-      const { rows: functions } = await filby.withTransaction((tx) => tx.query('SELECT * FROM pg_proc WHERE proname = $1', [aggregateFunctionName('vat_rate', 1)]));
-      eq(functions.length, 0);
+      ok(!await hasTable('vat_rate_v1'));
+      ok(!await hasFunction('get_vat_rate_v1_aggregate'));
     });
 
     it('should ignore other entities', async (t) => {
@@ -497,11 +581,8 @@ describe('DSL', () => {
       const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_entity'));
       eq(entities.length, 1);
 
-      const { rows: tables } = await filby.withTransaction((tx) => tx.query('SELECT * FROM information_schema.tables WHERE table_name = $1', [tableName('vat_rate', 2)]));
-      eq(tables.length, 1);
-
-      const { rows: functions } = await filby.withTransaction((tx) => tx.query('SELECT * FROM pg_proc WHERE proname = $1', [aggregateFunctionName('vat_rate', 2)]));
-      eq(functions.length, 1);
+      ok(await hasTable('vat_rate_v2'));
+      ok(await hasFunction('get_vat_rate_v2_aggregate'));
     });
 
     it('should require a name', async (t) => {
@@ -516,6 +597,17 @@ describe('DSL', () => {
         eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
         return true;
       });
+    });
+
+    it('should escape name', async (t) => {
+      const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+      const tableName = table(injection, 1);
+
+      await applyYaml(t.name, transform(ADD_ENTITY).set('0.name', injection));
+      ok(await hasTable(tableName));
+
+      await applyYaml(t.name, transform(DROP_ENTITY).set('0.name', injection));
+      ok(!await hasTable(tableName));
     });
 
     it('should require a version', async (t) => {
@@ -589,6 +681,14 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape name', async (t) => {
+      await applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"));
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_projection'));
+      eq(projections.length, 1);
+      deq(projections[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", version: 1 });
+    });
+
     it('should require a version', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION).del('0.version')), (err) => {
         eq(err.message, "001.should-require-a-version.yaml: /0 must have required property 'version'");
@@ -620,9 +720,9 @@ describe('DSL', () => {
       });
     });
 
-    it('should require dependencies to have an entity', async (t) => {
+    it('should require dependencies to reference an entity', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION).del('0.dependencies.0.entity')), (err) => {
-        eq(err.message, "001.should-require-dependencies-to-have-an-entity.yaml: /0/dependencies/0 must have required property 'entity'");
+        eq(err.message, "001.should-require-dependencies-to-reference-an-entity.yaml: /0/dependencies/0 must have required property 'entity'");
         return true;
       });
     });
@@ -632,6 +732,23 @@ describe('DSL', () => {
         eq(err.message, "001.should-require-dependency-entity-to-be-a-string.yaml: /0/dependencies/0/entity must be of type 'string'");
         return true;
       });
+    });
+
+    it('should escape dependency entity', async (t) => {
+      await applyYaml(
+        t.name,
+        transform(ADD_ENTITY).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+        transform(ADD_PROJECTION).set('0.dependencies.0.entity', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+      );
+
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query(`
+        SELECT e.name, e.version FROM fby_projection p
+        INNER JOIN fby_projection_entity pe ON p.id = pe.projection_id
+        INNER JOIN fby_entity e ON e.id = pe.entity_id
+      `));
+
+      eq(entities.length, 1);
+      deq(entities[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", version: 1 });
     });
 
     it('should require dependencies to have a version', async (t) => {
@@ -710,6 +827,18 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape name', async (t) => {
+      await applyYaml(
+        t.name,
+        ADD_ENTITY,
+        transform(ADD_PROJECTION).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+        transform(DROP_PROJECTION).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+      );
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_projection'));
+      eq(projections.length, 0);
+    });
+
     it('should require a version', async (t) => {
       await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION).del('0.version')), (err) => {
         eq(err.message, "001.should-require-a-version.yaml: /0 must have required property 'version'");
@@ -755,22 +884,16 @@ describe('DSL', () => {
     it('should add a change set', async (t) => {
       await applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET);
 
-      const { rows } = await filby.withTransaction((tx) => tx.query(`
-        SELECT c.description, c.effective, e.name AS entity, e.version, f.action, v.type, v.rate
-        FROM fby_change_set c
-        INNER JOIN fby_data_frame f ON f.change_set_id = c.id
-        INNER JOIN fby_entity e ON f.entity_id = e.id
-        INNER JOIN vat_rate_v1 v ON v.fby_frame_id = f.id
-        ORDER BY v.type ASC`));
-      eq(rows.length, 3);
-      deq(rows[0], {
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 3);
+      deq(frames[0], {
         description: '2020 VAT Rates',
         effective: new Date('2020-04-05T00:00:00.000Z'),
         entity: 'VAT Rate',
         version: 1,
         action: 'POST',
-        type: 'reduced',
-        rate: 0.05,
+        type: 'standard',
+        rate: 0.10,
       });
     });
 
@@ -785,6 +908,23 @@ describe('DSL', () => {
       await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.description', 1)), (err) => {
         eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
         return true;
+      });
+    });
+
+    it('should escape description', async (t) => {
+      const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+      await applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET).set('0.description', injection));
+
+      const frames = await getDataFrames(injection);
+      eq(frames.length, 3);
+      deq(frames[0], {
+        description: injection,
+        effective: new Date('2020-04-05T00:00:00.000Z'),
+        entity: 'VAT Rate',
+        version: 1,
+        action: 'POST',
+        type: 'standard',
+        rate: 0.10,
       });
     });
 
@@ -840,6 +980,28 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape frame entity name', async (t) => {
+      const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+      await applyYaml(
+        t.name,
+        ADD_ENTITY,
+        transform(ADD_ENTITY).set('0.name', injection),
+        transform(ADD_CHANGE_SET).set('0.frames.0.entity', injection),
+      );
+
+      const frames = await getDataFrames('2020 VAT Rates', table(injection, 1));
+      eq(frames.length, 1);
+      deq(frames[0], {
+        description: '2020 VAT Rates',
+        effective: new Date('2020-04-05T00:00:00.000Z'),
+        entity: injection,
+        version: 1,
+        action: 'POST',
+        type: 'standard',
+        rate: 0.10,
+      });
+    });
+
     it('should require frames to specify an entity version', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.frames.0.version')), (err) => {
         eq(err.message, "001.should-require-frames-to-specify-an-entity-version.yaml: /0/frames/0 must have required property 'version'");
@@ -892,6 +1054,50 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape data field names', async (t) => {
+      const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+      await applyYaml(
+        t.name,
+        transform(ADD_ENTITY).insert('0.fields', { name: injection, type: 'TEXT' }, 2),
+        transform(ADD_CHANGE_SET).merge('0.frames.0.data.0', { [injection]: 'pwned' }),
+      );
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 3);
+      deq(frames[0], {
+        description: '2020 VAT Rates',
+        effective: new Date('2020-04-05T00:00:00.000Z'),
+        entity: 'VAT Rate',
+        version: 1,
+        action: 'POST',
+        type: 'standard',
+        rate: 0.10,
+        "pwned',_1);raise_exception_$💀$you_have_been_pwned!$💀$;": 'pwned',
+      });
+    });
+
+    it('should escape data field values', async (t) => {
+      const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+      await applyYaml(
+        t.name,
+        transform(ADD_ENTITY).insert('0.fields', { name: 'pwned', type: 'TEXT' }, 2),
+        transform(ADD_CHANGE_SET).merge('0.frames.0.data.0', { pwned: injection }),
+      );
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 3);
+      deq(frames[0], {
+        description: '2020 VAT Rates',
+        effective: new Date('2020-04-05T00:00:00.000Z'),
+        entity: 'VAT Rate',
+        version: 1,
+        action: 'POST',
+        type: 'standard',
+        rate: 0.10,
+        pwned: injection,
+      });
+    });
+
     it('should forbid additional properties in frames', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).merge('0.frames.0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties-in-frames.yaml: /0/frames/0 must NOT have additional property 'wombat'");
@@ -931,6 +1137,38 @@ describe('DSL', () => {
         });
       });
 
+      it('should require a name', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).del('0.name')), (err) => {
+          eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
+          return true;
+        });
+      });
+
+      it('should require name to be a string', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).set('0.name', 1)), (err) => {
+          eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
+          return true;
+        });
+      });
+
+      it('should escape name', async (t) => {
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_PROJECTION_HOOK).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+        );
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
+          SELECT h.name, h.event, p.name AS projection, version
+          FROM fby_hook h
+          LEFT JOIN fby_projection p ON h.projection_id = p.id
+        `));
+
+        eq(hooks.length, 1);
+        deq(hooks[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", event: 'ADD_CHANGE_SET', projection: 'VAT Rates', version: 1 });
+      });
+
       it('should require an event', async (t) => {
         await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).del('0.event')), (err) => {
           eq(err.message, "001.should-require-an-event.yaml: /0 must have required property 'event'");
@@ -941,6 +1179,13 @@ describe('DSL', () => {
       it('should require event to be a string', async (t) => {
         await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).set('0.event', 1)), (err) => {
           eq(err.message, "001.should-require-event-to-be-a-string.yaml: /0/event must be of type 'string'");
+          return true;
+        });
+      });
+
+      it('should require event to be valid', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).set('0.event', 'wombat')), (err) => {
+          eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_PROJECTION', 'DROP_PROJECTION' or 'ADD_CHANGE_SET'");
           return true;
         });
       });
@@ -959,6 +1204,37 @@ describe('DSL', () => {
         });
       });
 
+      it('should require projection to exist', async (t) => {
+        await rejects(() => applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_PROJECTION_HOOK).set('0.projection', 'wombat'),
+        ), (err) => {
+          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'wombat v1'");
+          return true;
+        });
+      });
+
+      it('should escape projection', async (t) => {
+        const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          transform(ADD_PROJECTION).set('0.name', injection),
+          transform(ADD_PROJECTION_HOOK).set('0.projection', injection),
+        );
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
+          SELECT h.name, h.event, p.name AS projection, version
+          FROM fby_hook h
+          LEFT JOIN fby_projection p ON h.projection_id = p.id
+        `));
+
+        eq(hooks.length, 1);
+        deq(hooks[0], { name: 'sns/add-change-set/vat-rates-v1', event: 'ADD_CHANGE_SET', projection: injection, version: 1 });
+      });
+
       it('should require a version', async (t) => {
         await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).del('0.version')), (err) => {
           eq(err.message, "001.should-require-a-version.yaml: /0 must have required property 'version'");
@@ -974,7 +1250,7 @@ describe('DSL', () => {
       });
 
       it('should allow a description', async (t) => {
-        await applyYaml(t.name, transform(ADD_PROJECTION_HOOK).merge('0.description', 'wombat'));
+        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(ADD_PROJECTION_HOOK).merge('0.description', 'wombat'));
       });
 
       it('should require description to be a string', async (t) => {
@@ -1014,6 +1290,38 @@ describe('DSL', () => {
         });
       });
 
+      it('should require a name', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).del('0.name')), (err) => {
+          eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
+          return true;
+        });
+      });
+
+      it('should require name to be a string', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_PROJECTION_HOOK).set('0.name', 1)), (err) => {
+          eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
+          return true;
+        });
+      });
+
+      it('should escape name', async (t) => {
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_GENERAL_HOOK).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+        );
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
+          SELECT h.name, h.event, p.name AS projection, version
+          FROM fby_hook h
+          LEFT JOIN fby_projection p ON h.projection_id = p.id
+        `));
+
+        eq(hooks.length, 1);
+        deq(hooks[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", event: 'ADD_CHANGE_SET', projection: null, version: null });
+      });
+
       it('should require an event', async (t) => {
         await rejects(() => applyYaml(t.name, transform(ADD_GENERAL_HOOK).del('0.event')), (err) => {
           eq(err.message, "001.should-require-an-event.yaml: /0 must have required property 'event'");
@@ -1024,6 +1332,13 @@ describe('DSL', () => {
       it('should require event to be a string', async (t) => {
         await rejects(() => applyYaml(t.name, transform(ADD_GENERAL_HOOK).set('0.event', 1)), (err) => {
           eq(err.message, "001.should-require-event-to-be-a-string.yaml: /0/event must be of type 'string'");
+          return true;
+        });
+      });
+
+      it('should require event to be valid', async (t) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_GENERAL_HOOK).set('0.event', 'wombat')), (err) => {
+          eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_PROJECTION', 'DROP_PROJECTION' or 'ADD_CHANGE_SET'");
           return true;
         });
       });
@@ -1093,6 +1408,25 @@ describe('DSL', () => {
         });
       });
 
+      it('should escape name', async (t) => {
+        const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_PROJECTION_HOOK).set('0.name', injection),
+          transform(DROP_PROJECTION_HOOK).set('0.name', injection),
+        );
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
+          SELECT h.name, h.event, p.name AS projection, version
+          FROM fby_hook h
+          LEFT JOIN fby_projection p ON h.projection_id = p.id
+        `));
+
+        eq(hooks.length, 0);
+      });
+
       it('should allow a description', async (t) => {
         await applyYaml(
           t.name,
@@ -1157,6 +1491,25 @@ describe('DSL', () => {
           eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
           return true;
         });
+      });
+
+      it('should escape name', async (t) => {
+        const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_GENERAL_HOOK).set('0.name', injection),
+          transform(DROP_GENERAL_HOOK).set('0.name', injection),
+        );
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
+          SELECT h.name, h.event, p.name AS projection, version
+          FROM fby_hook h
+          LEFT JOIN fby_projection p ON h.projection_id = p.id
+        `));
+
+        eq(hooks.length, 0);
       });
 
       it('should allow a description', async (t) => {
@@ -1459,15 +1812,40 @@ describe('DSL', () => {
       .map((file) => path.join(__dirname, 'dsl', file))
       .forEach((file) => fs.unlinkSync(file));
   }
-});
 
-function transform(source) {
-  const json = YAML.parse(source);
-  return Object.keys(op).reduce((api, key) => ({
-    ...api,
-    [key]: (...args) => {
-      const output = YAML.stringify(op[key](json, ...args));
-      return output;
-    },
-  }), {});
-}
+  async function hasTable(name) {
+    const { rows: tables } = await filby.withTransaction((tx) => tx.query('SELECT * FROM information_schema.tables WHERE table_name = $1', [name]));
+    return tables.length === 1;
+  }
+
+  async function hasFunction(name) {
+    const { rows: functions } = await filby.withTransaction((tx) => tx.query('SELECT * FROM pg_proc WHERE proname = $1', [name]));
+    return functions.length === 1;
+  }
+
+  async function getDataFrames(description, tableName = 'vat_rate_v1') {
+    const { rows: changeSets } = await filby.withTransaction((tx) => tx.query(`
+      SELECT c.description, c.effective, e.name AS entity, e.version, f.action, x.*
+      FROM fby_change_set c
+      INNER JOIN fby_data_frame f ON f.change_set_id = c.id
+      INNER JOIN fby_entity e ON f.entity_id = e.id
+      INNER JOIN "${tableName}" x ON x.fby_frame_id = f.id
+      WHERE c.description = $1
+      ORDER BY x.fby_frame_id ASC`, [description]));
+    return changeSets.map((changeSet) => {
+      const { fby_frame_id: _, ...cs } = changeSet;
+      return cs;
+    });
+  }
+
+  function transform(source) {
+    const json = YAML.parse(source);
+    return Object.keys(op).reduce((api, key) => ({
+      ...api,
+      [key]: (...args) => {
+        const output = YAML.stringify(op[key](json, ...args));
+        return output;
+      },
+    }), {});
+  }
+});
