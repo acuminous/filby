@@ -1668,6 +1668,34 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape data frames in csv files', async (t) => {
+
+      const transforms = [
+        (yaml) => transform(yaml).set('2.frames.0.source', './test/dsl/datafiles/injection.csv'),
+        (yaml) => transform(yaml).del('2.frames.0.action'),
+        (yaml) => transform(yaml).del('2.frames.0.data'),
+        (yaml) => transform(yaml).del('2.frames.1'),
+        (yaml) => transform(yaml).del('2.frames.1'),
+      ];
+
+      const yaml = transforms.reduce((document, tx) => {
+        return tx(document);
+      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET].join('\n'));
+
+      await applyYaml(t.name, yaml);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+
+      await filby.withTransaction(async (tx) => {
+        const { rows: aggregate1 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [changeLog[0].id]);
+        eq(aggregate1.length, 3);
+        deq(aggregate1[0], { type: 'standard', rate: 0.10 });
+        deq(aggregate1[1], { type: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", rate: 0.05 });
+        deq(aggregate1[2], { type: 'zero', rate: 0 });
+      });
+    });
+
     it('should report bad csv files', async (t) => {
 
       const transforms = [

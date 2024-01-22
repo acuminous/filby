@@ -1,0 +1,4 @@
+action,type,rate
+POST,standard,0.10
+POST,"pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;",0.05
+POST,zero,0
