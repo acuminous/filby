@@ -11,7 +11,7 @@ CREATE TABLE fby_notification (
   status fby_notification_status NOT NULL DEFAULT 'PENDING',
   last_attempted TIMESTAMP WITH TIME ZONE,
   last_error TEXT,
-  CONSTRAINT fby_notification_hook_id_projection_id_status_uniq UNIQUE (hook_id, projection_id, status)
+  CONSTRAINT uniq_fby_notification_hook_id_projection_id_status UNIQUE (hook_id, projection_id, status)
 );
 
 CREATE FUNCTION fby_schedule_notification(p_hook_id INTEGER, p_projection_id INTEGER) RETURNS VOID
