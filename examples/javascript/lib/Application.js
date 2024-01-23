@@ -16,6 +16,7 @@ module.exports = class Application {
   #logger;
   #fastify;
   #filby;
+  #routes = {};
 
   constructor({ config }) {
     this.#config = config;
@@ -44,9 +45,11 @@ module.exports = class Application {
   }
 
   async #handleHookFailures() {
-    this.#filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (notification) => {
-      this.#logger.error('Hook failed', notification);
-      this.#logger.error(notification.err.stack);
+    this.#filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (errNotification) => {
+      const { err: { message: errMessage, stack, config: { method, url } }, ...notification } = errNotification;
+      const message = `Hook '${notification.name}' failed after ${notification.attempts} attempts and will no longer be retried`;
+      this.#logger.error({ notification }, message);
+      this.#logger.error({ message: errMessage, stack, method, url });
     });
   }
 
@@ -61,18 +64,22 @@ module.exports = class Application {
 
   async #registerWebhook(event, url) {
     this.#filby.subscribe(event, async (notification) => {
-      await axios.post(url, notification);
+      const routes = this.#routes[notification.projection.id];
+      await axios.post(url, { ...notification, routes });
     });
   }
 
   async #initFastify() {
-    await this.#fastify.register(cors, {
-      origin: '*',
-      methods: ['GET'],
-    });
+    this.#fastify.addHook('onRoute', (routeOptions) => this.captureProjectionPath(routeOptions));
+    await this.#fastify.register(cors, { origin: '*', methods: ['GET'] });
     await this.#registerSwagger();
     await this.#registerChangelog();
     await this.#registerProjections();
+  }
+
+  captureProjectionPath(routeOptions) {
+    if (routeOptions.method !== 'GET' || !routeOptions.projection) return;
+    this.#routes[routeOptions.projection.id].push(routeOptions.path);
   }
 
   async #registerSwagger() {
@@ -113,6 +120,7 @@ module.exports = class Application {
   async #registerProjections() {
     const projections = await this.#filby.getProjections();
     for (let i = 0; i < projections.length; i++) {
+      this.#routes[projections[i].id] = [];
       await this.#registerProjection(projections[i]);
     }
   }

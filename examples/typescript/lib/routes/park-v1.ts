@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions } from 'fastify';
 import createError from 'http-errors';
 import uri from 'fast-uri';
 
@@ -7,12 +7,13 @@ import getParksSchema from '../../../schemas/get-parks-schema.json';
 import getParkSchema from '../../../schemas/get-park-schema.json';
 
 type ChangeSetId = number;
+type FilbyQueryString = { changeSetId?: ChangeSetId };
 
 export default (fastify: FastifyInstance, { projection, filby }: { projection: Projection, filby: Filby }, done: (err?: Error) => void) => {
 
-  fastify.get<{
-    Querystring: { changeSetId?: ChangeSetId }
-  }>('/', { schema: getParksSchema }, async (request, reply) => {
+  const getParksOptions = { schema: getParksSchema, projection };
+
+  fastify.get<{ Querystring: FilbyQueryString }>('/', getParksOptions, async (request, reply) => {
     if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);
     const changeSetId = Number(request.query.changeSetId)
     const changeSet = await getChangeSet(changeSetId);
@@ -27,10 +28,9 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
     return parks;
   });
 
-  fastify.get<{
-    Querystring: { changeSetId?: ChangeSetId },
-    Params: { code: string }
-  }>('/code/:code', { schema: getParkSchema }, async (request, reply) => {
+  const getParkOptions = { schema: getParkSchema, projection };
+
+  fastify.get<{ Querystring: FilbyQueryString, Params: { code: string } }>('/code/:code', getParkOptions, async (request, reply) => {
     if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);
     const code = request.params.code.toUpperCase();
     const changeSetId = Number(request.query.changeSetId)

@@ -46,12 +46,14 @@ export type ChangeSet = {
 };
 
 export type Notification = {
+  name: string;
   event: string;
+  projection: Projection;
   attempts: number;
-} & Projection;
+};
 
-export type ErrorNotification = {
-  err: Error;
+export type ErrorNotification<E> = {
+  err: Error<E>;
 } & Notification
 
 export type Entity = {

@@ -58,7 +58,7 @@ describe('Notifications', () => {
     filby.subscribe('VAT Rate Changed', (notification) => {
       eq(notification.name, 'VAT Rate Changed');
       eq(notification.event, 'ADD_CHANGE_SET');
-      deq(notification.projection, { name: 'VAT Rates', version: 1 });
+      deq(notification.projection, { id: 1, name: 'VAT Rates', version: 1 });
       eq(notification.attempts, 1);
       done();
     });
@@ -165,7 +165,7 @@ describe('Notifications', () => {
       eq(notification.err.message, 'Oh Noes!');
       eq(notification.name, 'VAT Rate Changed');
       eq(notification.event, 'ADD_CHANGE_SET');
-      deq(notification.projection, { name: 'VAT Rates', version: 1 });
+      deq(notification.projection, { id: 1, name: 'VAT Rates', version: 1 });
       eq(notification.attempts, 3);
       setTimeout(done, 1000);
     });

@@ -165,7 +165,7 @@ LIMIT 1`, [projection.id]);
 
   async #getNotificationContext(tx, notification) {
     const { rows } = await tx.query(
-      `SELECT h.name, h.event, p.id, p.name AS projection, p.version FROM fby_hook h
+      `SELECT h.name, h.event, p.id AS projection_id, p.name AS projection_name, p.version AS projection_version FROM fby_hook h
 INNER JOIN fby_notification n ON n.hook_id = h.id
 INNER JOIN fby_projection p ON p.id = n.projection_id
 WHERE h.id = $1`,
@@ -174,7 +174,7 @@ WHERE h.id = $1`,
     return rows.map((row) => ({
       name: row.name,
       event: row.event,
-      projection: { name: row.projection, version: row.version },
+      projection: { id: row.projection_id, name: row.projection_name, version: row.projection_version },
       attempts: notification.attempts,
     }))[0];
   }

@@ -34,6 +34,10 @@
   identified_by:
     - id
 
+- operation: ADD_HOOK
+  name: httpbin/add-projection
+  event: ADD_PROJECTION
+
 - operation: ADD_PROJECTION
   name: park
   version: 1
