@@ -6,7 +6,7 @@ const getParkSchema = require('../../../schemas/get-park-schema.json');
 
 module.exports = (fastify, { projection, filby }, done) => {
 
-  fastify.get('/', { schema: getParksSchema, projection }, async (request, reply) => {
+  fastify.get('/', { schema: getParksSchema, projection, index: true }, async (request, reply) => {
     if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await getChangeSet(changeSetId);

@@ -31,6 +31,7 @@ type ProjectionRouteOptions = {
   method: string;
   path: string;
   projection: Projection;
+  index: boolean;
 }
 
 export default class Application {
@@ -39,7 +40,10 @@ export default class Application {
   #logger;
   #filby: Filby;
   #fastify: FastifyInstance;
-  #routes = new Map<string, string[]>();
+  #routes = new Map<string, {
+    location?: string,
+    paths: string[]
+  }>();
 
   constructor({ config }: { config: ApplicationConfig }) {
     this.#config = config;
@@ -69,10 +73,13 @@ export default class Application {
 
   async #handleHookFailures() {
     this.#filby.subscribe<ErrorNotification<AxiosError>>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (errNotification: ErrorNotification<AxiosError>) => {
-      const { err: { message: errMessage, stack, config: { method, url } }, ...notification } = errNotification;
+      const { err, ...notification } = errNotification;
       const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
-      this.#logger.error({ message: errMessage, stack, method, url });
+      const details = err.isAxiosError
+        ? { message: err.message, stack: err.stack, method: err.config.method, url: err.config.url }
+        : { message: err.message, stack: err.stack }
+      this.#logger.error(details);
     });
   }
 
@@ -102,7 +109,10 @@ export default class Application {
 
   captureProjectionPath(routeOptions: ProjectionRouteOptions) {
     if (routeOptions.method !== 'GET' || !routeOptions.projection) return;
-    this.#routes.get(routeOptions.projection.key)?.push(routeOptions.path);
+    const route = this.#routes.get(routeOptions.projection.key);
+    if (!route) return;
+    if (routeOptions.index) route.location = routeOptions.path;
+    route.paths.push(routeOptions.path);
   }
 
   async #registerSwagger() {
@@ -143,7 +153,7 @@ export default class Application {
   async #registerProjections() {
     const projections = await this.#filby.getProjections();
     for (let i = 0; i < projections.length; i++) {
-      this.#routes.set(projections[i].key, []);
+      this.#routes.set(projections[i].key, { paths: [] });
       await this.#registerProjection(projections[i]);
     }
   }
