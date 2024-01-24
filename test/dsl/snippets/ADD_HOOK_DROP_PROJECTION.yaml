@@ -1,0 +1,3 @@
+- operation: ADD_HOOK
+  name: sns/drop-projection
+  event: DROP_PROJECTION

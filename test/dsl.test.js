@@ -44,6 +44,7 @@ const ADD_PROJECTION = loadYaml('ADD_PROJECTION');
 const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
 const ADD_CHANGE_SET_1 = loadYaml('ADD_CHANGE_SET_1');
 const ADD_HOOK_ADD_PROJECTION = loadYaml('ADD_HOOK_ADD_PROJECTION');
+const ADD_HOOK_DROP_PROJECTION = loadYaml('ADD_HOOK_DROP_PROJECTION');
 const ADD_HOOK_CHANGE_SET_PROJECTION = loadYaml('ADD_HOOK_CHANGE_SET_PROJECTION');
 const ADD_HOOK_CHANGE_SET_GENERAL = loadYaml('ADD_HOOK_CHANGE_SET_GENERAL');
 const DROP_HOOK_ADD_CHANGE_SET_PROJECTION = loadYaml('DROP_HOOK_ADD_CHANGE_SET_PROJECTION');
@@ -735,6 +736,49 @@ describe('DSL', () => {
       await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION);
       const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
       eq(projections.length, 0);
+    });
+
+    it('should schedule notifications', async (t) => {
+      const checkpoint = new Date();
+      await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_DROP_PROJECTION, DROP_PROJECTION);
+
+      const { rows: notifications } = await filby.withTransaction((tx) => {
+        return tx.query('SELECT * FROM fby_notification ORDER BY id');
+      });
+
+      eq(notifications.length, 1);
+      assertNotification(notifications[0], {
+        hook_name: 'sns/drop-projection',
+        hook_event: 'DROP',
+        projection_name: 'VAT Rates',
+        projection_version: 1,
+        scheduled_for: checkpoint,
+        attempts: 0,
+        status: 'PENDING',
+        last_attempted: null,
+        last_error: null,
+      });
+    });
+
+    it('should delete notifications', async (t) => {
+      await applyYaml(
+        t.name,
+        ADD_ENTITY,
+        ADD_HOOK_ADD_PROJECTION,
+        ADD_PROJECTION,
+        ADD_HOOK_CHANGE_SET_GENERAL,
+        ADD_HOOK_CHANGE_SET_PROJECTION,
+        ADD_CHANGE_SET_1,
+        ADD_HOOK_DROP_PROJECTION,
+      );
+
+      const countBefore = await countNotifications();
+      eq(countBefore, 3);
+
+      await applyYaml(t.name, DROP_PROJECTION);
+
+      const countAfter = await countNotifications();
+      eq(countAfter, 1);
     });
 
     it('should ignore other projections', async (t) => {
@@ -1801,6 +1845,13 @@ describe('DSL', () => {
       const { fby_frame_id: _, ...cs } = changeSet;
       return cs;
     });
+  }
+
+  async function countNotifications() {
+    const { rows } = await filby.withTransaction((tx) => {
+      return tx.query('SELECT count(*) AS count FROM fby_notification');
+    });
+    return Number(rows[0].count);
   }
 
   function transform(source) {
