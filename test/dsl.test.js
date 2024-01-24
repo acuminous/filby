@@ -36,102 +36,17 @@ const config = {
   },
 };
 
-const ADD_ENUM = `
-- operation: ADD_ENUM
-  name: vat_tax_rate
-  values:
-    - standard
-    - reduced
-    - zero
-`;
-
-const DROP_ENUM = `
-- operation: DROP_ENUM
-  name: vat_tax_rate
-`;
-
-const ADD_ENTITY = `
-- operation: ADD_ENTITY
-  name: VAT Rate
-  version: 1
-  fields:
-  - name: type
-    type: TEXT
-  - name: rate
-    type: NUMERIC
-  identified_by:
-  - type
-`;
-
-const DROP_ENTITY = `
-- operation: DROP_ENTITY
-  name: VAT Rate
-  version: 1
-`;
-
-const ADD_PROJECTION = `
-- operation: ADD_PROJECTION
-  name: VAT Rates
-  version: 1
-  dependencies:
-  - entity: VAT Rate
-    version: 1
-`;
-
-const DROP_PROJECTION = `
-- operation: DROP_PROJECTION
-  name: VAT Rates
-  version: 1
-`;
-
-const ADD_CHANGE_SET = `
-- operation: ADD_CHANGE_SET
-  description: 2020 VAT Rates
-  effective: 2020-04-05T00:00:00.000Z
-  frames:
-  - entity: VAT Rate
-    version: 1
-    action: POST
-    data:
-    - type: standard
-      rate: 0.10
-  - entity: VAT Rate
-    version: 1
-    action: POST
-    data:
-    - type: reduced
-      rate: 0.05
-  - entity: VAT Rate
-    version: 1
-    action: POST
-    data:
-    - type: zero
-      rate: 0
-`;
-
-const ADD_PROJECTION_HOOK = `
-- operation: ADD_HOOK
-  name: sns/add-change-set/vat-rates-v1
-  event: ADD_CHANGE_SET
-  projection: VAT Rates
-  version: 1
-`;
-
-const ADD_GENERAL_HOOK = `
-- operation: ADD_HOOK
-  name: sns/add-change-set/*
-  event: ADD_CHANGE_SET
-`;
-
-const DROP_PROJECTION_HOOK = `
-- operation: DROP_HOOK
-  name: sns/add-change-set/vat-rates-v1
-`;
-
-const DROP_GENERAL_HOOK = `
-- operation: DROP_HOOK
-  name: sns/add-change-set/*
-`;
+const ADD_ENUM = loadYaml('ADD_ENUM');
+const DROP_ENUM = loadYaml('DROP_ENUM');
+const ADD_ENTITY = loadYaml('ADD_ENTITY');
+const DROP_ENTITY = loadYaml('DROP_ENTITY');
+const ADD_PROJECTION = loadYaml('ADD_PROJECTION');
+const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
+const ADD_CHANGE_SET_1 = loadYaml('ADD_CHANGE_SET_1');
+const ADD_PROJECTION_HOOK = loadYaml('ADD_PROJECTION_HOOK');
+const ADD_GENERAL_HOOK = loadYaml('ADD_GENERAL_HOOK');
+const DROP_PROJECTION_HOOK = loadYaml('DROP_PROJECTION_HOOK');
+const DROP_GENERAL_HOOK = loadYaml('DROP_GENERAL_HOOK');
 
 describe('DSL', () => {
 
@@ -527,7 +442,7 @@ describe('DSL', () => {
       await rejects(() => applyYaml(
         t.name,
         transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' }),
-        transform(ADD_CHANGE_SET).set('0.frames.0.data.0.rate', 1.1),
+        transform(ADD_CHANGE_SET_1).set('0.frames.0.data.0.rate', 1.1),
       ), (err) => {
         eq(err.code, '23514');
         return true;
@@ -882,7 +797,7 @@ describe('DSL', () => {
   describe('Add Change Set', () => {
 
     it('should add a change set', async (t) => {
-      await applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET);
+      await applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1);
 
       const frames = await getDataFrames('2020 VAT Rates');
       eq(frames.length, 3);
@@ -898,14 +813,14 @@ describe('DSL', () => {
     });
 
     it('should require a description', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.description')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.description')), (err) => {
         eq(err.message, "001.should-require-a-description.yaml: /0 must have required property 'description'");
         return true;
       });
     });
 
     it('should require description to be a string', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.description', 1)), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.description', 1)), (err) => {
         eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
         return true;
       });
@@ -913,7 +828,7 @@ describe('DSL', () => {
 
     it('should escape description', async (t) => {
       const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
-      await applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET).set('0.description', injection));
+      await applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.description', injection));
 
       const frames = await getDataFrames(injection);
       eq(frames.length, 3);
@@ -929,52 +844,52 @@ describe('DSL', () => {
     });
 
     it('should require an effective date', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.effective')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.effective')), (err) => {
         eq(err.message, "001.should-require-an-effective-date.yaml: /0 must have required property 'effective'");
         return true;
       });
     });
 
     it('should require effective to be a string', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.effective', 1)), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.effective', 1)), (err) => {
         eq(err.message, "001.should-require-effective-to-be-a-string.yaml: /0/effective must be of type 'string'");
         return true;
       });
     });
 
     it('should require effective to be an ISO Date', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.effective', 'wombat')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.effective', 'wombat')), (err) => {
         eq(err.message, "001.should-require-effective-to-be-an-iso-date.yaml: /0/effective must match format 'date-time'");
         return true;
       });
     });
 
     it('should require at least one frame', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.frames')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames')), (err) => {
         eq(err.message, "001.should-require-at-least-one-frame.yaml: /0 must have required property 'frames'");
         return true;
       });
 
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames', 1)), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames', 1)), (err) => {
         eq(err.message, "001.should-require-at-least-one-frame.yaml: /0/frames must be of type 'array'");
         return true;
       });
 
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames', [])), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames', [])), (err) => {
         eq(err.message, '001.should-require-at-least-one-frame.yaml: /0/frames must NOT have fewer than 1 items');
         return true;
       });
     });
 
     it('should require frames to specify an entity name', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.frames.0.entity')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames.0.entity')), (err) => {
         eq(err.message, "001.should-require-frames-to-specify-an-entity-name.yaml: /0/frames/0 must have required property 'entity'");
         return true;
       });
     });
 
     it('should require frame entity name to be a string', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames.0.entity', 1)), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.entity', 1)), (err) => {
         eq(err.message, "001.should-require-frame-entity-name-to-be-a-string.yaml: /0/frames/0/entity must be of type 'string'");
         return true;
       });
@@ -986,7 +901,7 @@ describe('DSL', () => {
         t.name,
         ADD_ENTITY,
         transform(ADD_ENTITY).set('0.name', injection),
-        transform(ADD_CHANGE_SET).set('0.frames.0.entity', injection),
+        transform(ADD_CHANGE_SET_1).set('0.frames.0.entity', injection),
       );
 
       const frames = await getDataFrames('2020 VAT Rates', table(injection, 1));
@@ -1003,52 +918,52 @@ describe('DSL', () => {
     });
 
     it('should require frames to specify an entity version', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.frames.0.version')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames.0.version')), (err) => {
         eq(err.message, "001.should-require-frames-to-specify-an-entity-version.yaml: /0/frames/0 must have required property 'version'");
         return true;
       });
     });
 
     it('should require frame entity version to be an integer', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames.0.version', 'wombat')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.version', 'wombat')), (err) => {
         eq(err.message, "001.should-require-frame-entity-version-to-be-an-integer.yaml: /0/frames/0/version must be of type 'integer'");
         return true;
       });
     });
 
     it('should require frames to specify either an action or a source', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.frames.0.action')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames.0.action')), (err) => {
         eq(err.message, "001.should-require-frames-to-specify-either-an-action-or-a-source.yaml: /0/frames/0 must have required property 'source' or 'action'");
         return true;
       });
     });
 
     it('should require frame action to be a string', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames.0.action', 1)), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 1)), (err) => {
         eq(err.message, "001.should-require-frame-action-to-be-a-string.yaml: /0/frames/0/action must be of type 'string'");
         return true;
       });
     });
 
     it('should require frame action to be POST or DELETE', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames.0.action', 'GET')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'GET')), (err) => {
         eq(err.message, "001.should-require-frame-action-to-be-post-or-delete.yaml: /0/frames/0/action must be equal to one of the allowed values 'POST' or 'DELETE'");
         return true;
       });
     });
 
     it('should require frame data to specify at least one item', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).del('0.frames.0.data')), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames.0.data')), (err) => {
         eq(err.message, "001.should-require-frame-data-to-specify-at-least-one-item.yaml: /0/frames/0 must have required property 'source' or 'data'");
         return true;
       });
 
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames.0.data', 1)), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.data', 1)), (err) => {
         eq(err.message, "001.should-require-frame-data-to-specify-at-least-one-item.yaml: /0/frames/0/data must be of type 'array'");
         return true;
       });
 
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).set('0.frames.0.data', [])), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.data', [])), (err) => {
         eq(err.message, '001.should-require-frame-data-to-specify-at-least-one-item.yaml: /0/frames/0/data must NOT have fewer than 1 items');
         return true;
       });
@@ -1059,7 +974,7 @@ describe('DSL', () => {
       await applyYaml(
         t.name,
         transform(ADD_ENTITY).insert('0.fields', { name: injection, type: 'TEXT' }, 2),
-        transform(ADD_CHANGE_SET).merge('0.frames.0.data.0', { [injection]: 'pwned' }),
+        transform(ADD_CHANGE_SET_1).merge('0.frames.0.data.0', { [injection]: 'pwned' }),
       );
 
       const frames = await getDataFrames('2020 VAT Rates');
@@ -1081,7 +996,7 @@ describe('DSL', () => {
       await applyYaml(
         t.name,
         transform(ADD_ENTITY).insert('0.fields', { name: 'pwned', type: 'TEXT' }, 2),
-        transform(ADD_CHANGE_SET).merge('0.frames.0.data.0', { pwned: injection }),
+        transform(ADD_CHANGE_SET_1).merge('0.frames.0.data.0', { pwned: injection }),
       );
 
       const frames = await getDataFrames('2020 VAT Rates');
@@ -1099,14 +1014,14 @@ describe('DSL', () => {
     });
 
     it('should forbid additional properties in frames', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).merge('0.frames.0', { wombat: 1 })), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).merge('0.frames.0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties-in-frames.yaml: /0/frames/0 must NOT have additional property 'wombat'");
         return true;
       });
     });
 
     it('should forbid additional properties', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET).merge('0', { wombat: 1 })), (err) => {
+      await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_1).merge('0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
         return true;
       });
@@ -1541,46 +1456,11 @@ describe('DSL', () => {
 
   describe('Aggregates', () => {
 
-    const ADD_CHANGE_SET_2 = `
-- operation: ADD_CHANGE_SET
-  description: 2021 VAT Rates
-  effective: 2021-04-05T00:00:00.000Z
-  frames:
-  - entity: VAT Rate
-    version: 1
-    action: POST
-    data:
-    - type: standard
-      rate: 0.125
-  - entity: VAT Rate
-    version: 1
-    action: POST
-    data:
-    - type: reduced
-      rate: 0.07
-`;
-
-    const ADD_CHANGE_SET_3 = `
-- operation: ADD_CHANGE_SET
-  description: 2022 VAT Rates
-  effective: 2022-04-05T00:00:00.000Z
-  frames:
-  - entity: VAT Rate
-    version: 1
-    action: POST
-    data:
-    - type: standard
-      rate: 0.15
-  - entity: VAT Rate
-    version: 1
-    action: POST
-    data:
-    - type: reduced
-      rate: 0.10
-`;
+    const ADD_CHANGE_SET_2 = loadYaml('ADD_CHANGE_SET_2');
+    const ADD_CHANGE_SET_3 = loadYaml('ADD_CHANGE_SET_3');
 
     it('should aggregate data frames up to the specified change set', async (t) => {
-      await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3);
+      await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3);
 
       const projection = await filby.getProjection('VAT Rates', 1);
       const changeLog = await filby.getChangeLog(projection);
@@ -1605,7 +1485,7 @@ describe('DSL', () => {
         t.name,
         ADD_ENTITY,
         ADD_PROJECTION,
-        ADD_CHANGE_SET,
+        ADD_CHANGE_SET_1,
         ADD_CHANGE_SET_2,
         transform(ADD_CHANGE_SET_3).set('0.frames.1.action', 'DELETE'),
       );
@@ -1647,7 +1527,7 @@ describe('DSL', () => {
 
       const yaml = transforms.reduce((document, tx) => {
         return tx(document);
-      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3].join('\n'));
+      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3].join('\n'));
 
       await applyYaml(t.name, yaml);
 
@@ -1680,7 +1560,7 @@ describe('DSL', () => {
 
       const yaml = transforms.reduce((document, tx) => {
         return tx(document);
-      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET].join('\n'));
+      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1].join('\n'));
 
       await applyYaml(t.name, yaml);
 
@@ -1708,7 +1588,7 @@ describe('DSL', () => {
 
       const yaml = transforms.reduce((document, tx) => {
         return tx(document);
-      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET].join('\n'));
+      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1].join('\n'));
 
       await rejects(() => applyYaml(t.name, yaml), (err) => {
         eq(err.message, 'Error parsing ./test/dsl/datafiles/bad.csv:3 - Too few fields: expected 3 fields but parsed 2');
@@ -1721,7 +1601,7 @@ describe('DSL', () => {
         t.name,
         ADD_ENTITY,
         ADD_PROJECTION,
-        ADD_CHANGE_SET,
+        ADD_CHANGE_SET_1,
         ADD_CHANGE_SET_2,
         transform(ADD_CHANGE_SET_3).set('0.frames.1.action', 'DELETE'),
       );
@@ -1877,3 +1757,7 @@ describe('DSL', () => {
     }), {});
   }
 });
+
+function loadYaml(filename) {
+  return fs.readFileSync(path.join(__dirname, 'dsl', 'snippets', `${filename}.yaml`), { encoding: 'utf-8' });
+}
