@@ -1,0 +1,6 @@
+- operation: ADD_ENUM
+  name: vat_tax_rate
+  values:
+    - standard
+    - reduced
+    - zero

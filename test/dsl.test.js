@@ -41,13 +41,13 @@ const DROP_ENUM = loadYaml('DROP_ENUM');
 const ADD_ENTITY = loadYaml('ADD_ENTITY');
 const DROP_ENTITY = loadYaml('DROP_ENTITY');
 const ADD_PROJECTION = loadYaml('ADD_PROJECTION');
-const ADD_PROJECTION_HOOK = loadYaml('ADD_PROJECTION_HOOK');
 const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
 const ADD_CHANGE_SET_1 = loadYaml('ADD_CHANGE_SET_1');
-const ADD_CHANGE_SET_PROJECTION_HOOK = loadYaml('ADD_CHANGE_SET_PROJECTION_HOOK');
-const ADD_CHANGE_SET_GENERAL_HOOK = loadYaml('ADD_CHANGE_SET_GENERAL_HOOK');
-const DROP_PROJECTION_HOOK = loadYaml('DROP_PROJECTION_HOOK');
-const DROP_GENERAL_HOOK = loadYaml('DROP_GENERAL_HOOK');
+const ADD_HOOK_ADD_PROJECTION = loadYaml('ADD_HOOK_ADD_PROJECTION');
+const ADD_HOOK_CHANGE_SET_PROJECTION = loadYaml('ADD_HOOK_CHANGE_SET_PROJECTION');
+const ADD_HOOK_CHANGE_SET_GENERAL = loadYaml('ADD_HOOK_CHANGE_SET_GENERAL');
+const DROP_HOOK_ADD_CHANGE_SET_PROJECTION = loadYaml('DROP_HOOK_ADD_CHANGE_SET_PROJECTION');
+const DROP_HOOK_ADD_CHANGE_SET_GENERAL = loadYaml('DROP_HOOK_ADD_CHANGE_SET_GENERAL');
 
 describe('DSL', () => {
 
@@ -578,7 +578,7 @@ describe('DSL', () => {
 
     it('should schedule notifications', async (t) => {
       const checkpoint = new Date();
-      await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION_HOOK, ADD_PROJECTION);
+      await applyYaml(t.name, ADD_ENTITY, ADD_HOOK_ADD_PROJECTION, ADD_PROJECTION);
 
       const { rows: notifications } = await filby.withTransaction((tx) => {
         return tx.query('SELECT * FROM fby_notification ORDER BY id');
@@ -837,7 +837,7 @@ describe('DSL', () => {
 
     it('should schedule notifications', async (t) => {
       const checkpoint = new Date();
-      await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_PROJECTION_HOOK, ADD_CHANGE_SET_GENERAL_HOOK, ADD_CHANGE_SET_1);
+      await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, ADD_CHANGE_SET_1);
 
       const { rows: notifications } = await filby.withTransaction((tx) => {
         return tx.query('SELECT * FROM fby_notification ORDER BY id');
@@ -1090,7 +1090,7 @@ describe('DSL', () => {
     describe('Projection Specific', () => {
 
       it('should add hooks', async (t) => {
-        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_PROJECTION_HOOK);
+        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION);
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
           SELECT h.name, h.event, p.name AS projection, version
@@ -1103,21 +1103,21 @@ describe('DSL', () => {
       });
 
       it('should reject duplicate hook', async (t) => {
-        await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_PROJECTION_HOOK, ADD_CHANGE_SET_PROJECTION_HOOK), (err) => {
+        await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION), (err) => {
           eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' already exists");
           return true;
         });
       });
 
       it('should require a name', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).del('0.name')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.name')), (err) => {
           eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
           return true;
         });
       });
 
       it('should require name to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.name', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.name', 1)), (err) => {
           eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
           return true;
         });
@@ -1128,7 +1128,7 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
         );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
@@ -1142,35 +1142,35 @@ describe('DSL', () => {
       });
 
       it('should require an event', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).del('0.event')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.event')), (err) => {
           eq(err.message, "001.should-require-an-event.yaml: /0 must have required property 'event'");
           return true;
         });
       });
 
       it('should require event to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.event', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.event', 1)), (err) => {
           eq(err.message, "001.should-require-event-to-be-a-string.yaml: /0/event must be of type 'string'");
           return true;
         });
       });
 
       it('should require event to be valid', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.event', 'wombat')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.event', 'wombat')), (err) => {
           eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_PROJECTION', 'DROP_PROJECTION' or 'ADD_CHANGE_SET'");
           return true;
         });
       });
 
       it('should require a projection', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).del('0.projection')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.projection')), (err) => {
           eq(err.message, "001.should-require-a-projection.yaml: /0 must have required property 'projection'");
           return true;
         });
       });
 
       it('should require projection to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.projection', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', 1)), (err) => {
           eq(err.message, "001.should-require-projection-to-be-a-string.yaml: /0/projection must be of type 'string'");
           return true;
         });
@@ -1181,7 +1181,7 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.projection', 'wombat'),
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', 'wombat'),
         ), (err) => {
           eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'wombat v1'");
           return true;
@@ -1194,7 +1194,7 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           transform(ADD_PROJECTION).set('0.name', injection),
-          transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.projection', injection),
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', injection),
         );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
@@ -1208,32 +1208,32 @@ describe('DSL', () => {
       });
 
       it('should require a version', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).del('0.version')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.version')), (err) => {
           eq(err.message, "001.should-require-a-version.yaml: /0 must have required property 'version'");
           return true;
         });
       });
 
       it('should require version to be an integer', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.version', 'wombat')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.version', 'wombat')), (err) => {
           eq(err.message, "001.should-require-version-to-be-an-integer.yaml: /0/version must be of type 'integer'");
           return true;
         });
       });
 
       it('should allow a description', async (t) => {
-        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(ADD_CHANGE_SET_PROJECTION_HOOK).merge('0.description', 'wombat'));
+        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(ADD_HOOK_CHANGE_SET_PROJECTION).merge('0.description', 'wombat'));
       });
 
       it('should require description to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).merge('0.description', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).merge('0.description', 1)), (err) => {
           eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
       });
 
       it('should forbid additional properties', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).merge('0', { wombat: 1 })), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).merge('0', { wombat: 1 })), (err) => {
           eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
           return true;
         });
@@ -1243,7 +1243,7 @@ describe('DSL', () => {
     describe('General', () => {
 
       it('should add hooks', async (t) => {
-        await applyYaml(t.name, ADD_CHANGE_SET_GENERAL_HOOK);
+        await applyYaml(t.name, ADD_HOOK_CHANGE_SET_GENERAL);
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
           SELECT h.name, h.event, p.name AS projection, version
@@ -1256,21 +1256,21 @@ describe('DSL', () => {
       });
 
       it('should reject duplicate hook', async (t) => {
-        await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_GENERAL_HOOK, ADD_CHANGE_SET_GENERAL_HOOK), (err) => {
+        await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, ADD_HOOK_CHANGE_SET_GENERAL), (err) => {
           eq(err.message, "Hook 'sns/add-change-set/*' already exists");
           return true;
         });
       });
 
       it('should require a name', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).del('0.name')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.name')), (err) => {
           eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
           return true;
         });
       });
 
       it('should require name to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.name', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.name', 1)), (err) => {
           eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
           return true;
         });
@@ -1281,7 +1281,7 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          transform(ADD_CHANGE_SET_GENERAL_HOOK).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+          transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
         );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
@@ -1295,39 +1295,39 @@ describe('DSL', () => {
       });
 
       it('should require an event', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_GENERAL_HOOK).del('0.event')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_GENERAL).del('0.event')), (err) => {
           eq(err.message, "001.should-require-an-event.yaml: /0 must have required property 'event'");
           return true;
         });
       });
 
       it('should require event to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_GENERAL_HOOK).set('0.event', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.event', 1)), (err) => {
           eq(err.message, "001.should-require-event-to-be-a-string.yaml: /0/event must be of type 'string'");
           return true;
         });
       });
 
       it('should require event to be valid', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_GENERAL_HOOK).set('0.event', 'wombat')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.event', 'wombat')), (err) => {
           eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_PROJECTION', 'DROP_PROJECTION' or 'ADD_CHANGE_SET'");
           return true;
         });
       });
 
       it('should allow a description', async (t) => {
-        await applyYaml(t.name, transform(ADD_CHANGE_SET_GENERAL_HOOK).merge('0.description', 'wombat'));
+        await applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_GENERAL).merge('0.description', 'wombat'));
       });
 
       it('should require description to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_GENERAL_HOOK).merge('0.description', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_GENERAL).merge('0.description', 1)), (err) => {
           eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
       });
 
       it('should forbid additional properties', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(ADD_CHANGE_SET_GENERAL_HOOK).merge('0', { wombat: 1 })), (err) => {
+        await rejects(() => applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_GENERAL).merge('0', { wombat: 1 })), (err) => {
           eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
           return true;
         });
@@ -1340,7 +1340,7 @@ describe('DSL', () => {
     describe('Projection Specific', () => {
 
       it('should drop hooks', async (t) => {
-        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_PROJECTION_HOOK, DROP_PROJECTION_HOOK);
+        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, DROP_HOOK_ADD_CHANGE_SET_PROJECTION);
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
         eq(hooks.length, 0);
       });
@@ -1357,9 +1357,9 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          ADD_CHANGE_SET_PROJECTION_HOOK,
+          ADD_HOOK_CHANGE_SET_PROJECTION,
           ADD_ANOTHER_PROJECTION_HOOK,
-          DROP_PROJECTION_HOOK,
+          DROP_HOOK_ADD_CHANGE_SET_PROJECTION,
         );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
@@ -1367,14 +1367,14 @@ describe('DSL', () => {
       });
 
       it('should require a name', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION_HOOK).del('0.name')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_PROJECTION).del('0.name')), (err) => {
           eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
           return true;
         });
       });
 
       it('should require name to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION_HOOK).set('0.name', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_PROJECTION).set('0.name', 1)), (err) => {
           eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
           return true;
         });
@@ -1386,8 +1386,8 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          transform(ADD_CHANGE_SET_PROJECTION_HOOK).set('0.name', injection),
-          transform(DROP_PROJECTION_HOOK).set('0.name', injection),
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.name', injection),
+          transform(DROP_HOOK_ADD_CHANGE_SET_PROJECTION).set('0.name', injection),
         );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
@@ -1404,27 +1404,27 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          ADD_CHANGE_SET_PROJECTION_HOOK,
-          transform(DROP_PROJECTION_HOOK).merge('0.description', 'wombat'),
+          ADD_HOOK_CHANGE_SET_PROJECTION,
+          transform(DROP_HOOK_ADD_CHANGE_SET_PROJECTION).merge('0.description', 'wombat'),
         );
       });
 
       it('should require description to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION_HOOK).merge('0.description', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_PROJECTION).merge('0.description', 1)), (err) => {
           eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
       });
 
       it('should forbid additional properties', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_PROJECTION_HOOK).merge('0', { wombat: 1 })), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_PROJECTION).merge('0', { wombat: 1 })), (err) => {
           eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
           return true;
         });
       });
 
       it('should report missing hooks', async (t) => {
-        await rejects(() => applyYaml(t.name, DROP_PROJECTION_HOOK), (err) => {
+        await rejects(() => applyYaml(t.name, DROP_HOOK_ADD_CHANGE_SET_PROJECTION), (err) => {
           eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' does not exist");
           return true;
         });
@@ -1434,7 +1434,7 @@ describe('DSL', () => {
     describe('General', () => {
 
       it('should drop hooks', async (t) => {
-        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_GENERAL_HOOK, DROP_GENERAL_HOOK);
+        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, DROP_HOOK_ADD_CHANGE_SET_GENERAL);
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
         eq(hooks.length, 0);
       });
@@ -1445,21 +1445,21 @@ describe('DSL', () => {
   name: httpbin/add-change-set/vat-rates-v1
   event: ADD_CHANGE_SET
 `;
-        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_GENERAL_HOOK, ADD_ANOTHER_GENERAL_HOOK, DROP_GENERAL_HOOK);
+        await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, ADD_ANOTHER_GENERAL_HOOK, DROP_HOOK_ADD_CHANGE_SET_GENERAL);
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_hook'));
         eq(hooks.length, 1);
       });
 
       it('should require a name', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_GENERAL_HOOK).del('0.name')), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_GENERAL).del('0.name')), (err) => {
           eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
           return true;
         });
       });
 
       it('should require name to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_GENERAL_HOOK).set('0.name', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_GENERAL).set('0.name', 1)), (err) => {
           eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
           return true;
         });
@@ -1471,8 +1471,8 @@ describe('DSL', () => {
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          transform(ADD_CHANGE_SET_GENERAL_HOOK).set('0.name', injection),
-          transform(DROP_GENERAL_HOOK).set('0.name', injection),
+          transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.name', injection),
+          transform(DROP_HOOK_ADD_CHANGE_SET_GENERAL).set('0.name', injection),
         );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
@@ -1485,25 +1485,25 @@ describe('DSL', () => {
       });
 
       it('should allow a description', async (t) => {
-        await applyYaml(t.name, ADD_CHANGE_SET_GENERAL_HOOK, transform(DROP_GENERAL_HOOK).merge('0.description', 'wombat'));
+        await applyYaml(t.name, ADD_HOOK_CHANGE_SET_GENERAL, transform(DROP_HOOK_ADD_CHANGE_SET_GENERAL).merge('0.description', 'wombat'));
       });
 
       it('should require description to be a string', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_GENERAL_HOOK).merge('0.description', 1)), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_GENERAL).merge('0.description', 1)), (err) => {
           eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
       });
 
       it('should forbid additional properties', async (t) => {
-        await rejects(() => applyYaml(t.name, transform(DROP_GENERAL_HOOK).merge('0', { wombat: 1 })), (err) => {
+        await rejects(() => applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_GENERAL).merge('0', { wombat: 1 })), (err) => {
           eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
           return true;
         });
       });
 
       it('should report missing hooks', async (t) => {
-        await rejects(() => applyYaml(t.name, DROP_GENERAL_HOOK), (err) => {
+        await rejects(() => applyYaml(t.name, DROP_HOOK_ADD_CHANGE_SET_GENERAL), (err) => {
           eq(err.message, "Hook 'sns/add-change-set/*' does not exist");
           return true;
         });

@@ -1,0 +1,3 @@
+- operation: DROP_ENTITY
+  name: VAT Rate
+  version: 1

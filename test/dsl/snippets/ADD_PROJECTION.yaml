@@ -1,0 +1,6 @@
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  dependencies:
+    - entity: VAT Rate
+      version: 1

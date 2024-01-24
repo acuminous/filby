@@ -1,0 +1,16 @@
+- operation: ADD_CHANGE_SET
+  description: 2022 VAT Rates
+  effective: 2022-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: standard
+          rate: 0.15
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: reduced
+          rate: 0.10

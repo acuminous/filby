@@ -1,0 +1,2 @@
+- operation: DROP_HOOK
+  name: sns/add-change-set/*

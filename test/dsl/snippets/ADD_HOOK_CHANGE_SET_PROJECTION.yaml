@@ -1,0 +1,5 @@
+- operation: ADD_HOOK
+  name: sns/add-change-set/vat-rates-v1
+  event: ADD_CHANGE_SET
+  projection: VAT Rates
+  version: 1

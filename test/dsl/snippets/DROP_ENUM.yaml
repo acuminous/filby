@@ -1,0 +1,2 @@
+- operation: DROP_ENUM
+  name: vat_tax_rate

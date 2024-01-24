@@ -1,0 +1,3 @@
+- operation: ADD_HOOK
+  name: sns/add-change-set/*
+  event: ADD_CHANGE_SET

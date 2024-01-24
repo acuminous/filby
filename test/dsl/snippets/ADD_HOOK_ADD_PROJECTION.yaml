@@ -1,0 +1,3 @@
+- operation: ADD_HOOK
+  name: sns/add-projection
+  event: ADD_PROJECTION

@@ -1,0 +1,22 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 VAT Rates
+  effective: 2020-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: standard
+          rate: 0.10
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: reduced
+          rate: 0.05
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: zero
+          rate: 0

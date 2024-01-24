@@ -1,0 +1,16 @@
+- operation: ADD_CHANGE_SET
+  description: 2021 VAT Rates
+  effective: 2021-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: standard
+          rate: 0.125
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: reduced
+          rate: 0.07
