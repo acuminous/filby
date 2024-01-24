@@ -9,6 +9,7 @@ CREATE TYPE fby_event_type AS ENUM (
 CREATE TABLE fby_hook (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
+  description TEXT,
   event fby_event_type NOT NULL,
   projection_id INTEGER REFERENCES fby_projection (id) ON DELETE CASCADE,
   CONSTRAINT uniq_fby_hook_name UNIQUE NULLS NOT DISTINCT (name),

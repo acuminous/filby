@@ -4,8 +4,8 @@ CREATE EXTENSION pgcrypto;
 
 CREATE TABLE fby_change_set (
   id SERIAL PRIMARY KEY,
+  description TEXT NOT NULL,
   effective TIMESTAMP WITH TIME ZONE NOT NULL,
-  description TEXT,
   last_modified TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   entity_tag TEXT NOT NULL DEFAULT encode(gen_random_bytes(10), 'hex')
 );

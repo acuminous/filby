@@ -1,0 +1,23 @@
+- operation: ADD_ENTITY
+  name: VAT Rate
+  version: 1
+  fields:
+    - name: type
+      type: TEXT
+    - name: rate
+      type: NUMERIC
+  identified_by:
+    - type
+
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  dependencies:
+    - entity: VAT Rate
+      version: 1
+
+- operation: ADD_HOOK
+  name: sns/add-change-set/*
+  event: ADD_CHANGE_SET
+  description: pwned', 'ADD_CHANGE_SET', null);RAISE EXCEPTION $💀$You have been
+    pwned!$💀$;--

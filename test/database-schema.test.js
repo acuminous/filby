@@ -108,7 +108,7 @@ describe('Database Schema', () => {
     it('should cascade deletes to data frames', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");
-        await tx.query('INSERT INTO fby_change_set (id, effective) VALUES (1, now())');
+        await tx.query("INSERT INTO fby_change_set (id, description, effective) VALUES (1, 'Park updates',now())");
         await tx.query("INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES (1, 1, 1, 'POST')");
         await tx.query('DELETE FROM fby_entity');
       });
@@ -182,17 +182,17 @@ describe('Database Schema', () => {
     it('should prevent duplicate change sets', async () => {
 
       await filby.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO fby_change_set (id, effective) VALUES
-          (1, '2023-01-01T00:00:00.000Z'),
-          (2, '2023-01-01T00:00:00.000Z')
+        await tx.query(`INSERT INTO fby_change_set (id, description, effective) VALUES
+          (1, 'Park updates', '2023-01-01T00:00:00.000Z'),
+          (2, 'Park updates', '2023-01-01T00:00:00.000Z')
         `);
       });
 
       await rejects(async () => {
         await filby.withTransaction(async (tx) => {
-          await tx.query(`INSERT INTO fby_change_set (id, effective) VALUES
-            (3, '2023-01-01T00:00:00.000Z'),
-            (3, '2023-01-01T00:00:00.000Z')`);
+          await tx.query(`INSERT INTO fby_change_set (id, description, effective) VALUES
+            (3, 'Park updates', '2023-01-01T00:00:00.000Z'),
+            (3, 'Park updates', '2023-01-01T00:00:00.000Z')`);
         });
       }, (err) => {
         eq(err.code, '23505');
@@ -203,7 +203,7 @@ describe('Database Schema', () => {
     it('should enforce change sets have effective dates', async () => {
       await rejects(async () => {
         await filby.withTransaction(async (tx) => {
-          await tx.query('INSERT INTO fby_change_set (id, effective) VALUES (1, NULL)');
+          await tx.query("INSERT INTO fby_change_set (id, description, effective) VALUES (1, 'Park updates', NULL)");
         });
       }, (err) => {
         eq(err.code, '23502');
@@ -215,8 +215,8 @@ describe('Database Schema', () => {
       const checkpoint = new Date();
 
       await filby.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
-          (1, '2020-04-05T00:00:00.000Z', 'Countries')`);
+        await tx.query(`INSERT INTO fby_change_set (id, description, effective) VALUES
+          (1, 'Countries', '2020-04-05T00:00:00.000Z')`);
       });
 
       const changeSet = await filby.getChangeSet(1);
@@ -225,8 +225,8 @@ describe('Database Schema', () => {
 
     it('should default entity tag to random hex', async () => {
       await filby.withTransaction(async (tx) => {
-        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
-          (1, '2020-04-05T00:00:00.000Z', 'Countries')`);
+        await tx.query(`INSERT INTO fby_change_set (id, description, effective) VALUES
+          (1, 'Countries', '2020-04-05T00:00:00.000Z')`);
       });
 
       const changeSet = await filby.getChangeSet(1);

@@ -17,7 +17,7 @@ BEGIN
   {{/if}}
 
   BEGIN
-    INSERT INTO fby_hook (name, event, projection_id) VALUES ({{literal name}}, {{literal event}}, v_projection_id);
+    INSERT INTO fby_hook (name, description, event, projection_id) VALUES ({{literal name}}, {{literal description}}, {{literal event}}, v_projection_id);
   EXCEPTION
     WHEN unique_violation
     THEN RAISE EXCEPTION 'Hook '{{literal name}}' already exists';

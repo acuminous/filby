@@ -429,6 +429,15 @@ describe('DSL', () => {
       });
     });
 
+    it('should escape description', async (t) => {
+      const injection = "pwned');RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+      await applyYaml(t.name, transform(ADD_ENTITY).set('0.description', injection));
+
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT description FROM fby_entity'));
+      eq(entities.length, 1);
+      deq(entities[0], { description: "pwned');RAISE EXCEPTION $💀$You have been pwned!$💀$;" });
+    });
+
     it('should reject checks by default', async (t) => {
       await rejects(() => applyYaml(
         t.name,
@@ -447,13 +456,6 @@ describe('DSL', () => {
         transform(ADD_CHANGE_SET_1).set('0.frames.0.data.0.rate', 1.1),
       ), (err) => {
         eq(err.code, '23514');
-        return true;
-      });
-    });
-
-    it('should require description to be a string', async (t) => {
-      await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).merge('0.description', 1)), (err) => {
-        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
         return true;
       });
     });
@@ -720,6 +722,15 @@ describe('DSL', () => {
         eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
         return true;
       });
+    });
+
+    it('should escape description', async (t) => {
+      const injection = "pwned');RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+      await applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.description', injection));
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT description FROM fby_projection'));
+      eq(projections.length, 1);
+      deq(projections[0], { description: injection });
     });
 
     it('should forbid additional properties', async (t) => {
@@ -1168,11 +1179,12 @@ describe('DSL', () => {
       });
 
       it('should escape name', async (t) => {
+        const injection = "pwned', null, 'ADD_CHANGE_SET', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;--";
         await applyYaml(
           t.name,
           ADD_ENTITY,
           ADD_PROJECTION,
-          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.name', injection),
         );
 
         const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
@@ -1182,7 +1194,7 @@ describe('DSL', () => {
         `));
 
         eq(hooks.length, 1);
-        deq(hooks[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", event: 'ADD_CHANGE_SET', projection: 'VAT Rates', version: 1 });
+        deq(hooks[0], { name: injection, event: 'ADD_CHANGE_SET', projection: 'VAT Rates', version: 1 });
       });
 
       it('should require an event', async (t) => {
@@ -1274,6 +1286,20 @@ describe('DSL', () => {
           eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
+      });
+
+      it('should escape description', async (t) => {
+        const injection = "pwned', 'ADD_CHANGE_SET', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;--";
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.description', injection),
+        );
+
+        const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT description FROM fby_hook'));
+        eq(projections.length, 1);
+        deq(projections[0], { description: injection });
       });
 
       it('should forbid additional properties', async (t) => {
@@ -1368,6 +1394,20 @@ describe('DSL', () => {
           eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
           return true;
         });
+      });
+
+      it('should escape description', async (t) => {
+        const injection = "pwned', 'ADD_CHANGE_SET', null);RAISE EXCEPTION $💀$You have been pwned!$💀$;--";
+        await applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.description', injection),
+        );
+
+        const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT description FROM fby_hook'));
+        eq(projections.length, 1);
+        deq(projections[0], { description: injection });
       });
 
       it('should forbid additional properties', async (t) => {

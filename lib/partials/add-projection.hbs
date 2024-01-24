@@ -5,8 +5,8 @@ DECLARE
   v_entity_id INTEGER;
 BEGIN
   BEGIN
-    INSERT INTO fby_projection (name, version) VALUES
-    ({{literal name}}, {{literal version}})
+    INSERT INTO fby_projection (name, version, description) VALUES
+    ({{literal name}}, {{literal version}}, {{literal description}})
     RETURNING id INTO v_projection_id;
   EXCEPTION
     WHEN unique_violation

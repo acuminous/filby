@@ -2,8 +2,8 @@
 DO $$
 BEGIN
   BEGIN
-    INSERT INTO fby_entity (name, version) VALUES
-    ({{literal name}}, {{literal version}});
+    INSERT INTO fby_entity (name, version, description) VALUES
+    ({{literal name}}, {{literal version}}, {{literal description}});
   EXCEPTION
     WHEN unique_violation
     THEN RAISE EXCEPTION 'Entity '{{literal name (v version)}}' already exists';
