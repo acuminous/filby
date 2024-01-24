@@ -30,7 +30,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE FUNCTION fby_notify(p_name TEXT, p_version INTEGER) RETURNS VOID
+CREATE FUNCTION fby_notify_add_change_set(p_name TEXT, p_version INTEGER) RETURNS VOID
 AS $$
 DECLARE
   projection RECORD;
@@ -43,10 +43,10 @@ BEGIN
     WHERE e.name = p_name AND e.version = p_version
   )
   LOOP
-    PERFORM fby_schedule_notification(h.name, h.event, projection.name, projection.version)
+    PERFORM fby_schedule_notification(h.name, 'ADD_CHANGE_SET', projection.name, projection.version)
     FROM fby_hook h
-    WHERE h.projection_id = projection.id
-       OR h.projection_id IS NULL;
+    WHERE h.event = 'ADD_CHANGE_SET'
+      AND (h.projection_id = projection.id OR h.projection_id IS NULL);
   END LOOP;
 END;
 $$ LANGUAGE plpgsql;

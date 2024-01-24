@@ -19,7 +19,7 @@ BEGIN
   {{/data}}
   {{/if}}
 
-  PERFORM fby_notify({{literal entity}}, {{literal version}});
+  PERFORM fby_notify_add_change_set({{literal entity}}, {{literal version}});
   {{/frames}}
 END;
 $$ LANGUAGE plpgsql;

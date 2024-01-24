@@ -22,5 +22,10 @@ BEGIN
   INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
   (v_projection_id, v_entity_id);
   {{/dependencies}}
+
+  PERFORM fby_schedule_notification(h.name, 'ADD_PROJECTION', {{literal name}}, {{literal version}})
+  FROM fby_hook h
+  WHERE h.event = 'ADD_PROJECTION';
+
 END;
 $$ LANGUAGE plpgsql;
