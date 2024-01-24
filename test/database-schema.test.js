@@ -140,7 +140,7 @@ describe('Database Schema', () => {
       });
     });
 
-    it('should be deleted when the parent projection is deleted', async () => {
+    it('should cascade deletes from projection', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
         await tx.query("INSERT INTO fby_hook (name, event, projection_id) VALUES ('change', 'ADD_CHANGE_SET', 1)");
@@ -153,28 +153,28 @@ describe('Database Schema', () => {
   });
 
   describe('Notifications', () => {
-    it('should be deleted when the parent projection is deleted', async () => {
+    it('should NOT cascade deletes from projection', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
         await tx.query("INSERT INTO fby_hook (id, name, event, projection_id) VALUES (1, 'change', 'ADD_CHANGE_SET', 1)");
-        await tx.query('INSERT INTO fby_notification (id, hook_id, projection_id) VALUES (1, 1, 1)');
+        await tx.query("INSERT INTO fby_notification (id, hook_name, hook_event, projection_name, projection_version) VALUES (1, 'change', 'ADD_CHANGE_SET', 'Park', 1)");
         await tx.query('DELETE FROM fby_projection');
       });
 
       const { rows: notifications } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_notification'));
-      eq(notifications.length, 0);
+      eq(notifications.length, 1);
     });
 
-    it('should cascade deletes to notifications', async () => {
+    it('should NOT cascade deletes from hook', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
         await tx.query("INSERT INTO fby_hook (id, name, event, projection_id) VALUES (1, 'change', 'ADD_CHANGE_SET', 1)");
-        await tx.query('INSERT INTO fby_notification (id, hook_id, projection_id) VALUES (1, 1, 1)');
+        await tx.query("INSERT INTO fby_notification (id, hook_name, hook_event, projection_name, projection_version) VALUES (1, 'change', 'ADD_CHANGE_SET', 'Park', 1)");
         await tx.query('DELETE FROM fby_hook');
       });
 
       const { rows: notifications } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_notification'));
-      eq(notifications.length, 0);
+      eq(notifications.length, 1);
     });
   });
 

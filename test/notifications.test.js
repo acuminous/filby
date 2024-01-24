@@ -51,14 +51,13 @@ describe('Notifications', () => {
       await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
         (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
         (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id) VALUES
-        (1, 1)`);
+      await tx.query(`INSERT INTO fby_notification (hook_name, hook_event, projection_name, projection_version) VALUES
+        ('VAT Rate Changed', 'ADD_CHANGE_SET', 'VAT Rates', 1)`);
     });
 
     filby.subscribe('VAT Rate Changed', (notification) => {
-      eq(notification.name, 'VAT Rate Changed');
-      eq(notification.event, 'ADD_CHANGE_SET');
-      deq(notification.projection, { id: 1, name: 'VAT Rates', version: 1 });
+      deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
+      deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
       eq(notification.attempts, 1);
       done();
     });
@@ -74,8 +73,9 @@ describe('Notifications', () => {
       await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
         (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
         (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id) VALUES
-        (1, 1)`);
+      await tx.query(`INSERT INTO fby_notification (hook_name, hook_event, projection_name, projection_version) VALUES
+        ('VAT Rate Changed', 'ADD_CHANGE_SET', 'VAT Rates', 1)`);
+
     });
 
     let attempts = 0;
@@ -90,13 +90,14 @@ describe('Notifications', () => {
   it('should redeliver unsuccessful notifications up to the maximum number of attempts', async (t, done) => {
     await filby.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
-          (1, 'VAT Rates', 1),
-          (2, 'CGT Rates', 1)`);
+        (1, 'VAT Rates', 1),
+        (2, 'CGT Rates', 1)`);
       await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
-      (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
-      (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id) VALUES
-          (1, 1)`);
+        (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
+        (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
+      await tx.query(`INSERT INTO fby_notification (hook_name, hook_event, projection_name, projection_version) VALUES
+        ('VAT Rate Changed', 'ADD_CHANGE_SET', 'VAT Rates', 1)`);
+
     });
 
     let attempt = 0;
@@ -123,8 +124,8 @@ describe('Notifications', () => {
       await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
         (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
         (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id) VALUES
-        (1, 1)`);
+      await tx.query(`INSERT INTO fby_notification (hook_name, hook_event, projection_name, projection_version) VALUES
+        ('VAT Rate Changed', 'ADD_CHANGE_SET', 'VAT Rates', 1)`);
     });
 
     let attempt = 0;
@@ -153,8 +154,9 @@ describe('Notifications', () => {
       await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
         (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
         (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_id) VALUES
-        (1, 1)`);
+      await tx.query(`INSERT INTO fby_notification (hook_name, hook_event, projection_name, projection_version) VALUES
+        ('VAT Rate Changed', 'ADD_CHANGE_SET', 'VAT Rates', 1)`);
+
     });
 
     filby.subscribe('VAT Rate Changed', () => {
@@ -163,9 +165,8 @@ describe('Notifications', () => {
 
     filby.subscribe(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
       eq(notification.err.message, 'Oh Noes!');
-      eq(notification.name, 'VAT Rate Changed');
-      eq(notification.event, 'ADD_CHANGE_SET');
-      deq(notification.projection, { id: 1, name: 'VAT Rates', version: 1 });
+      deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
+      deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
       eq(notification.attempts, 3);
       setTimeout(done, 1000);
     });

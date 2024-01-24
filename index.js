@@ -78,14 +78,14 @@ module.exports = class Filby {
   async getProjections() {
     return this.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT id, name, version FROM fby_projection');
-      return rows;
+      return rows.map(toProjection);
     });
   }
 
   async getProjection(name, version) {
     return this.withTransaction(async (tx) => {
       const { rows } = await tx.query('SELECT id, name, version FROM fby_projection WHERE name = $1 AND version = $2', [name, version]);
-      return rows[0];
+      return rows.map(toProjection)[0];
     });
   }
 
@@ -120,7 +120,6 @@ LIMIT 1`, [projection.id]);
       const functionName = aggregate(name, version);
       const { rowCount: exists } = await tx.query('SELECT 1 FROM pg_proc WHERE proname = $1', [functionName]);
       if (!exists) throw new Error(`Function '${functionName}' does not exist`);
-
       const { rows } = await tx.query(`SELECT * FROM ${functionName}($1)`, [changeSetId]);
       return rows;
     });
@@ -137,16 +136,7 @@ LIMIT 1`, [projection.id]);
         ok = await this.withTransaction(async (tx) => {
           const notification = await this.#getNextNotification(tx, maxAttempts);
           if (!notification) return false;
-
-          const context = await this.#getNotificationContext(tx, notification);
-          try {
-            await this.#emitter.emitAsync(context.name, context);
-            await this.#passNotification(tx, notification);
-          } catch (err) {
-            await this.#failNotification(tx, notification, err);
-            if (notification.attempts >= maxAttempts) this.#emitter.emitAsync(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, { ...context, err });
-          }
-
+          await this.#sendNotification(tx, notification, maxAttempts);
           return true;
         });
       } while (ok);
@@ -157,26 +147,22 @@ LIMIT 1`, [projection.id]);
     });
   }
 
-  async #getNextNotification(tx, maxAttempts) {
-    const { rows } = await tx.query('SELECT id, hook_id, attempts FROM fby_get_next_notification($1)', [maxAttempts]);
-    const notifications = rows.map((row) => ({ id: row.id, hookId: row.hook_id, attempts: row.attempts }));
-    return notifications[0];
+  async #sendNotification(tx, notification, maxAttempts) {
+    try {
+      await this.#emitter.emitAsync(notification.hook.name, notification);
+      await this.#passNotification(tx, notification);
+    } catch (err) {
+      await this.#failNotification(tx, notification, err);
+      if (notification.attempts >= maxAttempts) this.#emitter.emitAsync(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, { ...notification, err });
+    }
   }
 
-  async #getNotificationContext(tx, notification) {
-    const { rows } = await tx.query(
-      `SELECT h.name, h.event, p.id AS projection_id, p.name AS projection_name, p.version AS projection_version FROM fby_hook h
-INNER JOIN fby_notification n ON n.hook_id = h.id
-INNER JOIN fby_projection p ON p.id = n.projection_id
-WHERE h.id = $1`,
-      [notification.hookId],
-    );
-    return rows.map((row) => ({
-      name: row.name,
-      event: row.event,
-      projection: { id: row.projection_id, name: row.projection_name, version: row.projection_version },
-      attempts: notification.attempts,
-    }))[0];
+  async #getNextNotification(tx, maxAttempts) {
+    const { rows } = await tx.query(`
+      SELECT n.id, n.hook_name, n.hook_event, n.attempts, n.projection_name, n.projection_version
+      FROM fby_get_next_notification($1) n`, [maxAttempts]);
+    const notifications = rows.map(toNotification);
+    return notifications[0];
   }
 
   async #passNotification(tx, notification) {
@@ -197,5 +183,21 @@ function toChangeSet(row) {
     description: row.description,
     lastModified: new Date(row.last_modified),
     entityTag: row.entity_tag,
+  };
+}
+
+function toNotification(row) {
+  return {
+    id: row.id,
+    hook: { name: row.hook_name, event: row.hook_event },
+    projection: toProjection({ name: row.projection_name, version: row.projection_version }),
+    attempts: row.attempts,
+  };
+}
+
+function toProjection(row) {
+  return {
+    ...row,
+    key: `${row.name} v${row.version}`,
   };
 }

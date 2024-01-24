@@ -47,7 +47,7 @@ module.exports = class Application {
   async #handleHookFailures() {
     this.#filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (errNotification) => {
       const { err: { message: errMessage, stack, config: { method, url } }, ...notification } = errNotification;
-      const message = `Hook '${notification.name}' failed after ${notification.attempts} attempts and will no longer be retried`;
+      const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
       this.#logger.error({ message: errMessage, stack, method, url });
     });
@@ -64,7 +64,7 @@ module.exports = class Application {
 
   async #registerWebhook(event, url) {
     this.#filby.subscribe(event, async (notification) => {
-      const routes = this.#routes[notification.projection.id];
+      const routes = this.#routes[notification.projection.key];
       await axios.post(url, { ...notification, routes });
     });
   }
@@ -79,7 +79,7 @@ module.exports = class Application {
 
   captureProjectionPath(routeOptions) {
     if (routeOptions.method !== 'GET' || !routeOptions.projection) return;
-    this.#routes[routeOptions.projection.id].push(routeOptions.path);
+    this.#routes[routeOptions.projection.key].push(routeOptions.path);
   }
 
   async #registerSwagger() {
@@ -120,7 +120,7 @@ module.exports = class Application {
   async #registerProjections() {
     const projections = await this.#filby.getProjections();
     for (let i = 0; i < projections.length; i++) {
-      this.#routes[projections[i].id] = [];
+      this.#routes[projections[i].key] = [];
       await this.#registerProjection(projections[i]);
     }
   }

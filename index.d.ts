@@ -32,9 +32,9 @@ export type Config = {
 };
 
 export type Projection = {
-  id: number;
   name: string;
   version: number;
+  key: string;
 };
 
 export type ChangeSet = {
@@ -45,9 +45,13 @@ export type ChangeSet = {
   entityTag: string;
 };
 
-export type Notification = {
+export type Hook = {
   name: string;
   event: string;
+}
+
+export type Notification = {
+  hook: Hook;
   projection: Projection;
   attempts: number;
 };

@@ -39,7 +39,7 @@ export default class Application {
   #logger;
   #filby: Filby;
   #fastify: FastifyInstance;
-  #routes = new Map<number, string[]>();
+  #routes = new Map<string, string[]>();
 
   constructor({ config }: { config: ApplicationConfig }) {
     this.#config = config;
@@ -70,7 +70,7 @@ export default class Application {
   async #handleHookFailures() {
     this.#filby.subscribe<ErrorNotification<AxiosError>>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (errNotification: ErrorNotification<AxiosError>) => {
       const { err: { message: errMessage, stack, config: { method, url } }, ...notification } = errNotification;
-      const message = `Hook '${notification.name}' failed after ${notification.attempts} attempts and will no longer be retried`;
+      const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
       this.#logger.error({ message: errMessage, stack, method, url });
     });
@@ -87,7 +87,7 @@ export default class Application {
 
   async #registerWebhook(event: string, url: string) {
     this.#filby.subscribe(event, async (notification: Notification) => {
-      const routes = this.#routes.get(notification.projection.id);
+      const routes = this.#routes.get(notification.projection.key);
       await axios.post(url, { ...notification, routes });
     });
   }
@@ -102,7 +102,7 @@ export default class Application {
 
   captureProjectionPath(routeOptions: ProjectionRouteOptions) {
     if (routeOptions.method !== 'GET' || !routeOptions.projection) return;
-    this.#routes.get(routeOptions.projection.id)?.push(routeOptions.path);
+    this.#routes.get(routeOptions.projection.key)?.push(routeOptions.path);
   }
 
   async #registerSwagger() {
@@ -143,7 +143,7 @@ export default class Application {
   async #registerProjections() {
     const projections = await this.#filby.getProjections();
     for (let i = 0; i < projections.length; i++) {
-      this.#routes.set(projections[i].id, []);
+      this.#routes.set(projections[i].key, []);
       await this.#registerProjection(projections[i]);
     }
   }
