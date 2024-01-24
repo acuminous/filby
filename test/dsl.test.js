@@ -1791,8 +1791,8 @@ describe('DSL', () => {
     });
 
     it('should report unsupported file types', async (t) => {
-      await rejects(() => apply(t.name, 'UNSUPPORTED', 'yml'), (err) => {
-        eq(err.message, 'Unsupported file type: 001.should-report-unsupported-file-types.yml');
+      await rejects(() => apply(t.name, 'UNSUPPORTED', 'avro'), (err) => {
+        eq(err.message, 'Unsupported file type: 001.should-report-unsupported-file-types.avro');
         return true;
       });
     });
@@ -1817,7 +1817,7 @@ describe('DSL', () => {
 
   function deleteMigrations() {
     fs.readdirSync(path.join(__dirname, 'dsl'))
-      .filter((file) => ['.yaml', '.json', '.sql', '.yml'].includes(path.extname(file)))
+      .filter((file) => ['.yaml', '.json', '.sql', '.avro'].includes(path.extname(file)))
       .map((file) => path.join(__dirname, 'dsl', file))
       .forEach((file) => fs.unlinkSync(file));
   }
