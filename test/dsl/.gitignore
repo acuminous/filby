@@ -1,4 +1,4 @@
-./*.yaml
-./*.json
-./*.sql
-./*.avro
+001.*.yaml
+001.*.json
+001.*.sql
+001.*.avro
