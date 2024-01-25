@@ -159,8 +159,10 @@ LIMIT 1`, [projection.id]);
 
   async #getNextNotification(tx, maxAttempts) {
     const { rows } = await tx.query(`
-      SELECT n.id, n.hook_name, n.hook_event, n.attempts, n.projection_name, n.projection_version
-      FROM fby_get_next_notification($1) n`, [maxAttempts]);
+      SELECT n.id, h.name AS hook_name, h.event AS hook_event, n.attempts, n.projection_name, n.projection_version
+      FROM fby_get_next_notification($1) n
+      INNER JOIN fby_hook h ON h.id = n.hook_id
+    `, [maxAttempts]);
     const notifications = rows.map(toNotification);
     return notifications[0];
   }

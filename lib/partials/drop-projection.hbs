@@ -14,17 +14,17 @@ BEGIN
     RAISE EXCEPTION 'Projection '{{literal name (v version)}}' does not exist';
   END IF;
 
+  DELETE FROM fby_projection
+  WHERE name = {{literal name}}
+    AND version = {{literal version}};
+
   DELETE FROM fby_notification
   WHERE projection_name = {{literal name}}
     AND projection_version = {{literal version}};
 
-  PERFORM fby_schedule_notification(h.name, 'DROP_PROJECTION', {{literal name}}, {{literal version}})
+  PERFORM fby_schedule_notification(h.id, {{literal name}}, {{literal version}})
   FROM fby_hook h
   WHERE h.event = 'DROP_PROJECTION';
-
-  DELETE FROM fby_projection
-  WHERE name = {{literal name}}
-    AND version = {{literal version}};
 
 END;
 $$ LANGUAGE plpgsql;

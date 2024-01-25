@@ -791,6 +791,10 @@ describe('DSL', () => {
       await applyYaml(t.name, DROP_PROJECTION);
 
       const countAfter = await countNotifications();
+      // -1 for deletion of the CHANGE_SET_PROJECTION notification via cascade
+      // -1 for deletion of the CHANGE_SET_GENERAL manual
+      // -1 for deletion of the ADD_PROJECTION manual
+      // +1 for the DROP_PROJECTION notification
       eq(countAfter, 1);
     });
 
