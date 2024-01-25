@@ -228,7 +228,7 @@ Starts polling the database for notifications
 #### filby.stopNotifications(): Promise&lt;void&gt;
 Stops polling the database for notifications, and waits for any inflight notifications to complete.
 
-#### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T&lt;T&gt;) => Promise&lt;void&gt;): void
+#### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T) => Promise&lt;void&gt;): void
 Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for hooks and perform of asynchronous tasks like making an HTTP request for a webhook. The hook name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
 
 ```js
@@ -246,7 +246,7 @@ filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
 });
 ```
 
-#### filby.unsubscribe&lt;T&gt;(event: string, handler: (notification: T&lt;T&gt;) => Promise&lt;void&gt;): void
+#### filby.unsubscribe&lt;T&gt;(event: string, handler: (notification: T) => Promise&lt;void&gt;): void
 Unsubscribes the handler from the specified events
 
 #### filby.unsubscribe&lt;T&gt;(event?: string): void
