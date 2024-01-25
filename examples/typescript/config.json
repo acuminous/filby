@@ -19,12 +19,7 @@
       "enableCheckConstraints": true
     },
     "migrations": {
-      "directory": "../migrations",
-      "fileTypes": [
-        "json",
-        "sql",
-        "yaml"
-      ]
+      "directory": "../migrations"
     },
     "notifications": {
       "interval": "5s",

@@ -464,10 +464,7 @@ You can also use the same process for managing SQL changes too (e.g. for adding 
 
   "migrations": {
     // Specifies the path to the migrations folder. Defaults to "migrations"
-    "directory": "path/to/migrations/folder",
-    // Specifies while file types are supported. Only yaml and json are supported by default since
-    // raw SQL migrations will bypass Filby's validation
-    "fileTypes": ["yaml", "json", "sql"]
+    "directory": "path/to/migrations/folder"
   },
 
   "notifications": {

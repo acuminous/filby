@@ -1785,7 +1785,7 @@ describe('DSL', () => {
   });
 
   describe('Migrations', () => {
-    it('supports YAML by default', async (t) => {
+    it('supports YAML', async (t) => {
       await applyYaml(t.name, ADD_ENTITY);
 
       const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
@@ -1793,7 +1793,7 @@ describe('DSL', () => {
       deq(entities[0], { name: 'VAT Rate', version: 1 });
     });
 
-    it('support JSON by default', async (t) => {
+    it('support JSON', async (t) => {
       await applyJson(t.name, `
           [
             {
@@ -1821,18 +1821,7 @@ describe('DSL', () => {
       deq(entities[0], { name: 'VAT Rate', version: 1 });
     });
 
-    it('rejects SQL by default', async (t) => {
-      await rejects(() => applySql(t.name, `
-        INSERT INTO fby_entity(id, name, version) VALUES
-          (1, 'VAT Rate', 1);
-        `), (err) => {
-        eq(err.message, 'Unsupported file type: sql');
-        return true;
-      });
-    });
-
-    it('supports SQL when enabled', async (t) => {
-      filby = new TestFilby(op.set(config, 'migrations.fileTypes', ['json', 'yaml', 'sql']));
+    it('supports SQL', async (t) => {
       await applySql(t.name, `
         INSERT INTO fby_entity(id, name, version) VALUES
           (1, 'VAT Rate', 1);
