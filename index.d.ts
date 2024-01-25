@@ -7,8 +7,8 @@ export default class Filby {
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
   subscribe<T>(event: string, handler: (notification: T) => Promise<void>);
-  unsubscribe<T>(event: string, handler: (notification: T) => Promise<void>);
-  unsubscribeAll(event?: string);
+  unsubscribe<T>(event: string, handler?: (notification: T) => Promise<void>);
+  unsubscribeAll();
   stop(): Promise<void>;
   withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
   getProjections(): Promise<Projection[]>;
