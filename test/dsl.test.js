@@ -1832,7 +1832,7 @@ describe('DSL', () => {
 
     it('should report unsupported file types', async (t) => {
       await rejects(() => apply(t.name, 'UNSUPPORTED', 'avro'), (err) => {
-        eq(err.message, 'Unsupported file type: 001.should-report-unsupported-file-types.avro');
+        eq(err.message, 'Unsupported file type: avro');
         return true;
       });
     });
