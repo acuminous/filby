@@ -28,15 +28,15 @@ module.exports = class Filby {
 
   async init() {
     const filbyMigrationsDir = path.join(__dirname, 'migrations');
-    const customMigrationsDir = this.#config.migrations || 'migrations';
+    const customMigrationsDir = this.#config.migrations?.directory || 'migrations';
 
-    await this.#migrate(this.#config, filbyMigrationsDir);
-    await this.#migrate(this.#config, path.resolve(customMigrationsDir));
+    await this.#migrate(filbyMigrationsDir);
+    await this.#migrate(path.resolve(customMigrationsDir));
   }
 
-  async #migrate(config, directory) {
+  async #migrate(directory) {
     const migrations = await marv.scan(directory);
-    await marv.migrate(migrations, driver(config));
+    await marv.migrate(migrations, driver(this.#config));
   }
 
   async startNotifications() {

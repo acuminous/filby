@@ -18,7 +18,14 @@
     "dsl": {
       "enableCheckConstraints": true
     },
-    "migrations": "../migrations",
+    "migrations": {
+      "directory": "../migrations",
+      "fileTypes": [
+        "json",
+        "sql",
+        "yaml"
+      ]
+    },
     "notifications": {
       "interval": "5s",
       "intialDelay": "1s",

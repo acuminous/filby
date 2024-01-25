@@ -311,7 +311,13 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ```
 
 ## Data Definition
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder. You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON. A JSON schema is available in /lib/schema.json
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder containing a suitably configured `.marvrc` file, e.g.
+```json
+{
+  "filter": "(?:\\.sql|\\.yaml|\\.json)$"
+}
+```
+You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON. A JSON schema is available in /lib/schema.json
 
 ```yaml
 # migrations/0001.define-park-schema.yaml
@@ -456,8 +462,13 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
     "password": "fby_example"
   },
 
-  // Specifies the path to the migrations folder. Defaults to "migrations"
-  "migrations": "path/to/migrations/folder",
+  "migrations": {
+    // Specifies the path to the migrations folder. Defaults to "migrations"
+    "directory": "path/to/migrations/folder",
+    // Specifies while file types are supported. Only yaml and json are supported by default since
+    // raw SQL migrations will bypass Filby's validation
+    "fileTypes": ["yaml", "json", "sql"]
+  },
 
   "notifications": {
 

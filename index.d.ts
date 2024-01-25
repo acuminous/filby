@@ -22,7 +22,10 @@ export default class Filby {
 export type PoolConfig = PoolConfig;
 
 export type Config = {
-  migrations?: string;
+  migrations?: {
+    directory?: string;
+    fileTypes?: string[];
+  };
   database?: PoolConfig;
   notification?: {
     interval?: string;
