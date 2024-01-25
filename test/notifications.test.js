@@ -173,4 +173,28 @@ describe('Notifications', () => {
 
     filby.startNotifications();
   });
+
+  it('should unsubscribe interested parties', async (t, done) => {
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
+        (1, 'VAT Rates', 1),
+        (2, 'CGT Rates', 1)`);
+      await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
+        (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
+        (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (1, 'VAT Rates', 1)`);
+    });
+
+    function fail() {
+      done(new Error('Not unsubscribed'));
+    }
+
+    filby.subscribe('VAT Rate Changed', fail);
+    filby.unsubscribe('VAT Rate Changed', fail);
+
+    filby.startNotifications();
+
+    setTimeout(() => done(), 200);
+  });
 });
