@@ -246,11 +246,8 @@ filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
 });
 ```
 
-#### filby.unsubscribe&lt;T&gt;(event: string, handler: (notification: T) => Promise&lt;void&gt;): void
-Unsubscribes the specified handler from the specified event
-
-#### filby.unsubscribe(event: string): void
-Unsubscribes all handlers from the specified event
+#### filby.unsubscribe&lt;T&gt;(event: string, handler?: (notification: T) => Promise&lt;void&gt;): void
+Unsubscribes the specified handler, or all handlers if none is specified, from the specified event
 
 #### filby.unsubscribeAll(): void
 Unsubscribes all handlers from all events
