@@ -247,10 +247,13 @@ filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
 ```
 
 #### filby.unsubscribe&lt;T&gt;(event: string, handler: (notification: T) => Promise&lt;void&gt;): void
-Unsubscribes the handler from the specified events
+Unsubscribes the specified handler from the specified event
 
-#### filby.unsubscribe&lt;T&gt;(event?: string): void
-Unsubscribes all handlers from the specified event, or all events if none is specified
+#### filby.unsubscribe(event: string): void
+Unsubscribes all handlers from the specified event
+
+#### filby.unsubscribeAll(): void
+Unsubscribes all handlers from all events
 
 #### filby.getProjections(): Promise&lt;Projection[]&gt;
 Returns the list of projections.
