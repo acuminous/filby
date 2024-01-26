@@ -218,7 +218,7 @@ Filby provides a set of lifecycle methods and an API for retrieving change sets 
 Constructs a new Filby instance
 
 #### filby.init(): Promise&lt;void&gt;
-Connects to the database and runs migrations
+Connects to the database and runs schema/data migrations
 
 #### filby.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
