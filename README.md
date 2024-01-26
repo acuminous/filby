@@ -135,7 +135,7 @@ location: /api/projection/v1/park?changeSetId=8
 
 ## Benefits
 
-At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of worthwhile benefits.
+At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of worthy benefits.
 
 1. Reference data can be safely released (and potentially pre-cached) ahead of time
 2. Clients can receive consistent reference data by fixing the changeSetId at the start of a transaction
@@ -147,8 +147,8 @@ At first glance, accessing projections via change sets may seem an unnecessary o
 Refering back to the previous list of challenges:
 
 - **Consistency** is solved by the changeSetId mechanic
-- **Load Times** and **Reliability** can be greatly reduced because the solution is designed to be highly cacheable. Alternatively keep a local copy of the relevant reference data and using the notification mechanism to update it.
-- **Stale Data** can be prevented by deploying reference data ahead of time, checking the changelog for changes and listening for notifications.
+- **Load Times** can be reduced because the solution is designed to be highly cacheable. Furthermore, response sizes can abe reduced by tailoring projections to the needs of the clients. Finally, network requests can be avoided completely by maintaining a local copy of the projected reference data.
+- **Stale Data** can be prevented through use of the effective date, deploying reference data ahead of time and checking the changelog for updates. Clients can also be advised of updates via change notifications
 - **Historic** data still accessible by using a previous changeSetId
 - **Evolution** of reference data is supported by versioned entities and projections
 - **Local Testing** is possible through HTTP mocking libraries.
