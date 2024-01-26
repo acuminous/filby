@@ -192,24 +192,24 @@ Filby has the following important concepts
 </pre>
 
 ### Projections
-A projection is a versioned view of one or more **entities**, made available in the example application via a RESTful API. The implementor is responsible for writing the the projections, which will mostly be simple database to JSON transformations.
+A *Projection* is a versioned view of one or more *Entities*, made available in the example application via a RESTful API. The implementor is responsible for writing the the projections, which will mostly be simple database to JSON transformations.
 
 ### Entity
-An entity represents reference data. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which the park entity has many calendar event entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more **data frames**. The dependency between projections and entities must be explicitly stated so we can emit notifications when a new **data frame** is added.
+An *Entity* represents reference data. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which the park entity has many calendar event entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more *Data Frames*. The dependency between projections and entities must be explicitly stated so we can emit *Notifications* when a new data frame is added.
 
 ### Data Frame
-A data frame is a snapshot of an entity, associated with a **change set**. There are two types of data frame, 'POST' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted.
+A *Data Frame* is a snapshot of an entity, associated with a *Change Set*. There are two types of data frame, 'POST' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted.
 
 ### Change Set
-A change set groups a set of data frames (potentially for different entities) into a single unit with a common effective date. The data frames will not be aggregated by their parent entities when building a projection for an earlier change set.
+A *Change Set* groups a set of data frames (potentially for different entities) into a single unit with a common effective date. The data frames will not be aggregated by their parent entities when building a projection for an earlier change set.
 
 ### Notifications
-Notifications are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
+*Notifications* are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
 Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently.
 
 ### Hook
-A hook is an event the framework will emit to whenenver a data frame used to build a projection is added. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers can be (and should be) asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
+A *Hook* is an event the framework will emit to whenenver a projection is added, dropped or updated via a change set. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## API
 Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
