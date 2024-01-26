@@ -212,7 +212,7 @@ Notifications are retried a configurable number of times using an exponential ba
 A *Hook* is an event the framework will emit to whenenver a projection is added, dropped or updated via a change set. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## API
-Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries (although you are free to use your preferred PostgreSQL client too).
+Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries.
 
 #### new Filby(config: Config)
 Constructs a new Filby instance
