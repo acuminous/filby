@@ -140,7 +140,7 @@ At first glance, accessing projections via change sets may seem an unnecessary o
 1. Reference data can be safely released (and potentially pre-cached) ahead of time
 2. Clients can receive consistent reference data by fixing the changeSetId at the start of a transaction
 3. Clients can receive the latest reference data by updating to the latest changeSetId when one becomes available
-4. The changeSetId makes for an excellent cache key, enabling the projection responses to be cached indefinitely
+4. The changeSetId makes for an excellent cache buster, enabling the projection responses to be cached indefinitely
 5. Projections provide multiple views of the same reference data, and can therefore be tailored to the needs of each client.
 6. Versioned projections supports backwards incompatible changes
 
