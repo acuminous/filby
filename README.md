@@ -137,20 +137,20 @@ location: /api/projection/v1/park?changeSetId=8
 
 At first glance, accessing projections via change sets may seem an unnecessary overhead, however it provides a number of worthy benefits.
 
-1. Reference data can be safely released (and potentially pre-cached) ahead of time
-2. Clients can receive consistent reference data by fixing the changeSetId at the start of a transaction
-3. Clients can receive the latest reference data by updating to the latest changeSetId when one becomes available
-4. The changeSetId makes for an excellent cache buster, enabling the projection responses to be cached indefinitely
+1. Reference data can be safely released (and potentially pre-cached) ahead of time.
+2. Clients can receive consistent reference data by fixing the changeSetId at the start of a transaction.
+3. Clients can receive the latest reference data by updating to the latest changeSetId when one becomes available.
+4. The changeSetId makes for an excellent cache buster, enabling the projection responses to be cached indefinitely.
 5. Projections provide multiple views of the same reference data, and can therefore be tailored to the needs of each client.
 6. Versioned projections supports backwards incompatible changes
 
 Refering back to the previous list of challenges:
 
-- **Consistency** is solved by the changeSetId mechanic
+- **Consistency** is solved by the changeSetId mechanic.
 - **Load Times** can be reduced because the solution is designed to be highly cacheable. Furthermore, response sizes can abe reduced by tailoring projections to the needs of the clients. Finally, network requests can be avoided completely by maintaining a local copy of the projected reference data.
 - **Stale Data** can be prevented through use of the effective date, deploying reference data ahead of time and checking the changelog for updates. Clients can also be advised of updates via change notifications
-- **Historic** data still accessible by using a previous changeSetId
-- **Evolution** of reference data is supported by versioned entities and projections
+- **Historic** data still accessible by using a previous changeSetId.
+- **Evolution** of reference data is supported by versioned entities and projections.
 - **Local Testing** is possible through HTTP mocking libraries.
 
 ## Concepts
