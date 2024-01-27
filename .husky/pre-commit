@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 npm run lint-staged
+docker compose down
+npm run docker
 pushd examples/javascript && npm test && popd
 pushd examples/typescript && npm test && popd
 npm test

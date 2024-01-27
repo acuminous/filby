@@ -28,7 +28,7 @@ module.exports = class Filby {
 
   async init() {
     const filbyDirectory = path.join(__dirname, 'migrations');
-    const filbyDirectoryPermissions = [{ path: filbyDirectory, permissions: ['ALL'] }];
+    const filbyDirectoryPermissions = [{ path: filbyDirectory, permissions: expandPermissions(['ALL']) }];
     const relativeDirectoryPermissions = this.#config.migrations || [{ migrations: ['ALL'] }];
     const absoluteDirectoryPermissions = this.#expandDirectoryPermissions(relativeDirectoryPermissions);
     await this.#migrateAll([...filbyDirectoryPermissions, ...absoluteDirectoryPermissions]);
@@ -39,7 +39,7 @@ module.exports = class Filby {
       ...absoluteDirectoryPermissions,
       {
         path: path.resolve(directoryPermissions.path),
-        permissions: expand(directoryPermissions.permissions),
+        permissions: expandPermissions(directoryPermissions.permissions),
       },
     ]), []);
   }
@@ -217,7 +217,7 @@ function toProjection(row) {
   };
 }
 
-function expand(permissions) {
+function expandPermissions(permissions) {
   const ALL_OPERATIONS = ['ADD_CHANGE_SET', 'ADD_ENUM', 'ADD_ENTITY', 'ADD_HOOK', 'ADD_PROJECTION', 'DROP_ENUM', 'DROP_ENTITY', 'DROP_HOOK', 'DROP_PROJECTION'];
   return permissions.reduce((expanded, permission) => {
     switch (permission) {
