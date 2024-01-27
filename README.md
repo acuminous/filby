@@ -11,7 +11,7 @@
 
 ## TL;DR
 
-Filby is like source control for reference data.
+Filby is like source control for reference data at runtime.
 
 - With SCM systems like git, you have a **commit log** comprising a sequence of **commits**. Each commit is uniquely identified by a **commit hash** and typically bundles related **source code** changes. <br/><br/>
 - With Filby, you have a **change log** comprising a sequence of **change sets**. Each change set is uniquely identified by a **change set id** and typically bundles related **reference data** changes.
