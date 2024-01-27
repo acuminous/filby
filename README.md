@@ -520,6 +520,7 @@ async function getParks(changeSetId) {
 ```
 
 ### Directory Permissions
+
 | Permission       | Notes                                                                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | ADD_ENUM         | Permits the ADD_ENUM operation.                                                                                                               |
@@ -536,7 +537,7 @@ async function getParks(changeSetId) {
 | ALL              | Permits all operations, check constraints and raw SQL migrations.                                                                             |
 
 ## Example Applications
-This repository includes [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
+This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
 
 ### Installation
 ```bash
