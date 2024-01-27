@@ -18,7 +18,7 @@ Filby is like source control for reference data.
 
 Like checking out a commit, your applications can use Filby to retrieve reference data for a given change set id. They can also inspect the changelog to find which change set was in effect at a given point in time, and subscribe to reference data update notifications.
 
-See the [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) example projects for usage.
+See the [example applications](#example-applications) for usage.
 
 ## Contents
 - [Introduction](#introduction)
@@ -27,7 +27,7 @@ See the [javascript](https://github.com/acuminous/filby/tree/main/examples/javas
 - [API](#api)
 - [Data Definition](#data-definition)
 - [Configuration](#configuration)
-- [Example Application](#example-application)
+- [Example Applications](#example-applications)
 
 ## Introduction
 Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
@@ -42,7 +42,7 @@ Most applications require slow moving reference data, which presents the followi
 | Evolution     | Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known. |
 | Local Testing | Applications may be tested locally, and therefore any solution sould work well on a development laptop.                                                                                                                                                                                                                                                                                                                                                                        |
 
-Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing temporal reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. An [example application](#example-application) is provided to demonstrate how.
+Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing temporal reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. [Example applications](#example-applications) are provided to demonstrate how.
 
 <pre>
                          Change
@@ -531,8 +531,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 | ALL_OPERATIONS   | Permits all operations, however does permit check constraints or raw SQL migrations.                                                          |
 | ALL              | Permits all operations, check constraints and raw SQL migrations.                                                                             |
 
-## Example Application
-This repository includes [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) example projects based on a Caravan Park business.
+## Example Applications
+This repository includes [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
 
 ### Installation
 ```bash
