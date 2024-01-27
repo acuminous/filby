@@ -35,8 +35,10 @@ module.exports = class TestFilby extends Filby {
   }
 
   async wipe() {
-    await this.#deleteMigrations();
-    await this.#resetDatabase();
+    return Promise.all([
+      await this.#deleteMigrations(),
+      await this.#resetDatabase(),
+    ]);
   }
 
   async #resetDatabase() {

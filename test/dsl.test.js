@@ -784,7 +784,7 @@ describe('DSL', () => {
   describe('Drop Projection', () => {
 
     it('should reject operation when not permitted', async (t) => {
-      const testConfig = op.set(config, 'migrations.0', { path: 'test/migrations', permissions: ['ADD_ENTITY', 'ADD_PROJECTION'] })
+      const testConfig = op.set(config, 'migrations.0', { path: 'test/migrations', permissions: ['ADD_ENTITY', 'ADD_PROJECTION'] });
       await withFilby(testConfig, async () => {
         await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION), (err) => {
           eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'DROP_PROJECTION' is not permitted");
