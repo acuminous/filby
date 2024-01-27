@@ -13,8 +13,8 @@
 
 Filby is like source control for reference data.
 
-- In systems like git, you have a **commit log**, comprising a sequence of **commits**. Each commit is uniquely identified by a **commit hash**, and typically bundles related **source code** changes. <br/><br/>
-- With Filby, you have a **change log**, comprising a sequence of **change sets**. Each change set is uniquely identified by a **change set id**, and typically bundles related **reference data** changes.
+- In systems like git, you have a **commit log** comprising a sequence of **commits**. Each commit is uniquely identified by a **commit hash** and typically bundles related **source code** changes. <br/><br/>
+- With Filby, you have a **change log** comprising a sequence of **change sets**. Each change set is uniquely identified by a **change set id** and typically bundles related **reference data** changes.
 
 Like checking out a commit, your applications can use Filby to retrieve reference data for a given change set id. They can also inspect the changelog to find which change set was in effect at a given point in time, and subscribe to reference data update notifications.
 
