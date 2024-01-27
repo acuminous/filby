@@ -6,9 +6,6 @@
 [![Test Coverage](https://codeclimate.com/github/acuminous/filby/badges/coverage.svg)](https://codeclimate.com/github/acuminous/filby/coverage)
 [![Discover zUnit](https://img.shields.io/badge/Discover-zUnit-brightgreen)](https://www.npmjs.com/package/zunit)
 
-*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
-<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
-
 ## TL;DR
 
 Filby is like source control for reference data but at runtime.
@@ -30,7 +27,10 @@ See the [example applications](#example-applications) for usage.
 - [Example Applications](#example-applications)
 
 ## Introduction
-Most applications require slow moving reference data, which presents the following challenges in a distributed / microservice architecture.
+*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
+<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
+
+Most applications require reference data that changes slowly over time. This presents the following challenges in a distributed / microservice architecture.
 
 | Challenge     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
