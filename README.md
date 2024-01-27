@@ -358,7 +358,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
-**PRO TIP**: Since the results for the specified change set should not change, consider externalising queries like the above in an immutable PostgreSQL function so the output can be cached.
+**PRO TIP**: Since the results for a given change set should never change, consider making PostgreSQL functions IMMUTABLE so the output can be cached.
 
 ## API
 Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries.
