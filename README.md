@@ -473,7 +473,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
   // Specifies the path to the migrations folders and their permitted operations.
   // Use this to restrict operations for non-techincal/less trusted users
   // Defaults to [{ path: "migrations", permissions: ["ALL"] }].
-  // See the permissions table for more details.
+  // See the directory permissions table below for more details.
   "migrations": [
     {
       path: "path/to/raw/migrations",
