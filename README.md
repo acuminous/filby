@@ -316,13 +316,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ## Data Definition
 All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. A JSON schema is available in /lib/schema.json
 
-You can use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient) by dropping a `.marvrc` file into the migrations folder, enabling filby to process sql migrations.
-
-```json
-{
-  "filter": "(?:\\.sql|\\.yaml|\\.json)$"
-}
-```
+Since marv was originally designed for SQL migrations, you can use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient).
 
 ```yaml
 # migrations/0001.define-park-schema.yaml
