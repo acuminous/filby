@@ -316,8 +316,6 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ## Data Definition
 All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. A JSON schema is available in /lib/schema.json
 
-Since marv was originally designed for SQL migrations, you can use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient).
-
 ```yaml
 # migrations/0001.define-park-schema.yaml
 
@@ -443,6 +441,23 @@ Since marv was originally designed for SQL migrations, you can use the same proc
 # Deletes the specified hook and associated notifications
 - operation: DROP_HOOK
   name: sns/add-change-set/park-v1
+```
+
+Since Marv works with SQL, you can also use it for regular database migrations. This can be useful for adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one.
+
+```sql
+-- migrations/0004.create-get-park-v1-function.sql
+CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
+RETURNS TABLE (code TEXT, name TEXT, calendar_event park_calendar_event_type, calendar_occurs TIMESTAMP WITH TIME ZONE)
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
+  FROM get_park_v1_aggregate(p_change_set_id) p
+  LEFT JOIN get_park_calendar_v1_aggregate(p_change_set_id) pc ON pc.park_code = p.code
+  ORDER BY p.code ASC, p.occurs ASC;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 ```
 
 ## Configuration
