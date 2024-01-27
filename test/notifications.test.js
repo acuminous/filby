@@ -70,16 +70,25 @@ describe('Notifications', () => {
         (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
       await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
         (1, 'VAT Rates', 1)`);
-
     });
 
     let attempts = 0;
     filby.subscribe('VAT Rate Changed', () => {
-      eq(++attempts, 1);
-      setTimeout(done, 1000);
+      attempts++;
     });
 
+    const checkpoint = new Date();
     filby.startNotifications();
+
+    setTimeout(async () => {
+      const { rows: notifications } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification'));
+      eq(attempts, 1);
+      eq(notifications.length, 1);
+      eq(notifications[0].status, 'OK');
+      ok(notifications[0].last_attempted > checkpoint);
+      eq(notifications[0].last_error, null);
+      done();
+    }, 1000);
   });
 
   it('should redeliver unsuccessful notifications up to the maximum number of attempts', async (t, done) => {
@@ -110,8 +119,6 @@ describe('Notifications', () => {
   });
 
   it('should capture the last delivery error', async (t, done) => {
-    const checkpoint = new Date();
-
     await filby.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
         (1, 'VAT Rates', 1),
@@ -125,9 +132,11 @@ describe('Notifications', () => {
 
     let attempt = 0;
     filby.subscribe('VAT Rate Changed', () => {
-      attempt++;
-      throw new Error(`Oh Noes! ${attempt}`);
+      throw new Error(`Oh Noes! ${++attempt}`);
     });
+
+    const checkpoint = new Date();
+    filby.startNotifications();
 
     setTimeout(async () => {
       const { rows: notifications } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification'));
@@ -137,8 +146,6 @@ describe('Notifications', () => {
       match(notifications[0].last_error, /Oh Noes! 3/);
       done();
     }, 500);
-
-    filby.startNotifications();
   });
 
   it('should emit an event when the last notification attempt fails', async (t, done) => {
