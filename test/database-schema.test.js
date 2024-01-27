@@ -1,5 +1,6 @@
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
+const { PostgresError: { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 
@@ -56,7 +57,7 @@ describe('Database Schema', () => {
           await tx.query("INSERT INTO fby_projection (name, version) VALUES ('DUPLICATE', 1)");
         });
       }, (err) => {
-        eq(err.code, '23505');
+        eq(err.code, UNIQUE_VIOLATION);
         return true;
       });
     });
@@ -67,7 +68,7 @@ describe('Database Schema', () => {
           await tx.query('INSERT INTO fby_projection (name, version) VALUES (NULL, 1)');
         });
       }, (err) => {
-        eq(err.code, '23502');
+        eq(err.code, NOT_NULL_VIOLATION);
         return true;
       });
     });
@@ -78,7 +79,7 @@ describe('Database Schema', () => {
           await tx.query("INSERT INTO fby_projection (name, version) VALUES ('OK', NULL)");
         });
       }, (err) => {
-        eq(err.code, '23502');
+        eq(err.code, NOT_NULL_VIOLATION);
         return true;
       });
     });
@@ -105,7 +106,7 @@ describe('Database Schema', () => {
         await tx.query('INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES (1, 1)');
         await tx.query('DELETE FROM fby_entity');
       }), (err) => {
-        eq(err.code, '23503');
+        eq(err.code, FOREIGN_KEY_VIOLATION);
         return true;
       });
     });
@@ -140,7 +141,7 @@ describe('Database Schema', () => {
           await tx.query("INSERT INTO fby_hook (name, event, projection_id) VALUES ('change 1', 'ADD_CHANGE_SET', 1)");
         });
       }, (err) => {
-        eq(err.code, '23505');
+        eq(err.code, UNIQUE_VIOLATION);
         return true;
       });
     });
@@ -200,7 +201,7 @@ describe('Database Schema', () => {
             (3, 'Park updates', '2023-01-01T00:00:00.000Z')`);
         });
       }, (err) => {
-        eq(err.code, '23505');
+        eq(err.code, UNIQUE_VIOLATION);
         return true;
       });
     });
@@ -211,7 +212,7 @@ describe('Database Schema', () => {
           await tx.query("INSERT INTO fby_change_set (id, description, effective) VALUES (1, 'Park updates', NULL)");
         });
       }, (err) => {
-        eq(err.code, '23502');
+        eq(err.code, NOT_NULL_VIOLATION);
         return true;
       });
     });

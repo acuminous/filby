@@ -4,6 +4,7 @@ const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:as
 const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
+const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
@@ -168,7 +169,7 @@ describe('DSL', () => {
 
     it('should escape values', async (t) => {
       await rejects(applyYaml(t.name, transform(ADD_ENUM).set('0.values.0', "pwned'); RAISE EXCEPTION $💀$You have been pwned!$💀$; CREATE TYPE pwned AS ENUM ('standard")), (err) => {
-        eq(err.code, '42602');
+        eq(err.code, INVALID_NAME);
         return true;
       });
     });
@@ -400,7 +401,7 @@ describe('DSL', () => {
 
     it('should reject invalid field types', async (t) => {
       await rejects(() => applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.0.type', 'INVALID TYPE')), (err) => {
-        eq(err.code, '42601');
+        eq(err.code, SYNTAX_ERROR);
         return true;
       });
     });
@@ -488,7 +489,7 @@ describe('DSL', () => {
         transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' }),
         transform(ADD_CHANGE_SET_1).set('0.frames.0.data.0.rate', 1.1),
       ), (err) => {
-        eq(err.code, '23514');
+        eq(err.code, CHECK_VIOLATION);
         return true;
       });
     });
