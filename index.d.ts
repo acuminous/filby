@@ -2,7 +2,7 @@ import { PoolClient, PoolConfig } from 'pg';
 
 export { PoolConfig };
 
-export default class Filby {
+export class Filby {
   static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
   constructor(config: Config);
   init(): Promise<void>;

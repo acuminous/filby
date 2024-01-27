@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import createError from 'http-errors';
-import Filby from '../../../..';
+import { Filby } from '../../../..';
 
 const getChangelogSchema = {
 	querystring: {

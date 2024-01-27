@@ -6,8 +6,8 @@ const swaggerUI = require('@fastify/swagger-ui');
 const cors = require('@fastify/cors');
 const axios = require('axios');
 
+const { Filby } = require('../../..');
 const pkg = require('../package.json');
-const Filby = require('../../..');
 const changeLogRoute = require('./routes/changelog-v1');
 
 module.exports = class Application {

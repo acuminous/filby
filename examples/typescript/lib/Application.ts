@@ -7,7 +7,7 @@ import cors from '@fastify/cors';
 import axios, { AxiosError } from 'axios';
 
 import pkg from '../package.json';
-import Filby, { Config as FilbyConfig, Projection, PoolConfig, Notification, ErrorNotification } from '../../..';
+import { Filby, Config as FilbyConfig, Projection, PoolConfig, Notification, ErrorNotification } from '../../..';
 import changeLogRoute from './routes/changelog-v1';
 
 export type ApplicationConfig = {

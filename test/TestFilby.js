@@ -1,4 +1,4 @@
-const Filby = require('..');
+const { Filby } = require('..');
 
 const noop = () => { };
 

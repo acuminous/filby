@@ -1,8 +1,8 @@
-import { FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createError from 'http-errors';
 import uri from 'fast-uri';
 
-import Filby, { Projection, ChangeSet } from '../../../..';
+import { Filby, Projection, ChangeSet } from '../../../..';
 import getParksSchema from '../../../schemas/get-parks-schema.json';
 import getParkSchema from '../../../schemas/get-park-schema.json';
 
