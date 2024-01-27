@@ -63,6 +63,7 @@ describe('DSL', () => {
     deleteMigrations();
     filby = new TestFilby(config);
     await filby.reset();
+    await filby.stop();
   });
 
   beforeEach(async () => {
