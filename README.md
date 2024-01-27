@@ -18,7 +18,7 @@ Filby is like source control for reference data.
 
 Like checking out a commit, your applications can use Filby to retrieve reference data for a given change set id. They can also inspect the changelog to find which change set was in effect at a given point in time, and subscribe to reference data update notifications.
 
-See the [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) projects for example usage.
+See the example [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) projects for usage.
 
 ## Contents
 - [Introduction](#introduction)
