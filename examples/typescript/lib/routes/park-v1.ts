@@ -11,7 +11,7 @@ type FilbyQueryString = { changeSetId?: ChangeSetId };
 
 export default (fastify: FastifyInstance, { projection, filby }: { projection: Projection, filby: Filby }, done: (err?: Error) => void) => {
 
-  const getParksOptions = { schema: getParksSchema, projection };
+  const getParksOptions = { schema: getParksSchema, projection, index: true };
 
   fastify.get<{ Querystring: FilbyQueryString }>('/', getParksOptions, async (request, reply) => {
     if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);

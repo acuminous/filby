@@ -9,6 +9,7 @@ const axios = require('axios');
 const { Filby } = require('../../..');
 const pkg = require('../package.json');
 const changeLogRoute = require('./routes/changelog-v1');
+const ProjectionsApi = require('./ProjectionsApi');
 
 module.exports = class Application {
 
@@ -16,7 +17,7 @@ module.exports = class Application {
   #logger;
   #fastify;
   #filby;
-  #routes = {};
+  #projectionsApi = new ProjectionsApi();
 
   constructor({ config }) {
     this.#config = config;
@@ -65,23 +66,17 @@ module.exports = class Application {
 
   async #registerWebhook(event, url) {
     this.#filby.subscribe(event, async (notification) => {
-      const routes = this.#routes[notification.projection.key];
-      await axios.post(url, { ...notification, routes });
+      const api = this.#projectionsApi.get(notification.projection);
+      await axios.post(url, { ...notification, api });
     });
   }
 
   async #initFastify() {
-    this.#fastify.addHook('onRoute', (routeOptions) => this.captureProjectionPath(routeOptions));
+    this.#fastify.addHook('onRoute', (routeOptions) => this.#projectionsApi.update(routeOptions));
     await this.#fastify.register(cors, { origin: '*', methods: ['GET'] });
     await this.#registerSwagger();
     await this.#registerChangelog();
     await this.#registerProjections();
-  }
-
-  captureProjectionPath(routeOptions) {
-    if (routeOptions.method !== 'GET' || !routeOptions.projection) return;
-    if (routeOptions.index) this.#routes[routeOptions.projection.key].location = routeOptions.path;
-    this.#routes[routeOptions.projection.key].paths.push(routeOptions.path);
   }
 
   async #registerSwagger() {
@@ -122,14 +117,12 @@ module.exports = class Application {
   async #registerProjections() {
     const projections = await this.#filby.getProjections();
     for (const projection of projections) {
-      this.#routes[projection.key] = { paths: [] };
       await this.#registerProjection(projection);
     }
   }
 
   async #registerProjection(projection) {
     const routePath = path.resolve(path.join('lib', 'routes', `${projection.name}-v${projection.version}`));
-    // eslint-disable-next-line global-require
     const route = require(routePath);
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
     await this.#fastify.register(route, { prefix, projection, filby: this.#filby });

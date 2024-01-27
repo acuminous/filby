@@ -7,8 +7,9 @@ import cors from '@fastify/cors';
 import axios, { AxiosError } from 'axios';
 
 import pkg from '../package.json';
-import { Filby, Config as FilbyConfig, Projection, PoolConfig, Notification, ErrorNotification } from '../../..';
+import { Filby, Config as FilbyConfig, Projection, Notification, ErrorNotification } from '../../..';
 import changeLogRoute from './routes/changelog-v1';
+import ProjectionsApi from './ProjectionsApi';
 
 export type ApplicationConfig = {
   fastify: {
@@ -33,16 +34,15 @@ type ProjectionRouteOptions = {
   index: boolean;
 }
 
+type AxisErrorNotification = ErrorNotification<AxiosError>;
+
 export default class Application {
 
   #config;
   #logger;
   #filby: Filby;
   #fastify: FastifyInstance;
-  #routes = new Map<string, {
-    location?: string,
-    paths: string[]
-  }>();
+  #projectionsApi = new ProjectionsApi();
 
   constructor({ config }: { config: ApplicationConfig }) {
     this.#config = config;
@@ -71,7 +71,7 @@ export default class Application {
   }
 
   async #reportFailingWebhooks() {
-    this.#filby.subscribe<ErrorNotification<AxiosError>>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ err, ...notification }) => {
+    this.#filby.subscribe<AxisErrorNotification>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ err, ...notification }) => {
       const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
 
@@ -91,25 +91,19 @@ export default class Application {
 
   async #registerWebhook(event: string, url: string) {
     this.#filby.subscribe(event, async (notification: Notification) => {
-      const routes = this.#routes.get(notification.projection.key);
-      await axios.post(url, { ...notification, routes });
+      const api = this.#projectionsApi.get(notification.projection);
+      await axios.post(url, { ...notification, api });
     });
   }
 
   async #initFastify() {
-    this.#fastify.addHook('onRoute', (routeOptions: RouteOptions) => this.captureProjectionPath(routeOptions as unknown as ProjectionRouteOptions));
+    this.#fastify.addHook('onRoute', (routeOptions: RouteOptions) => {
+      this.#projectionsApi.update(routeOptions as unknown as ProjectionRouteOptions)
+    });
     await this.#fastify.register(cors, { origin: '*', methods: ['GET'] });
     await this.#registerSwagger();
     await this.#registerChangelog();
     await this.#registerProjections();
-  }
-
-  captureProjectionPath(routeOptions: ProjectionRouteOptions) {
-    if (routeOptions.method !== 'GET' || !routeOptions.projection) return;
-    const route = this.#routes.get(routeOptions.projection.key);
-    if (!route) return;
-    if (routeOptions.index) route.location = routeOptions.path;
-    route.paths.push(routeOptions.path);
   }
 
   async #registerSwagger() {
@@ -150,14 +144,12 @@ export default class Application {
   async #registerProjections() {
     const projections = await this.#filby.getProjections();
     for (const projection of projections) {
-      this.#routes.set(projection.key, { paths: [] });
       await this.#registerProjection(projection);
     }
   }
 
   async #registerProjection(projection: Projection) {
     const routePath = path.resolve(path.join('lib', 'routes', `${projection.name}-v${projection.version}`));
-    // eslint-disable-next-line global-require
     const route = require(routePath);
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
     await this.#fastify.register(route, { prefix, projection, filby: this.#filby });

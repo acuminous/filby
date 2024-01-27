@@ -80,7 +80,7 @@ $$ LANGUAGE plpgsql;
 CREATE FUNCTION fby_pass_notification(p_id INTEGER) RETURNS VOID
 AS $$
 DECLARE
-  v_hook_id TEXT;
+  v_hook_id INTEGER;
 BEGIN
   SELECT hook_id FROM fby_notification n WHERE n.id = p_id INTO v_hook_id;
   DELETE FROM fby_notification n WHERE n.hook_id = v_hook_id AND n.status = 'OK';
