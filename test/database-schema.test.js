@@ -36,19 +36,21 @@ describe('Database Schema', () => {
 
   describe('Projections', () => {
     it('should prevent duplicate projections', async () => {
-
       await filby.withTransaction(async (tx) => {
-        await tx.query("INSERT INTO fby_projection (name, version) VALUES ('NOT DUPLICATE', 1)");
-        await tx.query("INSERT INTO fby_projection (name, version) VALUES ('NOT DUPLICATE', 2)");
-
-        await tx.query("INSERT INTO fby_projection (name, version) VALUES ('NOT DUPLICATE A', 1)");
-        await tx.query("INSERT INTO fby_projection (name, version) VALUES ('NOT DUPLICATE B', 1)");
+        await tx.query(`INSERT INTO fby_projection (name, version) VALUES
+          ('NOT DUPLICATE', 1),
+          ('NOT DUPLICATE', 2),
+          ('NOT DUPLICATE A', 1),
+          ('NOT DUPLICATE B', 1)
+        `);
       });
 
       await rejects(async () => {
         await filby.withTransaction(async (tx) => {
-          await tx.query("INSERT INTO fby_projection (name, version) VALUES ('DUPLICATE', 1)");
-          await tx.query("INSERT INTO fby_projection (name, version) VALUES ('DUPLICATE', 1)");
+          await tx.query(`INSERT INTO fby_projection (name, version) VALUES
+            ('DUPLICATE', 1),
+            ('DUPLICATE', 1)
+          `);
         });
       }, (err) => {
         eq(err.code, UNIQUE_VIOLATION);
@@ -123,12 +125,16 @@ describe('Database Schema', () => {
     it('should prevent duplicate projection hooks', async () => {
 
       await filby.withTransaction(async (tx) => {
-        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (1, 'Park', 1)");
-        await tx.query("INSERT INTO fby_projection (id, name, version) VALUES (2, 'Park', 2)");
+        await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
+          (1, 'Park', 1),
+          (2, 'Park', 2)
+        `);
 
-        await tx.query("INSERT INTO fby_hook (name, event, projection_id) VALUES ('change 1', 'ADD_CHANGE_SET', 1)");
-        await tx.query("INSERT INTO fby_hook (name, event, projection_id) VALUES ('change 2', 'ADD_CHANGE_SET', 2)");
-        await tx.query("INSERT INTO fby_hook (name, event) VALUES ('change 3', 'ADD_CHANGE_SET')");
+        await tx.query(`INSERT INTO fby_hook (name, event, projection_id) VALUES
+          ('change 1', 'ADD_CHANGE_SET', 1),
+          ('change 2', 'ADD_CHANGE_SET', 2),
+          ('change 3', 'ADD_CHANGE_SET', NULL)
+        `);
       });
 
       await rejects(async () => {
