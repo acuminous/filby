@@ -7,6 +7,8 @@
 [![Discover zUnit](https://img.shields.io/badge/Discover-zUnit-brightgreen)](https://www.npmjs.com/package/zunit)
 
 ## TL;DR
+*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
+<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
 
 Filby is like source control for reference data but at runtime.
 
@@ -27,9 +29,6 @@ See the [example applications](#example-applications) for usage.
 - [Example Applications](#example-applications)
 
 ## Introduction
-*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
-<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
-
 Most applications require reference data that changes slowly over time. This presents the following challenges in a distributed or microservice architecture.
 
 | Challenge     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
