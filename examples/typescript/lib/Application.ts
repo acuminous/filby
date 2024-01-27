@@ -11,7 +11,6 @@ import { Filby, Config as FilbyConfig, Projection, PoolConfig, Notification, Err
 import changeLogRoute from './routes/changelog-v1';
 
 export type ApplicationConfig = {
-  database: PoolConfig;
   fastify: {
     logger: boolean;
   };
@@ -47,7 +46,7 @@ export default class Application {
 
   constructor({ config }: { config: ApplicationConfig }) {
     this.#config = config;
-    this.#filby = new Filby({ ...this.#config.filby, ...{ database: this.#config.database } });
+    this.#filby = new Filby(this.#config.filby);
     this.#fastify = Fastify(this.#config.fastify);
     this.#logger = this.#fastify.log;
   }

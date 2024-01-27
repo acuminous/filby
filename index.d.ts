@@ -27,8 +27,8 @@ export type Migration = {
 };
 
 export type Config = {
-  migrations?: Migration[];
   database?: PoolConfig;
+  migrations?: Migration[];
   notification?: {
     interval?: string;
     delay?: string;

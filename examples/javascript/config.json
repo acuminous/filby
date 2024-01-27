@@ -8,13 +8,13 @@
   "server": {
     "port": 3000
   },
-  "database": {
-    "port": 5433,
-    "user": "fby_example",
-    "database": "fby_example",
-    "password": "fby_example"
-  },
   "filby": {
+    "database": {
+      "port": 5433,
+      "user": "fby_example",
+      "database": "fby_example",
+      "password": "fby_example"
+    },
     "migrations": [
       {
         "path": "../migrations",

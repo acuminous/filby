@@ -20,7 +20,7 @@ module.exports = class Application {
 
   constructor({ config }) {
     this.#config = config;
-    this.#filby = new Filby({ ...this.#config.filby, ...{ database: this.#config.database } });
+    this.#filby = new Filby(this.#config.filby);
     this.#fastify = Fastify(this.#config.fastify);
     this.#logger = this.#fastify.log;
   }
