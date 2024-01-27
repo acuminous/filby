@@ -15,7 +15,7 @@ const defaults = {
       permissions: ['ALL'],
     },
   ],
-}
+};
 
 module.exports = class TestFilby extends Filby {
 
@@ -29,30 +29,36 @@ module.exports = class TestFilby extends Filby {
   }
 
   async reset() {
-    await this.#wipeMigrations();
+    await this.#deleteMigrations();
     await this.init();
-    await this.wipe();
+    await this.#resetDatabase();
   }
 
   async wipe() {
-    await this.#wipeMigrations();
-    await this.withTransaction(async (tx) => {
+    await this.#deleteMigrations();
+    await this.#resetDatabase();
+  }
+
+  async #resetDatabase() {
+    return this.withTransaction(async (tx) => {
       await this.#nukeCustomObjects(tx);
       await this.#wipeData(tx);
     });
   }
 
   async #wipeData(tx) {
-    await tx.query('DELETE FROM fby_notification');
-    await tx.query('DELETE FROM fby_hook');
-    await tx.query('DELETE FROM fby_data_frame');
-    await tx.query('DELETE FROM fby_projection_entity');
-    await tx.query('DELETE FROM fby_entity');
-    await tx.query('DELETE FROM fby_change_set');
-    await tx.query('DELETE FROM fby_projection');
+    await Promise.all([
+      tx.query('DELETE FROM fby_hook'),
+      tx.query('DELETE FROM fby_change_set'),
+      tx.query('DELETE FROM fby_projection_entity'),
+    ]);
+    await Promise.all([
+      tx.query('DELETE FROM fby_projection'),
+      tx.query('DELETE FROM fby_entity'),
+    ]);
   }
 
-  async #wipeMigrations() {
+  async #deleteMigrations() {
     const filenames = await fs.readdir(this.#migrationsDirectory);
     const unlinkMigrationFiles = filenames
       .filter((filename) => ['.sql', '.json', '.yaml', '.avro'].includes(path.extname(filename)))
