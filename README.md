@@ -18,7 +18,7 @@ Filby is like source control for reference data.
 
 Like checking out a commit, your applications can use Filby to retrieve reference data for a given change set id. They can also inspect the changelog to find which change set was in effect at a given point in time, and subscribe to reference data update notifications.
 
-See the example [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) projects for usage.
+See the [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) example projects for usage.
 
 ## Contents
 - [Introduction](#introduction)
@@ -532,7 +532,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 | ALL              | Permits all operations, check constraints and raw SQL migrations.                                                                             |
 
 ## Example Application
-This project includes [proof of concept applications](https://github.com/acuminous/filby/tree/main/examples) based on a Caravan Park business.
+This repository includes [javascript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [typescript](https://github.com/acuminous/filby/tree/main/examples/typescript) example projects based on a Caravan Park business.
 
 ### Installation
 ```bash
