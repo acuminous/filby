@@ -19,11 +19,8 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
     const changeSet = await getChangeSet(changeSetId);
     const parks = await getParks(changeSet);
 
-    reply.headers({
-      'Last-Modified': changeSet.lastModified.toUTCString(),
-      'ETag': changeSet.entityTag,
-      'Cache-Control': 'max-age=31536000, immutable',
-    });
+    const headers = getResponseHeaders(changeSet);
+    reply.headers(headers);
 
     return parks;
   });
@@ -38,11 +35,8 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
     const park = await getPark(changeSet, code);
     if (!park) throw createError(404, `Park not found: ${code}`);
 
-    reply.headers({
-      'Last-Modified': changeSet.lastModified.toUTCString(),
-      'ETag': changeSet.entityTag,
-      'Cache-Control': 'max-age=31536000, immutable',
-    });
+    const headers = getResponseHeaders(changeSet);
+    reply.headers(headers);
 
     return park;
   });
@@ -81,6 +75,15 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
     const park = dictionary.get(code) || { code, name, calendar: [] };
     park.calendar.push({ event: calendar_event, occurs: calendar_occurs });
     return dictionary.set(code, park);
+  }
+
+  function getResponseHeaders(changeSet: ChangeSet) {
+    return {
+      'Last-Modified': changeSet.lastModified.toUTCString(),
+      'ETag': changeSet.entityTag,
+      'Cache-Control': 'max-age=31536000, immutable',
+      'Connection': 'close',
+    };
   }
 
   done();
