@@ -4,7 +4,12 @@ const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 const TestFilby = require('./TestFilby');
 
 const config = {
-  migrations: 'test',
+  migrations: [
+    {
+      path: 'test',
+      permissions: ['ALL'],
+    },
+  ],
   database: {
     user: 'fby_test',
     password: 'fby_test',

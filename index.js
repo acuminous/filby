@@ -27,16 +27,29 @@ module.exports = class Filby {
   }
 
   async init() {
-    const filbyMigrationsDir = path.join(__dirname, 'migrations');
-    const customMigrationsDir = this.#config.migrations?.directory || 'migrations';
-
-    await this.#migrate(filbyMigrationsDir);
-    await this.#migrate(path.resolve(customMigrationsDir));
+    const filbyDirectory = path.join(__dirname, 'migrations');
+    const filbyDirectoryPermissions = [{ path: filbyDirectory, permissions: ['ALL'] }];
+    const relativeDirectoryPermissions = this.#config.migrations || [{ migrations: ['ALL'] }];
+    const absoluteDirectoryPermissions = this.#expandDirectoryPermissions(relativeDirectoryPermissions);
+    await this.#migrateAll([...filbyDirectoryPermissions, ...absoluteDirectoryPermissions]);
   }
 
-  async #migrate(directory) {
-    const migrations = await marv.scan(directory);
-    await marv.migrate(migrations, driver(this.#config));
+  #expandDirectoryPermissions(relativeDirectoryPermissions) {
+    return relativeDirectoryPermissions.reduce((absoluteDirectoryPermissions, directoryPermissions) => ([
+      ...absoluteDirectoryPermissions,
+      {
+        path: path.resolve(directoryPermissions.path),
+        permissions: expand(directoryPermissions.permissions),
+      },
+    ]), []);
+  }
+
+  async #migrateAll(directoryPermissions) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const { path: directory, permissions } of directoryPermissions) {
+      const migrations = await marv.scan(directory, { filter: /(?:\.*yaml|\.*json|.*sql)$/ });
+      await marv.migrate(migrations, driver(this.#config, permissions));
+    }
   }
 
   async startNotifications() {
@@ -202,4 +215,15 @@ function toProjection(row) {
     ...row,
     key: `${row.name} v${row.version}`,
   };
+}
+
+function expand(permissions) {
+  const ALL_OPERATIONS = ['ADD_CHANGE_SET', 'ADD_ENUM', 'ADD_ENTITY', 'ADD_HOOK', 'ADD_PROJECTION', 'DROP_ENUM', 'DROP_ENTITY', 'DROP_HOOK', 'DROP_PROJECTION'];
+  return permissions.reduce((expanded, permission) => {
+    switch (permission) {
+      case 'ALL': return expanded.concat(['SQL', ...ALL_OPERATIONS, 'CHECK_CONSTRAINT']);
+      case 'ALL_OPERATIONS': return expanded.concat(ALL_OPERATIONS);
+      default: return expanded.concat(permission);
+    }
+  }, []);
 }

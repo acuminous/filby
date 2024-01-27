@@ -15,12 +15,14 @@
     "password": "fby_example"
   },
   "filby": {
-    "dsl": {
-      "enableCheckConstraints": true
-    },
-    "migrations": {
-      "directory": "../migrations"
-    },
+    "migrations": [
+      {
+        "path": "../migrations",
+        "permissions": [
+          "ALL"
+        ]
+      }
+    ],
     "notifications": {
       "interval": "5s",
       "intialDelay": "1s",

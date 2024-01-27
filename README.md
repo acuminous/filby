@@ -312,13 +312,15 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ```
 
 ## Data Definition
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make a update, simply create a new migration file in the `migrations` folder containing a suitably configured `.marvrc` file, e.g.
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. A JSON schema is available in /lib/schema.json
+
+You can use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient) by dropping a `.marvrc` file into the migrations folder, enabling filby to process sql migrations.
+
 ```json
 {
   "filter": "(?:\\.sql|\\.yaml|\\.json)$"
 }
 ```
-You can also use the same process for managing SQL changes too (e.g. for adding custom views over the aggregated data frames to make your projections more efficient). The DSL can be expressed in either YAML or JSON. A JSON schema is available in /lib/schema.json
 
 ```yaml
 # migrations/0001.define-park-schema.yaml
@@ -450,12 +452,6 @@ You can also use the same process for managing SQL changes too (e.g. for adding 
 ## Configuration
 ```js
 {
-  "dsl": {
-    // Enables PostgreSQL check constraints (defaults to false).
-    // Check constraints carry an inherent risk of SQL injection since the expression cannot be escaped or validated
-    "enableCheckConstraints": true
-  }
-
   // All the database configuration is passed through to https://www.npmjs.com/package/pg
   "database": {
     "user": "fby_example",
@@ -463,6 +459,24 @@ You can also use the same process for managing SQL changes too (e.g. for adding 
     "password": "fby_example"
   },
 
+  // Specifies the path to the migrations folders and their permitted operations.
+  // Use this to restrict operations for non-techincal/less trusted users
+  // Defaults to [{ path: "migrations", permissions: ["ALL"] }].
+  // See the permissions table for more details.
+  "migrations": [
+    {
+      path: "path/to/raw/migrations",
+      permissions: ["SQL"]
+    },
+    {
+      path: "path/to/schema/migrations",
+      permissions: ["ALL_OPERATIONS", "CHECK_CONSTRAINT"]
+    },
+    {
+      path: "path/to/data/migrations",
+      permissions: ["ADD_CHANGE_SET"]
+    }
+  ],
   "migrations": {
     // Specifies the path to the migrations folder. Defaults to "migrations"
     "directory": "path/to/migrations/folder"
@@ -489,6 +503,22 @@ You can also use the same process for managing SQL changes too (e.g. for adding 
   }
 }
 ```
+
+### Directory Permissions
+| Permission       | Notes                                                                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADD_ENUM         | Permits the ADD_ENUM operation.                                                                                                               |
+| ADD_ENTITY       | Permits the ADD_ENTITY operation, but without check constraints.                                                                              |
+| ADD_HOOK         | Permits the ADD_HOOK operation.                                                                                                               |
+| ADD_PROJECTION   | Permits the ADD_PROJECTION operation.                                                                                                         |
+| ADD_CHANGE_SET   | Permits the ADD_CHANGE_SET operation.                                                                                                         |
+| DROP_ENUM        | Permits the DROP_ENUM operation.                                                                                                              |
+| DROP_ENTITY      | Permits the DROP_ENTITY operation.                                                                                                            |
+| DROP_PROJECTION  | Permits the DROP_PROJECTION operation. Deletions still cascade to hooks even if the DROP_HOOK permission is not granted.                      |
+| DROP_HOOK        | Permits the DROP_HOOK operation.                                                                                                              |
+| CHECK_CONSTRAINT | Permits the use of check constraints. Check contraints cannot be escaped or validated, and are therefore a potential source of SQL injection. |
+| ALL_OPERATIONS   | Permits all operations, however does permit check constraints or raw SQL migrations.                                                          |
+| ALL              | Permits all operations, check constraints and raw SQL migrations.                                                                             |
 
 ## Example Application
 This project includes [proof of concept applications](https://github.com/acuminous/filby/tree/main/examples) based on a Caravan Park business.

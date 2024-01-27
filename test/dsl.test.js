@@ -9,9 +9,12 @@ const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
 
 const config = {
-  migrations: {
-    directory: 'test/dsl',
-  },
+  migrations: [
+    {
+      path: 'test/dsl',
+      permissions: ['ALL'],
+    },
+  ],
   database: {
     user: 'fby_test',
     password: 'fby_test',
@@ -64,6 +67,7 @@ describe('DSL', () => {
 
   beforeEach(async () => {
     deleteMigrations();
+    filby = new TestFilby(config);
     await filby.wipe();
   });
 
@@ -88,6 +92,14 @@ describe('DSL', () => {
   });
 
   describe('Add Enum', () => {
+
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', []));
+      await rejects(() => applyYaml(t.name, ADD_ENUM), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'ADD_ENUM' is not permitted");
+        return true;
+      });
+    });
 
     it('should add enum', async (t) => {
       await applyYaml(t.name, ADD_ENUM);
@@ -182,6 +194,14 @@ describe('DSL', () => {
 
   describe('Drop Enum', () => {
 
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENUM']));
+      await rejects(() => applyYaml(t.name, ADD_ENUM, DROP_ENUM), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'DROP_ENUM' is not permitted");
+        return true;
+      });
+    });
+
     it('should drop enum', async (t) => {
       await applyYaml(t.name, ADD_ENUM, DROP_ENUM);
 
@@ -252,6 +272,14 @@ describe('DSL', () => {
   });
 
   describe('Add Entity', () => {
+
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', []));
+      await rejects(() => applyYaml(t.name, ADD_ENTITY), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'ADD_ENTITY' is not permitted");
+        return true;
+      });
+    });
 
     it('should add entity', async (t) => {
       await applyYaml(t.name, ADD_ENTITY);
@@ -440,18 +468,18 @@ describe('DSL', () => {
       deq(entities[0], { description: "pwned');RAISE EXCEPTION $💀$You have been pwned!$💀$;" });
     });
 
-    it('should reject checks by default', async (t) => {
+    it('should reject checks when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENTITY']));
       await rejects(() => applyYaml(
         t.name,
         transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' }),
       ), (err) => {
-        eq(err.message, 'Check constraints must be explicity enabled in the Filby config due to risk of SQL Injection');
+        eq(err.message, '001.should-reject-checks-when-not-permitted.yaml: entity check constraints are not permitted');
         return true;
       });
     });
 
     it('should honour checks when enabled', async (t) => {
-      filby = new TestFilby(op.set(config, 'dsl.enableCheckConstraints', true));
       await rejects(() => applyYaml(
         t.name,
         transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' }),
@@ -471,6 +499,14 @@ describe('DSL', () => {
   });
 
   describe('Drop Entity', () => {
+
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENTITY']));
+      await rejects(() => applyYaml(t.name, ADD_ENTITY, DROP_ENTITY), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'DROP_ENTITY' is not permitted");
+        return true;
+      });
+    });
 
     it('should drop entity', async (t) => {
       await applyYaml(t.name, ADD_ENTITY);
@@ -572,6 +608,14 @@ describe('DSL', () => {
   });
 
   describe('Add Projection', () => {
+
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENTITY']));
+      await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'ADD_PROJECTION' is not permitted");
+        return true;
+      });
+    });
 
     it('should add projection', async (t) => {
       await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION);
@@ -745,6 +789,14 @@ describe('DSL', () => {
 
   describe('Drop Projection', () => {
 
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENTITY', 'ADD_PROJECTION']));
+      await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'DROP_PROJECTION' is not permitted");
+        return true;
+      });
+    });
+
     it('should drop projection', async (t) => {
       await applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION);
       const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
@@ -879,6 +931,14 @@ describe('DSL', () => {
   });
 
   describe('Add Change Set', () => {
+
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENTITY']));
+      await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'ADD_CHANGE_SET' is not permitted");
+        return true;
+      });
+    });
 
     it('should add a change set', async (t) => {
       await applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1);
@@ -1147,6 +1207,14 @@ describe('DSL', () => {
   });
 
   describe('Add Hook', () => {
+
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENTITY', 'ADD_PROJECTION']));
+      await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_ADD_PROJECTION), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'ADD_HOOK' is not permitted");
+        return true;
+      });
+    });
 
     describe('Projection Specific', () => {
 
@@ -1425,7 +1493,15 @@ describe('DSL', () => {
     });
   });
 
-  describe('Drop Hooks', () => {
+  describe('Drop Hook', () => {
+
+    it('should reject operation when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ADD_ENTITY', 'ADD_PROJECTION', 'ADD_HOOK']));
+      await rejects(() => applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, DROP_HOOK_ADD_CHANGE_SET_PROJECTION), (err) => {
+        eq(err.message, "001.should-reject-operation-when-not-permitted.yaml: Operation 'DROP_HOOK' is not permitted");
+        return true;
+      });
+    });
 
     describe('Projection Specific', () => {
 
@@ -1834,6 +1910,17 @@ describe('DSL', () => {
       const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
+    });
+
+    it('reject SQL when not permitted', async (t) => {
+      filby = new TestFilby(op.set(config, 'migrations.0.permissions', ['ALL_OPERATIONS']));
+      await rejects(() => applySql(t.name, `
+        INSERT INTO fby_entity(id, name, version) VALUES
+          (1, 'VAT Rate', 1);
+        `), (err) => {
+        eq(err.message, '001.reject-sql-when-not-permitted.sql: SQL migrations are not permitted');
+        return true;
+      });
     });
 
     it('should report unsupported file types', async (t) => {

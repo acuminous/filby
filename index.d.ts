@@ -1,5 +1,7 @@
 import { PoolClient, PoolConfig } from 'pg';
 
+export { PoolConfig };
+
 export default class Filby {
   static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
   constructor(config: Config);
@@ -17,15 +19,15 @@ export default class Filby {
   getCurrentChangeSet(projection: Projection): Promise<ChangeSet>;
   getChangeSet(id: number): Promise<ChangeSet>;
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
+}
+
+export type Migration = {
+  path: string;
+  permissions: string[];
 };
 
-export type PoolConfig = PoolConfig;
-
 export type Config = {
-  migrations?: {
-    directory?: string;
-    fileTypes?: string[];
-  };
+  migrations?: Migration[];
   database?: PoolConfig;
   notification?: {
     interval?: string;
@@ -59,9 +61,9 @@ export type Notification = {
   attempts: number;
 };
 
-export type ErrorNotification<E> = {
-  err: Error<E>;
-} & Notification
+export type ErrorNotification<T> = {
+  err: T extends Error ? T : never;
+} & Notification;
 
 export type Entity = {
   name: string;

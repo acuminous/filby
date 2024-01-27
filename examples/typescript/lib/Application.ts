@@ -77,7 +77,7 @@ export default class Application {
       const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
       const details = err.isAxiosError
-        ? { message: err.message, stack: err.stack, method: err.config.method, url: err.config.url }
+        ? { message: err.message, stack: err.stack, method: err.config?.method, url: err.config?.url }
         : { message: err.message, stack: err.stack }
       this.#logger.error(details);
     });
