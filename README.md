@@ -30,7 +30,7 @@ See the [example applications](#example-applications) for usage.
 *There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
 <p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
 
-Most applications require reference data that changes slowly over time. This presents the following challenges in a distributed / microservice architecture.
+Most applications require reference data that changes slowly over time. This presents the following challenges in a distributed or microservice architecture.
 
 | Challenge     | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
