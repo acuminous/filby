@@ -67,15 +67,15 @@ export default class Application {
 
   async #initFilby() {
     await this.#filby.init();
-    await this.#handleHookFailures();
+    await this.#reportFailingWebhooks();
     await this.#regsiterWebhooks();
   }
 
-  async #handleHookFailures() {
-    this.#filby.subscribe<ErrorNotification<AxiosError>>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async (errNotification: ErrorNotification<AxiosError>) => {
-      const { err, ...notification } = errNotification;
+  async #reportFailingWebhooks() {
+    this.#filby.subscribe<ErrorNotification<AxiosError>>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ err, ...notification }) => {
       const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
+
       const details = err.isAxiosError
         ? { message: err.message, stack: err.stack, method: err.config?.method, url: err.config?.url }
         : { message: err.message, stack: err.stack }
@@ -84,10 +84,8 @@ export default class Application {
   }
 
   async #regsiterWebhooks() {
-    const events = Object.keys(this.#config.webhooks || []);
-    for (let i = 0; i < events.length; i++) {
-      const event = events[i];
-      const url = this.#config.webhooks[event];
+    const webhooks = Object.entries(this.#config.webhooks || {});
+    for (const [event, url] of webhooks) {
       this.#registerWebhook(event, url);
     }
   }
@@ -152,9 +150,9 @@ export default class Application {
 
   async #registerProjections() {
     const projections = await this.#filby.getProjections();
-    for (let i = 0; i < projections.length; i++) {
-      this.#routes.set(projections[i].key, { paths: [] });
-      await this.#registerProjection(projections[i]);
+    for (const projection of projections) {
+      this.#routes.set(projection.key, { paths: [] });
+      await this.#registerProjection(projection);
     }
   }
 

@@ -17,12 +17,10 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
     if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);
     const changeSetId = Number(request.query.changeSetId)
     const changeSet = await getChangeSet(changeSetId);
+    const headers = getResponseHeaders(changeSet);
     const parks = await getParks(changeSet);
 
-    const headers = getResponseHeaders(changeSet);
-    reply.headers(headers);
-
-    return parks;
+    reply.headers(headers).send(parks);
   });
 
   const getParkOptions = { schema: getParkSchema, projection };
@@ -32,13 +30,11 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
     const code = request.params.code.toUpperCase();
     const changeSetId = Number(request.query.changeSetId)
     const changeSet = await getChangeSet(changeSetId);
-    const park = await getPark(changeSet, code);
-    if (!park) throw createError(404, `Park not found: ${code}`);
-
     const headers = getResponseHeaders(changeSet);
-    reply.headers(headers);
+    const park = await getPark(changeSet, code);
 
-    return park;
+    if (!park) throw createError(404, `Park not found: ${code}`);
+    reply.headers(headers).send(park);
   });
 
   async function redirectToCurrentChangeSet(request: FastifyRequest, reply: FastifyReply) {

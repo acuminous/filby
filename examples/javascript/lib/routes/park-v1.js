@@ -10,12 +10,10 @@ module.exports = (fastify, { projection, filby }, done) => {
     if (request.query.changeSetId === undefined) return redirectToCurrentChangeSet(request, reply);
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await getChangeSet(changeSetId);
+    const headers = getResponseHeaders(changeSet);
     const parks = await getParks(changeSet);
 
-    const headers = getResponseHeaders(changeSet);
-    reply.headers(headers);
-
-    return parks;
+    reply.headers(headers).send(parks);
   });
 
   fastify.get('/code/:code', { schema: getParkSchema, projection }, async (request, reply) => {
@@ -23,13 +21,11 @@ module.exports = (fastify, { projection, filby }, done) => {
     const code = String(request.params.code).toUpperCase();
     const changeSetId = Number(request.query.changeSetId);
     const changeSet = await getChangeSet(changeSetId);
-    const park = await getPark(changeSet, code);
-    if (!park) throw createError(404, `Park not found: ${code}`);
-
     const headers = getResponseHeaders(changeSet);
-    reply.headers(headers);
+    const park = await getPark(changeSet, code);
 
-    return park;
+    if (!park) throw createError(404, `Park not found: ${code}`);
+    reply.headers(headers).send(park);
   });
 
   async function redirectToCurrentChangeSet(request, reply) {
