@@ -325,8 +325,8 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 - operation: DROP_ENUM
   name: park_calendar_event_type
 
-# Deletes the specified entity and associated data frames
-# Fails if the entities are still depended on by projections
+# Deletes the specified entity
+# Fails if the entities are depended on by projections or used in change sets
 - operation: DROP_ENTITY
   name: park
   version: 1
@@ -342,10 +342,29 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   name: sns/add-change-set/park-v1
 ```
 
-Since Marv works with SQL, you can also use it for regular database migrations. This can be useful for adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one.
+The DSL deliberately omits the ability to drop change sets and data frames since they are supposed to be immutable. However, since Marv works with SQL, you can also use it for regular database migrations.
 
 ```sql
--- migrations/0004.create-get-park-v1-function.sql
+-- migrations/0004.delete-all-the-things.sql
+START TRANSACTION;
+
+-- deletes frame sets by entity
+DELETE FROM fby_data_frame f
+INNER JOIN fby_entity e ON e.id = f.entity_id;
+WHERE e.name = 'Park'
+  AND e.version = 1;
+
+-- deletes a change set by id
+DELETE FROM fby_change_set
+ WHERE id = 4;
+
+END TRANSACTION;
+```
+
+In addition to deleting change sets, this can be useful for adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one.
+
+```sql
+-- migrations/0005.create-get-park-v1-function.sql
 CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
 RETURNS TABLE (code TEXT, name TEXT, calendar_event park_calendar_event_type, calendar_occurs TIMESTAMP WITH TIME ZONE)
 AS $$
@@ -359,6 +378,7 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
 **PRO TIP**: Since the results for a given change set should never change, consider making PostgreSQL functions IMMUTABLE so the output can be cached.
+
 
 ## API
 Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries.

@@ -105,16 +105,17 @@ describe('Database Schema', () => {
       });
     });
 
-    it('should cascade deletes to data frames', async () => {
+    it('should NOT cascade deletes to data frames', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");
         await tx.query("INSERT INTO fby_change_set (id, description, effective) VALUES (1, 'Park updates',now())");
         await tx.query("INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES (1, 1, 1, 'POST')");
-        await tx.query('DELETE FROM fby_entity');
       });
 
-      const { rows: frames } = await filby.withTransaction((tx) => tx.query('SELECT * from fby_data_frame'));
-      eq(frames.length, 0);
+      await rejects(() => filby.withTransaction((tx) => tx.query('DELETE FROM fby_entity')), (err) => {
+        eq(err.code, FOREIGN_KEY_VIOLATION);
+        return true;
+      });
     });
   });
 
