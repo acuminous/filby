@@ -23,8 +23,8 @@ See the [example applications](#example-applications) for usage.
 - [Introduction](#introduction)
 - [Benefits](#benefits)
 - [Concepts](#concepts)
-- [API](#api)
 - [Data Definition](#data-definition)
+- [API](#api)
 - [Configuration](#configuration)
 - [Example Applications](#example-applications)
 
@@ -212,106 +212,6 @@ Notifications are retried a configurable number of times using an exponential ba
 ### Hook
 A *Hook* is an event the framework will emit to whenenver a projection is added, dropped or updated via a change set. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
-## API
-Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries.
-
-#### new Filby(config: Config)
-Constructs a new Filby instance
-
-#### filby.init(): Promise&lt;void&gt;
-Connects to the database and runs schema/data migrations
-
-#### filby.stop(): Promise&lt;void&gt;
-Stops polling for notifications then disconnects from the database
-
-#### filby.startNotifications(): Promise&lt;void&gt;
-Starts polling the database for notifications
-
-#### filby.stopNotifications(): Promise&lt;void&gt;
-Stops polling the database for notifications, and waits for any inflight notifications to complete.
-
-#### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T) => Promise&lt;void&gt;): void
-Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for hooks and perform of asynchronous tasks like making an HTTP request for a webhook. The hook name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
-
-```js
-filby.subscribe('VAT Rate changed', async (notification) => {
-  await axios.post('https://httpbin.org/status/200', notification);
-});
-```
-
-If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
-
-```js
-filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
-  console.error('Hook Failed', notification);
-  console.error('Hook Failed', notification.err.stack); // Careful not to log secrets that may be on the error
-});
-```
-
-#### filby.unsubscribe&lt;T&gt;(event: string, handler?: (notification: T) => Promise&lt;void&gt;): void
-Unsubscribes the specified handler, or all handlers if none is specified, from the specified event
-
-#### filby.unsubscribeAll(): void
-Unsubscribes all handlers from all events
-
-#### filby.getProjections(): Promise&lt;Projection[]&gt;
-Returns the list of projections.
-
-#### filby.getProjection(name: string, version: number): Promise&lt;Projection&gt;
-Returns the specified projection.
-
-#### filby.getChangeLog(projection: Projection): Promise&lt;ChangeSet[]&gt;
-Returns the change log (an ordered list of change sets) for the given projection.
-
-#### filby.getCurrentChangeSet(projection: Projection): Promise&lt;ChangeSet&gt;
-Returns the current changeset for the given projection based on the database's current time.
-
-#### filby.getChangeSet(changeSetId: number): Promise&lt;ChangeSet&gt;
-Returns the specified change set
-
-#### filby.getAggregates&lt;T&gt;(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
-Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
-
-```js
-async function getParks(changeSetId) {
-  const rows = await filby.getAggregates(changeSetId, 'Park', 1);
-  return rows.map(toParkStructure);
-};
-```
-
-#### filby.withTransaction&lt;T&gt;(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
-Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
-
-```js
-async function getParks(changeSetId) {
-  return filby.withTransaction(async (client) => {
-    const { rows } = await client.query(`
-      SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
-      FROM get_park_v1_aggregate($1) p
-      LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
-      ORDER BY p.code ASC, pc.occurs ASC;
-    `, [changeSetId]);
-    return rows.map(toParkStructure);
-  });
-};
-```
-
-**PRO TIP**: Since the results for the specified change set should not change, consider externalising queries like the above in an immutable PostgreSQL function so the output can be cached.
-```sql
--- migrations/0002.create-get-park-v1-function.sql
-CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
-RETURNS TABLE (code TEXT, name TEXT, calendar_event park_calendar_event_type, calendar_occurs TIMESTAMP WITH TIME ZONE)
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
-  FROM get_park_v1_aggregate(p_change_set_id) p
-  LEFT JOIN get_park_calendar_v1_aggregate(p_change_set_id) pc ON pc.park_code = p.code
-  ORDER BY p.code ASC, p.occurs ASC;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-```
-
 ## Data Definition
 All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. A JSON schema is available in /lib/schema.json
 
@@ -457,6 +357,91 @@ BEGIN
   ORDER BY p.code ASC, p.occurs ASC;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
+```
+**PRO TIP**: Since the results for the specified change set should not change, consider externalising queries like the above in an immutable PostgreSQL function so the output can be cached.
+
+## API
+Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries.
+
+#### new Filby(config: Config)
+Constructs a new Filby instance
+
+#### filby.init(): Promise&lt;void&gt;
+Connects to the database and runs schema/data migrations
+
+#### filby.stop(): Promise&lt;void&gt;
+Stops polling for notifications then disconnects from the database
+
+#### filby.startNotifications(): Promise&lt;void&gt;
+Starts polling the database for notifications
+
+#### filby.stopNotifications(): Promise&lt;void&gt;
+Stops polling the database for notifications, and waits for any inflight notifications to complete.
+
+#### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T) => Promise&lt;void&gt;): void
+Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for hooks and perform of asynchronous tasks like making an HTTP request for a webhook. The hook name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
+
+```js
+filby.subscribe('VAT Rate changed', async (notification) => {
+  await axios.post('https://httpbin.org/status/200', notification);
+});
+```
+
+If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
+
+```js
+filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
+  console.error('Hook Failed', notification);
+  console.error('Hook Failed', notification.err.stack); // Careful not to log secrets that may be on the error
+});
+```
+
+#### filby.unsubscribe&lt;T&gt;(event: string, handler?: (notification: T) => Promise&lt;void&gt;): void
+Unsubscribes the specified handler, or all handlers if none is specified, from the specified event
+
+#### filby.unsubscribeAll(): void
+Unsubscribes all handlers from all events
+
+#### filby.getProjections(): Promise&lt;Projection[]&gt;
+Returns the list of projections.
+
+#### filby.getProjection(name: string, version: number): Promise&lt;Projection&gt;
+Returns the specified projection.
+
+#### filby.getChangeLog(projection: Projection): Promise&lt;ChangeSet[]&gt;
+Returns the change log (an ordered list of change sets) for the given projection.
+
+#### filby.getCurrentChangeSet(projection: Projection): Promise&lt;ChangeSet&gt;
+Returns the current changeset for the given projection based on the database's current time.
+
+#### filby.getChangeSet(changeSetId: number): Promise&lt;ChangeSet&gt;
+Returns the specified change set
+
+#### filby.getAggregates&lt;T&gt;(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
+Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
+
+```js
+async function getParks(changeSetId) {
+  const rows = await filby.getAggregates(changeSetId, 'Park', 1);
+  return rows.map(toParkStructure);
+};
+```
+
+#### filby.withTransaction&lt;T&gt;(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
+Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
+
+```js
+async function getParks(changeSetId) {
+  return filby.withTransaction(async (client) => {
+    const { rows } = await client.query(`
+      SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
+      FROM get_park_v1_aggregate($1) p
+      LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
+      ORDER BY p.code ASC, pc.occurs ASC;
+    `, [changeSetId]);
+    return rows.map(toParkStructure);
+  });
+};
 ```
 
 ## Configuration
