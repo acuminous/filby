@@ -5,12 +5,6 @@ const { PostgresError: { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLA
 const TestFilby = require('./TestFilby');
 
 const config = {
-  migrations: [
-    {
-      path: 'test',
-      permissions: ['ALL'],
-    },
-  ],
   database: {
     user: 'fby_test',
     password: 'fby_test',

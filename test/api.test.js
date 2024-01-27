@@ -4,22 +4,6 @@ const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 const TestFilby = require('./TestFilby');
 
 const config = {
-  migrations: [
-    {
-      path: 'test',
-      permissions: ['ALL'],
-    },
-  ],
-  database: {
-    user: 'fby_test',
-    password: 'fby_test',
-  },
-  notifications: {
-    initialDelay: '0ms',
-    interval: '100ms',
-    maxAttempts: 3,
-    maxRescheduleDelay: '100ms',
-  },
   nukeCustomObjects: async (tx) => {
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
