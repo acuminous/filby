@@ -1683,6 +1683,8 @@ describe('DSL', () => {
 
     const ADD_CHANGE_SET_2 = loadYaml('ADD_CHANGE_SET_2');
     const ADD_CHANGE_SET_3 = loadYaml('ADD_CHANGE_SET_3');
+    const ADD_CHANGE_SET_4 = loadYaml('ADD_CHANGE_SET_4');
+    const ADD_CHANGE_SET_5 = loadYaml('ADD_CHANGE_SET_5');
 
     it('should aggregate data frames up to the specified change set', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3);
@@ -1701,6 +1703,21 @@ describe('DSL', () => {
         eq(aggregate3.length, 3);
         deq(aggregate3[0], { type: 'standard', rate: 0.15 });
         deq(aggregate3[1], { type: 'reduced', rate: 0.10 });
+        deq(aggregate1[2], { type: 'zero', rate: 0 });
+      });
+    });
+
+    it('should ignore lower change sets with a later effective date', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3, ADD_CHANGE_SET_4, ADD_CHANGE_SET_5);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+
+      await filby.withTransaction(async (tx) => {
+        const { rows: aggregate1 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [changeLog[4].id]);
+        eq(aggregate1.length, 3);
+        deq(aggregate1[0], { type: 'standard', rate: 0.16 });
+        deq(aggregate1[1], { type: 'reduced', rate: 0.11 });
         deq(aggregate1[2], { type: 'zero', rate: 0 });
       });
     });

@@ -31,19 +31,25 @@ CREATE FUNCTION {{identifier (aggregate name version)}}(p_change_set_id INTEGER)
 AS $$
 BEGIN
   RETURN QUERY
-  WITH aggregated AS (
+  WITH specified_change_set AS (
+    SELECT * FROM fby_change_set cs
+    WHERE cs.id = p_change_set_id
+  ), aggregated AS (
     SELECT
       DISTINCT ON ({{#identified_by}}{{identifier name}}{{#unless @last}},{{/unless}}{{/identified_by}})
       f.action AS fby_action,
       {{#fields}}x.{{identifier name}}{{#unless @last}},
       {{/unless}}{{/fields}}
     FROM
+      specified_change_set scs,
       fby_data_frame f
     INNER JOIN fby_entity e ON e.id = f.entity_id
+    INNER JOIN fby_change_set cs ON cs.id = f.change_set_id
     INNER JOIN {{identifier (table name version)}} x ON x.fby_frame_id = f.id
     WHERE e.name = {{literal name}}
       AND e.version = {{literal version}}
       AND f.change_set_id <= p_change_set_id
+      AND cs.effective <= scs.effective
     ORDER BY
       {{#identified_by}}x.{{identifier name}} ASC,
       {{/identified_by}}
