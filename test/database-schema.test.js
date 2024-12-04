@@ -1,4 +1,5 @@
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
+const { scheduler } = require('node:timers/promises');
 const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
 const { PostgresError: { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
 
@@ -220,6 +221,8 @@ describe('Database Schema', () => {
 
     it('should default last modified date to now', async () => {
       const checkpoint = new Date();
+
+      await scheduler.wait(1);
 
       await filby.withTransaction(async (tx) => {
         await tx.query(`INSERT INTO fby_change_set (id, description, effective) VALUES
