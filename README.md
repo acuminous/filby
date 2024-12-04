@@ -196,7 +196,7 @@ Filby has the following important concepts
 A *Projection* is a versioned view of one or more *Entities*, made available in the example application via a RESTful API. The implementor is responsible for writing the the projections, which will mostly be simple database to JSON transformations.
 
 ### Entity
-An *Entity* represents reference data. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which the park entity has many calendar event entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more *Data Frames*. The dependency between projections and entities must be explicitly stated so we can emit *Notifications* when a new data frame is added.
+An *Entity* represents reference data items. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which a 'Park' entity has many 'Calendar Event' entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more *Data Frames*. The dependency between projections and entities must be explicitly stated so we can emit *Notifications* when a new data frame is added.
 
 ### Data Frame
 A *Data Frame* is a snapshot of an entity, associated with a *Change Set*. There are two types of data frame, 'POST' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted.
