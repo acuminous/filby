@@ -202,7 +202,7 @@ An *Entity* represents reference data items. Entities may be stand alone, or for
 A *Data Frame* is a snapshot of an entity, associated with a *Change Set*. There are two types of data frame, 'POST' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted.
 
 ### Change Set
-A *Change Set* groups a set of data frames (potentially for different entities) into a single unit with a common effective date. The data frames will not be aggregated by their parent entities when building a projection for an earlier change set.
+A *Change Set* groups a set of data frames (potentially for different entities) into a single unit with a common effective date.
 
 ### Notifications
 *Notifications* are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
