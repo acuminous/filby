@@ -196,7 +196,7 @@ Filby has the following important concepts
 A *Projection* is a versioned view of one or more *Entities*, made available in the example application via a RESTful API. The implementor is responsible for writing the the projections, which will mostly be simple database to JSON transformations.
 
 ### Entity
-An *Entity* represents reference data items. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which a 'Park' entity has many 'Calendar Event' entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more *Data Frames*. The dependency between projections and entities must be explicitly stated so we can emit *Notifications* when a new data frame is added.
+An *Entity* represents reference data. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which a 'Park' entity has many 'Season' entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more *Data Frames*. The dependency between projections and entities must be explicitly stated so we can emit *Notifications* when a new data frame is added.
 
 ### Data Frame
 A *Data Frame* is a snapshot of an entity, associated with a *Change Set*. There are two types of data frame, 'POST' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted.
@@ -221,12 +221,10 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # Add enums for your reference data
 # Equivalent of PostgreSQL's CREATE TYPE statement
 - operation: ADD_ENUM
-  name: park_calendar_event_type
+  name: season_type
   values:
-    - Park Open - Owners
-    - Park Open - Guests
-    - Park Close - Owners
-    - Park Close - Guests
+    - Owners
+    - Guests
 
 # Adding entities performs the following:
 # 1. Inserts a row into the 'fby_entity' table,
@@ -256,7 +254,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   dependencies:
     - name: park
       version: 1
-    - name: calendar_event
+    - name: season
       version: 1
 
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
@@ -323,7 +321,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # Deletes the specified enum
 # Fails if the enums are still use
 - operation: DROP_ENUM
-  name: park_calendar_event_type
+  name: season_type
 
 # Deletes the specified entity
 # Fails if the entities are depended on by projections or used in change sets
@@ -366,14 +364,14 @@ In addition to deleting change sets, this can be useful for adding custom views 
 ```sql
 -- migrations/0005.create-get-park-v1-function.sql
 CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
-RETURNS TABLE (code TEXT, name TEXT, calendar_event park_calendar_event_type, calendar_occurs TIMESTAMP WITH TIME ZONE)
+RETURNS TABLE (code TEXT, name TEXT, season_type season_type, season_start TIMESTAMPTZ, season_end TIMESTAMPTZ)
 AS $$
 BEGIN
   RETURN QUERY
-  SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
+  SELECT p.code, p.name, s.type AS season_type, s.start AS season_start, s.end AS season_end
   FROM get_park_v1_aggregate(p_change_set_id) p
-  LEFT JOIN get_park_calendar_v1_aggregate(p_change_set_id) pc ON pc.park_code = p.code
-  ORDER BY p.code ASC, p.occurs ASC;
+  LEFT JOIN get_season_v1_aggregate(p_change_set_id) s ON s.park_code = p.code
+  ORDER BY p.code ASC, s.start DESC, s.type ASC;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 ```
@@ -454,10 +452,10 @@ Passes a transactional [node-pg client](https://node-postgres.com/) to the given
 async function getParks(changeSetId) {
   return filby.withTransaction(async (client) => {
     const { rows } = await client.query(`
-      SELECT p.code, p.name, pc.event AS calendar_event, pc.occurs AS calendar_occurs
+      SELECT p.code, p.name, s.type AS season_type, s.start AS season_start, s.end AS season_end
       FROM get_park_v1_aggregate($1) p
-      LEFT JOIN get_park_calendar_v1_aggregate($1) pc ON pc.park_code = p.code
-      ORDER BY p.code ASC, pc.occurs ASC;
+      LEFT JOIN get_season_v1_aggregate($1) s ON s.park_code = p.code
+      ORDER BY p.code ASC, s.start DESC, s.type desc ASC;
     `, [changeSetId]);
     return rows.map(toParkStructure);
   });
@@ -649,66 +647,48 @@ GET http://localhost:3000/api/projection/v1/park?changeSetId=1
   {
     "code":"DC",
     "name":"Devon Cliffs",
-    "calendar":[
+    "seasons":[     
       {
-        "event":"Park Open - Owners",
-        "occurs":"2019-03-01T00:00:00.000Z"
+        "type":"Owners",
+        "start":"2019-03-01T00:00:00.000Z",
+        "end":"2019-11-30T00:00:00.000Z"
       },
       {
-        "event":"Park Open - Guests",
-        "occurs":"2019-03-15T00:00:00.000Z"
-      },
-      {
-        "event":"Park Close - Guests",
-        "occurs":"2019-11-15T00:00:00.000Z"
-      },
-      {
-        "event":"Park Close - Owners",
-        "occurs":"2019-11-30T00:00:00.000Z"
+        "type":"Guests",
+        "start":"2019-03-15T00:00:00.000Z",
+        "end":"2019-11-15T00:00:00.000Z"        
       }
     ]
   },
   {
     "code":"GA",
     "name":"Greenacres",
-    "calendar":[
+    "seasons":[     
       {
-        "event":"Park Open - Owners",
-        "occurs":"2019-03-01T00:00:00.000Z"
+        "type":"Owners",
+        "start":"2019-03-01T00:00:00.000Z",
+        "end":"2019-11-30T00:00:00.000Z"
       },
       {
-        "event":"Park Open - Guests",
-        "occurs":"2019-03-15T00:00:00.000Z"
-      },
-      {
-        "event":"Park Close - Guests",
-        "occurs":"2019-11-15T00:00:00.000Z"
-      },
-      {
-        "event":"Park Close - Owners",
-        "occurs":"2019-11-30T00:00:00.000Z"
+        "type":"Guests",
+        "start":"2019-03-15T00:00:00.000Z",
+        "end":"2019-11-15T00:00:00.000Z"        
       }
     ]
   },
   {
     "code":"PV",
     "name":"Primrose Valley",
-    "calendar":[
+    "seasons":[     
       {
-        "event":"Park Open - Owners",
-        "occurs":"2019-03-01T00:00:00.000Z"
+        "type":"Owners",
+        "start":"2019-03-01T00:00:00.000Z",
+        "end":"2019-11-30T00:00:00.000Z"
       },
       {
-        "event":"Park Open - Guests",
-        "occurs":"2019-03-15T00:00:00.000Z"
-      },
-      {
-        "event":"Park Close - Guests",
-        "occurs":"2019-11-15T00:00:00.000Z"
-      },
-      {
-        "event":"Park Close - Owners",
-        "occurs":"2019-11-30T00:00:00.000Z"
+        "type":"Guests",
+        "start":"2019-03-15T00:00:00.000Z",
+        "end":"2019-11-15T00:00:00.000Z"        
       }
     ]
   }

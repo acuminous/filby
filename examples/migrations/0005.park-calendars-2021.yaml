@@ -1,7 +1,0 @@
-- operation: ADD_CHANGE_SET
-  description: Park Calendars - 2021
-  effective: 2021-01-01T00:00:00Z
-  frames:
-    - entity: park_calendar
-      version: 1
-      source: ../migrations/csv/park-opening-times-2021.csv

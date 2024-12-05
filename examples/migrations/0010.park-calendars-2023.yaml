@@ -1,7 +1,0 @@
-- operation: ADD_CHANGE_SET
-  description: Park Calendars - 2023
-  effective: 2023-01-01T00:00:00Z
-  frames:
-    - entity: park_calendar
-      version: 1
-      source: ../migrations/csv/park-opening-times-2023.csv

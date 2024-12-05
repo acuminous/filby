@@ -67,6 +67,7 @@ module.exports = class Application {
   async #registerWebhook(event, url) {
     this.#filby.subscribe(event, async (notification) => {
       const api = this.#projectionsApi.get(notification.projection);
+      // console.log(`POST ${url}`, { ...notification })
       await axios.post(url, { ...notification, api });
     });
   }

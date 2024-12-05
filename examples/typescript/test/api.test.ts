@@ -22,9 +22,9 @@ export default describe('API', () => {
   describe('GET /api/changelog', () => {
     it('should respond with changelog for valid projection', async () => {
       const { data: changeLog } = await get('api/changelog?projection=park&version=1');
-      eq(changeLog.length, 8);
+      eq(changeLog.length, 9);
       assertChangeSet(changeLog[0], { id: 1, effective: '2019-01-01T00:00:00.000Z', description: 'Initial Data' });
-      assertChangeSet(changeLog[7], { id: 8, effective: '2023-01-01T00:00:00.000Z', description: 'Park Calendars - 2023' });
+      assertChangeSet(changeLog[8], { id: 9, effective: '2024-01-01T00:00:00.000Z', description: '2024 Season' });
     });
 
     it('should respond with 400 when missing park query parameter', async () => {
@@ -58,7 +58,7 @@ export default describe('API', () => {
     it('should redirect to current change set', async () => {
       const { status, headers } = await get('api/projection/v1/park');
       eq(status, 307);
-      eq(headers.get('Location'), '/api/projection/v1/park?changeSetId=8');
+      eq(headers.get('Location'), '/api/projection/v1/park?changeSetId=9');
     });
 
     it('should response with parks for specified change set', async () => {
@@ -67,18 +67,18 @@ export default describe('API', () => {
       assertPark(parks1[0], { code: 'DC', name: 'Devon Cliffs' });
       assertPark(parks1[2], { code: 'PV', name: 'Primrose Valley' });
 
-      eq(parks1[0].calendar.length, 4);
-      assertCalendarEvent(parks1[0].calendar[0], { event: 'Park Open - Owners', occurs: '2019-03-01T00:00:00.000Z' });
-      assertCalendarEvent(parks1[0].calendar[3], { event: 'Park Close - Owners', occurs: '2019-11-30T00:00:00.000Z' });
+      eq(parks1[0].seasons.length, 2);
+      assertSeason(parks1[0].seasons[0], { type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z' });      
+      assertSeason(parks1[0].seasons[1], { type: 'Owners', start: '2019-03-01T00:00:00.000Z', end: '2019-11-30T00:00:00.000Z' });
 
       const { data: parks8 } = await get('api/projection/v1/park?changeSetId=8');
       eq(parks8.length, 3);
       assertPark(parks8[0], { code: 'DC', name: 'Devon Cliffs' });
       assertPark(parks8[2], { code: 'SK', name: 'Skegness' });
 
-      eq(parks8[0].calendar.length, 8);
-      assertCalendarEvent(parks8[0].calendar[0], { event: 'Park Open - Owners', occurs: '2022-03-01T00:00:00.000Z' });
-      assertCalendarEvent(parks8[0].calendar[7], { event: 'Park Close - Owners', occurs: '2023-11-30T00:00:00.000Z' });
+      eq(parks8[0].seasons.length, 10);
+      assertSeason(parks8[0].seasons[0], { type: 'Guests', start: '2023-03-15T00:00:00.000Z', end: '2023-11-15T00:00:00.000Z' });
+      assertSeason(parks8[0].seasons[9], { type: 'Owners', start: '2019-03-01T00:00:00.000Z', end: '2019-11-30T00:00:00.000Z' });
     });
 
     it('should respond with 404 when projection does not exist', async () => {
@@ -103,21 +103,21 @@ export default describe('API', () => {
     it('should redirect to current change set', async () => {
       const { status, headers } = await get('api/projection/v1/park/code/DC');
       eq(status, 307);
-      eq(headers.get('Location'), '/api/projection/v1/park/code/DC?changeSetId=8');
+      eq(headers.get('Location'), '/api/projection/v1/park/code/DC?changeSetId=9');
     });
 
     it('should response with park for specified change set', async () => {
       const { data: greenacres } = await get('api/projection/v1/park/code/GA?changeSetId=1');
       assertPark(greenacres, { code: 'GA', name: 'Greenacres' });
-      eq(greenacres.calendar.length, 4);
-      assertCalendarEvent(greenacres.calendar[0], { event: 'Park Open - Owners', occurs: '2019-03-01T00:00:00.000Z' });
-      assertCalendarEvent(greenacres.calendar[3], { event: 'Park Close - Owners', occurs: '2019-11-30T00:00:00.000Z' });
+      eq(greenacres.seasons.length, 2);
+      assertSeason(greenacres.seasons[0], { type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z' });
+      assertSeason(greenacres.seasons[1], { type: 'Owners', start: '2019-03-01T00:00:00.000Z', end: '2019-11-30T00:00:00.000Z'  });
 
       const { data: skegness } = await get('api/projection/v1/park/code/SK?changeSetId=8');
       assertPark(skegness, { code: 'SK', name: 'Skegness' });
-      eq(skegness.calendar.length, 8);
-      assertCalendarEvent(skegness.calendar[0], { event: 'Park Open - Owners', occurs: '2022-03-01T00:00:00.000Z' });
-      assertCalendarEvent(skegness.calendar[7], { event: 'Park Close - Owners', occurs: '2023-11-30T00:00:00.000Z' });
+      eq(skegness.seasons.length, 6);
+      assertSeason(skegness.seasons[0], { type: 'Guests', start: '2023-03-15T00:00:00.000Z', end: '2023-11-15T00:00:00.000Z' });
+      assertSeason(skegness.seasons[5], { type: 'Owners', start: '2021-03-01T00:00:00.000Z', end: '2021-11-30T00:00:00.000Z' });
     });
 
     it('should response with 404 before park was created', async () => {
@@ -166,9 +166,10 @@ export default describe('API', () => {
     eq(actual.name, expected.name);
   }
 
-  function assertCalendarEvent(actual: any, expected: any) {
-    eq(actual.event, expected.event);
-    eq(actual.occurs, expected.occurs);
+  function assertSeason(actual: any, expected: any) {
+    eq(actual.type, expected.type);
+    eq(actual.start, expected.start);
+    eq(actual.end, expected.end);
   }
 
   async function get(path: string, options = { method: 'GET', validateStatus: () => true, maxRedirects: 0 }) {

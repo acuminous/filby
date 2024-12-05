@@ -43,7 +43,7 @@ module.exports = (fastify, { projection, filby }, done) => {
 
   async function getParks(changeSet) {
     return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1)', [changeSet.id]);
+      const { rows } = await tx.query('SELECT code, name, season_type, season_start, season_end FROM get_park_v1($1)', [changeSet.id]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
       return Array.from(parkDictionary.values());
     });
@@ -51,16 +51,16 @@ module.exports = (fastify, { projection, filby }, done) => {
 
   async function getPark(changeSet, code) {
     return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, calendar_event, calendar_occurs FROM get_park_v1($1) WHERE code = upper($2)', [changeSet.id, code]);
+      const { rows } = await tx.query('SELECT code, name, season_type, season_start, season_end FROM get_park_v1($1) WHERE code = upper($2)', [changeSet.id, code]);
       const parkDictionary = rows.reduce(toParkDictionary, new Map());
       return parkDictionary.get(code);
     });
   }
 
   function toParkDictionary(dictionary, row) {
-    const { code, name, calendar_event: event, calendar_occurs: occurs } = row;
-    const park = dictionary.get(code) || { code, name, calendar: [] };
-    park.calendar.push({ event, occurs });
+    const { code, name, season_type: type, season_start: start, season_end: end } = row;
+    const park = dictionary.get(code) || { code, name, seasons: [] };
+    park.seasons.push({ type, start, end });
     return dictionary.set(code, park);
   }
 

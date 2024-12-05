@@ -1,10 +1,8 @@
 - operation: ADD_ENUM
-  name: park_calendar_event_type
+  name: season_type
   values:
-    - Park Open - Owners
-    - Park Open - Guests
-    - Park Close - Owners
-    - Park Close - Guests
+    - Owners
+    - Guests
 
 - operation: ADD_ENTITY
   name: park
@@ -20,19 +18,21 @@
     park_code_len: (LENGTH(code) >= 2)
 
 - operation: ADD_ENTITY
-  name: park_calendar
+  name: season
   version: 1
   fields:
-    - name: id
-      type: INTEGER
     - name: park_code
       type: TEXT
-    - name: event
-      type: park_calendar_event_type
-    - name: occurs
+    - name: type
+      type: season_type
+    - name: start
       type: TIMESTAMP WITH TIME ZONE
+    - name: end
+      type: TIMESTAMP WITH TIME ZONE      
   identified_by:
-    - id
+    - park_code
+    - type
+    - start
 
 - operation: ADD_HOOK
   name: httpbin/add-projection
@@ -44,7 +44,7 @@
   dependencies:
     - entity: park
       version: 1
-    - entity: park_calendar
+    - entity: season
       version: 1
 
 - operation: ADD_HOOK
