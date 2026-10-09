@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 const config = require('./config.json');
 const Application = require('./lib/Application');
 

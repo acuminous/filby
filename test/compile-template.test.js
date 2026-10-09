@@ -1,5 +1,5 @@
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match, throws } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
+const { strictEqual: eq, throws } = require('node:assert');
+const { describe, it } = require('node:test');
 
 const compileTemplate = require('../lib/compile-template');
 

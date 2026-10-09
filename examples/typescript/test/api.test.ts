@@ -1,5 +1,5 @@
-import { ok, strictEqual as eq, deepEqual as deq, rejects, match } from 'node:assert';
-import { describe, it, before, beforeEach, after, afterEach } from 'node:test';
+import { strictEqual as eq, match } from 'node:assert';
+import { describe, it, before, after } from 'node:test';
 import axios, { AxiosResponseHeaders } from 'axios';
 
 import config from '../config.json';
@@ -48,7 +48,7 @@ describe('API', () => {
     });
 
     it('should encourage caching', async () => {
-      let { headers } = await get('api/changelog?projection=park&version=1');
+      const { headers } = await get('api/changelog?projection=park&version=1');
       match(headers.get('Last-Modified'), /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/);
       match(headers.get('ETag'), /^[0-9a-f]{20}$/);
     });

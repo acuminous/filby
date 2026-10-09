@@ -1,4 +1,4 @@
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
+const { strictEqual: eq, deepEqual: deq } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 
 const TestFilby = require('./TestFilby');

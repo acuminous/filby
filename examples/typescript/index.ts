@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import config from './config.json';
 import Application from './lib/Application';
 

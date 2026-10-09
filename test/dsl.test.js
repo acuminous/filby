@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
+const { ok, strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
+const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
 const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION } } = require('pg-error-enum');
