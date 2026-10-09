@@ -6,7 +6,13 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["index.js", "lib/**/*.js", "test/**/*.js", "examples/**/*.js", "examples/**/*.ts"]
+    "includes": [
+      "index.js",
+      "lib/**/*.js",
+      "test/**/*.js",
+      "examples/**/*.js",
+      "examples/**/*.ts"
+    ]
   },
   "formatter": {
     "enabled": false
@@ -19,5 +25,35 @@
   },
   "assist": {
     "enabled": false
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "examples/typescript/**/*.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "lib/helpers.js",
+        "test/dsl.test.js"
+      ],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noAccumulatingSpread": "off"
+          }
+        }
+      }
+    }
+  ]
 }

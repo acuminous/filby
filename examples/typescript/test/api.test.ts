@@ -48,7 +48,7 @@ describe('API', () => {
     });
 
     it('should encourage caching', async () => {
-      let { headers } = await get('api/changelog?projection=park&version=1');
+      const { headers } = await get('api/changelog?projection=park&version=1');
       match(headers.get('Last-Modified'), /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/);
       match(headers.get('ETag'), /^[0-9a-f]{20}$/);
     });
