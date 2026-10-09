@@ -3,10 +3,8 @@ const { setTimeout: sleep } = require('node:timers/promises');
 async function until(predicate, { timeout = 5000, interval = 20 } = {}) {
   const deadline = Date.now() + timeout;
   for (;;) {
-    // eslint-disable-next-line no-await-in-loop
     if (await predicate()) return;
     if (Date.now() > deadline) throw new Error(`Condition not met within ${timeout}ms`);
-    // eslint-disable-next-line no-await-in-loop
     await sleep(interval);
   }
 }

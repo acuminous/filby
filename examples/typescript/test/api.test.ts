@@ -1,5 +1,5 @@
-import { ok, strictEqual as eq, deepEqual as deq, rejects, match } from 'node:assert';
-import { describe, it, before, beforeEach, after, afterEach } from 'node:test';
+import { strictEqual as eq, match } from 'node:assert';
+import { describe, it, before, after } from 'node:test';
 import axios, { AxiosResponseHeaders } from 'axios';
 
 import config from '../config.json';

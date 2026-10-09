@@ -1,5 +1,5 @@
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
+const { strictEqual: eq, match } = require('node:assert');
+const { describe, it, before, after } = require('node:test');
 const axios = require('axios');
 
 const config = require('../config.json');

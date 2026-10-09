@@ -25,7 +25,7 @@
   },
   "scripts": {
     "docker": "docker-compose up --detach",
-    "lint": "eslint .",
+    "lint": "biome ci .",
     "lint-staged": "lint-staged",
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "coverage": "mkdir -p coverage && node --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
@@ -45,17 +45,15 @@
     "yaml": "^2.3.4"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@types/pg": "^8.10.9",
-    "eslint": "^8.56.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-plugin-import": "^2.29.1",
     "husky": "^8.0.0",
     "lint-staged": "^15.2.0",
     "object-path-immutable": "^4.1.2",
     "pg-error-enum": "^0.7.0"
   },
   "lint-staged": {
-    "*.js": "eslint --fix"
+    "*.{js,ts}": "biome check --no-errors-on-unmatched"
   },
   "repository": {
     "type": "git",

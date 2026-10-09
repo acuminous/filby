@@ -1,5 +1,5 @@
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
+const { ok, strictEqual: eq, rejects, match } = require('node:assert');
+const { describe, it, before, beforeEach, after } = require('node:test');
 const { PostgresError: { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
