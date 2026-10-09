@@ -5,7 +5,7 @@
   "description": "A proof of concept Filby application",
   "scripts": {
     "start": "node index.js",
-    "test": "zUnit",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
     "docker": "pushd ../.. && npm run docker && popd"
   },
   "dependencies": {
@@ -18,11 +18,5 @@
     "http-errors": "^2.0.0"
   },
   "author": "Stephen Cresswell",
-  "license": "ISC",
-  "devDependencies": {
-    "zunit": "^4.0.2"
-  },
-  "zUnit": {
-    "name": "Holiday Park Data Service [JavaScript]"
-  }
+  "license": "ISC"
 }

@@ -1,11 +1,11 @@
 import { ok, strictEqual as eq, deepEqual as deq, rejects, match } from 'node:assert';
-import { describe, it, before, beforeEach, after, afterEach } from 'zunit';
+import { describe, it, before, beforeEach, after, afterEach } from 'node:test';
 import axios, { AxiosResponseHeaders } from 'axios';
 
 import config from '../config.json';
 import Application from '../lib/Application';
 
-export default describe('API', () => {
+describe('API', () => {
 
   let application: Application;
 

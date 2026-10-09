@@ -5,7 +5,7 @@
   "description": "An example project using Filby",
   "scripts": {
     "start": "ts-node index.ts",
-    "test": "ts-node test",
+    "test": "node --require ts-node/register --test --test-concurrency=1 test/*.test.ts",
     "docker": "pushd ../.. && npm run docker && popd"
   },
   "dependencies": {
@@ -21,10 +21,6 @@
   "devDependencies": {
     "@types/http-errors": "^2.0.4",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3",
-    "zunit": "^4.0.2"
-  },
-  "zUnit": {
-    "name": "Holiday Park Data Service [TypeScript]"
+    "typescript": "^5.3.3"
   }
 }

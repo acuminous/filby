@@ -1,6 +1,5 @@
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { scheduler } = require('node:timers/promises');
-const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
+const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 const { PostgresError: { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
@@ -34,6 +33,11 @@ describe('Database Schema', () => {
   after(async () => {
     await filby.stop();
   });
+
+  async function getDatabaseTime() {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT now()'));
+    return rows[0].now;
+  }
 
   describe('Projections', () => {
     it('should prevent duplicate projections', async () => {
@@ -220,9 +224,7 @@ describe('Database Schema', () => {
     });
 
     it('should default last modified date to now', async () => {
-      const checkpoint = new Date();
-
-      await scheduler.wait(1);
+      const checkpoint = await getDatabaseTime();
 
       await filby.withTransaction(async (tx) => {
         await tx.query(`INSERT INTO fby_change_set (id, description, effective) VALUES

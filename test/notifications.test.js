@@ -1,7 +1,8 @@
 const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('zunit');
+const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 
 const TestFilby = require('./TestFilby');
+const { until, once } = require('./until');
 
 const config = {
   notifications: {
@@ -38,7 +39,7 @@ describe('Notifications', () => {
     await filby.stop();
   });
 
-  it('should notify interested parties of projection changes', async (t, done) => {
+  async function setup() {
     await filby.withTransaction(async (tx) => {
       await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
         (1, 'VAT Rates', 1),
@@ -49,60 +50,59 @@ describe('Notifications', () => {
       await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
         (1, 'VAT Rates', 1)`);
     });
+  }
 
-    filby.subscribe('VAT Rate Changed', (notification) => {
-      deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
-      deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
-      eq(notification.attempts, 1);
-      done();
-    });
+  async function getDatabaseTime() {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT now()'));
+    return rows[0].now;
+  }
 
+  async function getNotifications() {
+    const { rows } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification WHERE hook_id = 1'));
+    return rows;
+  }
+
+  it('should notify interested parties of projection changes', async () => {
+    await setup();
+
+    const delivered = once(filby, 'VAT Rate Changed');
     filby.startNotifications();
+    const notification = await delivered;
+
+    deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
+    deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
+    eq(notification.attempts, 1);
   });
 
-  it('should not redeliver successful notifications', async (t, done) => {
-    await filby.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
-        (1, 'VAT Rates', 1),
-        (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
-        (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
-        (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
-        (1, 'VAT Rates', 1)`);
-    });
+  it('should not redeliver successful notifications', async () => {
+    await setup();
 
     let attempts = 0;
     filby.subscribe('VAT Rate Changed', () => {
       attempts++;
     });
 
-    const checkpoint = new Date();
+    const checkpoint = await getDatabaseTime();
     filby.startNotifications();
 
-    setTimeout(async () => {
-      const { rows: notifications } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification'));
-      eq(attempts, 1);
-      eq(notifications.length, 1);
-      eq(notifications[0].status, 'OK');
-      ok(notifications[0].last_attempted > checkpoint);
-      eq(notifications[0].last_error, null);
-      done();
-    }, 1000);
+    await until(async () => (await getNotifications())[0].status === 'OK');
+    const cgtDelivered = once(filby, 'CGT Rate Changed');
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (2, 'CGT Rates', 1)`);
+    });
+    await cgtDelivered;
+
+    const notifications = await getNotifications();
+    eq(attempts, 1);
+    eq(notifications.length, 1);
+    eq(notifications[0].status, 'OK');
+    ok(notifications[0].last_attempted >= checkpoint);
+    eq(notifications[0].last_error, null);
   });
 
-  it('should redeliver unsuccessful notifications up to the maximum number of attempts', async (t, done) => {
-    await filby.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
-        (1, 'VAT Rates', 1),
-        (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
-        (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
-        (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
-        (1, 'VAT Rates', 1)`);
-
-    });
+  it('should redeliver unsuccessful notifications up to the maximum number of attempts', async () => {
+    await setup();
 
     let attempt = 0;
     filby.subscribe('VAT Rate Changed', async () => {
@@ -110,86 +110,62 @@ describe('Notifications', () => {
       throw new Error('Oh Noes!');
     });
 
-    setTimeout(async () => {
-      eq(attempt, 3);
-      done();
-    }, 500);
-
     filby.startNotifications();
+
+    await until(async () => (await getNotifications())[0].attempts === 3);
+    const cgtDelivered = once(filby, 'CGT Rate Changed');
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (2, 'CGT Rates', 1)`);
+    });
+    await cgtDelivered;
+
+    eq(attempt, 3);
   });
 
-  it('should capture the last delivery error', async (t, done) => {
-    await filby.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
-        (1, 'VAT Rates', 1),
-        (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
-        (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
-        (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
-        (1, 'VAT Rates', 1)`);
-    });
+  it('should capture the last delivery error', async () => {
+    await setup();
 
     let attempt = 0;
     filby.subscribe('VAT Rate Changed', () => {
       throw new Error(`Oh Noes! ${++attempt}`);
     });
 
-    const checkpoint = new Date();
+    const checkpoint = await getDatabaseTime();
     filby.startNotifications();
 
-    setTimeout(async () => {
-      const { rows: notifications } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification'));
-      eq(notifications.length, 1);
-      eq(notifications[0].status, 'PENDING');
-      ok(notifications[0].last_attempted > checkpoint);
-      match(notifications[0].last_error, /Oh Noes! 3/);
-      done();
-    }, 500);
+    await until(async () => (await getNotifications())[0].attempts === 3);
+
+    const notifications = await getNotifications();
+    eq(notifications.length, 1);
+    eq(notifications[0].status, 'PENDING');
+    ok(notifications[0].last_attempted >= checkpoint);
+    match(notifications[0].last_error, /Oh Noes! 3/);
   });
 
-  it('should emit an event when the last notification attempt fails', async (t, done) => {
-    await filby.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
-        (1, 'VAT Rates', 1),
-        (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
-        (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
-        (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
-        (1, 'VAT Rates', 1)`);
-
-    });
+  it('should emit an event when the last notification attempt fails', async () => {
+    await setup();
 
     filby.subscribe('VAT Rate Changed', () => {
       throw new Error('Oh Noes!');
     });
 
-    filby.subscribe(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
-      eq(notification.err.message, 'Oh Noes!');
-      deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
-      deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
-      eq(notification.attempts, 3);
-      setTimeout(done, 1000);
-    });
-
+    const exhausted = once(filby, TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED);
     filby.startNotifications();
+    const notification = await exhausted;
+
+    eq(notification.err.message, 'Oh Noes!');
+    deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
+    deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
+    eq(notification.attempts, 3);
   });
 
-  it('should unsubscribe interested parties', async (t, done) => {
-    await filby.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
-        (1, 'VAT Rates', 1),
-        (2, 'CGT Rates', 1)`);
-      await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
-        (1, 'VAT Rate Changed', 'ADD_CHANGE_SET', 1),
-        (2, 'CGT Rate Changed', 'ADD_CHANGE_SET', 2)`);
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
-        (1, 'VAT Rates', 1)`);
-    });
+  it('should unsubscribe interested parties', async () => {
+    await setup();
 
+    let called = false;
     function fail() {
-      done(new Error('Not unsubscribed'));
+      called = true;
     }
 
     filby.subscribe('VAT Rate Changed', fail);
@@ -197,6 +173,8 @@ describe('Notifications', () => {
 
     filby.startNotifications();
 
-    setTimeout(() => done(), 200);
+    await until(async () => (await getNotifications())[0].status === 'OK');
+
+    eq(called, false);
   });
 });
