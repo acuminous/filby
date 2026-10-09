@@ -27,8 +27,8 @@
     "docker": "docker-compose up --detach",
     "lint": "eslint .",
     "lint-staged": "lint-staged",
-    "test": "zUnit",
-    "coverage": "nyc --report html --reporter lcov --reporter text-summary zUnit",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "coverage": "mkdir -p coverage && node --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -51,10 +51,8 @@
     "eslint-plugin-import": "^2.29.1",
     "husky": "^8.0.0",
     "lint-staged": "^15.2.0",
-    "nyc": "^15.1.0",
     "object-path-immutable": "^4.1.2",
-    "pg-error-enum": "^0.7.0",
-    "zunit": "^4.0.2"
+    "pg-error-enum": "^0.7.0"
   },
   "lint-staged": {
     "*.js": "eslint --fix"
