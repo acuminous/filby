@@ -57,16 +57,6 @@ describe('Notifications', () => {
     return rows;
   }
 
-  // Schedules a notification for a different hook and waits for its delivery, proving a later poll has run
-  async function nextPoll() {
-    const delivered = once(filby, 'CGT Rate Changed');
-    await filby.withTransaction(async (tx) => {
-      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
-        (2, 'CGT Rates', 1)`);
-    });
-    await delivered;
-  }
-
   it('should notify interested parties of projection changes', async () => {
     await setup();
 
@@ -91,7 +81,12 @@ describe('Notifications', () => {
     filby.startNotifications();
 
     await until(async () => (await getNotifications())[0].status === 'OK');
-    await nextPoll();
+    const cgtDelivered = once(filby, 'CGT Rate Changed');
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (2, 'CGT Rates', 1)`);
+    });
+    await cgtDelivered;
 
     const notifications = await getNotifications();
     eq(attempts, 1);
@@ -113,7 +108,12 @@ describe('Notifications', () => {
     filby.startNotifications();
 
     await until(async () => (await getNotifications())[0].attempts === 3);
-    await nextPoll();
+    const cgtDelivered = once(filby, 'CGT Rate Changed');
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (2, 'CGT Rates', 1)`);
+    });
+    await cgtDelivered;
 
     eq(attempt, 3);
   });
