@@ -620,7 +620,7 @@ describe('DSL', () => {
     });
 
     it('should schedule notifications', async (t) => {
-      const checkpoint = new Date();
+      const checkpoint = await getDatabaseTime();
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_HOOK_ADD_PROJECTION, ADD_PROJECTION);
 
       const { rows: notifications } = await filby.withTransaction((tx) => {
@@ -800,7 +800,7 @@ describe('DSL', () => {
     });
 
     it('should schedule notifications', async (t) => {
-      const checkpoint = new Date();
+      const checkpoint = await getDatabaseTime();
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_DROP_PROJECTION, DROP_PROJECTION);
 
       const { rows: notifications } = await filby.withTransaction((tx) => {
@@ -955,7 +955,7 @@ describe('DSL', () => {
     });
 
     it('should schedule notifications', async (t) => {
-      const checkpoint = new Date();
+      const checkpoint = await getDatabaseTime();
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, ADD_CHANGE_SET_1);
 
       const { rows: notifications } = await filby.withTransaction((tx) => {
@@ -1975,6 +1975,11 @@ describe('DSL', () => {
       const { fby_frame_id: _, ...cs } = changeSet;
       return cs;
     });
+  }
+
+  async function getDatabaseTime() {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT now()'));
+    return rows[0].now;
   }
 
   async function countNotifications() {

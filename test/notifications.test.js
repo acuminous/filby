@@ -52,6 +52,11 @@ describe('Notifications', () => {
     });
   }
 
+  async function getDatabaseTime() {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT now()'));
+    return rows[0].now;
+  }
+
   async function getNotifications() {
     const { rows } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification WHERE hook_id = 1'));
     return rows;
@@ -77,7 +82,7 @@ describe('Notifications', () => {
       attempts++;
     });
 
-    const checkpoint = new Date();
+    const checkpoint = await getDatabaseTime();
     filby.startNotifications();
 
     await until(async () => (await getNotifications())[0].status === 'OK');
@@ -92,7 +97,7 @@ describe('Notifications', () => {
     eq(attempts, 1);
     eq(notifications.length, 1);
     eq(notifications[0].status, 'OK');
-    ok(notifications[0].last_attempted > checkpoint);
+    ok(notifications[0].last_attempted >= checkpoint);
     eq(notifications[0].last_error, null);
   });
 
@@ -126,7 +131,7 @@ describe('Notifications', () => {
       throw new Error(`Oh Noes! ${++attempt}`);
     });
 
-    const checkpoint = new Date();
+    const checkpoint = await getDatabaseTime();
     filby.startNotifications();
 
     await until(async () => (await getNotifications())[0].attempts === 3);
@@ -134,7 +139,7 @@ describe('Notifications', () => {
     const notifications = await getNotifications();
     eq(notifications.length, 1);
     eq(notifications[0].status, 'PENDING');
-    ok(notifications[0].last_attempted > checkpoint);
+    ok(notifications[0].last_attempted >= checkpoint);
     match(notifications[0].last_error, /Oh Noes! 3/);
   });
 
