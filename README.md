@@ -504,7 +504,7 @@ async function getParks(changeSetId) {
     // The initial delay before Filby starts checking for notifications
     // (you still have to call filby.startNotifications)
     // Defaults to 10s
-    "intialDelay": "1s",
+    "initialDelay": "1s",
 
     // THe maximum number of times Filby will attempt to deliver a hook
     // Defaults to 10
