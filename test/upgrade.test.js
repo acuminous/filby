@@ -188,6 +188,46 @@ describe('Upgrade', () => {
     ]);
   });
 
+  it('should rename POST frames to SET', async () => {
+    await createVatRateEntity();
+    await query(`
+      INSERT INTO fby_change_set (id, effective, description) VALUES
+        (1, '2020-04-05T00:00:00.000Z', '2020 VAT Rates'),
+        (2, '2021-04-05T00:00:00.000Z', '2021 VAT Rates');
+
+      INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES
+        (1, 1, (SELECT id FROM fby_entity), 'POST'),
+        (2, 1, (SELECT id FROM fby_entity), 'POST'),
+        (3, 2, (SELECT id FROM fby_entity), 'DELETE');
+
+      INSERT INTO vat_rate_v1 (fby_frame_id, tax_rate, region, rate) VALUES
+        (1, 'standard', 'uk', 0.20),
+        (2, 'reduced', 'uk', 0.05),
+        (3, 'reduced', 'uk', NULL);
+    `);
+
+    await upgrade();
+
+    const { rows: labels } = await query("SELECT enumlabel AS label FROM pg_enum WHERE enumtypid = 'fby_action_type'::regtype ORDER BY enumsortorder");
+    deq(labels, [{ label: 'SET' }, { label: 'DELETE' }]);
+
+    const { rows: frames } = await query('SELECT id, action FROM fby_data_frame ORDER BY id');
+    deq(frames, [
+      { id: 1, action: 'SET' },
+      { id: 2, action: 'SET' },
+      { id: 3, action: 'DELETE' },
+    ]);
+
+    const { rows: aggregate2020 } = await query('SELECT * FROM get_vat_rate_v1_aggregate(1) ORDER BY rate DESC');
+    deq(aggregate2020, [
+      { tax_rate: 'standard', region: 'uk', rate: '0.20' },
+      { tax_rate: 'reduced', region: 'uk', rate: '0.05' },
+    ]);
+
+    const { rows: aggregate2021 } = await query('SELECT * FROM get_vat_rate_v1_aggregate(2)');
+    deq(aggregate2021, [{ tax_rate: 'standard', region: 'uk', rate: '0.20' }]);
+  });
+
   async function createVatRateEntity() {
     await query(`
       CREATE TYPE vat_tax_rate AS ENUM ('standard', 'reduced', 'zero');
