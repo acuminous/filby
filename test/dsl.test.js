@@ -1619,6 +1619,26 @@ describe('DSL', () => {
       });
     });
 
+    it('should generate stable sql aggregate functions', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY);
+
+      const { rows } = await filby.withTransaction((tx) => tx.query(`
+        SELECT l.lanname AS language, p.provolatile AS volatility
+        FROM pg_proc p
+        INNER JOIN pg_language l ON l.oid = p.prolang
+        WHERE p.proname = 'get_vat_rate_v1_aggregate'`));
+      deq(rows, [{ language: 'sql', volatility: 's' }]);
+    });
+
+    it('should inline aggregate functions so that filters are applied before materialisation', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const { rows } = await filby.withTransaction((tx) => tx.query(`EXPLAIN SELECT * FROM get_vat_rate_v1_aggregate(${changeSetId}) WHERE type = 'standard'`));
+      const plan = rows.map((row) => row['QUERY PLAN']).join('\n');
+      ok(!plan.includes('Function Scan'), plan);
+    });
+
     it('should prefer the frame with the latest effective date over the most recently added frame', async (t) => {
       await filby.applyYaml(
         t.name,
