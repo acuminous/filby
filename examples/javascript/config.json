@@ -25,7 +25,7 @@
     ],
     "notifications": {
       "interval": "5s",
-      "intialDelay": "1s",
+      "initialDelay": "1s",
       "maxAttempts": 20,
       "maxRescheduleDelay": "30s"
     }

@@ -504,7 +504,7 @@ Filby requires Node.js 22.12 or later and is tested against PostgreSQL 16.
     // The initial delay before Filby starts checking for notifications
     // (you still have to call filby.startNotifications)
     // Defaults to 10s
-    "intialDelay": "1s",
+    "initialDelay": "1s",
 
     // THe maximum number of times Filby will attempt to deliver a hook
     // Defaults to 10
