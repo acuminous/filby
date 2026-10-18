@@ -5,6 +5,9 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     services:
       fby_test:
         image: postgres:16-alpine
@@ -45,4 +48,9 @@ jobs:
       - run: pushd examples/javascript && npm ci && npm test
       - run: pushd examples/typescript && npm ci && npm test
       - run: npm run lint
-      - run: npm test
+      - run: npm run coverage
+      - uses: codecov/codecov-action@v7
+        if: matrix.node-version == '24.x'
+        with:
+          files: coverage/lcov.info
+          use_oidc: true
