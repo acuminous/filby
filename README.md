@@ -301,6 +301,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
         - code: HF
 
       # YAML can get verbose, so you can also import data frames from a local CSV
+      # The source path is relative to the directory containing the migration file
       # The CSV requires a header row, starting with the action column and
       # followed by the column names of your entity. When deleting data you
       # only need to include the fields that identify the entity

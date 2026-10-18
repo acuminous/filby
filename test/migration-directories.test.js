@@ -19,6 +19,8 @@ describe('Migration Directories', () => {
       nukeCustomObjects: async (tx) => {
         await tx.query('DROP TABLE IF EXISTS yml_v1');
         await tx.query('DROP FUNCTION IF EXISTS get_yml_v1_aggregate');
+        await tx.query('DROP TABLE IF EXISTS csv_v1');
+        await tx.query('DROP FUNCTION IF EXISTS get_csv_v1_aggregate');
       },
     });
     await filby.reset();
@@ -29,6 +31,7 @@ describe('Migration Directories', () => {
   });
 
   after(async () => {
+    await filby.wipe();
     await filby.stop();
     await Promise.all(directories.map((directory) => fs.rm(directory, { recursive: true, force: true })));
   });
@@ -105,6 +108,42 @@ describe('Migration Directories', () => {
     await withFilby({ database, migrations: [directory] }, (instance) => instance.init());
 
     deq(await getEntityNames(), ['Yml']);
+  });
+
+  it('should resolve csv sources relative to the migration file', async () => {
+    const directory = await createDirectory({
+      '.marvrc': marvrc(),
+      '001.add-csv.yaml': [
+        '- operation: ADD_ENTITY',
+        '  name: Csv',
+        '  version: 1',
+        '  fields:',
+        '    - name: type',
+        '      type: TEXT',
+        '  identified_by:',
+        '    - type',
+        '- operation: ADD_CHANGE_SET',
+        '  description: Csv data',
+        '  effective: 2020-04-05T00:00:00.000Z',
+        '  frames:',
+        '    - entity: Csv',
+        '      version: 1',
+        '      source: ./csv/types.csv',
+      ].join('\n'),
+    });
+    await writeFiles(path.join(directory, 'csv'), { 'types.csv': 'action,type\nPOST,standard\n' });
+    const elsewhere = await createDirectory({});
+
+    const cwd = process.cwd();
+    process.chdir(elsewhere);
+    try {
+      await withFilby({ database, migrations: [directory] }, (instance) => instance.init());
+    } finally {
+      process.chdir(cwd);
+    }
+
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT type FROM csv_v1'));
+    deq(rows, [{ type: 'standard' }]);
   });
 
   async function createDirectory(files) {

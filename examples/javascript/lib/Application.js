@@ -21,7 +21,8 @@ module.exports = class Application {
 
   constructor({ config }) {
     this.#config = config;
-    this.#filby = new Filby(this.#config.filby);
+    const migrations = this.#config.filby.migrations?.map((directory) => path.resolve(__dirname, '..', directory));
+    this.#filby = new Filby({ ...this.#config.filby, migrations });
     this.#fastify = Fastify(this.#config.fastify);
     this.#logger = this.#fastify.log;
   }
@@ -123,7 +124,7 @@ module.exports = class Application {
   }
 
   async #registerProjection(projection) {
-    const routePath = path.resolve(path.join('lib', 'routes', `${projection.name}-v${projection.version}`));
+    const routePath = path.join(__dirname, 'routes', `${projection.name}-v${projection.version}`);
     const route = require(routePath);
     const prefix = `/api/projection/v${projection.version}/${projection.name}`;
     await this.#fastify.register(route, { prefix, projection, filby: this.#filby });
