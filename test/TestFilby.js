@@ -30,10 +30,8 @@ module.exports = class TestFilby extends Filby {
   }
 
   async wipe() {
-    return Promise.all([
-      await this.#deleteMigrations(),
-      await this.#resetDatabase(),
-    ]);
+    await this.#deleteMigrations();
+    await this.#resetDatabase();
   }
 
   async #resetDatabase() {
@@ -44,15 +42,11 @@ module.exports = class TestFilby extends Filby {
   }
 
   async #wipeData(tx) {
-    await Promise.all([
-      tx.query('DELETE FROM fby_hook'),
-      tx.query('DELETE FROM fby_change_set'),
-      tx.query('DELETE FROM fby_projection_entity'),
-    ]);
-    await Promise.all([
-      tx.query('DELETE FROM fby_projection'),
-      tx.query('DELETE FROM fby_entity'),
-    ]);
+    await tx.query('DELETE FROM fby_hook');
+    await tx.query('DELETE FROM fby_change_set');
+    await tx.query('DELETE FROM fby_projection_entity');
+    await tx.query('DELETE FROM fby_projection');
+    await tx.query('DELETE FROM fby_entity');
   }
 
   async #deleteMigrations() {
