@@ -1649,16 +1649,16 @@ describe('DSL', () => {
     it('should load data frames from csv files', async (t) => {
 
       const transforms = [
-        (yaml) => transform(yaml).set('2.frames.0.source', './test/dsl/datafiles/vat-rate-v1-2020.csv'),
+        (yaml) => transform(yaml).set('2.frames.0.source', '../dsl/datafiles/vat-rate-v1-2020.csv'),
         (yaml) => transform(yaml).del('2.frames.0.action'),
         (yaml) => transform(yaml).del('2.frames.0.data'),
         (yaml) => transform(yaml).del('2.frames.1'),
         (yaml) => transform(yaml).del('2.frames.1'),
-        (yaml) => transform(yaml).set('3.frames.0.source', './test/dsl/datafiles/vat-rate-v1-2021.csv'),
+        (yaml) => transform(yaml).set('3.frames.0.source', '../dsl/datafiles/vat-rate-v1-2021.csv'),
         (yaml) => transform(yaml).del('3.frames.0.action'),
         (yaml) => transform(yaml).del('3.frames.0.data'),
         (yaml) => transform(yaml).del('3.frames.1'),
-        (yaml) => transform(yaml).set('4.frames.0.source', './test/dsl/datafiles/vat-rate-v1-2022.csv'),
+        (yaml) => transform(yaml).set('4.frames.0.source', '../dsl/datafiles/vat-rate-v1-2022.csv'),
         (yaml) => transform(yaml).del('4.frames.0.action'),
         (yaml) => transform(yaml).del('4.frames.0.data'),
         (yaml) => transform(yaml).del('4.frames.1'),
@@ -1690,7 +1690,7 @@ describe('DSL', () => {
     it('should escape data frames in csv files', async (t) => {
 
       const transforms = [
-        (yaml) => transform(yaml).set('2.frames.0.source', './test/dsl/datafiles/injection.csv'),
+        (yaml) => transform(yaml).set('2.frames.0.source', '../dsl/datafiles/injection.csv'),
         (yaml) => transform(yaml).del('2.frames.0.action'),
         (yaml) => transform(yaml).del('2.frames.0.data'),
         (yaml) => transform(yaml).del('2.frames.1'),
@@ -1718,7 +1718,7 @@ describe('DSL', () => {
     it('should report bad csv files', async (t) => {
 
       const transforms = [
-        (yaml) => transform(yaml).set('2.frames.0.source', './test/dsl/datafiles/bad.csv'),
+        (yaml) => transform(yaml).set('2.frames.0.source', '../dsl/datafiles/bad.csv'),
         (yaml) => transform(yaml).del('2.frames.0.action'),
         (yaml) => transform(yaml).del('2.frames.0.data'),
         (yaml) => transform(yaml).del('2.frames.1'),
@@ -1730,7 +1730,28 @@ describe('DSL', () => {
       }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1].join('\n'));
 
       await rejects(() => filby.applyYaml(t.name, yaml), (err) => {
-        eq(err.message, 'Error parsing ./test/dsl/datafiles/bad.csv:3 - Too few fields: expected 3 fields but parsed 2');
+        eq(err.message, `Error parsing ${path.join(__dirname, 'dsl', 'datafiles', 'bad.csv')}:3 - Too few fields: expected 3 fields but parsed 2`);
+        return true;
+      });
+    });
+
+    it('should report missing csv files by their resolved path', async (t) => {
+
+      const transforms = [
+        (yaml) => transform(yaml).set('2.frames.0.source', '../dsl/datafiles/missing.csv'),
+        (yaml) => transform(yaml).del('2.frames.0.action'),
+        (yaml) => transform(yaml).del('2.frames.0.data'),
+        (yaml) => transform(yaml).del('2.frames.1'),
+        (yaml) => transform(yaml).del('2.frames.1'),
+      ];
+
+      const yaml = transforms.reduce((document, tx) => {
+        return tx(document);
+      }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1].join('\n'));
+
+      await rejects(() => filby.applyYaml(t.name, yaml), (err) => {
+        eq(err.code, 'ENOENT');
+        ok(err.message.includes(path.join(__dirname, 'dsl', 'datafiles', 'missing.csv')), err.message);
         return true;
       });
     });

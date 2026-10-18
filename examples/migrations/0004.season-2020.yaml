@@ -4,4 +4,4 @@
   frames:
     - entity: season
       version: 1
-      source: ../migrations/csv/season-2020.csv
+      source: ./csv/season-2020.csv

@@ -15,4 +15,4 @@
           
     - entity: season
       version: 1
-      source: ../migrations/csv/season-2019.csv
+      source: ./csv/season-2019.csv
