@@ -28,8 +28,6 @@ CREATE FUNCTION {{identifier (aggregate name version)}}(p_change_set_id INTEGER)
   {{/fields}}
 )
 AS $$
-BEGIN
-  RETURN QUERY
   WITH specified_change_set AS (
     SELECT * FROM fby_change_set cs
     WHERE cs.id = p_change_set_id
@@ -60,5 +58,4 @@ BEGIN
     a.{{identifier name}}{{#unless @last}},{{/unless}}{{/fields}}
   FROM aggregated a
   WHERE a.fby_action <> 'DELETE';
-END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE sql STABLE;
