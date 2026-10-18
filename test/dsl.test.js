@@ -4,7 +4,7 @@ const { ok, strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
-const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION } } = require('pg-error-enum');
+const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
@@ -291,6 +291,24 @@ describe('DSL', () => {
       ]);
     });
 
+    it('should constrain entity tables to one frame per key per change set', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY);
+
+      const { rows: constraints } = await filby.withTransaction((tx) => tx.query(`
+        SELECT c.contype AS type, array_agg(a.attname::TEXT ORDER BY k.ordinality) AS columns, c.confdeltype AS on_delete
+        FROM pg_constraint c
+        CROSS JOIN unnest(c.conkey) WITH ORDINALITY k (attnum, ordinality)
+        INNER JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
+        WHERE c.conrelid = 'vat_rate_v1'::regclass
+          AND c.contype IN ('u', 'f')
+        GROUP BY c.oid, c.contype, c.confdeltype
+        ORDER BY c.contype`));
+      deq(constraints, [
+        { type: 'f', columns: ['fby_frame_id', 'fby_change_set_id'], on_delete: 'c' },
+        { type: 'u', columns: ['fby_change_set_id', 'type'], on_delete: ' ' },
+      ]);
+    });
+
     it('should reject duplicate entity', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY);
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY), (err) => {
@@ -379,9 +397,9 @@ describe('DSL', () => {
 
       await filby.applyYaml(t.name, yaml);
 
-      const { rows: columns } = await filby.withTransaction((tx) => tx.query("SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'vat_rate_v1';"));
-      eq(columns.length, 3);
-      eq(columns[1].name, "pwned',_1);raise_exception_$💀$you_have_been_pwned!$💀$;");
+      const { rows: columns } = await filby.withTransaction((tx) => tx.query("SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'vat_rate_v1' ORDER BY ordinal_position"));
+      eq(columns.length, 4);
+      eq(columns[2].name, "pwned',_1);raise_exception_$💀$you_have_been_pwned!$💀$;");
     });
 
     it('should require fields to have a type', async (t) => {
@@ -1157,6 +1175,36 @@ describe('DSL', () => {
         rate: 0.10,
         pwned: injection,
       });
+    });
+
+    it('should reject more than one frame for the same key', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0.type', 'standard')), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (type=standard) in change set '2020 VAT Rates'");
+        return true;
+      });
+    });
+
+    it('should reject a delete for a key already set in the same change set', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0.type', 'standard')).set('0.frames.1.action', 'DELETE')), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (type=standard) in change set '2020 VAT Rates'");
+        return true;
+      });
+    });
+
+    it('should reject frames without a key', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).del('0.frames.0.data.0.type')), (err) => {
+        eq(err.code, NOT_NULL_VIOLATION);
+        return true;
+      });
+    });
+
+    it('should cascade change set deletes through entity tables', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1);
+
+      await filby.withTransaction((tx) => tx.query("DELETE FROM fby_change_set WHERE description = '2020 VAT Rates'"));
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT * FROM vat_rate_v1'));
+      eq(rows.length, 0);
     });
 
     it('should forbid additional properties in frames', async (t) => {
@@ -1994,7 +2042,7 @@ describe('DSL', () => {
       WHERE c.description = $1
       ORDER BY x.fby_frame_id ASC`, [description]));
     return changeSets.map((changeSet) => {
-      const { fby_frame_id: _, ...cs } = changeSet;
+      const { fby_frame_id: _frameId, fby_change_set_id: _changeSetId, ...cs } = changeSet;
       return cs;
     });
   }
