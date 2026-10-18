@@ -1,6 +1,6 @@
 name: Node.js CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -15,7 +15,6 @@ jobs:
           POSTGRES_DB: fby_test
           POSTGRES_USER: fby_test
           POSTGRES_PASSWORD: fby_test
-          services:
       fby_js_example:
         image: postgres:16-alpine
         ports:
@@ -36,10 +35,10 @@ jobs:
           POSTGRES_PASSWORD: fby_example
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [22.x, 24.x]
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci

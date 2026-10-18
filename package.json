@@ -16,6 +16,9 @@
   ],
   "author": "Stephen Cresswell",
   "license": "ISC",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "index.js",
   "types": "index.d.ts",
   "directories": {
