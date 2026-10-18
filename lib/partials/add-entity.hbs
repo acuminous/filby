@@ -34,10 +34,12 @@ WHERE e.name = {{literal name}}
 {{/if}}
 
 CREATE TABLE {{identifier (table name version)}} (
-  fby_frame_id INTEGER PRIMARY KEY REFERENCES fby_data_frame (id),
+  fby_frame_id INTEGER PRIMARY KEY,
+  fby_change_set_id INTEGER NOT NULL,
   {{#fields}}
-  {{identifier name}} {{validateType type}},
+  {{identifier name}} {{validateType type}}{{#if (includes ../identified_by this)}} NOT NULL{{/if}},
   {{/fields}}
+  {{frameReference this}},
   {{unique this}}{{#if checks}},{{/if}}
   {{#each checks}}
   {{check @key this}}{{#unless @last}},{{/unless}}
