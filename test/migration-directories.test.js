@@ -15,7 +15,12 @@ describe('Migration Directories', () => {
   const directories = [];
 
   before(async () => {
-    filby = new TestFilby({});
+    filby = new TestFilby({
+      nukeCustomObjects: async (tx) => {
+        await tx.query('DROP TABLE IF EXISTS yml_v1');
+        await tx.query('DROP FUNCTION IF EXISTS get_yml_v1_aggregate');
+      },
+    });
     await filby.reset();
   });
 
@@ -78,6 +83,28 @@ describe('Migration Directories', () => {
     await withFilby({ database, migrations: [alpha, beta] }, (instance) => instance.init());
 
     deq(await getEntityNames(), ['Alpha', 'Beta']);
+  });
+
+  it('should apply .yml migrations and ignore files with other extensions', async () => {
+    const directory = await createDirectory({
+      '.marvrc': marvrc(),
+      '0001.notes.yamlx': 'not a migration',
+      'README.md': '# Not a migration',
+      '001.add-yml.yml': [
+        '- operation: ADD_ENTITY',
+        '  name: Yml',
+        '  version: 1',
+        '  fields:',
+        '    - name: type',
+        '      type: TEXT',
+        '  identified_by:',
+        '    - type',
+      ].join('\n'),
+    });
+
+    await withFilby({ database, migrations: [directory] }, (instance) => instance.init());
+
+    deq(await getEntityNames(), ['Yml']);
   });
 
   async function createDirectory(files) {
