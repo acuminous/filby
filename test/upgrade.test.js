@@ -1,67 +1,45 @@
+const path = require('node:path');
 const { deepEqual: deq } = require('node:assert');
-const { describe, it, before, beforeEach, after } = require('node:test');
+const { describe, it, beforeEach, after } = require('node:test');
+const marv = require('marv/api/promise');
+const { Client } = require('pg');
 
 const { Filby } = require('..');
-const TestFilby = require('./TestFilby');
+const driver = require('../lib/marv-filby-driver');
 
-const database = { user: 'fby_test', password: 'fby_test' };
-
-const config = {
-  database,
-  nukeCustomObjects: async (tx) => {
-    await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
-    await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
-    await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
-  },
-};
+const server = { user: 'fby_test', password: 'fby_test' };
+const database = { ...server, database: 'fby_upgrade' };
+const filbyDirectory = path.join(__dirname, '..', 'migrations');
 
 describe('Upgrade', () => {
 
-  let filby;
-
-  before(async () => {
-    filby = new TestFilby(config);
-    await filby.reset();
-  });
-
   beforeEach(async () => {
-    await filby.wipe();
+    await execute(server, 'DROP DATABASE IF EXISTS fby_upgrade WITH (FORCE)');
+    await execute(server, 'CREATE DATABASE fby_upgrade');
+    await installFilby({ upToLevel: 8 });
   });
 
   after(async () => {
-    await filby.stop();
+    await execute(server, 'DROP DATABASE IF EXISTS fby_upgrade WITH (FORCE)');
   });
 
-  it('should backfill entity metadata', async (t) => {
-    await filby.applyYaml(
-      t.name,
-      '- operation: ADD_ENUM',
-      '  name: VAT Tax Rate',
-      '  values:',
-      '    - standard',
-      '    - reduced',
-      '    - zero',
-      '- operation: ADD_ENTITY',
-      '  name: VAT Rate',
-      '  version: 1',
-      '  fields:',
-      '    - name: Tax Rate',
-      '      type: vat_tax_rate',
-      '    - name: region',
-      '      type: VARCHAR(20)',
-      '    - name: rate',
-      '      type: NUMERIC',
-      '  identified_by:',
-      '    - Tax Rate',
-      '    - region',
-      '  checks:',
-      '    max_rate: (rate <= 1)',
-    );
-    await query('DELETE FROM fby_entity_field');
-    await query('DELETE FROM fby_entity_check');
-    await query('DELETE FROM fby_enum');
+  it('should backfill entity metadata', async () => {
+    await query(`
+      CREATE TYPE vat_tax_rate AS ENUM ('standard', 'reduced', 'zero');
 
-    await rerunFilbyMigration(10);
+      INSERT INTO fby_entity (name, version) VALUES ('VAT Rate', 1);
+
+      CREATE TABLE vat_rate_v1 (
+        fby_frame_id INTEGER PRIMARY KEY REFERENCES fby_data_frame (id),
+        tax_rate vat_tax_rate,
+        region VARCHAR(20),
+        rate NUMERIC,
+        CONSTRAINT uniq_vat_rate_v1_fby_frame_id_tax_rate_region UNIQUE (fby_frame_id, tax_rate, region),
+        CONSTRAINT chk_max_rate CHECK (rate <= 1)
+      );
+    `);
+
+    await upgrade();
 
     const { rows: fields } = await query('SELECT position, name, type, identity FROM fby_entity_field ORDER BY position');
     deq(fields, [
@@ -81,17 +59,32 @@ describe('Upgrade', () => {
     ]);
   });
 
-  async function rerunFilbyMigration(level) {
-    await query("DELETE FROM migrations WHERE namespace = 'filby' AND level = $1", [level]);
-    const instance = new Filby({ database, migrations: [] });
+  async function installFilby({ upToLevel }) {
+    const migrations = await marv.scan(filbyDirectory);
+    const released = migrations.filter(({ level }) => level <= upToLevel).map((migration) => ({ ...migration, directory: filbyDirectory }));
+    await marv.migrate(released, driver({ database }), { checksums: 'error' });
+  }
+
+  async function upgrade() {
+    const filby = new Filby({ database, migrations: [] });
     try {
-      await instance.init();
+      await filby.init();
     } finally {
-      await instance.stop();
+      await filby.stop();
     }
   }
 
-  async function query(sql, params) {
-    return filby.withTransaction((tx) => tx.query(sql, params));
+  async function query(sql) {
+    return execute(database, sql);
   }
 });
+
+async function execute(config, sql) {
+  const client = new Client(config);
+  await client.connect();
+  try {
+    return await client.query(sql);
+  } finally {
+    await client.end();
+  }
+}
