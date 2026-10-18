@@ -29,10 +29,11 @@ export type Migration = {
 export type Config = {
   database?: PoolConfig;
   migrations?: Migration[];
-  notification?: {
+  notifications?: {
     interval?: string;
-    delay?: string;
+    initialDelay?: string;
     maxAttempts?: number;
+    maxRescheduleDelay?: string;
   }
 };
 

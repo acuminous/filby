@@ -22,10 +22,10 @@ module.exports = class TestFilby extends Filby {
   #migrationsDirectory;
   #nukeCustomObjects;
 
-  constructor(config) {
+  constructor({ nukeCustomObjects = noop, ...config }) {
     super({ ...defaults, ...config });
     this.#migrationsDirectory = path.resolve(this.config.migrations[0].path);
-    this.#nukeCustomObjects = config.nukeCustomObjects || noop;
+    this.#nukeCustomObjects = nukeCustomObjects;
   }
 
   async reset() {
