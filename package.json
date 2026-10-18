@@ -39,7 +39,7 @@
     "ajv-formats": "^3.0.1",
     "eventemitter2": "^6.4.9",
     "handlebars": "^4.7.10",
-    "marv": "^7.0.0",
+    "marv": "^7.1.0",
     "marv-pg-driver": "^6.0.0",
     "papaparse": "^5.7.0",
     "parse-duration": "^2.1.9",
