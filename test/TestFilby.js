@@ -47,6 +47,7 @@ module.exports = class TestFilby extends Filby {
     await tx.query('DELETE FROM fby_projection_entity');
     await tx.query('DELETE FROM fby_projection');
     await tx.query('DELETE FROM fby_entity');
+    await tx.query('DELETE FROM fby_enum');
   }
 
   async #deleteMigrations() {

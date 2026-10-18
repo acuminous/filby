@@ -14,5 +14,7 @@ BEGIN
   END IF;
 
   DROP TYPE {{identifier name}};
+
+  DELETE FROM fby_enum WHERE name = {{literal (canonical name)}};
 END;
 $$ LANGUAGE plpgsql;

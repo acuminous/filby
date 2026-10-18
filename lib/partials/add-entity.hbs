@@ -11,6 +11,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+INSERT INTO fby_entity_field (entity_id, position, name, type, identity)
+SELECT e.id, f.position, f.name, f.type, f.identity
+FROM fby_entity e, (VALUES
+  {{#fields}}
+  ({{ordinal}}, {{literal (canonical name)}}, {{literal type}}, {{#if (includes ../identified_by this)}}TRUE{{else}}FALSE{{/if}}){{#unless @last}},{{/unless}}
+  {{/fields}}
+) AS f (position, name, type, identity)
+WHERE e.name = {{literal name}}
+  AND e.version = {{literal version}};
+
+{{#if checks}}
+INSERT INTO fby_entity_check (entity_id, name, expression)
+SELECT e.id, c.name, c.expression
+FROM fby_entity e, (VALUES
+  {{#each checks}}
+  ({{literal @key}}, {{literal this}}){{#unless @last}},{{/unless}}
+  {{/each}}
+) AS c (name, expression)
+WHERE e.name = {{literal name}}
+  AND e.version = {{literal version}};
+{{/if}}
+
 CREATE TABLE {{identifier (table name version)}} (
   fby_frame_id INTEGER PRIMARY KEY REFERENCES fby_data_frame (id),
   {{#fields}}
