@@ -61,7 +61,7 @@ module.exports = class TestFilby extends Filby {
       .filter((filename) => ['.sql', '.json', '.yaml', '.avro'].includes(path.extname(filename)))
       .map((filename) => path.join(this.#migrationsDirectory, filename))
       .map((filename) => fs.unlink(filename));
-    await unlinkMigrationFiles;
+    await Promise.all(unlinkMigrationFiles);
   }
 
   async applyYaml(name, ...script) {
