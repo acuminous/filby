@@ -16,12 +16,7 @@
       "password": "fby_example"
     },
     "migrations": [
-      {
-        "path": "../migrations",
-        "permissions": [
-          "ALL"
-        ]
-      }
+      "../migrations"
     ],
     "notifications": {
       "interval": "5s",

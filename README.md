@@ -472,28 +472,12 @@ Filby requires Node.js 22.12 or later and is tested against PostgreSQL 16.
     "password": "fby_example"
   },
 
-  // Specifies the path to the migrations folders and their permitted operations.
-  // Use this to restrict operations for non-techincal/less trusted users
-  // Defaults to [{ path: "migrations", permissions: ["ALL"] }].
-  // See the directory permissions table below for more details.
+  // Specifies the paths to the migrations folders, relative to the working directory
+  // Defaults to ["migrations"]
   "migrations": [
-    {
-      path: "path/to/raw/migrations",
-      permissions: ["SQL"]
-    },
-    {
-      path: "path/to/schema/migrations",
-      permissions: ["ALL_OPERATIONS", "CHECK_CONSTRAINT"]
-    },
-    {
-      path: "path/to/data/migrations",
-      permissions: ["ADD_CHANGE_SET"]
-    }
+    "path/to/schema/migrations",
+    "path/to/data/migrations"
   ],
-  "migrations": {
-    // Specifies the path to the migrations folder. Defaults to "migrations"
-    "directory": "path/to/migrations/folder"
-  },
 
   "notifications": {
 
@@ -516,23 +500,6 @@ Filby requires Node.js 22.12 or later and is tested against PostgreSQL 16.
   }
 }
 ```
-
-### Directory Permissions
-
-| Permission       | Notes                                                                                                                                         |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| ADD_ENUM         | Permits the ADD_ENUM operation.                                                                                                               |
-| ADD_ENTITY       | Permits the ADD_ENTITY operation, but without check constraints.                                                                              |
-| ADD_HOOK         | Permits the ADD_HOOK operation.                                                                                                               |
-| ADD_PROJECTION   | Permits the ADD_PROJECTION operation.                                                                                                         |
-| ADD_CHANGE_SET   | Permits the ADD_CHANGE_SET operation.                                                                                                         |
-| DROP_ENUM        | Permits the DROP_ENUM operation.                                                                                                              |
-| DROP_ENTITY      | Permits the DROP_ENTITY operation.                                                                                                            |
-| DROP_PROJECTION  | Permits the DROP_PROJECTION operation. Deletions still cascade to hooks even if the DROP_HOOK permission is not granted.                      |
-| DROP_HOOK        | Permits the DROP_HOOK operation.                                                                                                              |
-| CHECK_CONSTRAINT | Permits the use of check constraints. Check contraints cannot be escaped or validated, and are therefore a potential source of SQL injection. |
-| ALL_OPERATIONS   | Permits all operations, however does permit check constraints or raw SQL migrations.                                                          |
-| ALL              | Permits all operations, check constraints and raw SQL migrations.                                                                             |
 
 ## Example Applications
 This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
