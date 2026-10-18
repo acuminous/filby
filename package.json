@@ -17,7 +17,7 @@
   "author": "Stephen Cresswell",
   "license": "ISC",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "main": "index.js",
   "types": "index.d.ts",
@@ -35,24 +35,24 @@
     "prepare": "lefthook install"
   },
   "dependencies": {
-    "ajv": "^8.12.0",
-    "ajv-formats": "^2.1.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "eventemitter2": "^6.4.9",
-    "handlebars": "^4.7.8",
-    "marv": "^6.0.0",
+    "handlebars": "^4.7.10",
+    "marv": "^7.0.0",
     "marv-pg-driver": "^5.0.0",
-    "papaparse": "^5.4.1",
-    "parse-duration": "^1.1.0",
-    "pg": "^8.11.3",
-    "pipsqueak": "^2.7.0",
-    "yaml": "^2.3.4"
+    "papaparse": "^5.7.0",
+    "parse-duration": "^2.1.9",
+    "pg": "^8.23.1",
+    "pipsqueak": "^3.0.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "@types/pg": "^8.10.9",
+    "@types/pg": "^8.23.1",
     "lefthook": "2.2.2",
     "object-path-immutable": "^4.1.2",
-    "pg-error-enum": "^0.7.0"
+    "pg-error-enum": "^2.0.1"
   },
   "repository": {
     "type": "git",

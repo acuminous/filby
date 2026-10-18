@@ -461,7 +461,7 @@ async function getParks(changeSetId) {
 ```
 
 ## Configuration
-Filby requires Node.js 22 or later and is tested against PostgreSQL 16.
+Filby requires Node.js 22.12 or later and is tested against PostgreSQL 16.
 
 ```js
 {
