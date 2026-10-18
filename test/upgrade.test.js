@@ -111,6 +111,83 @@ describe('Upgrade', () => {
     ]);
   });
 
+  it('should regenerate aggregate functions', async () => {
+    await createVatRateEntity();
+    await query(`
+      CREATE FUNCTION get_vat_rate_v1_aggregate(p_change_set_id INTEGER) RETURNS TABLE (
+        tax_rate vat_tax_rate,
+        region VARCHAR(20),
+        rate NUMERIC
+      )
+      AS $$
+      BEGIN
+        RETURN QUERY
+        WITH aggregated AS (
+          SELECT
+            DISTINCT ON (tax_rate, region)
+            f.action AS fby_action,
+            x.tax_rate,
+            x.region,
+            x.rate
+          FROM
+            fby_data_frame f
+          INNER JOIN fby_entity e ON e.id = f.entity_id
+          INNER JOIN vat_rate_v1 x ON x.fby_frame_id = f.id
+          WHERE e.name = 'VAT Rate'
+            AND e.version = '1'
+            AND f.change_set_id <= p_change_set_id
+          ORDER BY
+            x.tax_rate ASC,
+            x.region ASC,
+            x.fby_frame_id DESC
+        )
+        SELECT
+          a.tax_rate,
+          a.region,
+          a.rate
+        FROM aggregated a
+        WHERE a.fby_action <> 'DELETE';
+      END;
+      $$ LANGUAGE plpgsql;
+
+      INSERT INTO fby_change_set (id, effective, description) VALUES
+        (1, '2020-04-05T00:00:00.000Z', '2020 VAT Rates'),
+        (2, '2022-04-05T00:00:00.000Z', '2022 VAT Rates'),
+        (3, '2021-04-05T00:00:00.000Z', '2021 VAT Rates'),
+        (4, '2023-04-05T00:00:00.000Z', '2023 VAT Rates');
+
+      INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES
+        (1, 1, (SELECT id FROM fby_entity), 'POST'),
+        (2, 2, (SELECT id FROM fby_entity), 'POST'),
+        (3, 3, (SELECT id FROM fby_entity), 'POST'),
+        (4, 4, (SELECT id FROM fby_entity), 'POST');
+
+      INSERT INTO vat_rate_v1 (fby_frame_id, tax_rate, region, rate) VALUES
+        (1, 'standard', 'uk', 0.175),
+        (2, 'standard', 'uk', 0.20),
+        (3, 'standard', 'uk', 0.18),
+        (4, 'reduced', 'uk', 0.05);
+    `);
+
+    await upgrade();
+
+    const { rows: functions } = await query(`
+      SELECT l.lanname AS language, p.provolatile AS volatility
+      FROM pg_proc p
+      INNER JOIN pg_language l ON l.oid = p.prolang
+      WHERE p.proname = 'get_vat_rate_v1_aggregate'`);
+    deq(functions, [{ language: 'sql', volatility: 's' }]);
+
+    const { rows: aggregate2021 } = await query('SELECT * FROM get_vat_rate_v1_aggregate(3)');
+    deq(aggregate2021, [{ tax_rate: 'standard', region: 'uk', rate: '0.18' }]);
+
+    const { rows: aggregate2023 } = await query('SELECT * FROM get_vat_rate_v1_aggregate(4) ORDER BY rate DESC');
+    deq(aggregate2023, [
+      { tax_rate: 'standard', region: 'uk', rate: '0.20' },
+      { tax_rate: 'reduced', region: 'uk', rate: '0.05' },
+    ]);
+  });
+
   async function createVatRateEntity() {
     await query(`
       CREATE TYPE vat_tax_rate AS ENUM ('standard', 'reduced', 'zero');
