@@ -10,6 +10,10 @@ services:
       POSTGRES_PASSWORD: fby_test
     ports:
       - "5432:5432"
+    healthcheck:
+      test: pg_isready -h 127.0.0.1 -U fby_test
+      interval: 1s
+      retries: 30
 
   fby_js_example:
     image: postgres:16-alpine
@@ -20,6 +24,10 @@ services:
       POSTGRES_PASSWORD: fby_example
     ports:
       - "5433:5432"
+    healthcheck:
+      test: pg_isready -h 127.0.0.1 -U fby_example
+      interval: 1s
+      retries: 30
 
   fby_ts_example:
     image: postgres:16-alpine
@@ -30,3 +38,7 @@ services:
       POSTGRES_PASSWORD: fby_example
     ports:
       - "5434:5432"
+    healthcheck:
+      test: pg_isready -h 127.0.0.1 -U fby_example
+      interval: 1s
+      retries: 30
