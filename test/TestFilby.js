@@ -9,12 +9,7 @@ const defaults = {
     user: 'fby_test',
     password: 'fby_test',
   },
-  migrations: [
-    {
-      path: 'test/migrations',
-      permissions: ['ALL'],
-    },
-  ],
+  migrations: ['test/migrations'],
 };
 
 module.exports = class TestFilby extends Filby {
@@ -24,7 +19,7 @@ module.exports = class TestFilby extends Filby {
 
   constructor({ nukeCustomObjects = noop, ...config }) {
     super({ ...defaults, ...config });
-    this.#migrationsDirectory = path.resolve(this.config.migrations[0].path);
+    this.#migrationsDirectory = path.resolve(this.config.migrations[0]);
     this.#nukeCustomObjects = nukeCustomObjects;
   }
 

@@ -21,14 +21,9 @@ export class Filby {
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
 }
 
-export type Migration = {
-  path: string;
-  permissions: string[];
-};
-
 export type Config = {
   database?: PoolConfig;
-  migrations?: Migration[];
+  migrations?: string[];
   notifications?: {
     interval?: string;
     initialDelay?: string;

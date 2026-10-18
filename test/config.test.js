@@ -8,7 +8,7 @@ describe('Config', () => {
   it('should accept a valid config', () => {
     doesNotThrow(() => new Filby({
       database: { user: 'fby_test', password: 'fby_test' },
-      migrations: [{ path: 'test/migrations', permissions: ['ALL'] }],
+      migrations: ['test/migrations', 'test/data'],
       notifications: { interval: '1m', initialDelay: '1s', maxAttempts: 10, maxRescheduleDelay: '1h' },
     }));
   });
@@ -25,8 +25,8 @@ describe('Config', () => {
     throws(() => new Filby({ notification: {} }), { message: "Invalid config: / must NOT have additional property 'notification'" });
   });
 
-  it('should reject unknown migrations keys', () => {
-    throws(() => new Filby({ migrations: [{ path: 'migrations', permissions: ['ALL'], directory: 'migrations' }] }), { message: "Invalid config: /migrations/0 must NOT have additional property 'directory'" });
+  it('should reject migrations that are not paths', () => {
+    throws(() => new Filby({ migrations: [{ path: 'migrations', permissions: ['ALL'] }] }), { message: 'Invalid config: /migrations/0 must be string' });
   });
 
   it('should allow any database keys', () => {
