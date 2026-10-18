@@ -501,6 +501,51 @@ Filby requires Node.js 22.12 or later and is tested against PostgreSQL 16.
 }
 ```
 
+### Migration Directories
+Filby scans every directory in the `migrations` list and applies the combined set of migrations with [marv](https://github.com/guidesmiths/marv) in a single run, so you can split a large set of migrations across several directories, for example one for schema and one for data.
+
+Marv groups migrations by namespace. Filby's own migrations use the `filby` namespace and always run first. Your migrations use marv's `default` namespace unless their directory contains a `.marvrc` file declaring another. Within a namespace, marv applies migrations in level order regardless of which directory they came from, so directories sharing a namespace must share one numbering sequence.
+
+```
+schema/
+  |- 001.define-park-schema.yaml
+  |- 003.define-season-schema.yaml
+data/
+  |- 002.initial-park-data.yaml
+  |- 004.initial-season-data.yaml
+```
+
+If two directories in the same namespace contain migrations with the same level, `filby.init()` fails with marv's duplicate level error, e.g. `Migration 1 from namespace: default is duplicated by 001.define-park-schema.yaml, 001.initial-park-data.yaml`.
+
+Alternatively, give each directory its own numbering sequence by adding a `.marvrc` with a distinct namespace. For example, `schema/.marvrc` might contain
+
+```json
+{
+  "namespace": "schema"
+}
+```
+
+and `data/.marvrc`
+
+```json
+{
+  "namespace": "data"
+}
+```
+
+Namespaces run one after another in the order they first appear in the `migrations` list, so list a directory before any directory whose migrations depend on it.
+
+Directives in a `.marvrc` apply only to the migrations in that directory. For example, the following makes marv re-run every migration in the directory on each `filby.init()`, so they must be idempotent.
+
+```json
+{
+  "namespace": "views",
+  "directives": {
+    "audit": false
+  }
+}
+```
+
 ## Example Applications
 This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
 
