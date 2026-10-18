@@ -225,7 +225,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
     - Guests
 
 # Adding entities performs the following:
-# 1. Inserts a row into the 'fby_entity' table,
+# 1. Inserts a row into the 'fby_entity' table, and records its fields and checks in 'fby_entity_field' and 'fby_entity_check'
 # 2. Creates a table 'park_v1' for holding reference data
 # 3. Creates an aggregate function 'get_park_v1_aggregate' to be used by projections
 - operation: ADD_ENTITY

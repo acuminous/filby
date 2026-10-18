@@ -85,6 +85,17 @@ describe('DSL', () => {
       deq(labels[2], { label: 'zero' });
     });
 
+    it('should record enum values', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM);
+
+      const { rows: values } = await filby.withTransaction((tx) => tx.query('SELECT name, position, value FROM fby_enum ORDER BY position'));
+      deq(values, [
+        { name: 'vat_tax_rate', position: 1, value: 'standard' },
+        { name: 'vat_tax_rate', position: 2, value: 'reduced' },
+        { name: 'vat_tax_rate', position: 3, value: 'zero' },
+      ]);
+    });
+
     it('should reject duplicate enum', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM);
       await rejects(() => filby.applyYaml(t.name, ADD_ENUM), (err) => {
@@ -175,6 +186,13 @@ describe('DSL', () => {
       eq(enums.length, 0);
     });
 
+    it('should remove recorded enum values', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, DROP_ENUM);
+
+      const { rows: values } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_enum'));
+      eq(values.length, 0);
+    });
+
     it('should ignore other enums', async (t) => {
       const ADD_ANOTHER_ENUM = `
 - operation: ADD_ENUM
@@ -245,6 +263,32 @@ describe('DSL', () => {
       const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
       eq(entities.length, 1);
       deq(entities[0], { name: 'VAT Rate', version: 1 });
+    });
+
+    it('should record entity fields', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY);
+
+      deq(await getEntityFields(), [
+        { position: 1, name: 'type', type: 'TEXT', identity: true },
+        { position: 2, name: 'rate', type: 'NUMERIC', identity: false },
+      ]);
+    });
+
+    it('should record canonical field names', async (t) => {
+      await filby.applyYaml(t.name, transform(transform(ADD_ENTITY).set('0.fields.0.name', 'Tax Type')).set('0.identified_by.0', 'Tax Type'));
+
+      const [field] = await getEntityFields();
+      eq(field.name, 'tax_type');
+    });
+
+    it('should record entity checks', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).merge('0.checks', { min_rate: '(rate >= 0)', max_rate: '(rate <= 1)' }));
+
+      const { rows: checks } = await filby.withTransaction((tx) => tx.query('SELECT name, expression FROM fby_entity_check ORDER BY name'));
+      deq(checks, [
+        { name: 'max_rate', expression: '(rate <= 1)' },
+        { name: 'min_rate', expression: '(rate >= 0)' },
+      ]);
     });
 
     it('should reject duplicate entity', async (t) => {
@@ -457,6 +501,15 @@ describe('DSL', () => {
 
       ok(!await hasTable('vat_rate_v1'));
       ok(!await hasFunction('get_vat_rate_v1_aggregate'));
+    });
+
+    it('should remove recorded fields and checks', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' }), DROP_ENTITY);
+
+      const { rows: fields } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_entity_field'));
+      eq(fields.length, 0);
+      const { rows: checks } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_entity_check'));
+      eq(checks.length, 0);
     });
 
     it('should ignore other entities', async (t) => {
@@ -1619,6 +1672,46 @@ describe('DSL', () => {
       });
     });
 
+    it('should generate stable sql aggregate functions', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY);
+
+      const { rows } = await filby.withTransaction((tx) => tx.query(`
+        SELECT l.lanname AS language, p.provolatile AS volatility
+        FROM pg_proc p
+        INNER JOIN pg_language l ON l.oid = p.prolang
+        WHERE p.proname = 'get_vat_rate_v1_aggregate'`));
+      deq(rows, [{ language: 'sql', volatility: 's' }]);
+    });
+
+    it('should inline aggregate functions so that filters are applied before materialisation', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const { rows } = await filby.withTransaction((tx) => tx.query(`EXPLAIN SELECT * FROM get_vat_rate_v1_aggregate(${changeSetId}) WHERE type = 'standard'`));
+      const plan = rows.map((row) => row['QUERY PLAN']).join('\n');
+      ok(!plan.includes('Function Scan'), plan);
+    });
+
+    it('should prefer the frame with the latest effective date over the most recently added frame', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        ADD_ENTITY,
+        ADD_PROJECTION,
+        vatRate('2020', 'standard', 0.175),
+        vatRate('2022', 'standard', 0.20),
+        vatRate('2021', 'standard', 0.18),
+        vatRate('2023', 'reduced', 0.05),
+      );
+
+      await filby.withTransaction(async (tx) => {
+        const { rows: aggregate2021 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1)', [await getChangeSetId('2021 VAT Rates')]);
+        deq(aggregate2021, [{ type: 'standard', rate: 0.18 }]);
+
+        const { rows: aggregate2023 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [await getChangeSetId('2023 VAT Rates')]);
+        deq(aggregate2023, [{ type: 'standard', rate: 0.20 }, { type: 'reduced', rate: 0.05 }]);
+      });
+    });
+
     it('should exclude aggregates where the most recent frame was a delete', async (t) => {
       await filby.applyYaml(
         t.name,
@@ -1860,6 +1953,30 @@ describe('DSL', () => {
   async function hasTable(name) {
     const { rows: tables } = await filby.withTransaction((tx) => tx.query('SELECT * FROM information_schema.tables WHERE table_name = $1', [name]));
     return tables.length === 1;
+  }
+
+  function vatRate(year, type, rate) {
+    return `
+- operation: ADD_CHANGE_SET
+  description: ${year} VAT Rates
+  effective: ${year}-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: ${type}
+          rate: ${rate}`;
+  }
+
+  async function getChangeSetId(description) {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id FROM fby_change_set WHERE description = $1', [description]));
+    return rows[0].id;
+  }
+
+  async function getEntityFields() {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT position, name, type, identity FROM fby_entity_field ORDER BY position'));
+    return rows;
   }
 
   async function hasFunction(name) {

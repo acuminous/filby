@@ -13,3 +13,8 @@ BEGIN
   END;
 END;
 $$ LANGUAGE plpgsql;
+
+INSERT INTO fby_enum (name, position, value) VALUES
+{{#values}}
+({{literal (canonical ../name)}}, {{ordinal}}, {{literal this}}){{#unless @last}},{{/unless}}
+{{/values}};
