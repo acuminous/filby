@@ -80,18 +80,6 @@ describe('Migration Directories', () => {
     deq(await getEntityNames(), ['Alpha', 'Beta']);
   });
 
-  it('should load directories configured with the deprecated shape and ignore permissions', async (t) => {
-    t.mock.method(process, 'emitWarning', () => {});
-    const directory = await createDirectory({
-      '.marvrc': marvrc(),
-      '001.add-legacy.sql': addEntity('Legacy'),
-    });
-
-    await withFilby({ database, migrations: [{ path: directory, permissions: ['ADD_CHANGE_SET'] }] }, (instance) => instance.init());
-
-    deq(await getEntityNames(), ['Legacy']);
-  });
-
   async function createDirectory(files) {
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'filby-'));
     directories.push(directory);

@@ -21,15 +21,9 @@ export class Filby {
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
 }
 
-/** @deprecated Configure migrations as a list of directory paths. Permissions are ignored. */
-export type Migration = {
-  path: string;
-  permissions?: string[];
-};
-
 export type Config = {
   database?: PoolConfig;
-  migrations?: string[] | Migration[];
+  migrations?: string[];
   notifications?: {
     interval?: string;
     initialDelay?: string;
