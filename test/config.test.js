@@ -9,6 +9,7 @@ describe('Config', () => {
     doesNotThrow(() => new Filby({
       database: { user: 'fby_test', password: 'fby_test' },
       migrations: ['test/migrations', 'test/data'],
+      checksums: 'error',
       notifications: { interval: '1m', initialDelay: '1s', maxAttempts: 10, maxRescheduleDelay: '1h' },
     }));
   });
@@ -27,6 +28,16 @@ describe('Config', () => {
 
   it('should reject migrations that are not paths', () => {
     throws(() => new Filby({ migrations: [{ path: 'migrations', permissions: ['ALL'] }] }), { message: 'Invalid config: /migrations/0 must be string' });
+  });
+
+  it('should accept each checksums mode', () => {
+    for (const checksums of ['ignore', 'warn', 'error']) {
+      doesNotThrow(() => new Filby({ checksums }));
+    }
+  });
+
+  it('should reject unknown checksums modes', () => {
+    throws(() => new Filby({ checksums: 'strict' }), { message: 'Invalid config: /checksums must be equal to one of the allowed values' });
   });
 
   it('should allow any database keys', () => {

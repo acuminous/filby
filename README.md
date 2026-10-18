@@ -480,6 +480,11 @@ Filby requires Node.js 22.12 or later and is tested against PostgreSQL 16.
     "path/to/data/migrations"
   ],
 
+  // How Filby reacts to applied migrations that have changed since they were applied
+  // One of "ignore", "warn" or "error"
+  // Defaults to "warn"
+  "checksums": "error",
+
   "notifications": {
 
     // The frequency Filby will check for new notifications
@@ -545,6 +550,29 @@ Directives in a `.marvrc` apply only to the migrations in that directory. For ex
     "audit": false
   }
 }
+```
+
+### Checksums
+Filby records a checksum for every migration it applies, and on each `filby.init()` compares it with the migration's current checksum. The `checksums` option decides what happens when they differ.
+
+| Value | Behaviour |
+| --- | --- |
+| `ignore` | Never compare checksums |
+| `warn` | Log each changed migration and carry on (the default) |
+| `error` | Fail before applying anything |
+
+We recommend `error` in production. The default is `warn` so that, if your migrations have already drifted, you find out from the log rather than from a failed deploy, and can switch to `error` once they are clean.
+
+The checksum of a YAML or JSON migration covers the migration file and every CSV file it references through `source`, so editing either one is detected. SQL migrations use marv's checksum of the file.
+
+Databases migrated by earlier versions of Filby hold checksums that cover the YAML or JSON file only. On the first `filby.init()` after upgrading, Filby replaces each of these with the new form when the migration file is unchanged, whatever the `checksums` mode. If the migration file has changed, the old checksum is kept and the change is reported.
+
+Filby's own migrations are checked in the same way. Filby supports upgrading from version 0.14.0 or later; databases created by earlier versions will report changes to Filby's migrations.
+
+If you change an applied migration deliberately, for example to fix a fresh install without affecting existing databases, declare the checksums you are replacing with marv's [`ACCEPT` directive](https://github.com/guidesmiths/marv#accept-directive) so they are no longer reported. Directives are read from SQL comments, so this is only available for SQL migrations.
+
+```sql
+-- @MARV ACCEPT = 82b392f3594050ecefd768bfe258843b
 ```
 
 ## Example Applications
