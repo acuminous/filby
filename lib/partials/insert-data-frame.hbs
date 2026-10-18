@@ -7,5 +7,16 @@ INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
 (v_change_set_id, v_entity_id, {{literal action}})
 RETURNING id INTO v_frame_id;
 
-INSERT INTO {{identifier (table entity version)}} (fby_frame_id, {{#xkeys data}}{{identifier item}}{{#unless isLast}},{{/unless}}{{/xkeys}}) VALUES
-(v_frame_id, {{#xvalues data}}{{literal item}}{{#unless isLast}}, {{/unless}}{{/xvalues}});
+BEGIN
+  INSERT INTO {{identifier (table entity version)}} (fby_frame_id, fby_change_set_id, {{#xkeys data}}{{identifier item}}{{#unless isLast}},{{/unless}}{{/xkeys}}) VALUES
+  (v_frame_id, v_change_set_id, {{#xvalues data}}{{literal item}}{{#unless isLast}}, {{/unless}}{{/xvalues}});
+EXCEPTION
+  WHEN unique_violation
+  THEN RAISE EXCEPTION 'Entity ''%'' has more than one frame with key (%) in change set ''%''',
+    {{literal entity (v version)}},
+    (SELECT string_agg(format('%s=%s', f.name, d.value), ', ' ORDER BY f.position)
+     FROM fby_entity_field f
+     INNER JOIN jsonb_each_text({{literal (json data)}}) d ON d.key = f.name
+     WHERE f.entity_id = v_entity_id AND f.identity),
+    (SELECT description FROM fby_change_set WHERE id = v_change_set_id);
+END;
