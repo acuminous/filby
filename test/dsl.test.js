@@ -1619,6 +1619,26 @@ describe('DSL', () => {
       });
     });
 
+    it('should prefer the frame with the latest effective date over the most recently added frame', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        ADD_ENTITY,
+        ADD_PROJECTION,
+        vatRate('2020', 'standard', 0.175),
+        vatRate('2022', 'standard', 0.20),
+        vatRate('2021', 'standard', 0.18),
+        vatRate('2023', 'reduced', 0.05),
+      );
+
+      await filby.withTransaction(async (tx) => {
+        const { rows: aggregate2021 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1)', [await getChangeSetId('2021 VAT Rates')]);
+        deq(aggregate2021, [{ type: 'standard', rate: 0.18 }]);
+
+        const { rows: aggregate2023 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [await getChangeSetId('2023 VAT Rates')]);
+        deq(aggregate2023, [{ type: 'standard', rate: 0.20 }, { type: 'reduced', rate: 0.05 }]);
+      });
+    });
+
     it('should exclude aggregates where the most recent frame was a delete', async (t) => {
       await filby.applyYaml(
         t.name,
@@ -1860,6 +1880,25 @@ describe('DSL', () => {
   async function hasTable(name) {
     const { rows: tables } = await filby.withTransaction((tx) => tx.query('SELECT * FROM information_schema.tables WHERE table_name = $1', [name]));
     return tables.length === 1;
+  }
+
+  function vatRate(year, type, rate) {
+    return `
+- operation: ADD_CHANGE_SET
+  description: ${year} VAT Rates
+  effective: ${year}-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: POST
+      data:
+        - type: ${type}
+          rate: ${rate}`;
+  }
+
+  async function getChangeSetId(description) {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id FROM fby_change_set WHERE description = $1', [description]));
+    return rows[0].id;
   }
 
   async function hasFunction(name) {
