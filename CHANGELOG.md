@@ -4,7 +4,7 @@
 
 ### Upgrading
 
-Upgrade and restart. Filby applies its own migrations when `init()` is called.
+Upgrade and restart. Filby applies its own migrations when `init()` is called, and regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body. No data is changed.
 
 #### More than one frame with the same key in a change set
 
