@@ -936,7 +936,7 @@ describe('DSL', () => {
         effective: new Date('2020-04-05T00:00:00.000Z'),
         entity: 'VAT Rate',
         version: 1,
-        action: 'POST',
+        action: 'SET',
         type: 'standard',
         rate: 0.10,
       });
@@ -1001,7 +1001,7 @@ describe('DSL', () => {
         effective: new Date('2020-04-05T00:00:00.000Z'),
         entity: 'VAT Rate',
         version: 1,
-        action: 'POST',
+        action: 'SET',
         type: 'standard',
         rate: 0.10,
       });
@@ -1045,6 +1045,13 @@ describe('DSL', () => {
       });
     });
 
+    it('should store SET frames as SET', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'SET'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'SET', 'SET']);
+    });
+
     it('should require frames to specify an entity name', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames.0.entity')), (err) => {
         eq(err.message, "001.should-require-frames-to-specify-an-entity-name.yaml: /0/frames/0 must have required property 'entity'");
@@ -1075,7 +1082,7 @@ describe('DSL', () => {
         effective: new Date('2020-04-05T00:00:00.000Z'),
         entity: injection,
         version: 1,
-        action: 'POST',
+        action: 'SET',
         type: 'standard',
         rate: 0.10,
       });
@@ -1109,9 +1116,9 @@ describe('DSL', () => {
       });
     });
 
-    it('should require frame action to be POST or DELETE', async (t) => {
+    it('should require frame action to be SET, POST or DELETE', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'GET')), (err) => {
-        eq(err.message, "001.should-require-frame-action-to-be-post-or-delete.yaml: /0/frames/0/action must be equal to one of the allowed values 'POST' or 'DELETE'");
+        eq(err.message, "001.should-require-frame-action-to-be-set,-post-or-delete.yaml: /0/frames/0/action must be equal to one of the allowed values 'SET', 'POST' or 'DELETE'");
         return true;
       });
     });
@@ -1148,7 +1155,7 @@ describe('DSL', () => {
         effective: new Date('2020-04-05T00:00:00.000Z'),
         entity: 'VAT Rate',
         version: 1,
-        action: 'POST',
+        action: 'SET',
         type: 'standard',
         rate: 0.10,
         "pwned',_1);raise_exception_$💀$you_have_been_pwned!$💀$;": 'pwned',
@@ -1170,7 +1177,7 @@ describe('DSL', () => {
         effective: new Date('2020-04-05T00:00:00.000Z'),
         entity: 'VAT Rate',
         version: 1,
-        action: 'POST',
+        action: 'SET',
         type: 'standard',
         rate: 0.10,
         pwned: injection,
@@ -1826,6 +1833,22 @@ describe('DSL', () => {
         deq(aggregate3[0], { type: 'standard', rate: 0.15 });
         deq(aggregate3[1], { type: 'zero', rate: 0 });
       });
+    });
+
+    it('should store csv SET frames as SET', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-set.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'SET', 'SET']);
+    });
+
+    it('should store csv POST frames as SET', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'SET', 'SET']);
     });
 
     it('should escape data frames in csv files', async (t) => {

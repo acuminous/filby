@@ -4,7 +4,7 @@
   frames:
     - entity: park
       version: 1
-      action: POST
+      action: SET
       data:
         - code: DC
           name: Devon Cliffs

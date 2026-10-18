@@ -88,12 +88,12 @@ describe('API', () => {
             (5, '${nextYear}-01-01T00:00:00.000Z', '${nextYear} VAT Rates'),
             (6, '${nextYear}-01-01T00:00:00.000Z', '${nextYear} CGT Rates')`);
         await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
-            (1, 1, 'POST'),
-            (2, 2, 'POST'),
-            (3, 1, 'POST'),
-            (4, 2, 'POST'),
-            (5, 1, 'POST'),
-            (6, 2, 'POST')`);
+            (1, 1, 'SET'),
+            (2, 2, 'SET'),
+            (3, 1, 'SET'),
+            (4, 2, 'SET'),
+            (5, 1, 'SET'),
+            (6, 2, 'SET')`);
       });
 
       const projection = await filby.getProjection('VAT Rates', 1);
@@ -125,12 +125,12 @@ describe('API', () => {
             (5, '${previousYear}-01-05T00:00:00.000Z', '${previousYear} CGT Rates'),
             (6, '${previousYear}-01-05T00:00:00.000Z', '${previousYear} VAT Rates')`);
         await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
-            (1, 1, 'POST'),
-            (2, 2, 'POST'),
-            (3, 1, 'POST'),
-            (4, 2, 'POST'),
-            (5, 1, 'POST'),
-            (6, 2, 'POST')`);
+            (1, 1, 'SET'),
+            (2, 2, 'SET'),
+            (3, 1, 'SET'),
+            (4, 2, 'SET'),
+            (5, 1, 'SET'),
+            (6, 2, 'SET')`);
       });
 
       const projection = await filby.getProjection('VAT Rates', 1);
@@ -157,8 +157,8 @@ describe('API', () => {
             (1, '${nextYear}-01-05T00:00:00.000Z', '${nextYear} VAT Rates'),
             (2, '${nextYear}-01-05T00:00:00.000Z', '${nextYear} CGT Rates')`);
         await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
-            (1, 1, 'POST'),
-            (2, 2, 'POST')`);
+            (1, 1, 'SET'),
+            (2, 2, 'SET')`);
       });
 
       const projection = await filby.getProjection('VAT Rates', 1);
@@ -188,11 +188,11 @@ describe('API', () => {
           (4, '2021-04-05T00:00:00.000Z', '2021 VAT Rates'),
           (5, '2021-04-05T00:00:00.000Z', '2021 CGT Rates')`);
         await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
-          (1, 1, 'POST'),
-          (2, 2, 'POST'),
-          (3, 3, 'POST'),
-          (4, 2, 'POST'),
-          (5, 3, 'POST')`);
+          (1, 1, 'SET'),
+          (2, 2, 'SET'),
+          (3, 3, 'SET'),
+          (4, 2, 'SET'),
+          (5, 3, 'SET')`);
       });
 
       const projection = await filby.getProjection('VAT Rates', 1);
@@ -218,9 +218,9 @@ describe('API', () => {
         await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
           (1, '2020-04-05T00:00:00.000Z', 'Everything')`);
         await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
-          (1, 1, 'POST'),
-          (1, 2, 'POST'),
-          (1, 2, 'POST')`);
+          (1, 1, 'SET'),
+          (1, 2, 'SET'),
+          (1, 2, 'SET')`);
       });
 
       const projection = await filby.getProjection('VAT Rates', 1);

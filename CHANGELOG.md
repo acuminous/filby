@@ -4,7 +4,7 @@
 
 ### Upgrading
 
-Upgrade and restart. Filby applies its own migrations when `init()` is called, and regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body. No data is changed.
+Upgrade and restart. Filby applies its own migrations when `init()` is called, regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body, and relabels existing `POST` frames as `SET`. No other data is changed.
 
 #### More than one frame with the same key in a change set
 
@@ -29,11 +29,16 @@ ORDER BY cs.id;
 
 Previously the frame with the highest id won, so you can safely keep that frame and delete the others for the same key and change set. Delete each frame's entity row first, then its `fby_data_frame` row. Filby does not delete your data for you.
 
+#### SQL that uses the POST action
+
+The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV migrations that use `POST` keep working, but your own SQL that uses the literal `'POST'` must change to `'SET'`. This includes custom functions, views and raw SQL migrations that insert data frames. Replaying such a raw SQL migration against a fresh database fails, because the value no longer exists.
+
 ### Changed
 
 - Aggregate functions select, for each key, the frame from the change set with the latest effective date rather than the most recently added frame. Previously, backfilling a change set dated before an existing one overrode the later values (#3).
 - A change set may contain only one frame per key for each entity, whether the frames set or delete it. Entity tables gain `fby_change_set_id`, `UNIQUE (fby_change_set_id, <key columns>)` replaces the old unique constraint (which could never fail), and key columns are `NOT NULL` (#6).
 - Entity tables reference `fby_data_frame` with `ON DELETE CASCADE`, so deleting a change set with SQL also deletes its entity rows (#6, #25).
+- The `POST` frame action is renamed to `SET`, in the DSL and in the database. `POST` is still accepted in YAML, JSON and CSV, and is stored as `SET` (#77).
 - Aggregate functions are generated as `LANGUAGE sql STABLE`, so Postgres can inline them and apply the caller's filters before the aggregate is materialised (#36).
 
 ### Added
