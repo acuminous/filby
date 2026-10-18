@@ -26,10 +26,10 @@
   "scripts": {
     "docker": "docker-compose up --detach",
     "lint": "biome ci .",
-    "lint-staged": "lint-staged",
     "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:all": "docker compose down && docker compose up --detach --wait && (cd examples/javascript && npm test) && (cd examples/typescript && npm test) && npm test",
     "coverage": "mkdir -p coverage && node --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
-    "prepare": "husky install"
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "ajv": "^8.12.0",
@@ -47,13 +47,9 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@types/pg": "^8.10.9",
-    "husky": "^8.0.0",
-    "lint-staged": "^15.2.0",
+    "lefthook": "2.2.2",
     "object-path-immutable": "^4.1.2",
     "pg-error-enum": "^0.7.0"
-  },
-  "lint-staged": {
-    "*.{js,ts}": "biome check --no-errors-on-unmatched"
   },
   "repository": {
     "type": "git",
