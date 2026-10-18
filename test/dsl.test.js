@@ -1116,9 +1116,9 @@ describe('DSL', () => {
       });
     });
 
-    it('should require frame action to be SET, POST or DELETE', async (t) => {
+    it('should require frame action to be valid', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'GET')), (err) => {
-        eq(err.message, "001.should-require-frame-action-to-be-set,-post-or-delete.yaml: /0/frames/0/action must be equal to one of the allowed values 'SET', 'POST' or 'DELETE'");
+        eq(err.message, "001.should-require-frame-action-to-be-valid.yaml: /0/frames/0/action must be equal to one of the allowed values 'SET', 'POST' or 'DELETE'");
         return true;
       });
     });

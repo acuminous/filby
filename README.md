@@ -197,7 +197,7 @@ A *Projection* is a versioned view of one or more *Entities*, made available in 
 An *Entity* represents reference data. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which a 'Park' entity has many 'Season' entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more *Data Frames*. The dependency between projections and entities must be explicitly stated so we can emit *Notifications* when a new data frame is added.
 
 ### Data Frame
-A *Data Frame* is a snapshot of an entity, associated with a *Change Set*. There are two types of data frame, 'SET' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted. 'POST' is still accepted as another spelling of 'SET'.
+A *Data Frame* is a snapshot of an entity, associated with a *Change Set*. There are two types of data frame, 'SET' which adds a new snapshot at a point in time, and 'DELETE' which indicates the entity has been deleted. 'POST' is also accepted as another spelling of 'SET'.
 
 ### Change Set
 A *Change Set* groups a set of data frames (potentially for different entities) into a single unit with a common effective date.
