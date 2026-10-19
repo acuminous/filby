@@ -9,6 +9,7 @@ const axios = require('axios');
 const { Filby } = require('../../..');
 const pkg = require('../package.json');
 const changeLogRoute = require('./routes/changelog-v1');
+const healthRoute = require('./routes/health');
 const ProjectionsApi = require('./ProjectionsApi');
 
 module.exports = class Application {
@@ -81,8 +82,13 @@ module.exports = class Application {
     this.#fastify.addHook('onRoute', (routeOptions) => this.#projectionsApi.update(routeOptions));
     await this.#fastify.register(cors, { origin: '*', methods: ['GET'] });
     await this.#registerSwagger();
+    await this.#registerHealth();
     await this.#registerChangelog();
     await this.#registerProjections();
+  }
+
+  async #registerHealth() {
+    await this.#fastify.register(healthRoute, { prefix: '/health', filby: this.#filby });
   }
 
   async #registerSwagger() {
