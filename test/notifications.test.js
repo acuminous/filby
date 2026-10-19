@@ -265,4 +265,40 @@ describe('Notifications', () => {
 
     eq(schedulers.length, 2);
   });
+
+  it('should deliver a notification to only one of several instances polling concurrently', async () => {
+    await setup();
+
+    const other = new TestFilby(config);
+    const deliveries = [];
+    const entered = Promise.withResolvers();
+    const released = Promise.withResolvers();
+    const handler = async (notification) => {
+      deliveries.push(notification);
+      entered.resolve();
+      await released.promise;
+    };
+
+    try {
+      filby.subscribe('VAT Rate Changed', handler);
+      other.subscribe('VAT Rate Changed', handler);
+
+      filby.startNotifications();
+      await entered.promise;
+
+      let polls = 0;
+      other.startNotifications();
+      schedulers[1].on('end', () => polls++);
+      await until(() => polls > 0);
+
+      released.resolve();
+      await until(async () => (await getNotifications())[0].status === 'OK');
+
+      eq(deliveries.length, 1);
+      eq((await getNotifications()).length, 1);
+    } finally {
+      released.resolve();
+      await other.stop();
+    }
+  });
 });
