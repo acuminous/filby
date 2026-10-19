@@ -6,7 +6,7 @@ DECLARE
 BEGIN
   SELECT oid INTO v_enum
   FROM pg_type
-    WHERE typname = {{literal name}} AND typtype = 'e';
+    WHERE typname = {{literal (canonical name)}} AND typtype = 'e';
 
   IF v_enum IS NULL THEN
     RAISE EXCEPTION 'Enum '{{literal name}}' does not exist';

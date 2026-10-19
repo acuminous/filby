@@ -6,7 +6,7 @@ BEGIN
   SELECT EXISTS (
     SELECT 1
     FROM pg_type
-      WHERE typname = {{literal name}} AND typtype = 'e'
+      WHERE typname = {{literal (canonical name)}} AND typtype = 'e'
   ) INTO v_exists;
 
   IF NOT v_exists THEN
