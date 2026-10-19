@@ -484,6 +484,14 @@ filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
 });
 ```
 
+If polling the database for notifications fails, for example because the database is briefly unavailable, Filby emits `Filby.NOTIFICATION_ERROR` and polls again at the next interval. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
+
+```js
+filby.subscribe(Filby.NOTIFICATION_ERROR, ({ error }) => {
+  console.error('Notification polling failed', error.stack); // Careful not to log secrets that may be on the error
+});
+```
+
 #### filby.unsubscribe&lt;T&gt;(event: string, handler?: (notification: T, context: HandlerContext) => Promise&lt;void&gt;): void
 Unsubscribes the specified handler, or all handlers if none is specified, from the specified event
 
@@ -515,7 +523,7 @@ Returns the current changeset for the given projection based on the database's c
 Returns the specified change set
 
 #### filby.getAggregates&lt;T&gt;(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
-Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
+Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last). Rejects with `Function 'get_park_v1_aggregate' does not exist` if there is no such entity, and with `Change set 42 does not exist` if there is no such change set.
 
 ```js
 async function getParks(changeSetId) {

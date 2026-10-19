@@ -10,7 +10,7 @@ BEGIN
     AND version = {{literal version}};
 
   IF v_projection_id IS NULL THEN
-    RAISE EXCEPTION 'Hook '{{literal name}}' references a non existent projection '{{literal projection (v version)}}'';
+    RAISE EXCEPTION 'Hook ''%'' references a non existent projection ''%''%', {{literal name}}, {{literal projection (v version)}}, fby_projection_hint({{literal projection}}, {{literal version}});
   END IF;
   {{/if}}
 

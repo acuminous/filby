@@ -387,4 +387,68 @@ describe('Notifications', () => {
       await other.stop();
     }
   });
+  it('should emit an event when polling fails and keep polling', async () => {
+    await setup();
+
+    const rejections = [];
+    const onUnhandledRejection = (err) => rejections.push(err);
+    process.on('unhandledRejection', onUnhandledRejection);
+    try {
+      await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification RENAME TO fby_notification_hidden'));
+      const failed = once(filby, TestFilby.NOTIFICATION_ERROR);
+      let error;
+      try {
+        filby.startNotifications();
+        ({ error } = await failed);
+      } finally {
+        await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification_hidden RENAME TO fby_notification'));
+      }
+
+      eq(error.code, '42P01');
+      match(error.message, /fby_notification/);
+
+      const cgtDelivered = once(filby, 'CGT Rate Changed');
+      await filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+          (2, 'CGT Rates', 1)`);
+      });
+      await cgtDelivered;
+
+      eq(rejections.length, 0);
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
+  });
+
+  it('should keep polling when a polling error handler throws', async () => {
+    await setup();
+
+    const rejections = [];
+    const onUnhandledRejection = (err) => rejections.push(err);
+    process.on('unhandledRejection', onUnhandledRejection);
+    try {
+      await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification RENAME TO fby_notification_hidden'));
+      const failed = once(filby, TestFilby.NOTIFICATION_ERROR);
+      filby.subscribe(TestFilby.NOTIFICATION_ERROR, () => {
+        throw new Error('Oh Noes!');
+      });
+      try {
+        filby.startNotifications();
+        await failed;
+      } finally {
+        await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification_hidden RENAME TO fby_notification'));
+      }
+
+      const cgtDelivered = once(filby, 'CGT Rate Changed');
+      await filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+          (2, 'CGT Rates', 1)`);
+      });
+      await cgtDelivered;
+
+      eq(rejections.length, 0);
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
+  });
 });

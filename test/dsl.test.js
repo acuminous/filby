@@ -869,7 +869,7 @@ describe('DSL', () => {
 
     it('should require entity@version dependency references to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies', [{ entity: 'VAT Rate@2' }])), (err) => {
-        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'");
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'; existing entities are 'VAT Rate v1'");
         return true;
       });
     });
@@ -938,21 +938,42 @@ describe('DSL', () => {
 
     it('should require dependency entity to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies.0.entity', 'wombat')), (err) => {
-        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'wombat v1'");
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'wombat v1'; existing entities are 'VAT Rate v1'");
         return true;
       });
     });
 
     it('should require dependency entity version to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies.0.version', 2)), (err) => {
-        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'");
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'; existing entities are 'VAT Rate v1'");
         return true;
       });
     });
 
     it('should require every dependency entity to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).push('0.dependencies', { entity: 'wombat', version: 1 })), (err) => {
-        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'wombat v1'");
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'wombat v1'; existing entities are 'VAT Rate v1'");
+        return true;
+      });
+    });
+
+    it('should suggest a dependency entity that differs only by case', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies.0.entity', 'vat rate')), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'vat rate v1'; did you mean 'VAT Rate v1'?");
+        return true;
+      });
+    });
+
+    it('should list every existing entity when the dependency entity does not exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ENTITY).set('0.version', 2), transform(ADD_PROJECTION).set('0.dependencies.0.entity', 'wombat')), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'wombat v1'; existing entities are 'VAT Rate v1', 'VAT Rate v2'");
+        return true;
+      });
+    });
+
+    it('should report that no entities exist when the dependency entity does not exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PROJECTION), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v1'; no entities exist");
         return true;
       });
     });
@@ -1363,7 +1384,7 @@ describe('DSL', () => {
 
     it('should require entity@version frame references to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_CHANGE_SET_1).del('0.frames.1.version')).set('0.frames.1.entity', 'VAT Rate@2')), (err) => {
-        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'");
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'; existing entities are 'VAT Rate v1'");
         return true;
       });
     });
@@ -1427,14 +1448,35 @@ describe('DSL', () => {
 
     it('should require frame entity to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.entity', 'wombat')), (err) => {
-        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'wombat v1'");
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'wombat v1'; existing entities are 'VAT Rate v1'");
         return true;
       });
     });
 
     it('should require frame entity version to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.version', 2)), (err) => {
-        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'");
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'; existing entities are 'VAT Rate v1'");
+        return true;
+      });
+    });
+
+    it('should suggest a frame entity that differs only by case', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.entity', 'vat rate')), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'vat rate v1'; did you mean 'VAT Rate v1'?");
+        return true;
+      });
+    });
+
+    it('should list every existing entity when the frame entity does not exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ENTITY).set('0.version', 2), transform(ADD_CHANGE_SET_1).set('0.frames.1.entity', 'wombat')), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'wombat v1'; existing entities are 'VAT Rate v1', 'VAT Rate v2'");
+        return true;
+      });
+    });
+
+    it('should report that no entities exist when the frame entity does not exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_CHANGE_SET_1), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v1'; no entities exist");
         return true;
       });
     });
@@ -1856,7 +1898,39 @@ describe('DSL', () => {
           ADD_PROJECTION,
           transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', 'wombat'),
         ), (err) => {
-          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'wombat v1'");
+          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'wombat v1'; existing projections are 'VAT Rates v1'");
+          return true;
+        });
+      });
+
+      it('should suggest a projection that differs only by case', async (t) => {
+        await rejects(() => filby.applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', 'vat rates'),
+        ), (err) => {
+          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'vat rates v1'; did you mean 'VAT Rates v1'?");
+          return true;
+        });
+      });
+
+      it('should list every existing projection when the projection does not exist', async (t) => {
+        await rejects(() => filby.applyYaml(
+          t.name,
+          ADD_ENTITY,
+          ADD_PROJECTION,
+          transform(ADD_PROJECTION).set('0.version', 2),
+          transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', 'wombat'),
+        ), (err) => {
+          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'wombat v1'; existing projections are 'VAT Rates v1', 'VAT Rates v2'");
+          return true;
+        });
+      });
+
+      it('should report that no projections exist when the projection does not exist', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_HOOK_CHANGE_SET_PROJECTION), (err) => {
+          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'VAT Rates v1'; no projections exist");
           return true;
         });
       });
@@ -1908,7 +1982,7 @@ describe('DSL', () => {
 
       it('should require projection@version references to exist', async (t) => {
         await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.version')).set('0.projection', 'VAT Rates@2')), (err) => {
-          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'VAT Rates v2'");
+          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'VAT Rates v2'; existing projections are 'VAT Rates v1'");
           return true;
         });
       });
