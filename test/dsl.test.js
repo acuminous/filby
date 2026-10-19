@@ -750,6 +750,27 @@ describe('DSL', () => {
       deq(entities[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", version: 1 });
     });
 
+    it('should require dependency entity to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies.0.entity', 'wombat')), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'wombat v1'");
+        return true;
+      });
+    });
+
+    it('should require dependency entity version to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies.0.version', 2)), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'");
+        return true;
+      });
+    });
+
+    it('should require every dependency entity to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).push('0.dependencies', { entity: 'wombat', version: 1 })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'wombat v1'");
+        return true;
+      });
+    });
+
     it('should require dependencies to have a version', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_PROJECTION).del('0.dependencies.0.version')), (err) => {
         eq(err.message, "001.should-require-dependencies-to-have-a-version.yaml: /0/dependencies/0 must have required property 'version'");
@@ -1095,6 +1116,20 @@ describe('DSL', () => {
         action: 'SET',
         type: 'standard',
         rate: 0.10,
+      });
+    });
+
+    it('should require frame entity to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.entity', 'wombat')), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'wombat v1'");
+        return true;
+      });
+    });
+
+    it('should require frame entity version to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.version', 2)), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'");
+        return true;
       });
     });
 
