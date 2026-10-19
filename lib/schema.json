@@ -16,6 +16,7 @@
               "ADD_PROJECTION",
               "ADD_HOOK",
               "ADD_CHANGE_SET",
+              "ALTER_ENUM",
               "DROP_ENUM",
               "DROP_ENTITY",
               "DROP_PROJECTION",
@@ -101,6 +102,21 @@
               },
               {
                 "$ref": "#/definitions/AddChangeSetType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/AlterEnumOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/AlterEnumType"
               }
             ]
           },
@@ -535,6 +551,29 @@
         "entity"
       ]
     },
+    "AlterEnumType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AlterEnumOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "add": {
+          "$ref": "#/definitions/StringListType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name",
+        "add"
+      ]
+    },
     "DropEnumType": {
       "type": "object",
       "properties": {
@@ -633,6 +672,9 @@
     },
     "AddChangeSetOperationType": {
       "const": "ADD_CHANGE_SET"
+    },
+    "AlterEnumOperationType": {
+      "const": "ALTER_ENUM"
     },
     "DropEnumOperationType": {
       "const": "DROP_ENUM"

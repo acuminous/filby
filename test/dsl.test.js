@@ -5,7 +5,7 @@ const { ok, strictEqual: eq, deepEqual: deq, rejects, doesNotThrow } = require('
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
-const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION } } = require('pg-error-enum');
+const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, UNSAFE_NEW_ENUM_VALUE_USAGE } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
@@ -31,6 +31,7 @@ const config = {
 };
 
 const ADD_ENUM = loadYaml('ADD_ENUM');
+const ALTER_ENUM = loadYaml('ALTER_ENUM');
 const DROP_ENUM = loadYaml('DROP_ENUM');
 const ADD_ENTITY = loadYaml('ADD_ENTITY');
 const DROP_ENTITY = loadYaml('DROP_ENTITY');
@@ -64,7 +65,7 @@ describe('DSL', () => {
   describe('General Validation', () => {
     it('should report unknown terms', async (t) => {
       await rejects(filby.applyYaml(t.name, '- operation: WOMBAT'), (err) => {
-        eq(err.message, "001.should-report-unknown-terms.yaml: /0/operation must be equal to one of the allowed values 'ADD_ENUM', 'ADD_ENTITY', 'ADD_PROJECTION', 'ADD_HOOK', 'ADD_CHANGE_SET', 'DROP_ENUM', 'DROP_ENTITY', 'DROP_PROJECTION' or 'DROP_HOOK'");
+        eq(err.message, "001.should-report-unknown-terms.yaml: /0/operation must be equal to one of the allowed values 'ADD_ENUM', 'ADD_ENTITY', 'ADD_PROJECTION', 'ADD_HOOK', 'ADD_CHANGE_SET', 'ALTER_ENUM', 'DROP_ENUM', 'DROP_ENTITY', 'DROP_PROJECTION' or 'DROP_HOOK'");
         return true;
       });
     });
@@ -179,6 +180,176 @@ describe('DSL', () => {
         return true;
       });
     });
+  });
+
+  describe('Alter Enum', () => {
+
+    const ADD_ENUM_ENTITY = `
+- operation: ADD_ENTITY
+  name: VAT Rate
+  version: 1
+  fields:
+    - name: type
+      type: vat_tax_rate
+    - name: rate
+      type: NUMERIC
+  identified_by:
+    - type
+`;
+
+    const ADD_EXEMPT_RATE = `
+- operation: ADD_CHANGE_SET
+  description: Exempt VAT Rate
+  effective: 2020-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: SET
+      data:
+        - type: exempt
+          rate: 0
+`;
+
+    it('should add values after the existing ones', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, ALTER_ENUM);
+
+      const { rows: labels } = await filby.withTransaction((tx) => tx.query("SELECT enumlabel AS label FROM pg_enum WHERE enumtypid = 'vat_tax_rate'::regtype ORDER BY enumsortorder"));
+      deq(labels, [
+        { label: 'standard' },
+        { label: 'reduced' },
+        { label: 'zero' },
+        { label: 'exempt' },
+        { label: 'outside_scope' },
+      ]);
+    });
+
+    it('should record added values', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, ALTER_ENUM);
+
+      const { rows: values } = await filby.withTransaction((tx) => tx.query('SELECT name, position, value FROM fby_enum ORDER BY position'));
+      deq(values, [
+        { name: 'vat_tax_rate', position: 1, value: 'standard' },
+        { name: 'vat_tax_rate', position: 2, value: 'reduced' },
+        { name: 'vat_tax_rate', position: 3, value: 'zero' },
+        { name: 'vat_tax_rate', position: 4, value: 'exempt' },
+        { name: 'vat_tax_rate', position: 5, value: 'outside_scope' },
+      ]);
+    });
+
+    it('should allow a change set in a later file to use an added value', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, ADD_ENUM_ENTITY, ALTER_ENUM);
+      await applyLaterYaml(t.name, ADD_EXEMPT_RATE);
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT type FROM vat_rate_v1'));
+      deq(rows, [{ type: 'exempt' }]);
+    });
+
+    it('should reject a change set in the same file that uses an added value', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, ADD_ENUM_ENTITY);
+      await rejects(() => applyLaterYaml(t.name, ALTER_ENUM, ADD_EXEMPT_RATE), (err) => {
+        eq(err.code, UNSAFE_NEW_ENUM_VALUE_USAGE);
+        eq(err.message, 'unsafe use of new value "exempt" of enum type vat_tax_rate');
+        return true;
+      });
+    });
+
+    it('should reject existing values', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ALTER_ENUM).set('0.add', ['exempt', 'standard'])), (err) => {
+        eq(err.message, "Enum 'vat_tax_rate' already has value 'standard'");
+        return true;
+      });
+    });
+
+    it('should reject duplicate values', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ALTER_ENUM).set('0.add', ['exempt', 'exempt'])), (err) => {
+        eq(err.message, "Enum 'vat_tax_rate' already has value 'exempt'");
+        return true;
+      });
+    });
+
+    it('should report missing enums', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ALTER_ENUM), (err) => {
+        eq(err.message, "Enum 'vat_tax_rate' does not exist");
+        return true;
+      });
+    });
+
+    it('should require a name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).del('0.name')), (err) => {
+        eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
+        return true;
+      });
+    });
+
+    it('should require name to be a string', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).set('0.name', 1)), (err) => {
+        eq(err.message, "001.should-require-name-to-be-a-string.yaml: /0/name must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should escape name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ALTER_ENUM).set('0.name', 'vat_tax_rate; RAISE EXCEPTION $💀$You have been pwned!$💀$;')), (err) => {
+        eq(err.message, "Enum 'vat_tax_rate; RAISE EXCEPTION $💀$You have been pwned!$💀$;' does not exist");
+        return true;
+      });
+    });
+
+    it('should require at least one value', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).del('0.add')), (err) => {
+        eq(err.message, "001.should-require-at-least-one-value.yaml: /0 must have required property 'add'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).set('0.add', 1)), (err) => {
+        eq(err.message, "001.should-require-at-least-one-value.yaml: /0/add must be of type 'array'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).set('0.add', [])), (err) => {
+        eq(err.message, '001.should-require-at-least-one-value.yaml: /0/add must NOT have fewer than 1 items');
+        return true;
+      });
+    });
+
+    it('should require values to be strings', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).set('0.add.0', 1)), (err) => {
+        eq(err.message, "001.should-require-values-to-be-strings.yaml: /0/add/0 must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should escape values', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ALTER_ENUM).set('0.add.0', "pwned'); RAISE EXCEPTION $💀$You have been pwned!$💀$; CREATE TYPE pwned AS ENUM ('standard")), (err) => {
+        eq(err.code, INVALID_NAME);
+        return true;
+      });
+    });
+
+    it('should allow a description', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, transform(ALTER_ENUM).merge('0.description', 'wombat'));
+    });
+
+    it('should require description to be a string', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).merge('0.description', 1)), (err) => {
+        eq(err.message, "001.should-require-description-to-be-a-string.yaml: /0/description must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should forbid additional properties', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ALTER_ENUM).merge('0', { wombat: 1 })), (err) => {
+        eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
+        return true;
+      });
+    });
+
+    async function applyLaterYaml(name, ...script) {
+      const slug = name.replace(/ /g, '-').toLowerCase();
+      await fs.promises.unlink(path.join(__dirname, 'migrations', `001.${slug}.yaml`));
+      await fs.promises.writeFile(path.join(__dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      return filby.init();
+    }
   });
 
   describe('Drop Enum', () => {

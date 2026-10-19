@@ -225,6 +225,15 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
     - Owners
     - Guests
 
+# Add values to an existing enum, after its current values
+# Equivalent of PostgreSQL's ALTER TYPE ... ADD VALUE statement
+# A change set that uses a new value belongs in a later migration file, because
+# Postgres cannot use a new enum value in the transaction that added it
+- operation: ALTER_ENUM
+  name: season_type
+  add:
+    - Staff
+
 # Adding entities performs the following:
 # 1. Inserts a row into the 'fby_entity' table, and records its fields and checks in 'fby_entity_field' and 'fby_entity_check'
 # 2. Creates a table 'park_v1' for holding reference data
