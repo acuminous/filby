@@ -283,7 +283,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   timezone: Europe/London
   changes:
     - entity: park@1
-      # The action is optional, defaults to SET and may be written in any case
+      # SET or DELETE, in any case
       action: SET
       data:
           # Adds a data frame for Devon Cliffs
@@ -302,16 +302,24 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 
       # YAML can get verbose, so you can also import data frames from a local CSV
       # The source path is relative to the directory containing the migration file
-      # The CSV requires a header row with the column names of your entity,
-      # and may include an action column. Without the column, or with an
-      # empty cell, the action is SET. When deleting data you only need to
-      # include the fields that identify the entity
+      # The CSV requires a header row with the column names of your entity.
+      # Without an action on the frame, the CSV must have an action column
+      # and every cell in it must be filled. When deleting data you only
+      # need to include the fields that identify the entity
     - entity: park@1
       source: ./data/park-data-2019.csv
       # action,code,name
       # SET,KC,Kent Coast
-      # ,CA,Caistor
+      # SET,CA,Caistor
       # DELETE,TP,
+
+      # An action on the frame applies to every row of the CSV,
+      # which must not have an action column
+    - entity: park@1
+      action: DELETE
+      source: ./data/park-closures-2019.csv
+      # code
+      # HF
 ```
 
 The effective date may be a calendar date, such as `2019-01-01`, or a timestamp with an explicit offset, such as `2019-01-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, so the stored effective date follows daylight saving time, and a bare date without a `timezone` is rejected: Filby never uses the process timezone, because the same migration would render differently on different machines. A timestamp with an explicit offset is stored as written, with or without a `timezone`.

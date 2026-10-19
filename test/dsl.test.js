@@ -1495,11 +1495,11 @@ describe('DSL', () => {
       });
     });
 
-    it('should default frame action to SET', async (t) => {
-      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_CHANGE_SET_1).del('0.frames.0.action')).set('0.frames.1.action', 'DELETE'));
-
-      const frames = await getDataFrames('2020 VAT Rates');
-      deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+    it('should require frames to specify either an action or a source', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames.0.action')), (err) => {
+        eq(err.message, "001.should-require-frames-to-specify-either-an-action-or-a-source.yaml: /0/frames/0 must have required property 'source' or 'action'");
+        return true;
+      });
     });
 
     it('should accept lower case frame actions', async (t) => {
@@ -2535,21 +2535,53 @@ describe('DSL', () => {
       deq(frames.map((frame) => frame.action), ['SET', 'SET', 'SET']);
     });
 
-    it('should default csv frames to SET when the action column is omitted', async (t) => {
-      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]);
+    it('should apply the frame action to every csv row', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'DELETE', source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]);
       await filby.applyYaml(t.name, ADD_ENTITY, yaml);
 
       const frames = await getDataFrames('2020 VAT Rates');
-      deq(frames.map((frame) => frame.action), ['SET', 'SET', 'SET']);
+      deq(frames.map((frame) => frame.action), ['DELETE', 'DELETE', 'DELETE']);
       deq(frames.map((frame) => frame.type), ['standard', 'reduced', 'zero']);
     });
 
-    it('should accept csv frame actions in any case and default empty cells to SET', async (t) => {
+    it('should accept the frame action for csv rows in any case', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'delete', source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['DELETE', 'DELETE', 'DELETE']);
+    });
+
+    it('should accept csv frame actions in any case', async (t) => {
       const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-mixed-case.csv' }]);
       await filby.applyYaml(t.name, ADD_ENTITY, yaml);
 
       const frames = await getDataFrames('2020 VAT Rates');
-      deq(frames.map((frame) => frame.action), ['SET', 'SET', 'DELETE']);
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+    });
+
+    it('should reject a frame action when the csv has an action column', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-set.csv' }]);
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
+        eq(err.message, `Frame for entity 'VAT Rate v1' specifies action 'SET' but ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-set.csv')} also has an action column`);
+        return true;
+      });
+    });
+
+    it('should require a frame action when the csv has no action column', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]);
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
+        eq(err.message, `Frame for entity 'VAT Rate v1' does not specify an action and ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-no-action.csv')} has no action column`);
+        return true;
+      });
+    });
+
+    it('should reject empty csv action cells', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-empty-action.csv' }]);
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
+        eq(err.message, `Error parsing ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-empty-action.csv')}:3 - Missing action`);
+        return true;
+      });
     });
 
     it('should escape data frames in csv files', async (t) => {
