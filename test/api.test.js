@@ -436,6 +436,25 @@ describe('API', () => {
     });
   });
 
+  describe('Aggregates', () => {
+
+    it('should report change sets that do not exist', async (t) => {
+      await filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: VAT Rate
+  version: 1
+  fields:
+    - name: type
+      type: TEXT
+    - name: rate
+      type: NUMERIC
+  identified_by:
+    - type`);
+
+      await rejects(filby.getAggregates(999, 'VAT Rate', 1), { message: 'Change set 999 does not exist' });
+    });
+  });
+
   describe('Transactions', () => {
 
     it('should roll back when the callback throws', async () => {
