@@ -47,6 +47,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - Adding a change set re-issues every live change set with a later effective date as a new change set with the same description, effective date and data frames, and marks the original as superseded, so change set ids always follow effective dates. One migration can therefore add more than one change log entry, and each re-issued change set schedules `ADD_CHANGE_SET` notifications. See [Correcting and Re-issuing Data](README.md#correcting-and-re-issuing-data) (#4).
 - `getChangeLog` returns change sets ordered by change set id, oldest first. Previously the order was whatever Postgres happened to return (#19).
 - `getChangeLog` and `getCurrentChangeSet` read `fby_change_set_entity`, one row per change set and entity, instead of every data frame, so their cost grows with the number of change sets rather than the number of frames. A trigger on `fby_data_frame` fills the table, so data frames inserted by your own SQL are included. Deleting every data frame for an entity in a change set with SQL does not remove the change set from the change log of projections that use that entity, so delete the change set instead (#38).
+- `fby_data_frame` is indexed on `(entity_id, change_set_id)`, so aggregate functions no longer scan every data frame to find an entity's frames up to a change set (#35).
 
 ### Added
 
