@@ -51,6 +51,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - Filby no longer creates or uses the pgcrypto extension. `init()` previously failed on a database that already had it, and needed the privilege to create extensions, which managed Postgres services often withhold. Entity tags are now derived from `gen_random_uuid()` and keep their 20 hexadecimal character form. Existing entity tags are unchanged, and the extension stays installed but unused by Filby, so drop it if nothing else needs it (#23).
 - A projection dependency or change set frame that names an entity which does not exist fails with `Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'` or `Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'`, instead of a `NOT NULL` violation on `entity_id` (#26).
 - An `ADD_HOOK` with a `projection` and `version` must have the `ADD_CHANGE_SET` event. Previously a projection on an `ADD_PROJECTION` or `DROP_PROJECTION` hook was silently ignored and the hook fired for every projection. `COMMENCE_CHANGE_SET` is also accepted by the schema ahead of #55, but is not yet a database event. `DROP_ENTITY` now requires `operation` like every other operation (#29).
+- `fby_hook.name` is declared `UNIQUE` rather than `UNIQUE NULLS NOT DISTINCT`. The clause did nothing on a `NOT NULL` column and was the only PostgreSQL 15 feature Filby used, so Filby now requires PostgreSQL 13 or later. Existing databases are unchanged (#28).
 
 ### Fixed
 

@@ -1,3 +1,5 @@
+-- @MARV ACCEPT = e13b653a8a45ab6c8bb6955d038429cc
+
 START TRANSACTION;
 
 CREATE TYPE fby_event_type AS ENUM (
@@ -12,7 +14,7 @@ CREATE TABLE fby_hook (
   description TEXT,
   event fby_event_type NOT NULL,
   projection_id INTEGER REFERENCES fby_projection (id) ON DELETE CASCADE,
-  CONSTRAINT uniq_fby_hook_name UNIQUE NULLS NOT DISTINCT (name),
+  CONSTRAINT uniq_fby_hook_name UNIQUE (name),
   CONSTRAINT chk_fby_hook_event_projection_id CHECK (
     (event = 'ADD_CHANGE_SET')
     OR
