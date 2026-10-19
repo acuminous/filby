@@ -1,6 +1,7 @@
 const { ok, strictEqual: eq, deepEqual: deq, match } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 const pipsqueak = require('pipsqueak');
+const { Client } = require('pg');
 
 const schedulers = [];
 const { promiseApi } = pipsqueak;
@@ -450,5 +451,21 @@ describe('Notifications', () => {
     } finally {
       process.off('unhandledRejection', onUnhandledRejection);
     }
+  });
+
+  it('should report pool errors as notification errors', async () => {
+    const { rows: [{ pg_backend_pid: pid }] } = await filby.withTransaction((tx) => tx.query('SELECT pg_backend_pid()'));
+    const failed = once(filby, TestFilby.NOTIFICATION_ERROR);
+
+    const client = new Client(filby.config.database);
+    await client.connect();
+    try {
+      await client.query('SELECT pg_terminate_backend($1)', [pid]);
+    } finally {
+      await client.end();
+    }
+
+    const { error } = await failed;
+    eq(error.message, 'terminating connection due to administrator command');
   });
 });
