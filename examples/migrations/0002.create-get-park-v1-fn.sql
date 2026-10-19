@@ -24,4 +24,4 @@ BEGIN
     s.start DESC,
     s.type ASC;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;

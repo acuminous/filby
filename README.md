@@ -424,9 +424,10 @@ BEGIN
   LEFT JOIN get_season_v1_aggregate(p_change_set_id) s ON s.park_code = p.code
   ORDER BY p.code ASC, s.start DESC, s.type ASC;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 ```
-**PRO TIP**: Since the results for a given change set should never change, consider making PostgreSQL functions IMMUTABLE so the output can be cached.
+
+Declare such functions `STABLE`, since their results depend on the change sets in the database, and do any caching in the application. The aggregates for a change set never change, so a cache keyed by projection, version and change set id needs no invalidation, but every new change set is a new key, so bound it with an LRU or TTL cache rather than an unbounded map. This is the in-process complement to using the change set id as an HTTP cache buster.
 
 
 ## Correcting and Re-issuing Data
