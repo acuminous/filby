@@ -1,4 +1,4 @@
-import { strictEqual as eq, match } from 'node:assert';
+import { ok, strictEqual as eq, match } from 'node:assert';
 import { describe, it, before, after } from 'node:test';
 import axios, { AxiosResponseHeaders } from 'axios';
 
@@ -17,6 +17,19 @@ describe('API', () => {
 
   after(async () => {
     await application.stop();
+  });
+
+  describe('GET /health', () => {
+    it('should report the notification status', async () => {
+      const { status, data } = await get('health');
+      eq(status, 200);
+      eq(data.started, true);
+      ok(['idle', 'running'].includes(data.poller));
+      eq(data.failuresSinceLastSuccess, 0);
+      eq(typeof data.pending, 'number');
+      eq(typeof data.overdue, 'number');
+      eq(typeof data.exhausted, 'number');
+    });
   });
 
   describe('GET /api/changelog', () => {

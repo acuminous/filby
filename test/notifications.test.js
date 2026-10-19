@@ -1,4 +1,4 @@
-const { ok, strictEqual: eq, deepEqual: deq, match } = require('node:assert');
+const { ok, strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 const pipsqueak = require('pipsqueak');
 
@@ -350,6 +350,113 @@ describe('Notifications', () => {
     await cgtDelivered;
 
     eq(schedulers.length, 2);
+  });
+
+  it('should report that notifications have not started', async () => {
+    const other = new TestFilby(config);
+    try {
+      const status = await other.getNotificationStatus();
+
+      eq(status.started, false);
+      eq(status.poller, undefined);
+      eq(status.lastSuccessfulPollAt, undefined);
+      eq(status.failuresSinceLastSuccess, 0);
+      eq(status.lastError, undefined);
+    } finally {
+      await other.stop();
+    }
+  });
+
+  it('should report the poller status once notifications have started', async () => {
+    await filby.startNotifications();
+
+    const status = await filby.getNotificationStatus();
+
+    eq(status.started, true);
+    ok(['idle', 'running'].includes(status.poller));
+  });
+
+  it('should report the last successful poll', async () => {
+    const other = new TestFilby(config);
+    try {
+      const checkpoint = Date.now();
+      await other.startNotifications();
+
+      await until(async () => (await other.getNotificationStatus()).lastSuccessfulPollAt);
+
+      const status = await other.getNotificationStatus();
+      ok(status.lastSuccessfulPollAt >= checkpoint);
+      eq(status.failuresSinceLastSuccess, 0);
+      eq(status.lastError, undefined);
+    } finally {
+      await other.stop();
+    }
+  });
+
+  it('should report polling failures', async () => {
+    await setup();
+
+    await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification RENAME TO fby_notification_hidden'));
+    const failed = once(filby, TestFilby.NOTIFICATION_ERROR);
+    const checkpoint = Date.now();
+    try {
+      filby.startNotifications();
+      await failed;
+      await filby.stopNotifications();
+    } finally {
+      await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification_hidden RENAME TO fby_notification'));
+    }
+
+    const status = await filby.getNotificationStatus();
+    eq(status.started, false);
+    eq(status.poller, undefined);
+    eq(status.failuresSinceLastSuccess, 1);
+    ok(status.lastError.at >= checkpoint);
+    match(status.lastError.message, /fby_notification/);
+  });
+
+  it('should reset the failure count when polling succeeds again', async () => {
+    await setup();
+
+    await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification RENAME TO fby_notification_hidden'));
+    const failed = once(filby, TestFilby.NOTIFICATION_ERROR);
+    try {
+      filby.startNotifications();
+      await failed;
+    } finally {
+      await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification_hidden RENAME TO fby_notification'));
+    }
+
+    await until(async () => (await filby.getNotificationStatus()).failuresSinceLastSuccess === 0);
+
+    const status = await filby.getNotificationStatus();
+    ok(status.lastSuccessfulPollAt);
+    match(status.lastError.message, /fby_notification/);
+  });
+
+  it('should count pending, overdue and exhausted notifications', async () => {
+    await setup();
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, scheduled_for, attempts, status) VALUES
+        (2, 'CGT Rates', 1, now() + INTERVAL '1 hour', 0, 'PENDING'),
+        (1, 'CGT Rates', 1, now() - INTERVAL '1 hour', 3, 'PENDING'),
+        (2, 'CGT Rates', 1, now() - INTERVAL '1 hour', 1, 'OK')`);
+    });
+
+    const status = await filby.getNotificationStatus();
+
+    eq(status.pending, 3);
+    eq(status.overdue, 2);
+    eq(status.exhausted, 1);
+  });
+
+  it('should throw when the notification status cannot be read', async () => {
+    await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification RENAME TO fby_notification_hidden'));
+    try {
+      await rejects(() => filby.getNotificationStatus(), /fby_notification/);
+    } finally {
+      await filby.withTransaction((tx) => tx.query('ALTER TABLE fby_notification_hidden RENAME TO fby_notification'));
+    }
   });
 
   it('should deliver a notification to only one of several instances polling concurrently', async () => {

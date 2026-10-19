@@ -10,6 +10,7 @@ import axios, { AxiosError } from 'axios';
 import pkg from '../package.json';
 import { Filby, Config as FilbyConfig, Projection, Notification, ErrorNotification } from '../../..';
 import changeLogRoute from './routes/changelog-v1';
+import healthRoute from './routes/health';
 import ProjectionsApi from './ProjectionsApi';
 
 export type ApplicationConfig = {
@@ -108,8 +109,13 @@ export default class Application {
     });
     await this.#fastify.register(cors, { origin: '*', methods: ['GET'] });
     await this.#registerSwagger();
+    await this.#registerHealth();
     await this.#registerChangelog();
     await this.#registerProjections();
+  }
+
+  async #registerHealth() {
+    await this.#fastify.register(healthRoute, { prefix: '/health', filby: this.#filby });
   }
 
   async #registerSwagger() {

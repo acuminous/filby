@@ -9,6 +9,7 @@ export class Filby {
   init(): Promise<void>;
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
+  getNotificationStatus(): Promise<NotificationStatus>;
   subscribe<T>(event: string, handler: (notification: T, context: HandlerContext) => Promise<void>);
   unsubscribe<T>(event: string, handler?: (notification: T, context: HandlerContext) => Promise<void>);
   unsubscribeAll();
@@ -70,6 +71,20 @@ export type ErrorNotification<T> = {
 
 export type NotificationError = {
   error: Error;
+};
+
+export type NotificationStatus = {
+  started: boolean;
+  poller?: 'idle' | 'running' | 'stopped' | 'disabled';
+  lastSuccessfulPollAt?: Date;
+  failuresSinceLastSuccess: number;
+  lastError?: {
+    at: Date;
+    message: string;
+  };
+  pending: number;
+  overdue: number;
+  exhausted: number;
 };
 
 export type Entity = {

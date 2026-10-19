@@ -464,6 +464,17 @@ Starts polling the database for notifications. Does nothing if Filby is already 
 #### filby.stopNotifications(): Promise&lt;void&gt;
 Stops polling the database for notifications, aborts the signal passed to any inflight handlers, and waits for the current delivery to be recorded.
 
+#### filby.getNotificationStatus(): Promise&lt;NotificationStatus&gt;
+Reports the state of the notification poller and queue for health checks. `started` is whether Filby is polling. `poller` is `idle` between polls, `running` while a poll is in progress, `stopped` only transiently during `filby.stopNotifications()`, and `undefined` whenever Filby is not polling. `lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError` (`at` and `message`) are tracked in memory, so they survive `filby.stopNotifications()` but not a process restart. `failuresSinceLastSuccess` returns to 0 when a poll succeeds, whereas `lastError` keeps the most recent poll error. `pending` counts the notifications that have not yet been delivered, `overdue` those whose scheduled time has passed, and `exhausted` those that have reached `maxAttempts` and will not be retried. An exhausted notification is also overdue. A growing `overdue` count while polls succeed means handlers are failing. The counts come from a single query, so the method rejects when the database is unavailable, which is what a health check should do. `Filby.NOTIFICATION_ERROR` remains the as-it-happens signal for polling failures, e.g.
+
+```js
+fastify.get('/health', async (request, reply) => {
+  const status = await filby.getNotificationStatus();
+  reply.code(status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
+  return status;
+});
+```
+
 #### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T, context: HandlerContext) => Promise&lt;void&gt;): void
 Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for hooks and perform of asynchronous tasks like making an HTTP request for a webhook. The hook name is user defined and must be specified in the Hook [Data Definition](#data-definition). The first callback parameter is the Notification context (see the TypeScript definitions). The second is an object with an [AbortSignal](https://nodejs.org/api/globals.html#class-abortsignal), which Filby aborts if the handler exceeds the configurable `handlerTimeout` (default 30 seconds) or when `filby.stopNotifications()` or `filby.stop()` is called. Pass the signal to anything that accepts one, such as `fetch`, and check `signal.aborted` between steps in longer handlers, e.g.
 
