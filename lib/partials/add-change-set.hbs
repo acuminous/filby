@@ -11,7 +11,7 @@ BEGIN
   {{#frames}}
   {{> insert_data_frame entity=entity version=version chunks=(frameChunks this)}}
 
-  PERFORM fby_notify_add_change_set({{literal entity}}, {{literal version}});
+  PERFORM fby_notify_add_change_set(v_change_set_id, {{literal entity}}, {{literal version}});
   {{/frames}}
 
   PERFORM fby_reissue_change_sets(v_change_set_id);

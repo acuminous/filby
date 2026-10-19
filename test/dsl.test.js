@@ -1899,6 +1899,18 @@ describe('DSL', () => {
         doesNotThrow(() => validateMigration(t.name, YAML.parse(transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.event', 'COMMENCE_CHANGE_SET'))));
       });
 
+      it('should add a projection specific COMMENCE_CHANGE_SET hook', async (t) => {
+        await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.event', 'COMMENCE_CHANGE_SET'));
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
+          SELECT h.name, h.event, p.name AS projection, version
+          FROM fby_hook h
+          LEFT JOIN fby_projection p ON h.projection_id = p.id
+        `));
+
+        deq(hooks, [{ name: 'sns/add-change-set/vat-rates-v1', event: 'COMMENCE_CHANGE_SET', projection: 'VAT Rates', version: 1 }]);
+      });
+
       it('should require a projection', async (t) => {
         await rejects(() => filby.applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.projection')), (err) => {
           eq(err.message, "001.should-require-a-projection.yaml: /0 must have required property 'projection'");
