@@ -513,7 +513,7 @@ Returns the current changeset for the given projection based on the database's c
 Returns the specified change set
 
 #### filby.getAggregates&lt;T&gt;(changeSetId: number, name: string, version: number): Promise&lt;T[]&gt;
-Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last).
+Returns aggreated entity data for the specified changeSetId. The sort order will be in order of the entity's identifier fields (ascending, nulls last). Rejects with `Function 'get_park_v1_aggregate' does not exist` if there is no such entity, and with `Change set 42 does not exist` if there is no such change set.
 
 ```js
 async function getParks(changeSetId) {
