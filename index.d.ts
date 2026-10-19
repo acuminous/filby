@@ -33,6 +33,7 @@ export type Config = {
     maxAttempts?: number;
     maxRescheduleDelay?: string;
     handlerTimeout?: string;
+    listen?: boolean;
   }
 };
 

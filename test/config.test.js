@@ -9,7 +9,7 @@ describe('Config', () => {
     doesNotThrow(() => new Filby({
       database: { user: 'fby_test', password: 'fby_test' },
       migrations: ['test/migrations', 'test/data'],
-      notifications: { interval: '1m', initialDelay: '1s', maxAttempts: 10, maxRescheduleDelay: '1h', handlerTimeout: '30s' },
+      notifications: { interval: '1m', initialDelay: '1s', maxAttempts: 10, maxRescheduleDelay: '1h', handlerTimeout: '30s', listen: true },
     }));
   });
 
@@ -59,5 +59,9 @@ describe('Config', () => {
 
   it('should reject durations that are not strings', () => {
     throws(() => new Filby({ notifications: { handlerTimeout: 30000 } }), { message: 'Invalid config: /notifications/handlerTimeout must be string' });
+  });
+
+  it('should reject a listen flag that is not a boolean', () => {
+    throws(() => new Filby({ notifications: { listen: 'yes' } }), { message: 'Invalid config: /notifications/listen must be boolean' });
   });
 });
