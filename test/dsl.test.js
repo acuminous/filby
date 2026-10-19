@@ -2080,6 +2080,27 @@ describe('DSL', () => {
         return true;
       });
     });
+
+    it('should resolve aggregates by entity name regardless of case', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      deq(await filby.getAggregates(changeSetId, 'vat RATE', 1), await filby.getAggregates(changeSetId, 'VAT Rate', 1));
+    });
+
+    it('should resolve aggregates for entity names that need quoting', async (t) => {
+      const injection = "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;";
+
+      await filby.applyYaml(
+        t.name,
+        transform(ADD_ENTITY).set('0.name', injection),
+        transform(ADD_PROJECTION).set('0.dependencies.0.entity', injection),
+        transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: injection, version: 1, action: 'SET', data: [{ type: 'standard', rate: 0.10 }] }]),
+      );
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      deq(await filby.getAggregates(changeSetId, injection, 1), [{ type: 'standard', rate: 0.10 }]);
+    });
   });
 
   describe('Migrations', () => {
