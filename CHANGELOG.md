@@ -74,6 +74,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - An error raised by the connection pool, such as the server closing an idle connection after a restart or failover, is reported by emitting `Filby.NOTIFICATION_ERROR` with the error. Previously the pool had no error listener, so the `error` event was unhandled and exited the process (#17).
 - `DROP_ENUM` and `ALTER_ENUM` look the enum up by its canonical name, so an enum added as `Season Type` can be dropped, and can have values added, by that name. Previously `ADD_ENUM` created the type as `season_type` but the other two operations looked for a type named `Season Type` and failed with `Enum 'Season Type' does not exist`. The error for an enum that really does not exist still quotes the name as written (#145).
 - A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener that throws no longer takes the process down. The failed attempt stays recorded and polling continues. Previously the emit was not awaited, so a rejecting listener raised an unhandled rejection, which exits the process under Node's defaults (#16).
+- A CSV source with a single column loads. papaparse cannot detect a delimiter in a file that contains none and reports that as an error, which Filby treated as fatal, so a DELETE frame whose CSV holds only the key column failed with `Unable to auto-detect delimiting character`. CSV sources are now always read as comma separated (#152).
 
 ### Added
 

@@ -2784,6 +2784,15 @@ describe('DSL', () => {
       deq(frames.map((frame) => frame.type), ['standard', 'reduced', 'zero']);
     });
 
+    it('should load a csv with a single column', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'DELETE', source: '../dsl/datafiles/vat-rate-v1-2020-single-column.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['DELETE']);
+      deq(frames.map((frame) => frame.type), ['standard']);
+    });
+
     it('should accept the frame action for csv rows in any case', async (t) => {
       const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'delete', source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]);
       await filby.applyYaml(t.name, ADD_ENTITY, yaml);
