@@ -9,15 +9,7 @@ BEGIN
   ({{#if (isBareDate effective)}}{{literal effective}}::timestamp AT TIME ZONE {{literal timezone}}{{else}}{{literal effective}}{{/if}}, {{literal description}})
   RETURNING id INTO v_change_set_id;
   {{#frames}}
-  {{#if source}}
-  {{#loadCsv source}}
-  {{> insert_data_frame entity=../entity version=../version action=action data=data}}
-  {{/loadCsv}}
-  {{else}}
-  {{#data}}
-  {{> insert_data_frame entity=../entity version=../version action=../action data=.}}
-  {{/data}}
-  {{/if}}
+  {{> insert_data_frame entity=entity version=version chunks=(frameChunks this)}}
 
   PERFORM fby_notify_add_change_set({{literal entity}}, {{literal version}});
   {{/frames}}

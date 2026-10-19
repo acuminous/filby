@@ -53,7 +53,7 @@ module.exports = class TestFilby extends Filby {
   async #deleteMigrations() {
     const filenames = await fs.readdir(this.#migrationsDirectory);
     const unlinkMigrationFiles = filenames
-      .filter((filename) => ['.sql', '.json', '.yaml'].includes(path.extname(filename)))
+      .filter((filename) => ['.sql', '.json', '.yaml', '.csv'].includes(path.extname(filename)))
       .map((filename) => path.join(this.#migrationsDirectory, filename))
       .map((filename) => fs.unlink(filename));
     await Promise.all(unlinkMigrationFiles);
