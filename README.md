@@ -18,6 +18,7 @@ Like checking out a commit, your applications can use Filby to retrieve referenc
 See the [example applications](#example-applications) for usage.
 
 ## Contents
+- [The Snapshot Guarantee](#the-snapshot-guarantee)
 - [Introduction](#introduction)
 - [Benefits](#benefits)
 - [Concepts](#concepts)
@@ -27,6 +28,15 @@ See the [example applications](#example-applications) for usage.
 - [Configuration](#configuration)
 - [Command Line](#command-line)
 - [Example Applications](#example-applications)
+
+## The Snapshot Guarantee
+A change set id is an immutable snapshot key. Every change set has an effective date, and the data at change set N is everything Filby knew when N was added that was in force on N's effective date. The aggregate function for an entity resolves this from the data frames. For each key it takes the latest frame, by effective date and then by change set id, from the change sets with an id no greater than N and an effective date no later than N's. A record whose latest frame is a DELETE is omitted.
+
+That data never changes. Change set ids come from a sequence, so anything added later has a higher id and falls outside the snapshot, whatever its effective date. Data frames and the rows in the entity tables are only ever inserted, never updated, and each change set is added in a single transaction, so it is either wholly visible or not there at all. When an addition would need to appear under an earlier id, such as backfilled or corrected data, Filby re-issues the affected change sets under new ids and leaves the originals as they were, so `getChangeSet` and `getAggregates` for a superseded id still return the original result. See [Correcting and Re-issuing Data](#correcting-and-re-issuing-data).
+
+This is what makes a change set id safe to build on. Fixing one at the start of a workflow gives consistent reads across every request in it, a response keyed by change set id can be cached indefinitely, and a change set with a future effective date has a fixed id and fixed contents from the moment it is loaded, so it can be fetched and cached ahead of time. See [Benefits](#benefits).
+
+The one exception is deleting a change set, which changes the aggregates of every later change set. It is the escape hatch for data that was never served; see [Deleting a change set](#deleting-a-change-set).
 
 ## Introduction
 Most applications require reference data that changes slowly over time. This presents the following challenges in a distributed or microservice architecture.
