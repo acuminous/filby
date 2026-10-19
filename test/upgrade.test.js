@@ -1,3 +1,5 @@
+const fs = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const { strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
 const { describe, it, beforeEach, after } = require('node:test');
@@ -10,6 +12,7 @@ const driver = require('../lib/marv-filby-driver');
 const server = { user: 'fby_test', password: 'fby_test' };
 const database = { ...server, database: 'fby_upgrade' };
 const filbyDirectory = path.join(__dirname, '..', 'migrations');
+const directories = [];
 
 describe('Upgrade', () => {
 
@@ -21,6 +24,7 @@ describe('Upgrade', () => {
 
   after(async () => {
     await execute(server, 'DROP DATABASE IF EXISTS fby_upgrade WITH (FORCE)');
+    await Promise.all(directories.map((directory) => fs.rm(directory, { recursive: true, force: true })));
   });
 
   it('should backfill entity metadata', async () => {
@@ -167,6 +171,9 @@ describe('Upgrade', () => {
         (2, 'standard', 'uk', 0.20),
         (3, 'standard', 'uk', 0.18),
         (4, 'reduced', 'uk', 0.05);
+
+      SELECT setval(pg_get_serial_sequence('fby_change_set', 'id'), 4);
+      SELECT setval(pg_get_serial_sequence('fby_data_frame', 'id'), 4);
     `);
 
     await upgrade();
@@ -228,6 +235,182 @@ describe('Upgrade', () => {
     deq(aggregate2021, [{ tax_rate: 'standard', region: 'uk', rate: '0.20' }]);
   });
 
+  it('should re-issue change sets with a later effective date than a later change set', async () => {
+    await createVatRateEntity();
+    await createVatRatesProjection();
+    await addChangeSet({ effective: '2026-01-01', description: '2026 VAT Rates', taxRate: 'standard', rate: '0.2' });
+    await addChangeSet({ effective: '2027-01-01', description: '2027 VAT Rates', taxRate: 'standard', rate: '0.25' });
+    await addChangeSet({ effective: '2026-06-01', description: 'Mid 2026 VAT Rates', taxRate: 'reduced', rate: '0.05' });
+
+    await upgrade();
+
+    const { rows: changeSets } = await query('SELECT id, description, superseded_by, reissued_from FROM fby_change_set ORDER BY id');
+    deq(changeSets, [
+      { id: 1, description: '2026 VAT Rates', superseded_by: null, reissued_from: null },
+      { id: 2, description: '2027 VAT Rates', superseded_by: 4, reissued_from: null },
+      { id: 3, description: 'Mid 2026 VAT Rates', superseded_by: null, reissued_from: null },
+      { id: 4, description: '2027 VAT Rates', superseded_by: null, reissued_from: 2 },
+    ]);
+
+    const { rows: reissuedAggregate } = await query('SELECT * FROM get_vat_rate_v1_aggregate(4) ORDER BY rate DESC');
+    deq(reissuedAggregate, [
+      { tax_rate: 'standard', region: 'uk', rate: '0.25' },
+      { tax_rate: 'reduced', region: 'uk', rate: '0.05' },
+    ]);
+
+    const { rows: originalAggregate } = await query('SELECT * FROM get_vat_rate_v1_aggregate(2)');
+    deq(originalAggregate, [{ tax_rate: 'standard', region: 'uk', rate: '0.25' }]);
+
+    const { rows: notifications } = await query(`
+      SELECT h.name AS hook_name, n.projection_name, n.projection_version
+      FROM fby_notification n
+      INNER JOIN fby_hook h ON h.id = n.hook_id`);
+    deq(notifications, [{ hook_name: 'sns/add-change-set/vat-rates-v1', projection_name: 'VAT Rates', projection_version: 1 }]);
+  });
+
+  it('should re-issue change sets as adding them in a migration would', async () => {
+    await expectSameLiveChangeSetsAsMigration([
+      { effective: '2026-01-01', description: '2026 VAT Rates', taxRate: 'standard', rate: '0.2' },
+      { effective: '2027-01-01', description: '2027 VAT Rates', taxRate: 'standard', rate: '0.25' },
+      { effective: '2026-06-01', description: 'Mid 2026 VAT Rates', taxRate: 'reduced', rate: '0.05' },
+    ]);
+  });
+
+  it('should re-issue change sets with a later effective date than a re-issued change set', async () => {
+    const liveChangeSets = await expectSameLiveChangeSetsAsMigration([
+      { effective: '2020-01-01', description: '2020 VAT Rates', taxRate: 'standard', rate: '0.2' },
+      { effective: '2025-01-01', description: '2025 VAT Rates', taxRate: 'standard', rate: '0.25' },
+      { effective: '2021-01-01', description: '2021 VAT Rates', taxRate: 'reduced', rate: '0.05' },
+      { effective: '2030-01-01', description: '2030 VAT Rates', taxRate: 'zero', rate: '0' },
+    ]);
+    deq(
+      liveChangeSets.map(({ description }) => description),
+      ['2020 VAT Rates', '2021 VAT Rates', '2025 VAT Rates', '2030 VAT Rates'],
+    );
+  });
+
+  it('should not re-issue change sets that are already in order', async () => {
+    await createVatRateEntity();
+    await createVatRatesProjection();
+    await addChangeSet({ effective: '2020-01-01', description: '2020 VAT Rates', taxRate: 'standard', rate: '0.2' });
+    await addChangeSet({ effective: '2021-01-01', description: '2021 VAT Rates', taxRate: 'reduced', rate: '0.05' });
+    await addChangeSet({ effective: '2021-01-01', description: '2021 VAT Rates Correction', taxRate: 'reduced', rate: '0.06' });
+
+    await upgrade();
+
+    const { rows: changeSets } = await query('SELECT id, description, superseded_by, reissued_from FROM fby_change_set ORDER BY id');
+    deq(changeSets, [
+      { id: 1, description: '2020 VAT Rates', superseded_by: null, reissued_from: null },
+      { id: 2, description: '2021 VAT Rates', superseded_by: null, reissued_from: null },
+      { id: 3, description: '2021 VAT Rates Correction', superseded_by: null, reissued_from: null },
+    ]);
+
+    const { rows: frames } = await query('SELECT id, change_set_id FROM fby_data_frame ORDER BY id');
+    deq(frames, [
+      { id: 1, change_set_id: 1 },
+      { id: 2, change_set_id: 2 },
+      { id: 3, change_set_id: 3 },
+    ]);
+
+    const { rows: notifications } = await query('SELECT id FROM fby_notification');
+    deq(notifications, []);
+  });
+
+  async function expectSameLiveChangeSetsAsMigration(changeSets) {
+    await createVatRateEntity();
+    await createVatRatesProjection();
+    for (const changeSet of changeSets) {
+      await addChangeSet(changeSet);
+    }
+    await upgrade();
+    const upgraded = await getLiveChangeSets();
+
+    await execute(server, 'DROP DATABASE fby_upgrade WITH (FORCE)');
+    await execute(server, 'CREATE DATABASE fby_upgrade');
+    await applyYaml(vatRatesMigration(changeSets));
+    const migrated = await getLiveChangeSets();
+
+    deq(upgraded, migrated);
+    return upgraded;
+  }
+
+  async function getLiveChangeSets() {
+    const { rows: changeSets } = await query('SELECT id, description, effective FROM fby_change_set WHERE superseded_by IS NULL ORDER BY id');
+    return Promise.all(
+      changeSets.map(async ({ id, description, effective }) => {
+        const { rows: aggregate } = await query(`SELECT tax_rate::TEXT, region::TEXT, rate FROM get_vat_rate_v1_aggregate(${id}) ORDER BY rate DESC`);
+        return { description, effective: effective.toISOString(), aggregate };
+      }),
+    );
+  }
+
+  async function applyYaml(yaml) {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'filby-'));
+    directories.push(directory);
+    await fs.writeFile(path.join(directory, '.marvrc'), JSON.stringify({ directives: { audit: false } }));
+    await fs.writeFile(path.join(directory, '001.vat-rates.yaml'), yaml);
+    await upgrade([directory]);
+  }
+
+  function vatRatesMigration(changeSets) {
+    return `
+- operation: ADD_ENTITY
+  name: VAT Rate
+  version: 1
+  fields:
+    - name: tax_rate
+      type: TEXT
+    - name: region
+      type: TEXT
+    - name: rate
+      type: NUMERIC
+  identified_by:
+    - tax_rate
+    - region
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  dependencies:
+    - entity: VAT Rate
+      version: 1
+- operation: ADD_HOOK
+  name: sns/add-change-set/vat-rates-v1
+  event: ADD_CHANGE_SET
+  projection: VAT Rates
+  version: 1
+${changeSets.map(({ effective, description, taxRate, rate }) => `
+- operation: ADD_CHANGE_SET
+  description: ${description}
+  effective: ${effective}T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: SET
+      data:
+        - tax_rate: ${taxRate}
+          region: uk
+          rate: ${rate}`).join('')}`;
+  }
+
+  async function createVatRatesProjection() {
+    await query(`
+      INSERT INTO fby_projection (name, version) VALUES ('VAT Rates', 1);
+      INSERT INTO fby_projection_entity (projection_id, entity_id) SELECT p.id, e.id FROM fby_projection p, fby_entity e;
+      INSERT INTO fby_hook (name, event, projection_id) SELECT 'sns/add-change-set/vat-rates-v1', 'ADD_CHANGE_SET', id FROM fby_projection;
+    `);
+  }
+
+  async function addChangeSet({ effective, description, taxRate, rate }) {
+    await query(`
+      WITH change_set AS (
+        INSERT INTO fby_change_set (effective, description) VALUES ('${effective}T00:00:00.000Z', '${description}') RETURNING id
+      ), frame AS (
+        INSERT INTO fby_data_frame (change_set_id, entity_id, action) SELECT change_set.id, fby_entity.id, 'POST' FROM change_set, fby_entity RETURNING id
+      )
+      INSERT INTO vat_rate_v1 (fby_frame_id, tax_rate, region, rate) SELECT frame.id, '${taxRate}', 'uk', ${rate} FROM frame;
+    `);
+  }
+
   async function createVatRateEntity() {
     await query(`
       CREATE TYPE vat_tax_rate AS ENUM ('standard', 'reduced', 'zero');
@@ -251,8 +434,8 @@ describe('Upgrade', () => {
     await marv.migrate(released, driver({ database }), { checksums: 'error' });
   }
 
-  async function upgrade() {
-    const filby = new Filby({ database, migrations: [] });
+  async function upgrade(migrations = []) {
+    const filby = new Filby({ database, migrations });
     try {
       await filby.init();
     } finally {
