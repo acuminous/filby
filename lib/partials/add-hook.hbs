@@ -3,7 +3,6 @@ DO $$
 DECLARE
   v_projection_id INTEGER;
 BEGIN
-  {{#if (eq event 'ADD_CHANGE_SET')}}
   {{#if (and projection version)}}
   SELECT id INTO v_projection_id
   FROM fby_projection
@@ -13,7 +12,6 @@ BEGIN
   IF v_projection_id IS NULL THEN
     RAISE EXCEPTION 'Hook '{{literal name}}' references a non existent projection '{{literal projection (v version)}}'';
   END IF;
-  {{/if}}
   {{/if}}
 
   BEGIN

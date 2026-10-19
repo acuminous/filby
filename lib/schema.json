@@ -22,7 +22,10 @@
               "DROP_HOOK"
             ]
           }
-        }
+        },
+        "required": [
+          "operation"
+        ]
       },
       {
         "anyOf": [
@@ -328,6 +331,15 @@
         ]
       },
       "then": {
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "ADD_CHANGE_SET",
+              "COMMENCE_CHANGE_SET"
+            ]
+          }
+        },
         "required": [
           "operation",
           "name",
@@ -454,6 +466,7 @@
       },
       "additionalProperties": false,
       "required": [
+        "operation",
         "name",
         "version"
       ]
@@ -527,15 +540,13 @@
     "DropHookOperationType": {
       "const": "DROP_HOOK"
     },
-    "DropChangeSetOperationType": {
-      "const": "DROP_CHANGE_SET"
-    },
     "EventType": {
       "type": "string",
       "enum": [
         "ADD_PROJECTION",
         "DROP_PROJECTION",
-        "ADD_CHANGE_SET"
+        "ADD_CHANGE_SET",
+        "COMMENCE_CHANGE_SET"
       ]
     },
     "StringListType": {
@@ -544,10 +555,6 @@
       "items": {
         "type": "string"
       }
-    },
-    "SafeStringType": {
-      "type": "string",
-      "pattern": "^[a-zA-Z0-9_]+$"
     }
   }
 }

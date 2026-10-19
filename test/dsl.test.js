@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { ok, strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
+const { promisify } = require('node:util');
+const { ok, strictEqual: eq, deepEqual: deq, rejects, doesNotThrow } = require('node:assert');
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
@@ -8,6 +9,8 @@ const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_V
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
+const validateMigration = require('../lib/validate-migration');
+const driver = require('../lib/marv-filby-driver');
 
 const config = {
   nukeCustomObjects: async (tx) => {
@@ -550,6 +553,13 @@ describe('DSL', () => {
 
       ok(await hasTable('vat_rate_v2'));
       ok(await hasFunction('get_vat_rate_v2_aggregate'));
+    });
+
+    it('should require an operation', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(DROP_ENTITY).del('0.operation')), (err) => {
+        eq(err.message, "001.should-require-an-operation.yaml: /0 must have required property 'operation'");
+        return true;
+      });
     });
 
     it('should require a name', async (t) => {
@@ -1455,9 +1465,20 @@ describe('DSL', () => {
 
       it('should require event to be valid', async (t) => {
         await rejects(() => filby.applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.event', 'wombat')), (err) => {
-          eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_PROJECTION', 'DROP_PROJECTION' or 'ADD_CHANGE_SET'");
+          eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_CHANGE_SET' or 'COMMENCE_CHANGE_SET'");
           return true;
         });
+      });
+
+      it('should require event to be a change set event', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.event', 'ADD_PROJECTION')), (err) => {
+          eq(err.message, "001.should-require-event-to-be-a-change-set-event.yaml: /0/event must be equal to one of the allowed values 'ADD_CHANGE_SET' or 'COMMENCE_CHANGE_SET'");
+          return true;
+        });
+      });
+
+      it('should accept the COMMENCE_CHANGE_SET event', async (t) => {
+        doesNotThrow(() => validateMigration(t.name, YAML.parse(transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.event', 'COMMENCE_CHANGE_SET'))));
       });
 
       it('should require a projection', async (t) => {
@@ -1622,7 +1643,7 @@ describe('DSL', () => {
 
       it('should require event to be valid', async (t) => {
         await rejects(() => filby.applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.event', 'wombat')), (err) => {
-          eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_PROJECTION', 'DROP_PROJECTION' or 'ADD_CHANGE_SET'");
+          eq(err.message, "001.should-require-event-to-be-valid.yaml: /0/event must be equal to one of the allowed values 'ADD_PROJECTION', 'DROP_PROJECTION', 'ADD_CHANGE_SET' or 'COMMENCE_CHANGE_SET'");
           return true;
         });
       });
@@ -2186,8 +2207,9 @@ describe('DSL', () => {
       deq(entities[0], { name: 'VAT Rate', version: 1 });
     });
 
-    it('should report unsupported file types', async (t) => {
-      await rejects(() => filby.apply(t.name, 'UNSUPPORTED', 'avro'), (err) => {
+    it('should report unsupported file types', async () => {
+      const { runMigration } = driver({ database: {} });
+      await rejects(() => promisify(runMigration)({ filename: '001.unsupported.avro' }), (err) => {
         eq(err.message, 'Unsupported file type: avro');
         return true;
       });
