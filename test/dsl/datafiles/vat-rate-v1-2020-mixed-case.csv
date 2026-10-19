@@ -1,0 +1,4 @@
+action,type,rate
+set,standard,0.10
+,reduced,0.05
+Delete,zero,0

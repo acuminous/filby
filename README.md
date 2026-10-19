@@ -283,6 +283,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   timezone: Europe/London
   changes:
     - entity: park@1
+      # The action is optional, defaults to SET and may be written in any case
       action: SET
       data:
           # Adds a data frame for Devon Cliffs
@@ -301,14 +302,15 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 
       # YAML can get verbose, so you can also import data frames from a local CSV
       # The source path is relative to the directory containing the migration file
-      # The CSV requires a header row, starting with the action column and
-      # followed by the column names of your entity. When deleting data you
-      # only need to include the fields that identify the entity
+      # The CSV requires a header row with the column names of your entity,
+      # and may include an action column. Without the column, or with an
+      # empty cell, the action is SET. When deleting data you only need to
+      # include the fields that identify the entity
     - entity: park@1
       source: ./data/park-data-2019.csv
       # action,code,name
       # SET,KC,Kent Coast
-      # SET,CA,Caistor
+      # ,CA,Caistor
       # DELETE,TP,
 ```
 

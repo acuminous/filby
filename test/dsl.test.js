@@ -1495,11 +1495,32 @@ describe('DSL', () => {
       });
     });
 
-    it('should require frames to specify either an action or a source', async (t) => {
-      await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).del('0.frames.0.action')), (err) => {
-        eq(err.message, "001.should-require-frames-to-specify-either-an-action-or-a-source.yaml: /0/frames/0 must have required property 'source' or 'action'");
-        return true;
-      });
+    it('should default frame action to SET', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_CHANGE_SET_1).del('0.frames.0.action')).set('0.frames.1.action', 'DELETE'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+    });
+
+    it('should accept lower case frame actions', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'set')).set('0.frames.1.action', 'delete')).set('0.frames.2.action', 'post'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+    });
+
+    it('should accept mixed case frame actions', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'Set')).set('0.frames.1.action', 'Delete')).set('0.frames.2.action', 'Post'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+    });
+
+    it('should accept change set actions in any case', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_CHANGE_SET_1).del('0.frames')).set('0.changes', [{ entity: 'VAT Rate@1', action: 'delete', data: [{ type: 'standard' }] }]));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['DELETE']);
     });
 
     it('should require frame action to be a string', async (t) => {
@@ -1512,6 +1533,13 @@ describe('DSL', () => {
     it('should require frame action to be valid', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'GET')), (err) => {
         eq(err.message, "001.should-require-frame-action-to-be-valid.yaml: /0/frames/0/action must be equal to one of the allowed values 'SET', 'POST' or 'DELETE'");
+        return true;
+      });
+    });
+
+    it('should require frame action to be valid in any case', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.action', 'get')), (err) => {
+        eq(err.message, "001.should-require-frame-action-to-be-valid-in-any-case.yaml: /0/frames/0/action must be equal to one of the allowed values 'SET', 'POST' or 'DELETE'");
         return true;
       });
     });
@@ -2505,6 +2533,23 @@ describe('DSL', () => {
 
       const frames = await getDataFrames('2020 VAT Rates');
       deq(frames.map((frame) => frame.action), ['SET', 'SET', 'SET']);
+    });
+
+    it('should default csv frames to SET when the action column is omitted', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'SET', 'SET']);
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced', 'zero']);
+    });
+
+    it('should accept csv frame actions in any case and default empty cells to SET', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-mixed-case.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'SET', 'DELETE']);
     });
 
     it('should escape data frames in csv files', async (t) => {
