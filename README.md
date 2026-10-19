@@ -25,6 +25,7 @@ See the [example applications](#example-applications) for usage.
 - [Correcting and Re-issuing Data](#correcting-and-re-issuing-data)
 - [API](#api)
 - [Configuration](#configuration)
+- [Command Line](#command-line)
 - [Example Applications](#example-applications)
 
 ## Introduction
@@ -671,6 +672,24 @@ Directives in a `.marvrc` apply only to the migrations in that directory. For ex
 ```
 
 Filby verifies the checksums of its own migrations on every `filby.init()`, and fails if one has changed since it was applied. Filby supports upgrading from version 0.14.0 or later; databases created by earlier versions will fail this check. The checksums of your own migrations are not verified.
+
+## Command Line
+Filby ships a command line tool for checking migrations without a database.
+
+```bash
+npx filby validate migrations
+npx filby preview migrations
+```
+
+Both commands scan the directories you name, or `migrations` when you name none, exactly as `filby.init()` does. Every YAML and JSON migration is parsed, validated against Filby's schema and rendered to SQL, which reads the CSV files that `source` frames refer to, so a syntax error, a schema violation, a key that names no field, a reference that specifies its version twice, or a missing or malformed CSV file is reported. SQL migrations are not checked. Every file is checked, and each problem is written to stderr as `<file>: <message>`, with the JSON path of the offending value where there is one.
+
+```
+migrations/0004.season-2020.yaml: /0 must have required property 'effective'
+```
+
+`filby validate` exits with code 1 if any migration failed and 0 otherwise, so it can run in CI. `filby preview` performs the same checks and then writes the SQL that `filby.init()` would run to stdout, in the order it would be applied, each migration preceded by a `-- <file>` comment and SQL migrations copied verbatim, so you can read what a change set will do or diff it in review. If any migration fails, `filby preview` writes the errors, no SQL, and exits with code 1.
+
+The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
 
 ## Example Applications
 This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
