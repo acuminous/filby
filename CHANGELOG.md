@@ -60,13 +60,10 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - `startNotifications` does nothing if Filby is already polling. Previously each call started another poller, and only the last could be stopped, so `stopNotifications` and `stop` left the others running. `stopNotifications` now discards the stopped poller, so `startNotifications` after it starts a fresh one (#21).
 - A YAML data frame field with no value (`label:` or `label: ~`) is stored as `NULL`. Previously text columns stored an empty string and other columns failed with a cast error. A nested map or list is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column; a quoted value is still stored as text (#8).
 - `unsubscribe(event)` with no handler removes every handler for the event, as documented. Previously it threw `removeListener only takes instances of Function` (#20).
+- Filby no longer modifies the shared Handlebars module. Its helpers and partials are registered on a private Handlebars environment, and the guard that rejects unescaped expressions is installed only while a Filby migration is rendered. Previously, loading Filby made a host application's own Handlebars templates throw and replaced any helper the host had registered under the same name (#24).
 
 ### Added
 
 - Entity definitions are recorded in `fby_entity_field`, `fby_entity_check` and `fby_enum`. Existing entities and enums are backfilled on upgrade (#3).
 - `fby_change_set` gains `superseded_by` and `reissued_from`. `getChangeLog` and `getCurrentChangeSet` exclude change sets whose `superseded_by` is set, while `getChangeSet` still returns them. Change sets gain `reissuedFrom`, the id of the change set they re-issue, if any. (#99).
 - `getChangeLog` accepts `{ since: changeSetId }` and returns only the change sets with a higher id, so a consumer can resume from the last change set it processed (#56).
-
-### Fixed
-
-- Filby no longer modifies the shared Handlebars module. Its helpers and partials are registered on a private Handlebars environment, and the guard that rejects unescaped expressions is installed only while a Filby migration is rendered. Previously, loading Filby made a host application's own Handlebars templates throw and replaced any helper the host had registered under the same name (#24).
