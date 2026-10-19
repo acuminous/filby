@@ -1,0 +1,4 @@
+action,type,rate
+set,standard,0.10
+Delete,reduced,0.05
+post,zero,0
