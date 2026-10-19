@@ -594,6 +594,8 @@ Filby requires Node.js 22.12 or later and PostgreSQL 13 or later, and is tested 
 }
 ```
 
+Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax and are validated when Filby is constructed, so an unparseable duration fails with `Invalid config: /notifications/handlerTimeout must be a duration such as '30s'`.
+
 ### Migration Directories
 Filby scans every directory in the `migrations` list and applies the combined set of migrations with [marv](https://github.com/guidesmiths/marv) in a single run, so you can split a large set of migrations across several directories, for example one for schema and one for data.
 
