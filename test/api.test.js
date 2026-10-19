@@ -251,7 +251,7 @@ describe('API', () => {
 
       const projection = await filby.getProjection('VAT Rates', 1);
       const changelog = await filby.getChangeLog(projection);
-      deq(changelog.map(({ id }) => id).sort(), [2, 3]);
+      deq(changelog.map(({ id }) => id), [2, 3]);
 
       const superseded = await filby.getChangeSet(1);
       eq(superseded.id, 1);
