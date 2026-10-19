@@ -51,16 +51,19 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - Filby no longer creates or uses the pgcrypto extension. `init()` previously failed on a database that already had it, and needed the privilege to create extensions, which managed Postgres services often withhold. Entity tags are now derived from `gen_random_uuid()` and keep their 20 hexadecimal character form. Existing entity tags are unchanged, and the extension stays installed but unused by Filby, so drop it if nothing else needs it (#23).
 - A projection dependency or change set frame that names an entity which does not exist fails with `Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'` or `Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'`, instead of a `NOT NULL` violation on `entity_id` (#26).
 - An `ADD_HOOK` with a `projection` and `version` must have the `ADD_CHANGE_SET` event. Previously a projection on an `ADD_PROJECTION` or `DROP_PROJECTION` hook was silently ignored and the hook fired for every projection. `COMMENCE_CHANGE_SET` is also accepted by the schema ahead of #55, but is not yet a database event. `DROP_ENTITY` now requires `operation` like every other operation (#29).
+- `fby_hook.name` is declared `UNIQUE` rather than `UNIQUE NULLS NOT DISTINCT`. The clause did nothing on a `NOT NULL` column and was the only PostgreSQL 15 feature Filby used, so Filby now requires PostgreSQL 13 or later. Existing databases are unchanged (#28).
 
 ### Fixed
 
 - `getAggregates` quotes the aggregate function name, so an entity whose name contains characters that are not valid in an unquoted identifier can be read through the API as well as through its table (#27).
 - Entity field types may contain commas, square brackets and dots, so `NUMERIC(10,2)`, `DECIMAL(5,2)`, `TEXT[]` and schema-qualified types such as `accounts.currency` are accepted. Quotes, semicolons and other characters that could break out of a column definition are still rejected, and the error now names the entity and field (#9).
+- `unsubscribe(event)` with no handler removes every handler for the event, as documented. Previously it threw `removeListener only takes instances of Function` (#20).
 
 ### Added
 
 - Entity definitions are recorded in `fby_entity_field`, `fby_entity_check` and `fby_enum`. Existing entities and enums are backfilled on upgrade (#3).
 - `fby_change_set` gains `superseded_by` and `reissued_from`. `getChangeLog` and `getCurrentChangeSet` exclude change sets whose `superseded_by` is set, while `getChangeSet` still returns them. Change sets gain `reissuedFrom`, the id of the change set they re-issue, if any. (#99).
+- `getChangeLog` accepts `{ since: changeSetId }` and returns only the change sets with a higher id, so a consumer can resume from the last change set it processed (#56).
 
 ### Fixed
 
