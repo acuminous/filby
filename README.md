@@ -436,7 +436,7 @@ Returns the list of projections.
 Returns the specified projection.
 
 #### filby.getChangeLog(projection: Projection): Promise&lt;ChangeSet[]&gt;
-Returns the change log (an ordered list of change sets) for the given projection.
+Returns the change log for the given projection, ordered by change set id, oldest first; superseded change sets are omitted.
 
 #### filby.getCurrentChangeSet(projection: Projection): Promise&lt;ChangeSet&gt;
 Returns the current changeset for the given projection based on the database's current time.

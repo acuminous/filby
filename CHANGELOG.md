@@ -45,6 +45,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - The `POST` frame action is renamed to `SET`, in the DSL and in the database. `POST` is also accepted in YAML, JSON and CSV, and is stored as `SET` (#77).
 - Aggregate functions are generated as `LANGUAGE sql STABLE`, so Postgres can inline them and apply the caller's filters before the aggregate is materialised (#36).
 - Adding a change set re-issues every live change set with a later effective date as a new change set with the same description, effective date and data frames, and marks the original as superseded, so change set ids always follow effective dates. One migration can therefore add more than one change log entry, and each re-issued change set schedules `ADD_CHANGE_SET` notifications. See [Correcting and Re-issuing Data](README.md#correcting-and-re-issuing-data) (#4).
+- `getChangeLog` returns change sets ordered by change set id, oldest first. Previously the order was whatever Postgres happened to return (#19).
 
 ### Added
 
