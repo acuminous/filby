@@ -429,7 +429,17 @@
         },
         "effective": {
           "type": "string",
-          "format": "date-time"
+          "anyOf": [
+            {
+              "format": "date-time"
+            },
+            {
+              "format": "date"
+            }
+          ]
+        },
+        "timezone": {
+          "type": "string"
         },
         "changes": {
           "$ref": "#/definitions/FrameListType"
