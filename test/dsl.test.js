@@ -22,6 +22,7 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
     await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
     await tx.query('DROP TYPE IF EXISTS cgt_tax_rate');
+    await tx.query('DROP TYPE IF EXISTS season_type');
     await tx.query('DROP SCHEMA IF EXISTS other CASCADE');
     await tx.query('DROP TYPE IF EXISTS pwned');
     await tx.query('DROP TYPE IF EXISTS "pwned_as_enum_();_raise_exception_$💀$you_have_been_pwned!$💀$;_create_type_vat_tax_rate"');
@@ -236,6 +237,39 @@ describe('DSL', () => {
       ]);
     });
 
+    it('should look the enum up by its canonical name', async (t) => {
+      const ADD_SEASON_TYPE = `
+- operation: ADD_ENUM
+  name: Season Type
+  values:
+    - Owners
+    - Guests
+`;
+
+      const ALTER_SEASON_TYPE = `
+- operation: ALTER_ENUM
+  name: Season Type
+  add:
+    - Staff
+`;
+
+      await filby.applyYaml(t.name, ADD_SEASON_TYPE, ALTER_SEASON_TYPE);
+
+      const { rows: labels } = await filby.withTransaction((tx) => tx.query("SELECT enumlabel AS label FROM pg_enum WHERE enumtypid = 'season_type'::regtype ORDER BY enumsortorder"));
+      deq(labels, [
+        { label: 'Owners' },
+        { label: 'Guests' },
+        { label: 'Staff' },
+      ]);
+
+      const { rows: values } = await filby.withTransaction((tx) => tx.query('SELECT name, position, value FROM fby_enum ORDER BY position'));
+      deq(values, [
+        { name: 'season_type', position: 1, value: 'Owners' },
+        { name: 'season_type', position: 2, value: 'Guests' },
+        { name: 'season_type', position: 3, value: 'Staff' },
+      ]);
+    });
+
     it('should allow a change set in a later file to use an added value', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM, ADD_ENUM_ENTITY, ALTER_ENUM);
       await applyLaterYaml(t.name, ADD_EXEMPT_RATE);
@@ -381,6 +415,29 @@ describe('DSL', () => {
 
       const { rows: enums } = await filby.withTransaction((tx) => tx.query("SELECT * FROM pg_type WHERE typname LIKE '%_tax_rate' AND typtype = 'e'"));
       eq(enums.length, 1);
+    });
+
+    it('should look the enum up by its canonical name', async (t) => {
+      const ADD_SEASON_TYPE = `
+- operation: ADD_ENUM
+  name: Season Type
+  values:
+    - Owners
+    - Guests
+`;
+
+      const DROP_SEASON_TYPE = `
+- operation: DROP_ENUM
+  name: Season Type
+`;
+
+      await filby.applyYaml(t.name, ADD_SEASON_TYPE, DROP_SEASON_TYPE);
+
+      const { rows: enums } = await filby.withTransaction((tx) => tx.query("SELECT * FROM pg_type WHERE typname = 'season_type' AND typtype = 'e'"));
+      eq(enums.length, 0);
+
+      const { rows: values } = await filby.withTransaction((tx) => tx.query("SELECT * FROM fby_enum WHERE name = 'season_type'"));
+      eq(values.length, 0);
     });
 
     it('should require a name', async (t) => {
