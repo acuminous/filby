@@ -22,6 +22,7 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
     await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
     await tx.query('DROP TYPE IF EXISTS cgt_tax_rate');
+    await tx.query('DROP SCHEMA IF EXISTS other CASCADE');
     await tx.query('DROP TYPE IF EXISTS pwned');
     await tx.query('DROP TYPE IF EXISTS "pwned_as_enum_();_raise_exception_$💀$you_have_been_pwned!$💀$;_create_type_vat_tax_rate"');
     await tx.query('DROP TABLE IF EXISTS "pwned\',_1);raise_exception_$💀$you_have_been_pwned!$💀$;_v1"');
@@ -428,9 +429,57 @@ describe('DSL', () => {
 
     it('should protect field types from sql injections', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.0.type', 'TEXT);RAISE EXCEPTION $💀$You have been pwned!$💀$;')), (err) => {
-        eq(err.message, "Invalid PostgreSQL TYPE 'TEXT);RAISE EXCEPTION $💀$You have been pwned!$💀$;'");
+        eq(err.message, "Invalid PostgreSQL TYPE 'TEXT);RAISE EXCEPTION $💀$You have been pwned!$💀$;' for field 'type' of entity 'VAT Rate v1'");
         return true;
       });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT; DROP TABLE x')), (err) => {
+        eq(err.message, "Invalid PostgreSQL TYPE 'TEXT; DROP TABLE x' for field 'rate' of entity 'VAT Rate v1'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', "TEXT'")), (err) => {
+        eq(err.message, "Invalid PostgreSQL TYPE 'TEXT'' for field 'rate' of entity 'VAT Rate v1'");
+        return true;
+      });
+    });
+
+    it('should accept numeric field types with a precision and scale', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'NUMERIC(10,2)'), setRate(12.345));
+
+      eq(await getRate(), '12.35');
+    });
+
+    it('should accept decimal field types with a precision and scale', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'DECIMAL(5,2)'), setRate(123.456));
+
+      eq(await getRate(), '123.46');
+    });
+
+    it('should accept array field types', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT[]'), setRate('{"standard","default"}'));
+
+      deq(await getRate(), ['standard', 'default']);
+    });
+
+    it('should accept multi word field types', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TIMESTAMP WITH TIME ZONE'), setRate('2020-04-05T00:00:00.000Z'));
+
+      eq((await getRate()).toISOString(), '2020-04-05T00:00:00.000Z');
+    });
+
+    it('should accept double precision field types', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'DOUBLE PRECISION'), setRate(1.5));
+
+      eq(await getRate(), 1.5);
+    });
+
+    it('should accept schema qualified field types', async (t) => {
+      await filby.withTransaction((tx) => tx.query("CREATE SCHEMA other; CREATE TYPE other.vat_rate_band AS ENUM ('low', 'high')"));
+
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'other.vat_rate_band'), setRate('low'));
+
+      eq(await getRate(), 'low');
     });
 
     it('should require at least one identifier column', async (t) => {
@@ -2253,6 +2302,15 @@ describe('DSL', () => {
   async function getChangeSetId(description) {
     const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id FROM fby_change_set WHERE description = $1', [description]));
     return rows[0].id;
+  }
+
+  function setRate(rate) {
+    return transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data: [{ type: 'standard', rate }] }]);
+  }
+
+  async function getRate() {
+    const { rows: [row] } = await filby.withTransaction((tx) => tx.query('SELECT rate FROM vat_rate_v1'));
+    return row.rate;
   }
 
   async function getEntityFields() {

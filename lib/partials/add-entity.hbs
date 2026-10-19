@@ -37,7 +37,7 @@ CREATE TABLE {{identifier (table name version)}} (
   fby_frame_id INTEGER PRIMARY KEY,
   fby_change_set_id INTEGER NOT NULL,
   {{#fields}}
-  {{identifier name}} {{validateType type}}{{#if (includes ../identified_by this)}} NOT NULL{{/if}},
+  {{identifier name}} {{validateType ../name ../version name type}}{{#if (includes ../identified_by this)}} NOT NULL{{/if}},
   {{/fields}}
   {{frameReference this}},
   {{unique this}}{{#if checks}},{{/if}}
@@ -48,7 +48,7 @@ CREATE TABLE {{identifier (table name version)}} (
 
 CREATE FUNCTION {{identifier (aggregate name version)}}(p_change_set_id INTEGER) RETURNS TABLE (
   {{#fields}}
-  {{identifier name}} {{validateType type}}{{#unless @last}},{{/unless}}
+  {{identifier name}} {{validateType ../name ../version name type}}{{#unless @last}},{{/unless}}
   {{/fields}}
 )
 AS $$
