@@ -60,14 +60,11 @@ export type Hook = {
 }
 
 export type Notification = {
+  id: number;
   hook: Hook;
   projection: Projection;
   attempts: number;
 };
-
-export type ErrorNotification<T> = {
-  err: T extends Error ? T : never;
-} & Notification;
 
 export type NotificationError = {
   error: Error;

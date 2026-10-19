@@ -504,16 +504,16 @@ filby.subscribe('VAT Rate changed', async (notification, { signal }) => {
 
 A handler that exceeds the timeout is treated as having failed and is retried like any other failure. Since a promise cannot be cancelled, a handler that ignores the signal may still complete after Filby has recorded the failure, so handlers must be idempotent. At-least-once delivery already requires this, because a handler can also complete just before its process is killed.
 
-If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. A hook with no subscriber is treated as a failure too: the notification is recorded with the error `No subscribers for hook '...'` and retried like any other failure, so subscribe before calling `startNotifications`, and check that the event name matches the hook name exactly. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
+If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. A hook with no subscriber is treated as a failure too: the notification is recorded with the error `No subscribers for hook '...'` and retried like any other failure, so subscribe before calling `startNotifications`, and check that the event name matches the hook name exactly. Every failed attempt emits `Filby.NOTIFICATION_ERROR` with the attempt's error and the notification, once the failure has been recorded. If the maximum attempts are exceeded then Filby additionally emits a dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`, with the same payload. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
 
 ```js
-filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
+filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, ({ error, notification }) => {
   console.error('Hook Failed', notification);
-  console.error('Hook Failed', notification.err.stack); // Careful not to log secrets that may be on the error
+  console.error('Hook Failed', error.stack); // Careful not to log secrets that may be on the error
 });
 ```
 
-If the `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` handler itself throws, there is nothing left to retry, so the error is reported through `Filby.NOTIFICATION_ERROR` with the exhausted notification attached as `notification`, and polling carries on.
+Both events are emitted synchronously and an error thrown by a listener is discarded, so catch errors inside the listener.
 
 If polling the database for notifications fails, for example because the database is briefly unavailable, Filby emits `Filby.NOTIFICATION_ERROR` and polls again at the next interval. Errors raised by the connection pool, such as the server closing an idle connection, are reported through the same event. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
 
