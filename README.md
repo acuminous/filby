@@ -84,18 +84,18 @@ GET /api/changelog?projection=park&version=1
 ```json
 [
   {
-    "changeSetId": 1,
+    "id": 1,
     "effective": "2019-01-01T00:00:00.000Z",
     "description": "Initial park data",
     "lastModified": "2018-12-01T16:20:34.383Z",
-    "eTag": "142475a5eddeec8f0786"
+    "entityTag": "142475a5eddeec8f0786"
   },
   {
-     "changeSetId": 2,
-     "effective": "2020-01-01T00:00:00.000Z",
-     "description": "Park Calendars - 2020",
-     "lastModified": "2029-12-01T14:49:34.405Z",
-     "eTag": "a3dc15aa8d59d26e349d"
+    "id": 2,
+    "effective": "2020-01-01T00:00:00.000Z",
+    "description": "Park Calendars - 2020",
+    "lastModified": "2019-12-01T14:49:34.405Z",
+    "entityTag": "a3dc15aa8d59d26e349d"
   }
 ]
 ```
@@ -110,7 +110,7 @@ GET /api/projection/v1/park?changeSetId=2
 [
   {
     "code": "DC",
-    "name": "Devon Hills"
+    "name": "Devon Cliffs"
   },
   {
     "code": "GA",
