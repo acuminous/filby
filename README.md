@@ -204,7 +204,7 @@ A *Data Frame* is a snapshot of an entity, associated with a *Change Set*. There
 A *Change Set* groups a set of data frames (potentially for different entities) into a single unit with a common effective date.
 
 ### Notifications
-*Notifications* are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
+*Notifications* are published per projection for two change set events. `ADD_CHANGE_SET` fires when a change set is added, whatever its effective date, and suits consumers that mirror the whole change log, such as a data lake. `COMMENCE_CHANGE_SET` fires when a projection's current change set changes, i.e. whenever `getCurrentChangeSet` would start returning something different: immediately for a change set whose effective date has already passed, and on the effective date for a pre-released one, so a consumer that caches current data hears about next year's rates when they take effect rather than when they are loaded. A projection's current change set is the one with the latest effective date that is not in the future; earlier change sets lapse silently. By subscribing to these notifications, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
 Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently. Each notification is claimed and delivered inside a single database transaction, which holds a row lock for the duration of the handler, so other instances skip it and each notification is delivered by only one instance.
 
@@ -256,12 +256,20 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
 # reference data the projection changes.
 
-# This is a projection specific hook which fires when the data
-# supporting the specified projection changes. Only ADD_CHANGE_SET
-# hooks can be projection specific
+# This is a projection specific hook which fires when a change set
+# for the specified projection is added, whatever its effective date.
+# Only ADD_CHANGE_SET and COMMENCE_CHANGE_SET hooks can be projection specific
 - operation: ADD_HOOK
   name: sns/add-change-set/parks-v1 # Must be unique
   event: ADD_CHANGE_SET
+  projection: parks@1
+
+# This hook fires when a change set for the specified projection takes
+# effect: immediately if its effective date has already passed, otherwise
+# on the effective date
+- operation: ADD_HOOK
+  name: sns/commence-change-set/parks-v1 # Must be unique
+  event: COMMENCE_CHANGE_SET
   projection: parks@1
 
 # This is a general hook that fires when the data
