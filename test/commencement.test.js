@@ -2,7 +2,7 @@ const { ok, strictEqual: eq, deepEqual: deq } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 
 const TestFilby = require('./TestFilby');
-const { once } = require('./until');
+const { until, once } = require('./until');
 
 const config = {
   notifications: {
@@ -105,9 +105,9 @@ describe('Commencement', () => {
     const delivered = once(filby, 'VAT Rates Commenced');
     filby.startNotifications();
     await delivered;
+    await until(async () => (await getNotifications('VAT Rates Commenced'))[0].status === 'OK');
 
     const [commenced] = await getNotifications('VAT Rates Commenced');
-    eq(commenced.status, 'OK');
     ok(commenced.last_attempted >= effective);
   });
 
