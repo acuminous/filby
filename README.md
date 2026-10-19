@@ -260,7 +260,8 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # reference data the projection changes.
 
 # This is a projection specific hook which fires when the data
-# supporting the specified projection changes
+# supporting the specified projection changes. Only ADD_CHANGE_SET
+# hooks can be projection specific
 - operation: ADD_HOOK
   name: sns/add-change-set/parks-v1 # Must be unique
   event: ADD_CHANGE_SET

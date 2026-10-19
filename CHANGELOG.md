@@ -48,6 +48,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - `getChangeLog` returns change sets ordered by change set id, oldest first. Previously the order was whatever Postgres happened to return (#19).
 - `getChangeLog` and `getCurrentChangeSet` read `fby_change_set_entity`, one row per change set and entity, instead of every data frame, so their cost grows with the number of change sets rather than the number of frames. A trigger on `fby_data_frame` fills the table, so data frames inserted by your own SQL are included. Deleting every data frame for an entity in a change set with SQL does not remove the change set from the change log of projections that use that entity, so delete the change set instead (#38).
 - `fby_data_frame` is indexed on `(entity_id, change_set_id)`, so aggregate functions no longer scan every data frame to find an entity's frames up to a change set (#35).
+- An `ADD_HOOK` with a `projection` and `version` must have the `ADD_CHANGE_SET` event. Previously a projection on an `ADD_PROJECTION` or `DROP_PROJECTION` hook was silently ignored and the hook fired for every projection. `COMMENCE_CHANGE_SET` is also accepted by the schema ahead of #55, but is not yet a database event. `DROP_ENTITY` now requires `operation` like every other operation (#29).
 
 ### Added
 
