@@ -1,4 +1,4 @@
-const { ok, strictEqual: eq, deepEqual: deq } = require('node:assert');
+const { ok, strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 
 const TestFilby = require('./TestFilby');
@@ -433,6 +433,26 @@ describe('API', () => {
       eq(changeSet.id, 2);
       eq(changeSet.effective.toISOString(), '2020-04-05T00:00:00.000Z');
       eq(changeSet.description, '2020 VAT Rates');
+    });
+  });
+
+  describe('Transactions', () => {
+
+    it('should roll back when the callback throws', async () => {
+      await rejects(filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_projection VALUES (1, 'VAT Rates', 1)`);
+        throw new Error('Oh Noes!');
+      }), { message: 'Oh Noes!' });
+
+      const projections = await filby.getProjections();
+      eq(projections.length, 0);
+    });
+
+    it('should leave the pool healthy when a query fails inside the callback', async () => {
+      await rejects(filby.withTransaction((tx) => tx.query('SELECT 1/0')), { message: 'division by zero' });
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT 1 AS one'));
+      eq(rows[0].one, 1);
     });
   });
 

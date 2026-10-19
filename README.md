@@ -206,7 +206,7 @@ A *Change Set* groups a set of data frames (potentially for different entities) 
 ### Notifications
 *Notifications* are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
-Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently.
+Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently. Each notification is claimed and delivered inside a single database transaction, which holds a row lock for the duration of the handler, so other instances skip it and each notification is delivered by only one instance.
 
 ### Hook
 A *Hook* is an event the framework will emit whenever a projection is added, dropped or updated via a change set. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
@@ -485,7 +485,7 @@ async function getParks(changeSetId) {
 ```
 
 #### filby.withTransaction&lt;T&gt;(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
-Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
+Passes a [node-pg client](https://node-postgres.com/) to the given callback. The callback runs inside a database transaction, which is committed when the callback returns and rolled back if it throws. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
 
 ```js
 async function getParks(changeSetId) {
