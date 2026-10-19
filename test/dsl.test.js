@@ -1214,6 +1214,76 @@ describe('DSL', () => {
       eq(rows.length, 0);
     });
 
+    it('should re-issue change sets with a later effective date', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2025', 'standard', 0.2), vatRate('2027', 'standard', 0.25), vatRate('2026', 'reduced', 0.05));
+
+      const [original, reissued] = await getChangeSets('2027 VAT Rates');
+      eq(original.superseded_by, reissued.id);
+      eq(reissued.reissued_from, original.id);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+      deq(changeLog.map(({ id, description, reissuedFrom }) => ({ id, description, reissuedFrom })), [
+        { id: await getChangeSetId('2025 VAT Rates'), description: '2025 VAT Rates', reissuedFrom: undefined },
+        { id: await getChangeSetId('2026 VAT Rates'), description: '2026 VAT Rates', reissuedFrom: undefined },
+        { id: reissued.id, description: '2027 VAT Rates', reissuedFrom: original.id },
+      ]);
+
+      const changeSet = await filby.getChangeSet(original.id);
+      eq(changeSet.description, '2027 VAT Rates');
+      eq(changeSet.effective.toISOString(), '2027-04-05T00:00:00.000Z');
+      deq(await filby.getAggregates(original.id, 'VAT Rate', 1), [{ type: 'standard', rate: 0.25 }]);
+      deq(await filby.getAggregates(reissued.id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.05 }, { type: 'standard', rate: 0.25 }]);
+    });
+
+    it('should re-issue change sets when backfilling', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2020', 'standard', 0.2), vatRate('2022', 'standard', 0.25), vatRate('2021', 'reduced', 0.05));
+
+      const [original, reissued] = await getChangeSets('2022 VAT Rates');
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSet = await filby.getCurrentChangeSet(projection);
+      eq(changeSet.id, reissued.id);
+      eq(changeSet.reissuedFrom, original.id);
+      deq(await filby.getAggregates(reissued.id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.05 }, { type: 'standard', rate: 0.25 }]);
+      deq(await filby.getAggregates(original.id, 'VAT Rate', 1), [{ type: 'standard', rate: 0.25 }]);
+    });
+
+    it('should not re-issue change sets with the same effective date', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2020', 'standard', 0.2), vatRate('2021', 'standard', 0.25), transform(vatRate('2021', 'standard', 0.3)).set('0.description', '2021 VAT Rates Correction'));
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT description, superseded_by, reissued_from FROM fby_change_set ORDER BY id'));
+      deq(rows, [
+        { description: '2020 VAT Rates', superseded_by: null, reissued_from: null },
+        { description: '2021 VAT Rates', superseded_by: null, reissued_from: null },
+        { description: '2021 VAT Rates Correction', superseded_by: null, reissued_from: null },
+      ]);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSet = await filby.getCurrentChangeSet(projection);
+      eq(changeSet.description, '2021 VAT Rates Correction');
+      deq(await filby.getAggregates(changeSet.id, 'VAT Rate', 1), [{ type: 'standard', rate: 0.3 }]);
+      deq(await filby.getAggregates(await getChangeSetId('2021 VAT Rates'), 'VAT Rate', 1), [{ type: 'standard', rate: 0.25 }]);
+    });
+
+    it('should schedule notifications for re-issued change sets', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        ADD_ENTITY,
+        transform(ADD_ENTITY).set('0.version', 2),
+        ADD_PROJECTION,
+        vatRate('2020', 'standard', 0.2),
+        vatRate('2022', 'standard', 0.25),
+        ADD_HOOK_CHANGE_SET_PROJECTION,
+        transform(vatRate('2021', 'reduced', 0.05)).set('0.frames.0.version', 2),
+      );
+
+      const { rows: notifications } = await filby.withTransaction((tx) => tx.query(`
+        SELECT h.name AS hook_name, n.projection_name, n.projection_version
+        FROM fby_notification n
+        INNER JOIN fby_hook h ON h.id = n.hook_id`));
+      deq(notifications, [{ hook_name: 'sns/add-change-set/vat-rates-v1', projection_name: 'VAT Rates', projection_version: 1 }]);
+    });
+
     it('should forbid additional properties in frames', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).merge('0.frames.0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties-in-frames.yaml: /0/frames/0 must NOT have additional property 'wombat'");
@@ -1715,11 +1785,10 @@ describe('DSL', () => {
     it('should ignore lower change sets with a later effective date', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2, ADD_CHANGE_SET_3, ADD_CHANGE_SET_4, ADD_CHANGE_SET_5);
 
-      const projection = await filby.getProjection('VAT Rates', 1);
-      const changeLog = await filby.getChangeLog(projection);
+      const changeSetId = await getChangeSetId('2022 VAT Rates Fix');
 
       await filby.withTransaction(async (tx) => {
-        const { rows: aggregate1 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [changeLog[4].id]);
+        const { rows: aggregate1 } = await tx.query('SELECT * FROM get_vat_rate_v1_aggregate($1) ORDER BY rate DESC', [changeSetId]);
         eq(aggregate1.length, 3);
         deq(aggregate1[0], { type: 'standard', rate: 0.16 });
         deq(aggregate1[1], { type: 'reduced', rate: 0.11 });
@@ -2038,6 +2107,11 @@ describe('DSL', () => {
       data:
         - type: ${type}
           rate: ${rate}`;
+  }
+
+  async function getChangeSets(description) {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id, superseded_by, reissued_from FROM fby_change_set WHERE description = $1 ORDER BY id', [description]));
+    return rows;
   }
 
   async function getChangeSetId(description) {

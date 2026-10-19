@@ -21,5 +21,7 @@ BEGIN
 
   PERFORM fby_notify_add_change_set({{literal entity}}, {{literal version}});
   {{/frames}}
+
+  PERFORM fby_reissue_change_sets(v_change_set_id);
 END;
 $$ LANGUAGE plpgsql;
