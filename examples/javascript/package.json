@@ -5,8 +5,8 @@
   "description": "A proof of concept Filby application",
   "scripts": {
     "start": "node index.js",
-    "pretest": "node --env-file-if-exists=../../.env ../../scripts/database.js check",
-    "test": "node --env-file-if-exists=../../.env --test --test-concurrency=1 test/*.test.js",
+    "pretest": "node ../../scripts/database.js check",
+    "test": "node --require ../../scripts/load-env.js --test --test-concurrency=1 test/*.test.js",
     "docker": "pushd ../.. && npm run docker && popd"
   },
   "dependencies": {

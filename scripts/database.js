@@ -2,6 +2,8 @@ const { execSync } = require('node:child_process');
 const path = require('node:path');
 const { Client } = require('pg');
 
+require('./load-env');
+
 const servers = [
   { port: 5432, user: 'fby_test', password: 'fby_test' },
   { port: 5433, user: 'fby_example', password: 'fby_example' },
