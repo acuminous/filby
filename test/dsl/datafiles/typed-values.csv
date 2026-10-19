@@ -1,0 +1,2 @@
+action,type,padded,exponent,decimal,flag
+SET,standard,007,1e3,1.50,TRUE

@@ -206,7 +206,7 @@ A *Change Set* groups a set of data frames (potentially for different entities) 
 ### Notifications
 *Notifications* are published whenever a new data frame is created. By subscribing to the notifications that are emitted per projection when the backing data changes, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
-Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently.
+Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently. Each notification is claimed and delivered inside a single database transaction, which holds a row lock for the duration of the handler, so other instances skip it and each notification is delivered by only one instance.
 
 ### Hook
 A *Hook* is an event the framework will emit whenever a projection is added, dropped or updated via a change set. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
@@ -231,30 +231,27 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # 3. Creates an aggregate function 'get_park_v1_aggregate' to be used by projections
 - operation: ADD_ENTITY
   name: park
-  version: 1
+  # version defaults to 1
   fields:
-    - name: code
-      type: TEXT # Any valid PostgreSQL type (including enums) are supported
-    - name: name
+    code: TEXT # Any valid PostgreSQL type (including enums) is supported
+    name:
       type: TEXT
-  identified_by:
+      nullable: false # Recorded in fby_entity_field; fields are nullable unless you say otherwise
+  key:
     - code # Used to aggregate the data frames
 
   # Creates PostgreSQL check constraints
-  # This must be explicitly enabled in config since they introduce the potential for SQL Injection
   checks:
-    park_code_len: LENGTH(code) >= 2
+    park_code_len: (LENGTH(code) >= 2)
 
 # Defining projections and their dependent entities
 # Filby uses the dependencies to work out what projections are affected by reference data updates
 - operation: ADD_PROJECTION
   name: parks
-  version: 1
+  # version defaults to 1
   dependencies:
-    - name: park
-      version: 1
-    - name: season
-      version: 1
+    - entity: park@1 # References always name the version
+    - entity: season@1
 
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
 # reference data the projection changes.
@@ -265,8 +262,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 - operation: ADD_HOOK
   name: sns/add-change-set/parks-v1 # Must be unique
   event: ADD_CHANGE_SET
-  projection: Parks
-  version: 1
+  projection: parks@1
 
 # This is a general hook that fires when the data
 # supporting any projection changes
@@ -278,16 +274,15 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 ```yaml
 # migrations/0002.initial-data-load.yaml
 
-# Add a change set containing one or more data frames for the previously defined entities
+# Add a change set containing one or more changes to the previously defined entities
 - operation: ADD_CHANGE_SET
   description: Initial Data
   # The date the change set takes effect. A calendar date is midnight
   # in the change set's timezone, which must be an IANA name
   effective: 2019-01-01
   timezone: Europe/London
-  frames:
-    - entity: park
-      version: 1
+  changes:
+    - entity: park@1
       action: SET
       data:
           # Adds a data frame for Devon Cliffs
@@ -297,8 +292,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
         - code: PV
           name: Primrose Valley
 
-    - entity: park
-      version: 1
+    - entity: park@1
       # Adds a data frame that will delete the entity identified
       # by code HF from the effective data
       action: DELETE
@@ -310,8 +304,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
       # The CSV requires a header row, starting with the action column and
       # followed by the column names of your entity. When deleting data you
       # only need to include the fields that identify the entity
-    - entity: park
-      version: 1
+    - entity: park@1
       source: ./data/park-data-2019.csv
       # action,code,name
       # SET,KC,Kent Coast
@@ -321,7 +314,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 
 The effective date may be a calendar date, such as `2019-01-01`, or a timestamp with an explicit offset, such as `2019-01-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, so the stored effective date follows daylight saving time, and a bare date without a `timezone` is rejected: Filby never uses the process timezone, because the same migration would render differently on different machines. A timestamp with an explicit offset is stored as written, with or without a `timezone`.
 
-A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column.
+A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column. CSV cells are read as text and cast by Postgres to the column type, so a code such as `007` keeps its leading zeros in a TEXT column, `1.50` is stored as `1.50` in a NUMERIC column, and `abc` in an INTEGER column fails the migration. An empty CSV cell is stored as NULL.
 
 ```yaml
 # migrations/0003.drop-unused-objects.yaml
@@ -345,8 +338,49 @@ A field with no value is stored as NULL, and a nested map or list is stored as J
 
 # Deletes the specified hook and associated notifications
 - operation: DROP_HOOK
-  name: sns/add-change-set/park-v1
+  name: sns/add-change-set/parks-v1
 ```
+
+### Equivalent forms
+Some parts of the DSL can be written in more than one way. The forms in each row below mean the same thing, all of them are permanent, and they can be mixed freely, so migrations written for earlier versions of Filby keep working unchanged.
+
+| Form | Equivalent form |
+| ---- | --------------- |
+| `fields` as a map of name to type, or to `type` and `nullable` | `fields` as a list of `name`, `type` and optionally `nullable` |
+| `key` | `identified_by` |
+| `changes` | `frames` |
+| `entity: park@1` | `entity: park` with `version: 1` |
+| `projection: parks@1` | `projection: parks` with `version: 1` |
+| `action: SET` | `action: POST` |
+
+```yaml
+- operation: ADD_ENTITY
+  name: park
+  version: 1
+  fields:
+    - name: code
+      type: TEXT
+    - name: name
+      type: TEXT
+      nullable: false
+  identified_by:
+    - code
+
+- operation: ADD_CHANGE_SET
+  description: Initial Data
+  effective: 2019-01-01T00:00:00Z
+  frames:
+    - entity: park
+      version: 1
+      action: POST
+      data:
+        - code: DC
+          name: Devon Cliffs
+```
+
+`version` defaults to 1 on `ADD_ENTITY` and `ADD_PROJECTION`, and nowhere else. A change, a projection dependency or a hook must say which version it refers to, either as `park@1` or with a `version` property, because a defaulted reference would silently write to the wrong version once version 2 exists. Say it once: `park@1` together with `version: 1` is an error, as is `key` together with `identified_by`, or `changes` together with `frames`.
+
+Fields are nullable unless declared `nullable: false`, and key fields are never nullable. Each field's nullability is recorded in `fby_entity_field` for tooling to read. It is not yet enforced on the entity table, because a `DELETE` frame carries only the key fields.
 
 The DSL deliberately omits the ability to drop change sets and data frames since they are supposed to be immutable. However, since Marv works with SQL, you can also use it for regular database migrations. One use is deleting a change set that was never served, see [Correcting and Re-issuing Data](#correcting-and-re-issuing-data). Another is adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one.
 
@@ -384,9 +418,8 @@ To fix a change set that was published with the wrong data, add a change set wit
 - operation: ADD_CHANGE_SET
   description: Initial Data (corrected)
   effective: 2019-01-01T00:00:00Z
-  frames:
-    - entity: park
-      version: 1
+  changes:
+    - entity: park@1
       action: SET
       data:
         - code: PV
@@ -490,7 +523,7 @@ async function getParks(changeSetId) {
 ```
 
 #### filby.withTransaction&lt;T&gt;(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
-Passes a transactional [node-pg client](https://node-postgres.com/) to the given callback. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
+Passes a [node-pg client](https://node-postgres.com/) to the given callback. The callback runs inside a database transaction, which is committed when the callback returns and rolled back if it throws. Use this to directly query the aggregate entity data for your projections. The aggregates are accessible via functions with the signature `get_${entity}_v{version}_aggregate(changeSetId INTEGER)`. Entity names will be converted to lowercase and spaces converted to underscores. E.g.
 
 ```js
 async function getParks(changeSetId) {

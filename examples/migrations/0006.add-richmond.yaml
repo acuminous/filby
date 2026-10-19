@@ -1,14 +1,12 @@
 - operation: ADD_CHANGE_SET
   description: Add Richmond
   effective: 2021-04-01T00:00:00Z
-  frames:
-    - entity: park
-      version: 1
+  changes:
+    - entity: park@1
       action: SET
       data:
         - code: RI
           name: Richmond
 
-    - entity: season
-      version: 1
+    - entity: season@1
       source: ./csv/season-2021-richmond.csv

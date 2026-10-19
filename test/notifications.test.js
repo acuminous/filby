@@ -111,6 +111,26 @@ describe('Notifications', () => {
     eq(notifications[0].last_error, null);
   });
 
+  it('should keep the successful notifications of other projections when passing a notification from a general hook', async () => {
+    const { rows: [pending] } = await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_hook (id, name, event) VALUES
+        (3, 'Rate Changed', 'ADD_CHANGE_SET')`);
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, status) VALUES
+        (3, 'VAT Rates', 1, 'OK'),
+        (3, 'CGT Rates', 1, 'OK')`);
+      return tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (3, 'VAT Rates', 1) RETURNING id`);
+    });
+
+    await filby.withTransaction((tx) => tx.query('SELECT fby_pass_notification($1)', [pending.id]));
+
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT projection_name, status FROM fby_notification WHERE hook_id = 3 ORDER BY projection_name'));
+    deq(rows, [
+      { projection_name: 'CGT Rates', status: 'OK' },
+      { projection_name: 'VAT Rates', status: 'OK' },
+    ]);
+  });
+
   it('should redeliver unsuccessful notifications up to the maximum number of attempts', async () => {
     await setup();
 
@@ -244,5 +264,41 @@ describe('Notifications', () => {
     await cgtDelivered;
 
     eq(schedulers.length, 2);
+  });
+
+  it('should deliver a notification to only one of several instances polling concurrently', async () => {
+    await setup();
+
+    const other = new TestFilby(config);
+    const deliveries = [];
+    const entered = Promise.withResolvers();
+    const released = Promise.withResolvers();
+    const handler = async (notification) => {
+      deliveries.push(notification);
+      entered.resolve();
+      await released.promise;
+    };
+
+    try {
+      filby.subscribe('VAT Rate Changed', handler);
+      other.subscribe('VAT Rate Changed', handler);
+
+      filby.startNotifications();
+      await entered.promise;
+
+      let polls = 0;
+      other.startNotifications();
+      schedulers[1].on('end', () => polls++);
+      await until(() => polls > 0);
+
+      released.resolve();
+      await until(async () => (await getNotifications())[0].status === 'OK');
+
+      eq(deliveries.length, 1);
+      eq((await getNotifications()).length, 1);
+    } finally {
+      released.resolve();
+      await other.stop();
+    }
   });
 });
