@@ -6,30 +6,22 @@
 
 - operation: ADD_ENTITY
   name: park
-  version: 1
   fields:
-    - name: code
-      type: TEXT
-    - name: name
-      type: TEXT
-  identified_by:
+    code: TEXT
+    name: TEXT
+  key:
     - code
   checks:
     park_code_len: (LENGTH(code) >= 2)
 
 - operation: ADD_ENTITY
   name: season
-  version: 1
   fields:
-    - name: park_code
-      type: TEXT
-    - name: type
-      type: season_type
-    - name: start
-      type: TIMESTAMP WITH TIME ZONE
-    - name: end
-      type: TIMESTAMP WITH TIME ZONE      
-  identified_by:
+    park_code: TEXT
+    type: season_type
+    start: TIMESTAMP WITH TIME ZONE
+    end: TIMESTAMP WITH TIME ZONE
+  key:
     - park_code
     - type
     - start
@@ -40,18 +32,14 @@
 
 - operation: ADD_PROJECTION
   name: park
-  version: 1
   dependencies:
-    - entity: park
-      version: 1
-    - entity: season
-      version: 1
+    - entity: park@1
+    - entity: season@1
 
 - operation: ADD_HOOK
   name: httpbin/add-change-set/park-v1
   event: ADD_CHANGE_SET
-  projection: park
-  version: 1
+  projection: park@1
 
 - operation: ADD_HOOK
   name: httpbin/add-change-set/*

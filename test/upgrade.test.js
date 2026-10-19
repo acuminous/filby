@@ -51,6 +51,19 @@ describe('Upgrade', () => {
     ]);
   });
 
+  it('should backfill entity field nullability', async () => {
+    await createVatRateEntity();
+
+    await upgrade();
+
+    const { rows: fields } = await query('SELECT name, nullable FROM fby_entity_field ORDER BY position');
+    deq(fields, [
+      { name: 'tax_rate', nullable: false },
+      { name: 'region', nullable: false },
+      { name: 'rate', nullable: true },
+    ]);
+  });
+
   it('should upgrade entity tables to one frame per key per change set', async () => {
     await createVatRateEntity();
     await query(`

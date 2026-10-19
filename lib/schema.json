@@ -208,24 +208,57 @@
           "type": "integer"
         },
         "fields": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
+          "if": {
+            "type": "object"
+          },
+          "then": {
             "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": [
+                "string",
+                "object"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "nullable": {
+                  "type": "boolean"
+                }
               },
-              "type": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "type"
-            ]
+              "additionalProperties": false,
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "else": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "nullable": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "type"
+              ]
+            }
           }
+        },
+        "key": {
+          "$ref": "#/definitions/StringListType"
         },
         "identified_by": {
           "$ref": "#/definitions/StringListType"
@@ -244,10 +277,18 @@
       "required": [
         "operation",
         "name",
-        "version",
-        "fields",
-        "identified_by"
-      ]
+        "fields"
+      ],
+      "if": {
+        "required": [
+          "key"
+        ]
+      },
+      "else": {
+        "required": [
+          "identified_by"
+        ]
+      }
     },
     "AddProjectionType": {
       "type": "object",
@@ -279,9 +320,16 @@
             },
             "additionalProperties": false,
             "required": [
-              "entity",
-              "version"
-            ]
+              "entity"
+            ],
+            "if": {
+              "$ref": "#/definitions/VersionedEntityReferenceType"
+            },
+            "else": {
+              "required": [
+                "version"
+              ]
+            }
           }
         }
       },
@@ -289,7 +337,6 @@
       "required": [
         "operation",
         "name",
-        "version",
         "dependencies"
       ]
     },
@@ -344,9 +391,24 @@
           "operation",
           "name",
           "event",
-          "projection",
-          "version"
-        ]
+          "projection"
+        ],
+        "if": {
+          "properties": {
+            "projection": {
+              "type": "string",
+              "pattern": "@[0-9]+$"
+            }
+          },
+          "required": [
+            "projection"
+          ]
+        },
+        "else": {
+          "required": [
+            "version"
+          ]
+        }
       },
       "else": {
         "required": [
@@ -369,64 +431,98 @@
           "type": "string",
           "format": "date-time"
         },
+        "changes": {
+          "$ref": "#/definitions/FrameListType"
+        },
         "frames": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "properties": {
-              "source": {
-                "type": "string"
-              },
-              "entity": {
-                "type": "string"
-              },
-              "version": {
-                "type": "integer"
-              },
-              "action": {
-                "type": "string",
-                "enum": [
-                  "SET",
-                  "POST",
-                  "DELETE"
-                ]
-              },
-              "data": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": "object"
-                }
-              }
-            },
-            "additionalProperties": false,
-            "oneOf": [
-              {
-                "required": [
-                  "entity",
-                  "version",
-                  "source"
-                ]
-              },
-              {
-                "required": [
-                  "entity",
-                  "version",
-                  "action",
-                  "data"
-                ]
-              }
-            ]
-          }
+          "$ref": "#/definitions/FrameListType"
         }
       },
       "additionalProperties": false,
       "required": [
         "operation",
         "description",
-        "effective",
-        "frames"
+        "effective"
+      ],
+      "if": {
+        "required": [
+          "changes"
+        ]
+      },
+      "else": {
+        "required": [
+          "frames"
+        ]
+      }
+    },
+    "FrameListType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "SET",
+              "POST",
+              "DELETE"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "entity"
+        ],
+        "oneOf": [
+          {
+            "required": [
+              "source"
+            ]
+          },
+          {
+            "required": [
+              "action",
+              "data"
+            ]
+          }
+        ],
+        "if": {
+          "$ref": "#/definitions/VersionedEntityReferenceType"
+        },
+        "else": {
+          "required": [
+            "version"
+          ]
+        }
+      }
+    },
+    "VersionedEntityReferenceType": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "pattern": "@[0-9]+$"
+        }
+      },
+      "required": [
+        "entity"
       ]
     },
     "DropEnumType": {

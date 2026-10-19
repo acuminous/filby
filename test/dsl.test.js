@@ -341,16 +341,128 @@ describe('DSL', () => {
       deq(entities[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", version: 1 });
     });
 
-    it('should require a version', async (t) => {
-      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).del('0.version')), (err) => {
-        eq(err.message, "001.should-require-a-version.yaml: /0 must have required property 'version'");
-        return true;
-      });
+    it('should default version to 1', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).del('0.version'), ADD_CHANGE_SET_1);
+
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity'));
+      deq(entities, [{ name: 'VAT Rate', version: 1 }]);
+      eq((await getDataFrames('2020 VAT Rates')).length, 3);
     });
 
     it('should require version to be an integer', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.version', 1.1)), (err) => {
         eq(err.message, "001.should-require-version-to-be-an-integer.yaml: /0/version must be of type 'integer'");
+        return true;
+      });
+    });
+
+    it('should accept fields as a map', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: 'TEXT', rate: 'NUMERIC' }), ADD_CHANGE_SET_1);
+
+      deq(await getEntityFields(), [
+        { position: 1, name: 'type', type: 'TEXT', identity: true },
+        { position: 2, name: 'rate', type: 'NUMERIC', identity: false },
+      ]);
+      eq((await getDataFrames('2020 VAT Rates')).length, 3);
+    });
+
+    it('should accept the long field form', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: { type: 'TEXT' }, rate: { type: 'NUMERIC', nullable: false } }), ADD_CHANGE_SET_1);
+
+      deq(await getEntityFields(), [
+        { position: 1, name: 'type', type: 'TEXT', identity: true },
+        { position: 2, name: 'rate', type: 'NUMERIC', identity: false },
+      ]);
+      eq((await getDataFrames('2020 VAT Rates')).length, 3);
+    });
+
+    it('should record nullable fields', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: 'TEXT', rate: { type: 'NUMERIC', nullable: false }, notes: { type: 'TEXT', nullable: true }, source: 'TEXT' }));
+
+      deq(await getEntityNullability(), [
+        { name: 'type', nullable: false },
+        { name: 'rate', nullable: false },
+        { name: 'notes', nullable: true },
+        { name: 'source', nullable: true },
+      ]);
+    });
+
+    it('should record nullable fields in the list form', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.nullable', false));
+
+      deq(await getEntityNullability(), [
+        { name: 'type', nullable: false },
+        { name: 'rate', nullable: false },
+      ]);
+    });
+
+    it('should require at least one field in the map form', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', {})), (err) => {
+        eq(err.message, '001.should-require-at-least-one-field-in-the-map-form.yaml: /0/fields must NOT have fewer than 1 properties');
+        return true;
+      });
+    });
+
+    it('should require map form fields to be a type or a definition', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: 1 })), (err) => {
+        eq(err.message, "001.should-require-map-form-fields-to-be-a-type-or-a-definition.yaml: /0/fields/type must be of type 'string' or 'object'");
+        return true;
+      });
+    });
+
+    it('should require long form fields to have a type', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: { nullable: false } })), (err) => {
+        eq(err.message, "001.should-require-long-form-fields-to-have-a-type.yaml: /0/fields/type must have required property 'type'");
+        return true;
+      });
+    });
+
+    it('should require nullable to be a boolean', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: { type: 'TEXT', nullable: 'wombat' } })), (err) => {
+        eq(err.message, "001.should-require-nullable-to-be-a-boolean.yaml: /0/fields/type/nullable must be of type 'boolean'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.0.nullable', 'wombat')), (err) => {
+        eq(err.message, "001.should-require-nullable-to-be-a-boolean.yaml: /0/fields/0/nullable must be of type 'boolean'");
+        return true;
+      });
+    });
+
+    it('should forbid additional properties in long form fields', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: { type: 'TEXT', wombat: 1 } })), (err) => {
+        eq(err.message, "001.should-forbid-additional-properties-in-long-form-fields.yaml: /0/fields/type must NOT have additional property 'wombat'");
+        return true;
+      });
+    });
+
+    it('should accept key as an equivalent of identified_by', async (t) => {
+      await filby.applyYaml(t.name, transform(transform(ADD_ENTITY).del('0.identified_by')).set('0.key', ['type']), ADD_CHANGE_SET_1);
+
+      deq(await getEntityFields(), [
+        { position: 1, name: 'type', type: 'TEXT', identity: true },
+        { position: 2, name: 'rate', type: 'NUMERIC', identity: false },
+      ]);
+      eq((await getDataFrames('2020 VAT Rates')).length, 3);
+    });
+
+    it('should require key columns to be entity field names', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(transform(ADD_ENTITY).del('0.identified_by')).set('0.key', ['wombat'])), (err) => {
+        eq(err.message, "Identifier 'wombat' does not match one of the 'VAT Rate' entity field names");
+        return true;
+      });
+    });
+
+    it('should require at least one key column', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(transform(ADD_ENTITY).del('0.identified_by')).set('0.key', [])), (err) => {
+        eq(err.message, '001.should-require-at-least-one-key-column.yaml: /0/key must NOT have fewer than 1 items');
+        return true;
+      });
+    });
+
+    it('should reject both key and identified_by', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.key', ['type'])), (err) => {
+        eq(err.message, "Entity 'VAT Rate' must specify either 'key' or 'identified_by', not both");
         return true;
       });
     });
@@ -688,9 +800,34 @@ describe('DSL', () => {
       deq(projections[0], { name: "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;", version: 1 });
     });
 
-    it('should require a version', async (t) => {
-      await rejects(() => filby.applyYaml(t.name, transform(ADD_PROJECTION).del('0.version')), (err) => {
-        eq(err.message, "001.should-require-a-version.yaml: /0 must have required property 'version'");
+    it('should default version to 1', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).del('0.version'));
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_projection'));
+      deq(projections, [{ name: 'VAT Rates', version: 1 }]);
+    });
+
+    it('should accept entity@version dependency references', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies', [{ entity: 'VAT Rate@1' }]));
+
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query(`
+        SELECT e.name, e.version FROM fby_projection p
+        INNER JOIN fby_projection_entity pe ON p.id = pe.projection_id
+        INNER JOIN fby_entity e ON e.id = pe.entity_id
+      `));
+      deq(entities, [{ name: 'VAT Rate', version: 1 }]);
+    });
+
+    it('should require entity@version dependency references to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies', [{ entity: 'VAT Rate@2' }])), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'");
+        return true;
+      });
+    });
+
+    it('should reject dependency references that also specify a version', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.dependencies.0.entity', 'VAT Rate@1')), (err) => {
+        eq(err.message, "Reference 'VAT Rate@1' must not also specify a version");
         return true;
       });
     });
@@ -1072,6 +1209,83 @@ describe('DSL', () => {
 
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames', [])), (err) => {
         eq(err.message, '001.should-require-at-least-one-frame.yaml: /0/frames must NOT have fewer than 1 items');
+        return true;
+      });
+    });
+
+    it('should accept changes as an equivalent of frames', async (t) => {
+      const { 0: { frames, ...changeSet } } = YAML.parse(ADD_CHANGE_SET_1);
+      await filby.applyYaml(t.name, ADD_ENTITY, YAML.stringify([{ ...changeSet, changes: frames }]));
+
+      const dataFrames = await getDataFrames('2020 VAT Rates');
+      eq(dataFrames.length, 3);
+      deq(dataFrames[0], {
+        description: '2020 VAT Rates',
+        effective: new Date('2020-04-05T00:00:00.000Z'),
+        entity: 'VAT Rate',
+        version: 1,
+        action: 'SET',
+        type: 'standard',
+        rate: 0.10,
+      });
+    });
+
+    it('should require at least one change', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(transform(ADD_CHANGE_SET_1).del('0.frames')).set('0.changes', [])), (err) => {
+        eq(err.message, '001.should-require-at-least-one-change.yaml: /0/changes must NOT have fewer than 1 items');
+        return true;
+      });
+    });
+
+    it('should reject both frames and changes', async (t) => {
+      const { 0: { frames } } = YAML.parse(ADD_CHANGE_SET_1);
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.changes', frames)), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' must specify either 'changes' or 'frames', not both");
+        return true;
+      });
+    });
+
+    it('should accept entity@version frame references', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_CHANGE_SET_1).del('0.frames.0.version')).set('0.frames.0.entity', 'VAT Rate@1'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 3);
+      deq(frames[0], {
+        description: '2020 VAT Rates',
+        effective: new Date('2020-04-05T00:00:00.000Z'),
+        entity: 'VAT Rate',
+        version: 1,
+        action: 'SET',
+        type: 'standard',
+        rate: 0.10,
+      });
+    });
+
+    it('should accept entity@version frame references for csv sources', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate@1', source: '../dsl/datafiles/vat-rate-v1-2020-set.csv' }]));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 3);
+      deq(frames.map((frame) => frame.version), [1, 1, 1]);
+    });
+
+    it('should require entity@version frame references to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_CHANGE_SET_1).del('0.frames.1.version')).set('0.frames.1.entity', 'VAT Rate@2')), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'");
+        return true;
+      });
+    });
+
+    it('should require frame references to specify a version', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(transform(ADD_CHANGE_SET_1).del('0.frames')).set('0.changes', [{ entity: 'VAT Rate', action: 'SET', data: [{ type: 'standard', rate: 0.1 }] }])), (err) => {
+        eq(err.message, "001.should-require-frame-references-to-specify-a-version.yaml: /0/changes/0 must have required property 'version'");
+        return true;
+      });
+    });
+
+    it('should reject frame references that also specify a version', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.0.entity', 'VAT Rate@1')), (err) => {
+        eq(err.message, "Reference 'VAT Rate@1' must not also specify a version");
         return true;
       });
     });
@@ -1584,6 +1798,39 @@ describe('DSL', () => {
       it('should require version to be an integer', async (t) => {
         await rejects(() => filby.applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.version', 'wombat')), (err) => {
           eq(err.message, "001.should-require-version-to-be-an-integer.yaml: /0/version must be of type 'integer'");
+          return true;
+        });
+      });
+
+      it('should accept projection@version references', async (t) => {
+        await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.version')).set('0.projection', 'VAT Rates@1'));
+
+        const { rows: hooks } = await filby.withTransaction((tx) => tx.query(`
+          SELECT h.name, h.event, p.name AS projection, version
+          FROM fby_hook h
+          LEFT JOIN fby_projection p ON h.projection_id = p.id
+        `));
+
+        deq(hooks, [{ name: 'sns/add-change-set/vat-rates-v1', event: 'ADD_CHANGE_SET', projection: 'VAT Rates', version: 1 }]);
+      });
+
+      it('should require projection@version references to exist', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.version')).set('0.projection', 'VAT Rates@2')), (err) => {
+          eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'VAT Rates v2'");
+          return true;
+        });
+      });
+
+      it('should require projection@version references to use a change set event', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, transform(transform(transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.version')).set('0.projection', 'VAT Rates@1')).set('0.event', 'ADD_PROJECTION')), (err) => {
+          eq(err.message, "001.should-require-projection@version-references-to-use-a-change-set-event.yaml: /0/event must be equal to one of the allowed values 'ADD_CHANGE_SET' or 'COMMENCE_CHANGE_SET'");
+          return true;
+        });
+      });
+
+      it('should reject projection references that also specify a version', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', 'VAT Rates@1')), (err) => {
+          eq(err.message, "Reference 'VAT Rates@1' must not also specify a version");
           return true;
         });
       });
@@ -2320,6 +2567,11 @@ describe('DSL', () => {
 
   async function getEntityFields() {
     const { rows } = await filby.withTransaction((tx) => tx.query('SELECT position, name, type, identity FROM fby_entity_field ORDER BY position'));
+    return rows;
+  }
+
+  async function getEntityNullability() {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT name, nullable FROM fby_entity_field ORDER BY position'));
     return rows;
   }
 

@@ -4,7 +4,7 @@
 
 ### Upgrading
 
-Upgrade and restart. Filby applies its own migrations when `init()` is called, regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body, relabels existing `POST` frames as `SET`, re-issues change sets that are out of order, records which entities each existing change set touches in `fby_change_set_entity`, and replaces the default for `fby_change_set.entity_tag` with one that does not use pgcrypto. No other data is changed.
+Upgrade and restart. Filby applies its own migrations when `init()` is called, regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body, relabels existing `POST` frames as `SET`, re-issues change sets that are out of order, records which entities each existing change set touches in `fby_change_set_entity`, records whether each existing entity field is nullable in `fby_entity_field` (key fields are not, every other field is), and replaces the default for `fby_change_set.entity_tag` with one that does not use pgcrypto. No other data is changed.
 
 #### More than one frame with the same key in a change set
 
@@ -62,6 +62,8 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 
 ### Added
 
+- The DSL gains equivalent forms: entity `fields` as a map (`code: TEXT`, or `price:` with `type` and `nullable`), `key` for `identified_by`, `changes` for `frames`, and `entity: park@1` or `projection: parks@1` for the `entity` or `projection` plus `version` pair. `version` defaults to 1 on `ADD_ENTITY` and `ADD_PROJECTION`, but never on a reference. Every existing spelling remains a first-class equivalent and old migrations run unchanged. See [Equivalent forms](README.md#equivalent-forms) (#51).
+- Entity fields can be declared `nullable: false`. `fby_entity_field` gains `nullable`, recorded from the declaration (key fields are never nullable) and backfilled as `false` for key fields and `true` for every other existing field. Nullability is not yet enforced on the entity table, because a `DELETE` frame carries only the key fields (#51).
 - Entity definitions are recorded in `fby_entity_field`, `fby_entity_check` and `fby_enum`. Existing entities and enums are backfilled on upgrade (#3).
 - `fby_change_set` gains `superseded_by` and `reissued_from`. `getChangeLog` and `getCurrentChangeSet` exclude change sets whose `superseded_by` is set, while `getChangeSet` still returns them. Change sets gain `reissuedFrom`, the id of the change set they re-issue, if any. (#99).
 - `getChangeLog` accepts `{ since: changeSetId }` and returns only the change sets with a higher id, so a consumer can resume from the last change set it processed (#56).
