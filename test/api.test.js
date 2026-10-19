@@ -329,6 +329,85 @@ describe('API', () => {
       }
     });
 
+    it('should list change sets since a change set id', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_projection (id, name, version) VALUES
+          (1, 'VAT Rates', 1),
+          (2, 'CGT Rates', 1)`);
+        await tx.query(`INSERT INTO fby_entity (id, name, version) VALUES
+          (1, 'Country', 1),
+          (2, 'VAT Rate', 1),
+          (3, 'CGT Rate', 1)
+        `);
+        await tx.query(`INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
+          (1, 1),
+          (1, 2),
+          (2, 1),
+          (2, 3)`);
+        await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
+          (1, '2020-04-05T00:00:00.000Z', 'Countries'),
+          (2, '2020-04-05T00:00:00.000Z', '2020 VAT Rates'),
+          (3, '2020-04-05T00:00:00.000Z', '2020 CGT Rates'),
+          (4, '2021-04-05T00:00:00.000Z', '2021 VAT Rates'),
+          (5, '2021-04-05T00:00:00.000Z', '2021 CGT Rates')`);
+        await tx.query(`INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
+          (1, 1, 'SET'),
+          (2, 2, 'SET'),
+          (3, 3, 'SET'),
+          (4, 2, 'SET'),
+          (5, 3, 'SET')`);
+      });
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+
+      deq((await filby.getChangeLog(projection, {})).map(({ id }) => id), [1, 2, 4]);
+      deq((await filby.getChangeLog(projection, { since: 0 })).map(({ id }) => id), [1, 2, 4]);
+      deq((await filby.getChangeLog(projection, { since: 1 })).map(({ id }) => id), [2, 4]);
+      deq((await filby.getChangeLog(projection, { since: 3 })).map(({ id }) => id), [4]);
+      deq((await filby.getChangeLog(projection, { since: 4 })).map(({ id }) => id), []);
+
+      const [changeSet] = await filby.getChangeLog(projection, { since: 2 });
+      eq(changeSet.id, 4);
+      eq(changeSet.effective.toISOString(), '2021-04-05T00:00:00.000Z');
+      eq(changeSet.description, '2021 VAT Rates');
+    });
+
+    it('should exclude superseded change sets when listing since a change set id', async (t) => {
+      await filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: VAT Rate
+  version: 1
+  fields:
+    - name: type
+      type: TEXT
+    - name: rate
+      type: NUMERIC
+  identified_by:
+    - type
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  dependencies:
+    - entity: VAT Rate
+      version: 1`, vatRate('2020', 0.1), vatRate('2022', 0.2), vatRate('2021', 0.15));
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id FROM fby_change_set WHERE superseded_by IS NOT NULL'));
+      const supersededIds = rows.map(({ id }) => id);
+      eq(supersededIds.length, 1);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changelog = await filby.getChangeLog(projection);
+      deq(changelog.map(({ description }) => description), ['2020 VAT Rates', '2021 VAT Rates', '2022 VAT Rates']);
+      eq(changelog.some(({ id }) => supersededIds.includes(id)), false);
+
+      const since = changelog[0].id;
+      const resumed = await filby.getChangeLog(projection, { since });
+      deq(resumed.map(({ id }) => id), changelog.slice(1).map(({ id }) => id));
+      deq(resumed.map(({ description }) => description), ['2021 VAT Rates', '2022 VAT Rates']);
+      eq(resumed.some(({ id }) => supersededIds.includes(id)), false);
+      eq(resumed.every(({ id }) => id > since), true);
+    });
+
     it('should not read data frames to find the current change set', async () => {
       const { rows } = await filby.withTransaction((tx) => tx.query(`
         EXPLAIN (FORMAT JSON)

@@ -15,7 +15,7 @@ export class Filby {
   withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
   getProjections(): Promise<Projection[]>;
   getProjection(name: string, version: number): Promise<Projection>;
-  getChangeLog(projection: Projection): Promise<ChangeSet[]>;
+  getChangeLog(projection: Projection, options?: { since?: number }): Promise<ChangeSet[]>;
   getCurrentChangeSet(projection: Projection): Promise<ChangeSet>;
   getChangeSet(id: number): Promise<ChangeSet>;
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
