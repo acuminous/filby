@@ -484,7 +484,7 @@ Starts polling the database for notifications. Does nothing if Filby is already 
 Stops polling the database for notifications, aborts the signal passed to any inflight handlers, and waits for the current delivery to be recorded.
 
 #### filby.getNotificationStatus(): Promise&lt;NotificationStatus&gt;
-Reports the state of the notification poller and queue for health checks. `started` is whether Filby is polling. `poller` is `idle` between polls, `running` while a poll is in progress, `stopped` only transiently during `filby.stopNotifications()`, and `undefined` whenever Filby is not polling. `lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError` (`at` and `message`) are tracked in memory, so they survive `filby.stopNotifications()` but not a process restart. `failuresSinceLastSuccess` returns to 0 when a poll succeeds, whereas `lastError` keeps the most recent poll error. `pending` counts the notifications that have not yet been delivered, `overdue` those whose scheduled time has passed, and `exhausted` those that have reached `maxAttempts` and will not be retried. An exhausted notification is also overdue. A growing `overdue` count while polls succeed means handlers are failing. The counts come from a single query, so the method rejects when the database is unavailable, which is what a health check should do. `Filby.NOTIFICATION_ERROR` remains the as-it-happens signal for polling failures, e.g.
+Reports the state of the notification poller and queue for health checks. `started` is whether Filby is polling. `poller` is `idle` between polls, `running` while a poll is in progress, `stopped` only transiently during `filby.stopNotifications()`, and `undefined` whenever Filby is not polling. `lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError` (`at` and `message`) are tracked in memory, so they survive `filby.stopNotifications()` but not a process restart. `failuresSinceLastSuccess` returns to 0 when a poll succeeds, whereas `lastError` keeps the most recent poll error. `pending` counts the notifications that have not yet been delivered, `overdue` those whose scheduled time has passed, and `exhausted` those that have reached `maxAttempts` and will not be retried. An exhausted notification is also overdue. A growing `overdue` count while polls succeed means handlers are failing. The counts come from a single query, so the method rejects when the database is unavailable, which is what a health check should do. `Filby.NOTIFICATION_ERROR` remains the as-it-happens signal, emitted for polling failures and for every failed delivery attempt, e.g.
 
 ```js
 fastify.get('/health', async (request, reply) => {
@@ -505,14 +505,16 @@ filby.subscribe('VAT Rate changed', async (notification, { signal }) => {
 
 A handler that exceeds the timeout is treated as having failed and is retried like any other failure. Since a promise cannot be cancelled, a handler that ignores the signal may still complete after Filby has recorded the failure, so handlers must be idempotent. At-least-once delivery already requires this, because a handler can also complete just before its process is killed.
 
-If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. A hook with no subscriber is treated as a failure too: the notification is recorded with the error `No subscribers for hook '...'` and retried like any other failure, so subscribe before calling `startNotifications`, and check that the event name matches the hook name exactly. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
+If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. A hook with no subscriber is treated as a failure too: the notification is recorded with the error `No subscribers for hook '...'` and retried like any other failure, so subscribe before calling `startNotifications`, and check that the event name matches the hook name exactly. Every failed attempt emits `Filby.NOTIFICATION_ERROR` with the attempt's error and the notification, once the failure has been recorded. If the maximum attempts are exceeded then Filby additionally emits a dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`, with the same payload. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
 
 ```js
-filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
+filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, ({ error, notification }) => {
   console.error('Hook Failed', notification);
-  console.error('Hook Failed', notification.err.stack); // Careful not to log secrets that may be on the error
+  console.error('Hook Failed', error.stack); // Careful not to log secrets that may be on the error
 });
 ```
+
+Both events are emitted synchronously and an error thrown by a listener is discarded, so catch errors inside the listener.
 
 If polling the database for notifications fails, for example because the database is briefly unavailable, Filby emits `Filby.NOTIFICATION_ERROR` and polls again at the next interval. Errors raised by the connection pool, such as the server closing an idle connection, are reported through the same event. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
 

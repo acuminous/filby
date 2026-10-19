@@ -198,6 +198,32 @@ describe('Notifications', () => {
     eq(delivered.last_error, null);
   });
 
+  it('should emit a notification error for each failed attempt', async () => {
+    await setup();
+
+    filby.subscribe('VAT Rate Changed', (notification) => {
+      throw new Error(`Oh Noes! ${notification.attempts}`);
+    });
+
+    const errors = [];
+    filby.subscribe(TestFilby.NOTIFICATION_ERROR, (payload) => errors.push(payload));
+
+    filby.startNotifications();
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await until(() => errors.length >= attempt);
+      await until(async () => {
+        const [row] = await getNotifications();
+        return row.attempts === attempt && row.last_error.includes(`Oh Noes! ${attempt}`);
+      });
+      const { error, notification } = errors[attempt - 1];
+      eq(error.message, `Oh Noes! ${attempt}`);
+      deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
+      deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
+      eq(notification.attempts, attempt);
+    }
+  });
+
   it('should emit an event when the last notification attempt fails', async () => {
     await setup();
 
@@ -205,14 +231,61 @@ describe('Notifications', () => {
       throw new Error('Oh Noes!');
     });
 
+    const errors = [];
+    filby.subscribe(TestFilby.NOTIFICATION_ERROR, (payload) => errors.push(payload));
+
     const exhausted = once(filby, TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED);
     filby.startNotifications();
-    const notification = await exhausted;
+    const { error, notification } = await exhausted;
 
-    eq(notification.err.message, 'Oh Noes!');
+    eq(error.message, 'Oh Noes!');
     deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
     deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
     eq(notification.attempts, 3);
+    eq(errors.length, 3);
+    deq(errors[2], { error, notification });
+  });
+
+  it('should keep polling when an error listener throws', async () => {
+    await setup();
+
+    const rejections = [];
+    const exceptions = [];
+    const onUnhandledRejection = (err) => rejections.push(err);
+    const onUncaughtException = (err) => exceptions.push(err);
+    process.on('unhandledRejection', onUnhandledRejection);
+    process.on('uncaughtException', onUncaughtException);
+    try {
+      filby.subscribe('VAT Rate Changed', () => {
+        throw new Error('Oh Noes!');
+      });
+      filby.subscribe(TestFilby.NOTIFICATION_ERROR, () => {
+        throw new Error('Logging is down');
+      });
+      filby.subscribe(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, () => {
+        throw new Error('Alerting is down');
+      });
+
+      filby.startNotifications();
+
+      await until(async () => (await getNotifications())[0].attempts === 3);
+
+      const cgtDelivered = once(filby, 'CGT Rate Changed');
+      await filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+          (2, 'CGT Rates', 1)`);
+      });
+      await cgtDelivered;
+
+      const [exhausted] = await getNotifications();
+      eq(exhausted.attempts, 3);
+      match(exhausted.last_error, /Oh Noes!/);
+      eq(rejections.length, 0);
+      eq(exceptions.length, 0);
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+      process.off('uncaughtException', onUncaughtException);
+    }
   });
 
   it('should pass an abort signal to handlers', async () => {
@@ -270,9 +343,9 @@ describe('Notifications', () => {
     try {
       const exhausted = once(other, TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED);
       other.startNotifications();
-      const notification = await exhausted;
+      const { error, notification } = await exhausted;
 
-      match(notification.err.message, /timed out after 100ms/);
+      match(error.message, /timed out after 100ms/);
       eq(notification.attempts, 3);
     } finally {
       await other.stop();

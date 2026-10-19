@@ -52,13 +52,13 @@ module.exports = class Application {
   }
 
   async #reportFailingWebhooks() {
-    this.#filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ err, ...notification }) => {
+    this.#filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ error, notification }) => {
       const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
 
-      const details = err.isAxiosError
-        ? { message: err.message, stack: err.stack, method: err.config?.method, url: err.config?.url }
-        : { message: err.message, stack: err.stack };
+      const details = error.isAxiosError
+        ? { message: error.message, stack: error.stack, method: error.config?.method, url: error.config?.url }
+        : { message: error.message, stack: error.stack };
       this.#logger.error(details);
     });
   }
