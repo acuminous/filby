@@ -419,7 +419,7 @@ Connects to the database and runs schema/data migrations
 Stops polling for notifications then disconnects from the database
 
 #### filby.startNotifications(): Promise&lt;void&gt;
-Starts polling the database for notifications
+Starts polling the database for notifications. Does nothing if Filby is already polling.
 
 #### filby.stopNotifications(): Promise&lt;void&gt;
 Stops polling the database for notifications, and waits for any inflight notifications to complete.

@@ -1,5 +1,14 @@
 const { ok, strictEqual: eq, deepEqual: deq, match } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
+const pipsqueak = require('pipsqueak');
+
+const schedulers = [];
+const { promiseApi } = pipsqueak;
+pipsqueak.promiseApi = (options) => {
+  const scheduler = promiseApi(options);
+  schedulers.push(scheduler);
+  return scheduler;
+};
 
 const TestFilby = require('./TestFilby');
 const { until, once } = require('./until');
@@ -27,6 +36,7 @@ describe('Notifications', () => {
 
   beforeEach(async () => {
     filby.unsubscribeAll();
+    schedulers.length = 0;
     await filby.wipe();
   });
 
@@ -176,5 +186,39 @@ describe('Notifications', () => {
     await until(async () => (await getNotifications())[0].status === 'OK');
 
     eq(called, false);
+  });
+
+  it('should ignore startNotifications when already polling', async () => {
+    await filby.startNotifications();
+    await filby.startNotifications();
+
+    eq(schedulers.length, 1);
+  });
+
+  it('should stop polling after startNotifications was called twice', async () => {
+    await filby.startNotifications();
+    await filby.startNotifications();
+    await filby.stopNotifications();
+
+    deq(schedulers.map((scheduler) => scheduler.status('filby')), ['stopped']);
+  });
+
+  it('should start polling again after stopNotifications', async () => {
+    await setup();
+
+    const vatDelivered = once(filby, 'VAT Rate Changed');
+    await filby.startNotifications();
+    await vatDelivered;
+    await filby.stopNotifications();
+
+    const cgtDelivered = once(filby, 'CGT Rate Changed');
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (2, 'CGT Rates', 1)`);
+    });
+    await filby.startNotifications();
+    await cgtDelivered;
+
+    eq(schedulers.length, 2);
   });
 });

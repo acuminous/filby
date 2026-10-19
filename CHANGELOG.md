@@ -55,6 +55,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 ### Fixed
 
 - `getAggregates` quotes the aggregate function name, so an entity whose name contains characters that are not valid in an unquoted identifier can be read through the API as well as through its table (#27).
+- `startNotifications` does nothing if Filby is already polling. Previously each call started another poller, and only the last could be stopped, so `stopNotifications` and `stop` left the others running. `stopNotifications` now discards the stopped poller, so `startNotifications` after it starts a fresh one (#21).
 
 ### Added
 
