@@ -8,6 +8,7 @@
   "files": {
     "includes": [
       "index.js",
+      "bin/**/*.js",
       "lib/**/*.js",
       "scripts/**/*.js",
       "test/**/*.js",

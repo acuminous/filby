@@ -1,0 +1,5 @@
+- operation: ADD_ENTITY
+  fields:
+    code: TEXT
+  key:
+    - code
