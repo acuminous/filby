@@ -319,7 +319,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
       action: DELETE
       source: ./data/park-closures-2019.csv
       # code
-      # HF
+      # SK
 ```
 
 The effective date may be a calendar date, such as `2019-01-01`, or a timestamp with an explicit offset, such as `2019-01-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, so the stored effective date follows daylight saving time, and a bare date without a `timezone` is rejected: Filby never uses the process timezone, because the same migration would render differently on different machines. A timestamp with an explicit offset is stored as written, with or without a `timezone`.
