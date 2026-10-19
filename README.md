@@ -456,8 +456,17 @@ Returns the list of projections.
 #### filby.getProjection(name: string, version: number): Promise&lt;Projection&gt;
 Returns the specified projection.
 
-#### filby.getChangeLog(projection: Projection): Promise&lt;ChangeSet[]&gt;
-Returns the change log for the given projection, ordered by change set id, oldest first; superseded change sets are omitted.
+#### filby.getChangeLog(projection: Projection, options?: { since?: number }): Promise&lt;ChangeSet[]&gt;
+Returns the change log for the given projection, ordered by change set id, oldest first; superseded change sets are omitted. Pass `since` to return only the change sets with a higher id, so a consumer that remembers the last change set id it processed can resume from there.
+
+```js
+async function catchUp(projection, lastChangeSetId) {
+  const changeSets = await filby.getChangeLog(projection, { since: lastChangeSetId });
+  for (const changeSet of changeSets) {
+    await mirror(projection, changeSet);
+  }
+}
+```
 
 #### filby.getCurrentChangeSet(projection: Projection): Promise&lt;ChangeSet&gt;
 Returns the current changeset for the given projection based on the database's current time.
@@ -493,7 +502,7 @@ async function getParks(changeSetId) {
 ```
 
 ## Configuration
-Filby requires Node.js 22.12 or later and is tested against PostgreSQL 16.
+Filby requires Node.js 22.12 or later and PostgreSQL 13 or later, and is tested against PostgreSQL 16.
 
 ```js
 {

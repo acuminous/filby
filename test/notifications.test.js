@@ -177,4 +177,28 @@ describe('Notifications', () => {
 
     eq(called, false);
   });
+
+  it('should unsubscribe all interested parties from an event when no handler is specified', async () => {
+    await setup();
+
+    let calledFirst = false;
+    let calledSecond = false;
+    function first() {
+      calledFirst = true;
+    }
+    function second() {
+      calledSecond = true;
+    }
+
+    filby.subscribe('VAT Rate Changed', first);
+    filby.subscribe('VAT Rate Changed', second);
+    filby.unsubscribe('VAT Rate Changed');
+
+    filby.startNotifications();
+
+    await until(async () => (await getNotifications())[0].status === 'OK');
+
+    eq(calledFirst, false);
+    eq(calledSecond, false);
+  });
 });
