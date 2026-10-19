@@ -49,6 +49,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - `getChangeLog` and `getCurrentChangeSet` read `fby_change_set_entity`, one row per change set and entity, instead of every data frame, so their cost grows with the number of change sets rather than the number of frames. A trigger on `fby_data_frame` fills the table, so data frames inserted by your own SQL are included. Deleting every data frame for an entity in a change set with SQL does not remove the change set from the change log of projections that use that entity, so delete the change set instead (#38).
 - `fby_data_frame` is indexed on `(entity_id, change_set_id)`, so aggregate functions no longer scan every data frame to find an entity's frames up to a change set (#35).
 - Filby no longer creates or uses the pgcrypto extension. `init()` previously failed on a database that already had it, and needed the privilege to create extensions, which managed Postgres services often withhold. Entity tags are now derived from `gen_random_uuid()` and keep their 20 hexadecimal character form. Existing entity tags are unchanged, and the extension stays installed but unused by Filby, so drop it if nothing else needs it (#23).
+- A projection dependency or change set frame that names an entity which does not exist fails with `Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v2'` or `Change set '2020 VAT Rates' references a non existent entity 'VAT Rate v2'`, instead of a `NOT NULL` violation on `entity_id` (#26).
 
 ### Fixed
 
