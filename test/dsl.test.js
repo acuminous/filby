@@ -1591,6 +1591,28 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject more than one frame for the same key in the same frame group', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.0.data', [{ type: 'standard', rate: 0.10 }, { type: 'zero', rate: 0 }, { type: 'standard', rate: 0.15 }])), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (type=standard) in change set '2020 VAT Rates'");
+        return true;
+      });
+    });
+
+    it('should reject data fields that do not exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).merge('0.frames.0.data.0', { wombat: 1 })), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent field 'wombat' of entity 'VAT Rate v1'");
+        return true;
+      });
+    });
+
+    it('should store fields omitted from some data items as NULL', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.0.data', [{ type: 'standard', rate: 0.10 }, { type: 'super' }]));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 4);
+      deq(frames.map((frame) => [frame.type, frame.rate]), [['standard', 0.10], ['super', null], ['reduced', 0.05], ['zero', 0]]);
+    });
+
     it('should reject frames without a key', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).del('0.frames.0.data.0.type')), (err) => {
         eq(err.code, NOT_NULL_VIOLATION);
@@ -2622,6 +2644,40 @@ describe('DSL', () => {
       });
     });
 
+    it('should report csv columns that do not exist', async (t) => {
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/unknown-column.csv' }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent field 'wombat' of entity 'VAT Rate v1'");
+        return true;
+      });
+    });
+
+    it('should load large csv files in a few seconds', async (t) => {
+      const source = await writeCsv(t.name, 20000);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      const started = Date.now();
+      await filby.applyYaml(t.name, ADD_ENTITY, changeSet);
+      const elapsed = Date.now() - started;
+      ok(elapsed < 15000, `Loading 20000 rows took ${elapsed}ms`);
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT type FROM vat_rate_v1 ORDER BY fby_frame_id'));
+      eq(rows.length, 20000);
+      eq(rows[0].type, 'type-00001');
+      eq(rows[19999].type, 'type-20000');
+    });
+
+    it('should reject csv rows that repeat a key from an earlier batch', async (t) => {
+      const source = await writeCsv(t.name, 1000, 'type-00001');
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (type=type-00001) in change set '2020 VAT Rates'");
+        return true;
+      });
+    });
+
     it('should make aggregates available from the API', async (t) => {
       await filby.applyYaml(
         t.name,
@@ -2836,6 +2892,14 @@ describe('DSL', () => {
       const { fby_frame_id: _frameId, fby_change_set_id: _changeSetId, ...cs } = changeSet;
       return cs;
     });
+  }
+
+  async function writeCsv(name, size, ...extraTypes) {
+    const filename = `001.${name.replace(/ /g, '-')}.csv`.toLowerCase();
+    const types = Array.from({ length: size }, (_, i) => `type-${String(i + 1).padStart(5, '0')}`).concat(extraTypes);
+    const lines = ['action,type,rate'].concat(types.map((type, i) => `SET,${type},${(i % 100) / 100}`));
+    await fs.promises.writeFile(path.join(__dirname, 'migrations', filename), lines.join('\n'), { encoding: 'utf-8' });
+    return `./${filename}`;
   }
 
   async function getDatabaseTime() {

@@ -1,3 +1,6 @@
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { strictEqual: eq, throws } = require('node:assert');
 const { describe, it } = require('node:test');
 
@@ -39,4 +42,28 @@ describe('Compile Template', () => {
   it('should leave the shared Handlebars partials untouched', () => {
     eq(Handlebars.partials.insert_data_frame, undefined);
   });
+
+  it('should render a large csv as a few insert statements', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'filby-'));
+    const lines = ['action,type,rate'].concat(Array.from({ length: 20000 }, (_, i) => `SET,type-${i},${i}`));
+    fs.writeFileSync(path.join(directory, 'vat-rates.csv'), lines.join('\n'));
+
+    const render = compileTemplate(path.join(__dirname, '..', 'lib'), 'template.hbs');
+    const sql = render([{
+      operation: 'ADD_CHANGE_SET',
+      description: '2020 VAT Rates',
+      effective: '2020-04-05T00:00:00.000Z',
+      frames: [{ entity: 'VAT Rate', version: 1, source: './vat-rates.csv' }],
+    }], { data: { filename: '001.vat-rates.yaml', directory } });
+
+    eq(count(sql, 'INSERT INTO fby_data_frame'), 20);
+    eq(count(sql, 'INSERT INTO "vat_rate_v1"'), 20);
+    eq(count(sql, 'fby_notify_add_change_set'), 1);
+
+    fs.rmSync(directory, { recursive: true });
+  });
 });
+
+function count(text, substring) {
+  return text.split(substring).length - 1;
+}
