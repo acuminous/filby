@@ -57,6 +57,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 
 - `getAggregates` quotes the aggregate function name, so an entity whose name contains characters that are not valid in an unquoted identifier can be read through the API as well as through its table (#27).
 - Entity field types may contain commas, square brackets and dots, so `NUMERIC(10,2)`, `DECIMAL(5,2)`, `TEXT[]` and schema-qualified types such as `accounts.currency` are accepted. Quotes, semicolons and other characters that could break out of a column definition are still rejected, and the error now names the entity and field (#9).
+- A YAML data frame field with no value (`label:` or `label: ~`) is stored as `NULL`. Previously text columns stored an empty string and other columns failed with a cast error. A nested map or list is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column; a quoted value is still stored as text (#8).
 - `unsubscribe(event)` with no handler removes every handler for the event, as documented. Previously it threw `removeListener only takes instances of Function` (#20).
 
 ### Added
