@@ -5,6 +5,7 @@ export { PoolConfig };
 export class Filby {
   static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
   static NOTIFICATION_ERROR: string;
+  static MIGRATION_LOCK_KEY: number;
   constructor(config: Config);
   init(): Promise<void>;
   startNotifications(): Promise<void>;
