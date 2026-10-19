@@ -22,6 +22,7 @@ See the [example applications](#example-applications) for usage.
 - [Benefits](#benefits)
 - [Concepts](#concepts)
 - [Data Definition](#data-definition)
+- [Correcting and Re-issuing Data](#correcting-and-re-issuing-data)
 - [API](#api)
 - [Configuration](#configuration)
 - [Example Applications](#example-applications)
@@ -376,6 +377,15 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ```
 **PRO TIP**: Since the results for a given change set should never change, consider making PostgreSQL functions IMMUTABLE so the output can be cached.
 
+
+## Correcting and Re-issuing Data
+The aggregates for a change set include the frames from every change set with a lower or equal id and an earlier or equal effective date. This only works while change set ids follow effective dates, which pre-releasing or backfilling data would break. Filby keeps them in order by re-issuing change sets.
+
+When you add a change set, Filby re-issues every live change set with a later effective date. A re-issued change set has a new id, the same description, effective date and data frames as the original, and `reissuedFrom` set to the original's id. The original is superseded: `getChangeLog` and `getCurrentChangeSet` no longer return it, but `getChangeSet` and `getAggregates` still do, with their original results, so anything cached by its id stays correct. A re-issued change set schedules `ADD_CHANGE_SET` notifications like any other.
+
+This means adding one change set can add more than one entry to the change log. For example, given change set 1 effective 2026-01-01 and a pre-released change set 2 effective 2027-01-01, adding change set 3 effective 2026-06-01 re-issues change set 2 as change set 4. The change log becomes 1, 3, 4, and the aggregates for change set 4 include the data from change set 3.
+
+Adding a change set with the same effective date as an existing one re-issues nothing. The new change set wins because it has the higher id.
 
 ## API
 Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries.
