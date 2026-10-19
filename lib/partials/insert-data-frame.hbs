@@ -3,6 +3,12 @@ FROM fby_entity
 WHERE name = {{literal entity}}
   AND version = {{literal version}};
 
+IF v_entity_id IS NULL THEN
+  RAISE EXCEPTION 'Change set ''%'' references a non existent entity ''%''',
+    (SELECT description FROM fby_change_set WHERE id = v_change_set_id),
+    {{literal entity (v version)}};
+END IF;
+
 INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES
 (v_change_set_id, v_entity_id, {{literal (frameAction action)}})
 RETURNING id INTO v_frame_id;
