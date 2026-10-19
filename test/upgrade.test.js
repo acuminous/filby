@@ -235,6 +235,19 @@ describe('Upgrade', () => {
     deq(aggregate2021, [{ tax_rate: 'standard', region: 'uk', rate: '0.20' }]);
   });
 
+  it('should backfill change set entities', async () => {
+    await createVatRateEntity();
+    await createVatRatesProjection();
+    await addChangeSet({ effective: '2026-01-01', description: '2026 VAT Rates', taxRate: 'standard', rate: '0.2' });
+    await addChangeSet({ effective: '2027-01-01', description: '2027 VAT Rates', taxRate: 'standard', rate: '0.25' });
+    await addChangeSet({ effective: '2026-06-01', description: 'Mid 2026 VAT Rates', taxRate: 'reduced', rate: '0.05' });
+
+    await upgrade();
+
+    const { rows } = await query('SELECT change_set_id FROM fby_change_set_entity ORDER BY change_set_id');
+    deq(rows, [{ change_set_id: 1 }, { change_set_id: 2 }, { change_set_id: 3 }, { change_set_id: 4 }]);
+  });
+
   it('should re-issue change sets with a later effective date than a later change set', async () => {
     await createVatRateEntity();
     await createVatRatesProjection();

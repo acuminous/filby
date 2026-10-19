@@ -124,6 +124,19 @@ describe('Database Schema', () => {
         return true;
       });
     });
+
+    it('should NOT cascade deletes to change set entities', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query("INSERT INTO fby_change_set (id, description, effective) VALUES (1, 'Park updates',now())");
+        await tx.query('INSERT INTO fby_change_set_entity (change_set_id, entity_id) VALUES (1, 1)');
+      });
+
+      await rejects(() => filby.withTransaction((tx) => tx.query('DELETE FROM fby_entity')), (err) => {
+        eq(err.code, FOREIGN_KEY_VIOLATION);
+        return true;
+      });
+    });
   });
 
   describe('Hooks', () => {
@@ -235,6 +248,34 @@ describe('Database Schema', () => {
         { column: 'reissued_from', referenced_table: 'fby_change_set', referenced_column: 'id' },
         { column: 'superseded_by', referenced_table: 'fby_change_set', referenced_column: 'id' },
       ]);
+    });
+
+    it('should record change set entities for data frames', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1), (2, 'Park', 2)");
+        await tx.query("INSERT INTO fby_change_set (id, description, effective) VALUES (1, 'Park updates', now()), (2, 'More park updates', now())");
+        await tx.query("INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES (1, 1, 'SET'), (1, 1, 'SET'), (1, 2, 'SET')");
+        await tx.query("INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES (1, 1, 'SET'), (2, 1, 'SET')");
+      });
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT change_set_id, entity_id FROM fby_change_set_entity ORDER BY change_set_id, entity_id'));
+      deq(rows, [
+        { change_set_id: 1, entity_id: 1 },
+        { change_set_id: 1, entity_id: 2 },
+        { change_set_id: 2, entity_id: 1 },
+      ]);
+    });
+
+    it('should cascade deletes to change set entities', async () => {
+      await filby.withTransaction(async (tx) => {
+        await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");
+        await tx.query("INSERT INTO fby_change_set (id, description, effective) VALUES (1, 'Park updates', now())");
+        await tx.query("INSERT INTO fby_data_frame (change_set_id, entity_id, action) VALUES (1, 1, 'SET')");
+        await tx.query('DELETE FROM fby_change_set');
+      });
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_change_set_entity'));
+      eq(rows.length, 0);
     });
 
     it('should default last modified date to now', async () => {

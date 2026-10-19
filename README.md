@@ -342,17 +342,12 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 
 The DSL deliberately omits the ability to drop change sets and data frames since they are supposed to be immutable. However, since Marv works with SQL, you can also use it for regular database migrations.
 
+Filby records which entities a change set touches when its data frames are added. If you delete every data frame for an entity in a change set, the change set still appears in the change log of projections that use that entity. Its aggregates are correct, but the entry is redundant, so delete the change set instead.
+
 ```sql
--- migrations/0004.delete-all-the-things.sql
+-- migrations/0004.delete-a-change-set.sql
 START TRANSACTION;
 
--- deletes frame sets by entity
-DELETE FROM fby_data_frame f
-INNER JOIN fby_entity e ON e.id = f.entity_id;
-WHERE e.name = 'Park'
-  AND e.version = 1;
-
--- deletes a change set by id
 DELETE FROM fby_change_set
  WHERE id = 4;
 
