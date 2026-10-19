@@ -281,7 +281,10 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # Add a change set containing one or more data frames for the previously defined entities
 - operation: ADD_CHANGE_SET
   description: Initial Data
-  effective: 2019-01-01T00:00:00Z
+  # The date the change set takes effect. A calendar date is midnight
+  # in the change set's timezone, which must be an IANA name
+  effective: 2019-01-01
+  timezone: Europe/London
   frames:
     - entity: park
       version: 1
@@ -315,6 +318,8 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
       # SET,CA,Caistor
       # DELETE,TP,
 ```
+
+The effective date may be a calendar date, such as `2019-01-01`, or a timestamp with an explicit offset, such as `2019-01-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, so the stored effective date follows daylight saving time, and a bare date without a `timezone` is rejected: Filby never uses the process timezone, because the same migration would render differently on different machines. A timestamp with an explicit offset is stored as written, with or without a `timezone`.
 
 A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column.
 

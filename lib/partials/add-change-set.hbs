@@ -6,7 +6,7 @@ DECLARE
   v_frame_id INTEGER;
 BEGIN
   INSERT INTO fby_change_set (effective, description) VALUES
-  ({{literal effective}}, {{literal description}})
+  ({{#if (isBareDate effective)}}{{literal effective}}::timestamp AT TIME ZONE {{literal timezone}}{{else}}{{literal effective}}{{/if}}, {{literal description}})
   RETURNING id INTO v_change_set_id;
   {{#frames}}
   {{#if source}}

@@ -1103,7 +1103,50 @@ describe('DSL', () => {
 
     it('should require effective to be an ISO Date', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.effective', 'wombat')), (err) => {
-        eq(err.message, "001.should-require-effective-to-be-an-iso-date.yaml: /0/effective must match format 'date-time'");
+        eq(err.message, "001.should-require-effective-to-be-an-iso-date.yaml: /0/effective must match format 'date-time' or 'date'");
+        return true;
+      });
+    });
+
+    it('should place a bare effective date in the change set timezone', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        ADD_ENTITY,
+        transform(ADD_CHANGE_SET_1).merge('0', { description: 'Winter VAT Rates', effective: '2026-01-01', timezone: 'Europe/London' }),
+        transform(ADD_CHANGE_SET_1).merge('0', { description: 'Summer VAT Rates', effective: '2026-07-01', timezone: 'Europe/London' }),
+      );
+
+      const [winter] = await getDataFrames('Winter VAT Rates');
+      eq(winter.effective.toISOString(), '2026-01-01T00:00:00.000Z');
+
+      const [summer] = await getDataFrames('Summer VAT Rates');
+      eq(summer.effective.toISOString(), '2026-06-30T23:00:00.000Z');
+    });
+
+    it('should require a timezone for a bare effective date', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.effective', '2026-01-01')), (err) => {
+        eq(err.message, "001.should-require-a-timezone-for-a-bare-effective-date.yaml: /0/effective '2026-01-01' is a calendar date in the change set's timezone, but the change set has no timezone. Filby never uses the process timezone, because the same file would render differently on different machines. Add 'timezone' (an IANA name such as 'Europe/London') to the change set, or give 'effective' an explicit offset such as '2026-01-01T00:00:00Z'");
+        return true;
+      });
+    });
+
+    it('should ignore the timezone when effective has an explicit offset', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).merge('0', { effective: '2020-04-05T00:00:00.000Z', timezone: 'Europe/London' }));
+
+      const [frame] = await getDataFrames('2020 VAT Rates');
+      eq(frame.effective.toISOString(), '2020-04-05T00:00:00.000Z');
+    });
+
+    it('should require timezone to be a string', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).merge('0', { effective: '2026-01-01', timezone: 1 })), (err) => {
+        eq(err.message, "001.should-require-timezone-to-be-a-string.yaml: /0/timezone must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should reject an unknown timezone', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).merge('0', { effective: '2026-01-01', timezone: 'Mars/Olympus_Mons' })), (err) => {
+        eq(err.message, 'time zone "Mars/Olympus_Mons" not recognized');
         return true;
       });
     });
