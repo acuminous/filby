@@ -1,4 +1,4 @@
-const { strictEqual: eq, deepEqual: deq } = require('node:assert');
+const { ok, strictEqual: eq, deepEqual: deq } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 
 const TestFilby = require('./TestFilby');
@@ -327,6 +327,19 @@ describe('API', () => {
       for (const id of supersededIds) {
         eq((await filby.getChangeSet(id)).id, id);
       }
+    });
+
+    it('should not read data frames to find the current change set', async () => {
+      const { rows } = await filby.withTransaction((tx) => tx.query(`
+        EXPLAIN (FORMAT JSON)
+        SELECT change_set_id
+        FROM fby_projection_change_log_vw
+        WHERE projection_id = 1 AND effective <= now()
+        ORDER BY effective DESC, change_set_id DESC
+        LIMIT 1`));
+      const plan = JSON.stringify(rows[0]['QUERY PLAN']);
+      ok(plan.includes('fby_change_set_entity'), plan);
+      ok(!plan.includes('fby_data_frame'), plan);
     });
 
     it('should get change set by id', async () => {

@@ -1214,6 +1214,23 @@ describe('DSL', () => {
       eq(rows.length, 0);
     });
 
+    it('should record each entity in a change set once', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ENTITY).set('0.version', 2), transform(ADD_CHANGE_SET_1).set('0.frames.2.version', 2));
+
+      deq(await getChangeSetEntities(), [
+        { description: '2020 VAT Rates', name: 'VAT Rate', version: 1 },
+        { description: '2020 VAT Rates', name: 'VAT Rate', version: 2 },
+      ]);
+    });
+
+    it('should record the entities of re-issued change sets', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2025', 'standard', 0.2), vatRate('2027', 'standard', 0.25), vatRate('2026', 'reduced', 0.05));
+
+      const [, reissued] = await getChangeSets('2027 VAT Rates');
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT entity_id FROM fby_change_set_entity WHERE change_set_id = $1', [reissued.id]));
+      eq(rows.length, 1);
+    });
+
     it('should re-issue change sets with a later effective date', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2025', 'standard', 0.2), vatRate('2027', 'standard', 0.25), vatRate('2026', 'reduced', 0.05));
 
@@ -2111,6 +2128,16 @@ describe('DSL', () => {
 
   async function getChangeSets(description) {
     const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id, superseded_by, reissued_from FROM fby_change_set WHERE description = $1 ORDER BY id', [description]));
+    return rows;
+  }
+
+  async function getChangeSetEntities() {
+    const { rows } = await filby.withTransaction((tx) => tx.query(`
+      SELECT c.description, e.name, e.version
+      FROM fby_change_set_entity ce
+      INNER JOIN fby_change_set c ON c.id = ce.change_set_id
+      INNER JOIN fby_entity e ON e.id = ce.entity_id
+      ORDER BY c.id, e.version`));
     return rows;
   }
 

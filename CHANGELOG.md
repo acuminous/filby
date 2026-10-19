@@ -4,7 +4,7 @@
 
 ### Upgrading
 
-Upgrade and restart. Filby applies its own migrations when `init()` is called, regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body, relabels existing `POST` frames as `SET`, and re-issues change sets that are out of order. No other data is changed.
+Upgrade and restart. Filby applies its own migrations when `init()` is called, regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body, relabels existing `POST` frames as `SET`, re-issues change sets that are out of order, and records which entities each existing change set touches in `fby_change_set_entity`. No other data is changed.
 
 #### More than one frame with the same key in a change set
 
@@ -46,6 +46,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - Aggregate functions are generated as `LANGUAGE sql STABLE`, so Postgres can inline them and apply the caller's filters before the aggregate is materialised (#36).
 - Adding a change set re-issues every live change set with a later effective date as a new change set with the same description, effective date and data frames, and marks the original as superseded, so change set ids always follow effective dates. One migration can therefore add more than one change log entry, and each re-issued change set schedules `ADD_CHANGE_SET` notifications. See [Correcting and Re-issuing Data](README.md#correcting-and-re-issuing-data) (#4).
 - `getChangeLog` returns change sets ordered by change set id, oldest first. Previously the order was whatever Postgres happened to return (#19).
+- `getChangeLog` and `getCurrentChangeSet` read `fby_change_set_entity`, one row per change set and entity, instead of every data frame, so their cost grows with the number of change sets rather than the number of frames. A trigger on `fby_data_frame` fills the table, so data frames inserted by your own SQL are included (#38).
 
 ### Added
 
