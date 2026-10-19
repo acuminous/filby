@@ -11,13 +11,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-INSERT INTO fby_entity_field (entity_id, position, name, type, identity)
-SELECT e.id, f.position, f.name, f.type, f.identity
+INSERT INTO fby_entity_field (entity_id, position, name, type, identity, nullable)
+SELECT e.id, f.position, f.name, f.type, f.identity, f.nullable
 FROM fby_entity e, (VALUES
   {{#fields}}
-  ({{ordinal}}, {{literal (canonical name)}}, {{literal type}}, {{#if (includes ../identified_by this)}}TRUE{{else}}FALSE{{/if}}){{#unless @last}},{{/unless}}
+  ({{ordinal}}, {{literal (canonical name)}}, {{literal type}}, {{#if (includes ../identified_by this)}}TRUE{{else}}FALSE{{/if}}, {{#if nullable}}TRUE{{else}}FALSE{{/if}}){{#unless @last}},{{/unless}}
   {{/fields}}
-) AS f (position, name, type, identity)
+) AS f (position, name, type, identity, nullable)
 WHERE e.name = {{literal name}}
   AND e.version = {{literal version}};
 

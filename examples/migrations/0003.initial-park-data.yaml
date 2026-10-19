@@ -1,9 +1,8 @@
 - operation: ADD_CHANGE_SET
   description: Initial Data
   effective: 2019-01-01T00:00:00Z
-  frames:
-    - entity: park
-      version: 1
+  changes:
+    - entity: park@1
       action: SET
       data:
         - code: DC
@@ -12,7 +11,6 @@
           name: Primrose Valley
         - code: GA
           name: Greenacres
-          
-    - entity: season
-      version: 1
+
+    - entity: season@1
       source: ./csv/season-2019.csv

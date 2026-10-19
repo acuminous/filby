@@ -1,7 +1,6 @@
 - operation: ADD_CHANGE_SET
   description: 2024 Season
   effective: 2024-01-01T00:00:00Z
-  frames:
-    - entity: season
-      version: 1
+  changes:
+    - entity: season@1
       source: ./csv/season-2024.csv
