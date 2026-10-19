@@ -10,7 +10,7 @@ describe('API', () => {
   let application: Application;
 
   before(async () => {
-    const testConfig = { ...config, fastify: { logger: false } };
+    const testConfig = { ...config, fastify: { logger: false }, server: { port: 0 } };
     application = new Application({ config: testConfig });
     await application.start();
   });
@@ -173,7 +173,7 @@ describe('API', () => {
   }
 
   async function get(path: string, options = { method: 'GET', validateStatus: () => true, maxRedirects: 0 }) {
-    const { status, headers, data } = await axios.get(`http://localhost:3000/${path}`, options);
+    const { status, headers, data } = await axios.get(`http://localhost:${application.port}/${path}`, options);
     return { status, headers: new SafeHeaders(headers as AxiosResponseHeaders), data };
   }
 });

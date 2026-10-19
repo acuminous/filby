@@ -5,7 +5,8 @@
   "description": "An example project using Filby",
   "scripts": {
     "start": "ts-node index.ts",
-    "test": "node --require ts-node/register --test --test-concurrency=1 test/*.test.ts",
+    "pretest": "node --env-file-if-exists=../../.env ../../scripts/database.js check",
+    "test": "node --env-file-if-exists=../../.env --require ts-node/register --test --test-concurrency=1 test/*.test.ts",
     "docker": "pushd ../.. && npm run docker && popd"
   },
   "dependencies": {

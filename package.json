@@ -29,9 +29,13 @@
   "scripts": {
     "docker": "docker-compose up --detach",
     "lint": "biome ci .",
-    "test": "node --test --test-concurrency=1 test/*.test.js",
-    "test:all": "docker compose down && docker compose up --detach --wait && (cd examples/javascript && npm test) && (cd examples/typescript && npm test) && npm test",
-    "coverage": "mkdir -p coverage && node --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
+    "pretest": "node --env-file-if-exists=.env scripts/database.js check",
+    "test": "node --env-file-if-exists=.env --test --test-concurrency=1 test/*.test.js",
+    "test:all": "docker compose up --detach --wait && (cd examples/javascript && npm test) && (cd examples/typescript && npm test) && npm test",
+    "precoverage": "node --env-file-if-exists=.env scripts/database.js check",
+    "coverage": "mkdir -p coverage && node --env-file-if-exists=.env --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
+    "db:create": "node --env-file-if-exists=.env scripts/database.js create",
+    "db:drop": "node --env-file-if-exists=.env scripts/database.js drop",
     "prepare": "lefthook install"
   },
   "dependencies": {

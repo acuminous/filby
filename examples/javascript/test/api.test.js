@@ -10,7 +10,7 @@ describe('API', () => {
   let application;
 
   before(async () => {
-    const testConfig = { ...config, fastify: { logger: false } };
+    const testConfig = { ...config, fastify: { logger: false }, server: { port: 0 } };
     application = new Application({ config: testConfig });
     await application.start();
   });
@@ -173,6 +173,6 @@ describe('API', () => {
   }
 
   async function get(path, options = { method: 'GET', validateStatus: () => true, maxRedirects: 0 }) {
-    return axios.get(`http://localhost:3000/${path}`, options);
+    return axios.get(`http://localhost:${application.port}/${path}`, options);
   }
 });

@@ -12,7 +12,6 @@
     "database": {
       "port": 5434,
       "user": "fby_example",
-      "database": "fby_example",
       "password": "fby_example"
     },
     "migrations": [

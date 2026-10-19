@@ -27,6 +27,10 @@ module.exports = class Application {
     this.#logger = this.#fastify.log;
   }
 
+  get port() {
+    return this.#fastify.server.address().port;
+  }
+
   async start() {
     await this.#initFilby();
     await this.#initFastify();

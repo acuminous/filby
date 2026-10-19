@@ -9,6 +9,7 @@
     "includes": [
       "index.js",
       "lib/**/*.js",
+      "scripts/**/*.js",
       "test/**/*.js",
       "examples/**/*.js",
       "examples/**/*.ts"

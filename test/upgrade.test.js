@@ -10,20 +10,21 @@ const { Filby } = require('..');
 const driver = require('../lib/marv-filby-driver');
 
 const server = { user: 'fby_test', password: 'fby_test' };
-const database = { ...server, database: 'fby_upgrade' };
+const upgradeDatabase = `${process.env.PGDATABASE || 'fby_test'}_upgrade`;
+const database = { ...server, database: upgradeDatabase };
 const filbyDirectory = path.join(__dirname, '..', 'migrations');
 const directories = [];
 
 describe('Upgrade', () => {
 
   beforeEach(async () => {
-    await execute(server, 'DROP DATABASE IF EXISTS fby_upgrade WITH (FORCE)');
-    await execute(server, 'CREATE DATABASE fby_upgrade');
+    await execute(server, `DROP DATABASE IF EXISTS ${upgradeDatabase} WITH (FORCE)`);
+    await execute(server, `CREATE DATABASE ${upgradeDatabase}`);
     await installFilby({ upToLevel: 8 });
   });
 
   after(async () => {
-    await execute(server, 'DROP DATABASE IF EXISTS fby_upgrade WITH (FORCE)');
+    await execute(server, `DROP DATABASE IF EXISTS ${upgradeDatabase} WITH (FORCE)`);
     await Promise.all(directories.map((directory) => fs.rm(directory, { recursive: true, force: true })));
   });
 
@@ -338,8 +339,8 @@ describe('Upgrade', () => {
     await upgrade();
     const upgraded = await getLiveChangeSets();
 
-    await execute(server, 'DROP DATABASE fby_upgrade WITH (FORCE)');
-    await execute(server, 'CREATE DATABASE fby_upgrade');
+    await execute(server, `DROP DATABASE ${upgradeDatabase} WITH (FORCE)`);
+    await execute(server, `CREATE DATABASE ${upgradeDatabase}`);
     await applyYaml(vatRatesMigration(changeSets));
     const migrated = await getLiveChangeSets();
 

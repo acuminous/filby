@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { AddressInfo } from 'node:net';
 
 import Fastify, { FastifyInstance, RouteOptions } from 'fastify';
 import swagger from '@fastify/swagger';
@@ -50,6 +51,10 @@ export default class Application {
     this.#filby = new Filby({ ...this.#config.filby, migrations });
     this.#fastify = Fastify(this.#config.fastify);
     this.#logger = this.#fastify.log;
+  }
+
+  get port() {
+    return (this.#fastify.server.address() as AddressInfo).port;
   }
 
   async start() {
