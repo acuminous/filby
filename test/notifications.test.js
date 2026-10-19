@@ -190,6 +190,92 @@ describe('Notifications', () => {
     eq(notification.attempts, 3);
   });
 
+  it('should pass an abort signal to handlers', async () => {
+    await setup();
+
+    let context;
+    filby.subscribe('VAT Rate Changed', (_notification, ctx) => {
+      context = ctx;
+    });
+
+    filby.startNotifications();
+
+    await until(async () => (await getNotifications())[0].status === 'OK');
+
+    ok(context.signal instanceof AbortSignal);
+    eq(context.signal.aborted, false);
+  });
+
+  it('should fail a notification when the handler times out', async () => {
+    await setup();
+
+    const other = new TestFilby({ ...config, notifications: { ...config.notifications, handlerTimeout: '100ms' } });
+    const signals = [];
+    other.subscribe('VAT Rate Changed', (_notification, { signal }) => {
+      signals.push(signal);
+      return new Promise(() => {});
+    });
+
+    const checkpoint = await getDatabaseTime();
+    try {
+      other.startNotifications();
+
+      await until(async () => (await getNotifications())[0].attempts === 1);
+
+      const notifications = await getNotifications();
+      eq(notifications[0].status, 'PENDING');
+      ok(notifications[0].last_attempted >= checkpoint);
+      match(notifications[0].last_error, /timed out after 100ms/);
+      eq(signals.length, 1);
+      eq(signals[0].aborted, true);
+
+      await until(async () => (await getNotifications())[0].attempts === 2);
+      eq(signals.length, 2);
+    } finally {
+      await other.stop();
+    }
+  });
+
+  it('should emit an event when the last notification attempt times out', async () => {
+    await setup();
+
+    const other = new TestFilby({ ...config, notifications: { ...config.notifications, handlerTimeout: '100ms' } });
+    other.subscribe('VAT Rate Changed', () => new Promise(() => {}));
+
+    try {
+      const exhausted = once(other, TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED);
+      other.startNotifications();
+      const notification = await exhausted;
+
+      match(notification.err.message, /timed out after 100ms/);
+      eq(notification.attempts, 3);
+    } finally {
+      await other.stop();
+    }
+  });
+
+  it('should abort inflight deliveries when stopping', async () => {
+    await setup();
+
+    const entered = Promise.withResolvers();
+    let signal;
+    filby.subscribe('VAT Rate Changed', (_notification, ctx) => {
+      signal = ctx.signal;
+      entered.resolve();
+      return new Promise(() => {});
+    });
+
+    filby.startNotifications();
+    await entered.promise;
+    await filby.stopNotifications();
+
+    eq(signal.aborted, true);
+    const notifications = await getNotifications();
+    eq(notifications[0].status, 'PENDING');
+    eq(notifications[0].attempts, 1);
+    match(notifications[0].last_error, /stopped/);
+  });
+
   it('should unsubscribe interested parties', async () => {
     await setup();
 

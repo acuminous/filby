@@ -462,16 +462,18 @@ Stops polling for notifications then disconnects from the database
 Starts polling the database for notifications. Does nothing if Filby is already polling.
 
 #### filby.stopNotifications(): Promise&lt;void&gt;
-Stops polling the database for notifications, and waits for any inflight notifications to complete.
+Stops polling the database for notifications, aborts the signal passed to any inflight handlers, and waits for the current delivery to be recorded.
 
-#### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T) => Promise&lt;void&gt;): void
-Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for hooks and perform of asynchronous tasks like making an HTTP request for a webhook. The hook name is user defined and must be specified in the Hook [Data Definition](#data-definition). The sole callback parameter is the Notification context (see the TypeScript definitions), e.g.
+#### filby.subscribe&lt;T&gt;(event: string, handler: (notification: T, context: HandlerContext) => Promise&lt;void&gt;): void
+Under the hood, Filby uses [eventemitter2](https://www.npmjs.com/package/eventemitter2) which unlike node's EventEmitter, supports asynchronous events. You can use these to listen for hooks and perform of asynchronous tasks like making an HTTP request for a webhook. The hook name is user defined and must be specified in the Hook [Data Definition](#data-definition). The first callback parameter is the Notification context (see the TypeScript definitions). The second is an object with an [AbortSignal](https://nodejs.org/api/globals.html#class-abortsignal), which Filby aborts if the handler exceeds the configurable `handlerTimeout` (default 30 seconds) or when `filby.stopNotifications()` or `filby.stop()` is called. Pass the signal to anything that accepts one, such as `fetch`, and check `signal.aborted` between steps in longer handlers, e.g.
 
 ```js
-filby.subscribe('VAT Rate changed', async (notification) => {
-  await axios.post('https://httpbin.org/status/200', notification);
+filby.subscribe('VAT Rate changed', async (notification, { signal }) => {
+  await fetch('https://httpbin.org/status/200', { method: 'POST', body: JSON.stringify(notification), signal });
 });
 ```
+
+A handler that exceeds the timeout is treated as having failed and is retried like any other failure. Since a promise cannot be cancelled, a handler that ignores the signal may still complete after Filby has recorded the failure, so handlers must be idempotent. At-least-once delivery already requires this, because a handler can also complete just before its process is killed.
 
 If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
 
@@ -490,7 +492,7 @@ filby.subscribe(Filby.NOTIFICATION_ERROR, ({ error }) => {
 });
 ```
 
-#### filby.unsubscribe&lt;T&gt;(event: string, handler?: (notification: T) => Promise&lt;void&gt;): void
+#### filby.unsubscribe&lt;T&gt;(event: string, handler?: (notification: T, context: HandlerContext) => Promise&lt;void&gt;): void
 Unsubscribes the specified handler, or all handlers if none is specified, from the specified event
 
 #### filby.unsubscribeAll(): void
@@ -583,7 +585,11 @@ Filby requires Node.js 22.12 or later and PostgreSQL 13 or later, and is tested 
 
     // The maximum amount of time Filby will wait before retrying a failed hook
     // Defaults to 1 hour
-    "maxRescheduleDelay": "30s"
+    "maxRescheduleDelay": "30s",
+
+    // The maximum amount of time Filby will wait for a hook's handlers before aborting their signal and treating the attempt as failed
+    // Defaults to 30 seconds
+    "handlerTimeout": "10s"
   }
 }
 ```
