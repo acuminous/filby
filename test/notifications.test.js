@@ -1,6 +1,7 @@
 const { ok, strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert');
 const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
 const pipsqueak = require('pipsqueak');
+const { Client } = require('pg');
 
 const schedulers = [];
 const { promiseApi } = pipsqueak;
@@ -173,6 +174,30 @@ describe('Notifications', () => {
     match(notifications[0].last_error, /Oh Noes! 3/);
   });
 
+  it('should fail a notification that has no subscriber until one subscribes', async () => {
+    await setup();
+
+    const checkpoint = await getDatabaseTime();
+    filby.startNotifications();
+
+    await until(async () => (await getNotifications())[0].attempts > 0);
+
+    const failed = (await getNotifications())[0];
+    eq(failed.status, 'PENDING');
+    eq(failed.attempts, 1);
+    ok(failed.last_attempted >= checkpoint);
+    match(failed.last_error, /No subscribers for hook 'VAT Rate Changed'/);
+
+    const notification = await once(filby, 'VAT Rate Changed');
+    eq(notification.attempts, 2);
+
+    await until(async () => (await getNotifications())[0].status === 'OK');
+
+    const delivered = (await getNotifications())[0];
+    eq(delivered.attempts, 2);
+    eq(delivered.last_error, null);
+  });
+
   it('should emit an event when the last notification attempt fails', async () => {
     await setup();
 
@@ -289,7 +314,7 @@ describe('Notifications', () => {
 
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].status === 'OK');
+    await until(async () => (await getNotifications())[0].attempts > 0);
 
     eq(called, false);
   });
@@ -312,7 +337,7 @@ describe('Notifications', () => {
 
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].status === 'OK');
+    await until(async () => (await getNotifications())[0].attempts > 0);
 
     eq(calledFirst, false);
     eq(calledSecond, false);
@@ -557,5 +582,21 @@ describe('Notifications', () => {
     } finally {
       process.off('unhandledRejection', onUnhandledRejection);
     }
+  });
+
+  it('should report pool errors as notification errors', async () => {
+    const { rows: [{ pg_backend_pid: pid }] } = await filby.withTransaction((tx) => tx.query('SELECT pg_backend_pid()'));
+    const failed = once(filby, TestFilby.NOTIFICATION_ERROR);
+
+    const client = new Client(filby.config.database);
+    await client.connect();
+    try {
+      await client.query('SELECT pg_terminate_backend($1)', [pid]);
+    } finally {
+      await client.end();
+    }
+
+    const { error } = await failed;
+    eq(error.message, 'terminating connection due to administrator command');
   });
 });
