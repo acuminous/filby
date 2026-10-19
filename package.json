@@ -21,6 +21,9 @@
   },
   "main": "index.js",
   "types": "index.d.ts",
+  "bin": {
+    "filby": "bin/filby.js"
+  },
   "directories": {
     "example": "examples",
     "lib": "lib",

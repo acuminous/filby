@@ -25,6 +25,7 @@ See the [example applications](#example-applications) for usage.
 - [Correcting and Re-issuing Data](#correcting-and-re-issuing-data)
 - [API](#api)
 - [Configuration](#configuration)
+- [Command Line](#command-line)
 - [Example Applications](#example-applications)
 
 ## Introduction
@@ -206,7 +207,7 @@ A *Change Set* groups a set of data frames (potentially for different entities) 
 ### Notifications
 *Notifications* are published per projection for two change set events. `ADD_CHANGE_SET` fires when a change set is added, whatever its effective date, and suits consumers that mirror the whole change log, such as a data lake. `COMMENCE_CHANGE_SET` fires when a projection's current change set changes, i.e. whenever `getCurrentChangeSet` would start returning something different: immediately for a change set whose effective date has already passed, and on the effective date for a pre-released one, so a consumer that caches current data hears about next year's rates when they take effect rather than when they are loaded. A projection's current change set is the one with the latest effective date that is not in the future; earlier change sets lapse silently. By subscribing to these notifications, downstream systems can maintain copies of the data, with reduced risk of it becoming stale. For example, the client in the above diagram could be another backend system, caching proxy, a web application, a websocket application, a CI / CD pipeline responsible for building a client side data module, or an ETL process for exporting the reference data to the company data lake.
 
-Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently. Each notification is claimed and delivered inside a single database transaction, which holds a row lock for the duration of the handler, so other instances skip it and each notification is delivered by only one instance.
+Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently. Each notification is claimed and delivered inside a single database transaction, which holds a row lock for the duration of the handler, so other instances skip it and each notification is delivered by only one instance. Notifications pause while migrations run. `filby.init()` holds an exclusive advisory lock for the duration of the migrations, and each poll takes the same lock in shared mode, so no new delivery starts on any instance until the migrations have finished, and a migration waits for deliveries already in flight to complete. A migration, and therefore `filby.init()`, can wait up to the handler timeout for an in-flight delivery of the same hook and projection, so keep `handlerTimeout` short. The advisory lock key is `102105108098121` (available as `Filby.MIGRATION_LOCK_KEY`), which is distinct from the key Marv uses to serialise migrations, so other tools can respect it.
 
 ### Hook
 A *Hook* is an event the framework will emit whenever a projection is added, dropped or updated via a change set. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
@@ -471,7 +472,7 @@ Filby provides a set of lifecycle methods and an API for retrieving change sets 
 Constructs a new Filby instance
 
 #### filby.init(): Promise&lt;void&gt;
-Connects to the database and runs schema/data migrations
+Connects to the database and runs schema/data migrations. Holds the advisory lock `Filby.MIGRATION_LOCK_KEY` while the migrations run, so notifications are paused on every instance and the call waits for any delivery already in flight, up to the handler timeout.
 
 #### filby.stop(): Promise&lt;void&gt;
 Stops polling for notifications then disconnects from the database
@@ -673,6 +674,24 @@ Directives in a `.marvrc` apply only to the migrations in that directory. For ex
 ```
 
 Filby verifies the checksums of its own migrations on every `filby.init()`, and fails if one has changed since it was applied. Filby supports upgrading from version 0.14.0 or later; databases created by earlier versions will fail this check. The checksums of your own migrations are not verified.
+
+## Command Line
+Filby ships a command line tool for checking migrations without a database.
+
+```bash
+npx filby validate migrations
+npx filby preview migrations
+```
+
+Both commands scan the directories you name, or `migrations` when you name none, exactly as `filby.init()` does. Every YAML and JSON migration is parsed, validated against Filby's schema and rendered to SQL, which reads the CSV files that `source` frames refer to, so a syntax error, a schema violation, a key that names no field, a reference that specifies its version twice, or a missing or malformed CSV file is reported. SQL migrations are not checked. Every file is checked, and each problem is written to stderr as `<file>: <message>`, with the JSON path of the offending value where there is one.
+
+```
+migrations/0004.season-2020.yaml: /0 must have required property 'effective'
+```
+
+`filby validate` exits with code 1 if any migration failed and 0 otherwise, so it can run in CI. `filby preview` performs the same checks and then writes the SQL that `filby.init()` would run to stdout, in the order it would be applied, each migration preceded by a `-- <file>` comment and SQL migrations copied verbatim, so you can read what a change set will do or diff it in review. If any migration fails, `filby preview` writes the errors, no SQL, and exits with code 1.
+
+The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
 
 ## Example Applications
 This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
