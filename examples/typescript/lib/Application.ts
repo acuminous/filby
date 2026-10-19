@@ -5,10 +5,10 @@ import Fastify, { FastifyInstance, RouteOptions } from 'fastify';
 import swagger from '@fastify/swagger';
 import swaggerUI from '@fastify/swagger-ui';
 import cors from '@fastify/cors';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 import pkg from '../package.json';
-import { Filby, Config as FilbyConfig, Projection, Notification, ErrorNotification } from '../../..';
+import { Filby, Config as FilbyConfig, Projection, Notification, NotificationError } from '../../..';
 import changeLogRoute from './routes/changelog-v1';
 import healthRoute from './routes/health';
 import ProjectionsApi from './ProjectionsApi';
@@ -36,7 +36,7 @@ type ProjectionRouteOptions = {
   index: boolean;
 }
 
-type AxisErrorNotification = ErrorNotification<AxiosError>;
+type ExhaustedNotification = NotificationError & { notification: Notification };
 
 export default class Application {
 
@@ -78,13 +78,13 @@ export default class Application {
   }
 
   async #reportFailingWebhooks() {
-    this.#filby.subscribe<AxisErrorNotification>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ err, ...notification }) => {
+    this.#filby.subscribe<ExhaustedNotification>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ error, notification }) => {
       const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
       this.#logger.error({ notification }, message);
 
-      const details = err.isAxiosError
-        ? { message: err.message, stack: err.stack, method: err.config?.method, url: err.config?.url }
-        : { message: err.message, stack: err.stack }
+      const details = axios.isAxiosError(error)
+        ? { message: error.message, stack: error.stack, method: error.config?.method, url: error.config?.url }
+        : { message: error.message, stack: error.stack }
       this.#logger.error(details);
     });
   }
