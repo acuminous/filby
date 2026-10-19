@@ -4,7 +4,7 @@
 
 ### Upgrading
 
-Upgrade and restart. Filby applies its own migrations when `init()` is called, regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body, and relabels existing `POST` frames as `SET`. No other data is changed.
+Upgrade and restart. Filby applies its own migrations when `init()` is called, regenerates existing aggregate functions with the new ordering and `LANGUAGE sql STABLE` body, relabels existing `POST` frames as `SET`, and re-issues change sets that are out of order. No other data is changed.
 
 #### More than one frame with the same key in a change set
 
@@ -28,6 +28,10 @@ ORDER BY cs.id;
 ```
 
 Previously the frame with the highest id won, so you can safely keep that frame and delete the others for the same key and change set. Delete each frame's entity row first, then its `fby_data_frame` row. Filby does not delete your data for you.
+
+#### Change sets that are out of order
+
+If an existing change set has a later effective date than a change set added after it, typically because it was pre-released, the upgrade re-issues it as a new change set, just as adding the later change set would now do. See [Correcting and Re-issuing Data](README.md#correcting-and-re-issuing-data). The change log may therefore gain entries, the originals drop out of it, and `ADD_CHANGE_SET` notifications are scheduled for the re-issued change sets. The originals are still returned by `getChangeSet` and `getAggregates` with their original results (#100).
 
 #### SQL that uses the POST action
 
