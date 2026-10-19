@@ -44,6 +44,7 @@ export type ChangeSet = {
   description: string;
   lastModified: Date;
   entityTag: string;
+  reissuedFrom?: number;
 };
 
 export type Hook = {

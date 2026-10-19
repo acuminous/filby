@@ -44,3 +44,4 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 ### Added
 
 - Entity definitions are recorded in `fby_entity_field`, `fby_entity_check` and `fby_enum`. Existing entities and enums are backfilled on upgrade (#3).
+- `fby_change_set` gains `superseded_by` and `reissued_from`. `getChangeLog` and `getCurrentChangeSet` exclude change sets whose `superseded_by` is set, while `getChangeSet` still returns them. Change sets gain `reissuedFrom`, the id of the change set they re-issue, if any. Nothing sets these columns yet (#99).
