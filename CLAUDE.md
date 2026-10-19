@@ -2,7 +2,7 @@
 
 A framework for temporal reference data on Postgres. The library is in `lib/`, Filby's own migrations in `migrations/`, tests in `test/`, and two example applications in `examples/javascript` and `examples/typescript`.
 
-The October 2026 review is tracked in https://github.com/acuminous/filby/issues/2. Read its implementer conventions before starting any issue; they are not repeated here.
+The October 2026 review is tracked in https://github.com/acuminous/filby/issues/2. Read its implementer conventions before starting any issue; they are not repeated here. Its Concurrency section says which issues can be worked on at the same time and the rules for concurrent PRs.
 
 ## Environment
 
