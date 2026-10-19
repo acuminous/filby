@@ -32,4 +32,32 @@ describe('Config', () => {
   it('should allow any database keys', () => {
     doesNotThrow(() => new Filby({ database: { connectionString: 'postgres://localhost/fby_test', max: 5 } }));
   });
+
+  for (const key of ['interval', 'initialDelay', 'maxRescheduleDelay', 'handlerTimeout']) {
+    it(`should reject an unparseable ${key}`, () => {
+      throws(() => new Filby({ notifications: { [key]: 'soon' } }), { message: `Invalid config: /notifications/${key} must be a duration such as '30s'` });
+    });
+  }
+
+  for (const duration of ['5s', '1m', '1h']) {
+    it(`should accept a duration of ${duration}`, () => {
+      doesNotThrow(() => new Filby({ notifications: { interval: duration, initialDelay: duration, maxRescheduleDelay: duration, handlerTimeout: duration } }));
+    });
+  }
+
+  it('should accept a zero duration', () => {
+    doesNotThrow(() => new Filby({ notifications: { initialDelay: '0ms' } }));
+  });
+
+  it('should reject a negative duration', () => {
+    throws(() => new Filby({ notifications: { handlerTimeout: '-5s' } }), { message: "Invalid config: /notifications/handlerTimeout must be a duration such as '30s'" });
+  });
+
+  it('should report every unparseable duration', () => {
+    throws(() => new Filby({ notifications: { handlerTimeout: '', interval: '5 bananas' } }), { message: "Invalid config: /notifications/interval must be a duration such as '30s'\nInvalid config: /notifications/handlerTimeout must be a duration such as '30s'" });
+  });
+
+  it('should reject durations that are not strings', () => {
+    throws(() => new Filby({ notifications: { handlerTimeout: 30000 } }), { message: 'Invalid config: /notifications/handlerTimeout must be string' });
+  });
 });
