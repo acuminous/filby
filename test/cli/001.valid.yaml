@@ -1,0 +1,7 @@
+- operation: ADD_ENTITY
+  name: park
+  fields:
+    code: TEXT
+    name: TEXT
+  key:
+    - code
