@@ -5,7 +5,7 @@ const { ok, strictEqual: eq, deepEqual: deq, rejects, doesNotThrow } = require('
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
-const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
+const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
@@ -2433,6 +2433,74 @@ describe('DSL', () => {
       await rejects(() => filby.applyYaml(t.name, yaml), (err) => {
         eq(err.code, 'ENOENT');
         ok(err.message.includes(path.join(__dirname, 'dsl', 'datafiles', 'missing.csv')), err.message);
+        return true;
+      });
+    });
+
+    it('should store csv values in text columns as the original strings', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'padded', type: 'TEXT' },
+        { name: 'exponent', type: 'TEXT' },
+        { name: 'decimal', type: 'TEXT' },
+        { name: 'flag', type: 'TEXT' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/typed-values.csv' }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].padded, '007');
+      eq(frames[0].exponent, '1e3');
+      eq(frames[0].decimal, '1.50');
+      eq(frames[0].flag, 'TRUE');
+    });
+
+    it('should cast csv values to the column type', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'padded', type: 'INTEGER' },
+        { name: 'exponent', type: 'NUMERIC' },
+        { name: 'decimal', type: 'NUMERIC' },
+        { name: 'flag', type: 'BOOLEAN' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/typed-values.csv' }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].padded, 7);
+      eq(frames[0].exponent, '1000');
+      eq(frames[0].decimal, '1.50');
+      eq(frames[0].flag, true);
+    });
+
+    it('should store empty csv cells as NULL', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'label', type: 'TEXT' },
+        { name: 'quantity', type: 'INTEGER' },
+        { name: 'expires', type: 'TIMESTAMPTZ' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/empty-cells.csv' }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].label, null);
+      eq(frames[0].quantity, null);
+      eq(frames[0].expires, null);
+    });
+
+    it('should report csv values that cannot be cast to the column type', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'quantity', type: 'INTEGER' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/invalid-cast.csv' }]);
+
+      await rejects(() => filby.applyYaml(t.name, entity, changeSet), (err) => {
+        eq(err.code, INVALID_TEXT_REPRESENTATION);
         return true;
       });
     });
