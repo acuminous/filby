@@ -266,6 +266,11 @@ describe('Database Schema', () => {
       ]);
     });
 
+    it('should index data frames by entity and change set', async () => {
+      const { rows } = await filby.withTransaction((tx) => tx.query("SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'fby_data_frame' AND indexname = 'fby_data_frame_entity_id_change_set_id_idx'"));
+      deq(rows, [{ indexname: 'fby_data_frame_entity_id_change_set_id_idx', indexdef: 'CREATE INDEX fby_data_frame_entity_id_change_set_id_idx ON public.fby_data_frame USING btree (entity_id, change_set_id)' }]);
+    });
+
     it('should cascade deletes to change set entities', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query("INSERT INTO fby_entity (id, name, version) VALUES (1, 'Park', 1)");

@@ -248,6 +248,18 @@ describe('Upgrade', () => {
     deq(rows, [{ change_set_id: 1 }, { change_set_id: 2 }, { change_set_id: 3 }, { change_set_id: 4 }]);
   });
 
+  it('should index existing data frames by entity and change set', async () => {
+    await createVatRateEntity();
+    await createVatRatesProjection();
+    await addChangeSet({ effective: '2026-01-01', description: '2026 VAT Rates', taxRate: 'standard', rate: '0.2' });
+    await addChangeSet({ effective: '2027-01-01', description: '2027 VAT Rates', taxRate: 'standard', rate: '0.25' });
+
+    await upgrade();
+
+    const { rows } = await query("SELECT indexdef FROM pg_indexes WHERE tablename = 'fby_data_frame' AND indexname = 'fby_data_frame_entity_id_change_set_id_idx'");
+    deq(rows, [{ indexdef: 'CREATE INDEX fby_data_frame_entity_id_change_set_id_idx ON public.fby_data_frame USING btree (entity_id, change_set_id)' }]);
+  });
+
   it('should re-issue change sets with a later effective date than a later change set', async () => {
     await createVatRateEntity();
     await createVatRatesProjection();
