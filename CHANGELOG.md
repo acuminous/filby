@@ -61,6 +61,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - A YAML data frame field with no value (`label:` or `label: ~`) is stored as `NULL`. Previously text columns stored an empty string and other columns failed with a cast error. A nested map or list is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column; a quoted value is still stored as text (#8).
 - `unsubscribe(event)` with no handler removes every handler for the event, as documented. Previously it threw `removeListener only takes instances of Function` (#20).
 - Filby no longer modifies the shared Handlebars module. Its helpers and partials are registered on a private Handlebars environment, and the guard that rejects unescaped expressions is installed only while a Filby migration is rendered. Previously, loading Filby made a host application's own Handlebars templates throw and replaced any helper the host had registered under the same name (#24).
+- Passing a notification removes only the previous successful notification for the same hook and projection. Previously it removed every successful notification for the hook, so for a hook that is not restricted to a projection, delivering one projection's notification discarded the record of the last successful delivery for every other projection (#18).
 
 ### Added
 
