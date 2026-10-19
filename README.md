@@ -291,6 +291,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   timezone: Europe/London
   changes:
     - entity: park@1
+      # SET or DELETE, in any case
       action: SET
       data:
           # Adds a data frame for Devon Cliffs
@@ -309,15 +310,24 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 
       # YAML can get verbose, so you can also import data frames from a local CSV
       # The source path is relative to the directory containing the migration file
-      # The CSV requires a header row, starting with the action column and
-      # followed by the column names of your entity. When deleting data you
-      # only need to include the fields that identify the entity
+      # The CSV requires a header row with the column names of your entity.
+      # Without an action on the frame, the CSV must have an action column
+      # and every cell in it must be filled. When deleting data you only
+      # need to include the fields that identify the entity
     - entity: park@1
       source: ./data/park-data-2019.csv
       # action,code,name
       # SET,KC,Kent Coast
       # SET,CA,Caistor
       # DELETE,TP,
+
+      # An action on the frame applies to every row of the CSV,
+      # which must not have an action column
+    - entity: park@1
+      action: DELETE
+      source: ./data/park-closures-2019.csv
+      # code
+      # SK
 ```
 
 The effective date may be a calendar date, such as `2019-01-01`, or a timestamp with an explicit offset, such as `2019-01-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, so the stored effective date follows daylight saving time, and a bare date without a `timezone` is rejected: Filby never uses the process timezone, because the same migration would render differently on different machines. A timestamp with an explicit offset is stored as written, with or without a `timezone`.
@@ -483,7 +493,7 @@ filby.subscribe('VAT Rate changed', async (notification, { signal }) => {
 
 A handler that exceeds the timeout is treated as having failed and is retried like any other failure. Since a promise cannot be cancelled, a handler that ignores the signal may still complete after Filby has recorded the failure, so handlers must be idempotent. At-least-once delivery already requires this, because a handler can also complete just before its process is killed.
 
-If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
+If your event handler throws an exception it will be caught by Filby and the notifiation retried up to a configurable number of times, with an incremental backoff delay. A hook with no subscriber is treated as a failure too: the notification is recorded with the error `No subscribers for hook '...'` and retried like any other failure, so subscribe before calling `startNotifications`, and check that the event name matches the hook name exactly. If the maximum attempts are exceeded then Filby emits dedicated hook, `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`. The sole callback parameter is the ErrorNotification context (see the TypeScript definitions), e.g.
 
 ```js
 filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
@@ -492,7 +502,7 @@ filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
 });
 ```
 
-If polling the database for notifications fails, for example because the database is briefly unavailable, Filby emits `Filby.NOTIFICATION_ERROR` and polls again at the next interval. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
+If polling the database for notifications fails, for example because the database is briefly unavailable, Filby emits `Filby.NOTIFICATION_ERROR` and polls again at the next interval. Errors raised by the connection pool, such as the server closing an idle connection, are reported through the same event. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
 
 ```js
 filby.subscribe(Filby.NOTIFICATION_ERROR, ({ error }) => {
