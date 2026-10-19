@@ -8,8 +8,8 @@ export class Filby {
   init(): Promise<void>;
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
-  subscribe<T>(event: string, handler: (notification: T) => Promise<void>);
-  unsubscribe<T>(event: string, handler?: (notification: T) => Promise<void>);
+  subscribe<T>(event: string, handler: (notification: T, context: HandlerContext) => Promise<void>);
+  unsubscribe<T>(event: string, handler?: (notification: T, context: HandlerContext) => Promise<void>);
   unsubscribeAll();
   stop(): Promise<void>;
   withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
@@ -29,7 +29,12 @@ export type Config = {
     initialDelay?: string;
     maxAttempts?: number;
     maxRescheduleDelay?: string;
+    handlerTimeout?: string;
   }
+};
+
+export type HandlerContext = {
+  signal: AbortSignal;
 };
 
 export type Projection = {

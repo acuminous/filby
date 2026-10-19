@@ -9,7 +9,7 @@ describe('Config', () => {
     doesNotThrow(() => new Filby({
       database: { user: 'fby_test', password: 'fby_test' },
       migrations: ['test/migrations', 'test/data'],
-      notifications: { interval: '1m', initialDelay: '1s', maxAttempts: 10, maxRescheduleDelay: '1h' },
+      notifications: { interval: '1m', initialDelay: '1s', maxAttempts: 10, maxRescheduleDelay: '1h', handlerTimeout: '30s' },
     }));
   });
 
