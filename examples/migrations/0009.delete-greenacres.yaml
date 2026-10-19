@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 - operation: ADD_CHANGE_SET
   description: Delete Greenacres
   effective: 2022-05-01T00:00:00Z
