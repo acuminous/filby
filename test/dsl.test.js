@@ -4,7 +4,7 @@ const { ok, strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
-const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION } } = require('pg-error-enum');
+const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
@@ -1207,11 +1207,42 @@ describe('DSL', () => {
 
     it('should cascade change set deletes through entity tables', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
 
-      await filby.withTransaction((tx) => tx.query("DELETE FROM fby_change_set WHERE description = '2020 VAT Rates'"));
+      await filby.withTransaction((tx) => tx.query('DELETE FROM fby_change_set WHERE id = $1', [changeSetId]));
 
+      const { rows: frames } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_data_frame'));
+      eq(frames.length, 0);
       const { rows } = await filby.withTransaction((tx) => tx.query('SELECT * FROM vat_rate_v1'));
       eq(rows.length, 0);
+    });
+
+    it('should reject deleting a superseded change set without its re-issue', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, vatRate('2025', 'standard', 0.2), vatRate('2027', 'standard', 0.25), vatRate('2026', 'reduced', 0.05));
+      const [original, reissued] = await getChangeSets('2027 VAT Rates');
+
+      await rejects(() => filby.withTransaction((tx) => tx.query('DELETE FROM fby_change_set WHERE id = $1', [original.id])), (err) => {
+        eq(err.code, FOREIGN_KEY_VIOLATION);
+        return true;
+      });
+
+      await rejects(() => filby.withTransaction((tx) => tx.query('DELETE FROM fby_change_set WHERE id = $1', [reissued.id])), (err) => {
+        eq(err.code, FOREIGN_KEY_VIOLATION);
+        return true;
+      });
+    });
+
+    it('should delete a superseded change set and its re-issue together', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, vatRate('2025', 'standard', 0.2), vatRate('2027', 'standard', 0.25), vatRate('2026', 'reduced', 0.05));
+      const [original, reissued] = await getChangeSets('2027 VAT Rates');
+
+      await filby.withTransaction((tx) => tx.query('DELETE FROM fby_change_set WHERE id IN ($1, $2)', [original.id, reissued.id]));
+
+      const { rows: changeSets } = await filby.withTransaction((tx) => tx.query('SELECT description FROM fby_change_set ORDER BY id'));
+      deq(changeSets, [{ description: '2025 VAT Rates' }, { description: '2026 VAT Rates' }]);
+      eq((await getDataFrames('2027 VAT Rates')).length, 0);
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT rate FROM vat_rate_v1 ORDER BY rate'));
+      deq(rows, [{ rate: 0.05 }, { rate: 0.2 }]);
     });
 
     it('should record each entity in a change set once', async (t) => {

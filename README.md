@@ -340,24 +340,10 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   name: sns/add-change-set/park-v1
 ```
 
-The DSL deliberately omits the ability to drop change sets and data frames since they are supposed to be immutable. However, since Marv works with SQL, you can also use it for regular database migrations.
-
-Filby records which entities a change set touches when its data frames are added. If you delete every data frame for an entity in a change set, the change set still appears in the change log of projections that use that entity. Its aggregates are correct, but the entry is redundant, so delete the change set instead.
+The DSL deliberately omits the ability to drop change sets and data frames since they are supposed to be immutable. However, since Marv works with SQL, you can also use it for regular database migrations. One use is deleting a change set that was never served, see [Correcting and Re-issuing Data](#correcting-and-re-issuing-data). Another is adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one.
 
 ```sql
--- migrations/0004.delete-a-change-set.sql
-START TRANSACTION;
-
-DELETE FROM fby_change_set
- WHERE id = 4;
-
-END TRANSACTION;
-```
-
-In addition to deleting change sets, this can be useful for adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one.
-
-```sql
--- migrations/0005.create-get-park-v1-function.sql
+-- migrations/0004.create-get-park-v1-function.sql
 CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
 RETURNS TABLE (code TEXT, name TEXT, season_type season_type, season_start TIMESTAMPTZ, season_end TIMESTAMPTZ)
 AS $$
@@ -381,6 +367,43 @@ When you add a change set, Filby re-issues every live change set with a later ef
 This means adding one change set can add more than one entry to the change log. For example, given change set 1 effective 2026-01-01 and a pre-released change set 2 effective 2027-01-01, adding change set 3 effective 2026-06-01 re-issues change set 2 as change set 4. The change log becomes 1, 3, 4, and the aggregates for change set 4 include the data from change set 3.
 
 Adding a change set with the same effective date as an existing one re-issues nothing. The new change set wins because it has the higher id.
+
+### Correcting data
+To fix a change set that was published with the wrong data, add a change set with the same effective date and the corrected frames. The higher id wins the tie, so the correction overrides the original from that date onwards, clients following the current change set see it immediately, and the original snapshot is unchanged for anyone who cached it. Any pre-released change set with a later effective date is re-issued as usual.
+
+```yaml
+# migrations/0005.correct-initial-data.yaml
+- operation: ADD_CHANGE_SET
+  description: Initial Data (corrected)
+  effective: 2019-01-01T00:00:00Z
+  frames:
+    - entity: park
+      version: 1
+      action: SET
+      data:
+        - code: PV
+          name: Primrose Valley Holiday Park
+```
+
+### Deleting a change set
+Deleting a change set is the escape hatch for one that was never served. The aggregates of every later change set change, so anything cached by id is wrong afterwards. The delete cascades to the change set's data frames and to their rows in the entity tables, so delete the change set rather than its data frames. If you delete every data frame for an entity in a change set, the change set still appears in the change log of projections that use that entity, with correct but redundant aggregates.
+
+```sql
+-- migrations/0006.delete-a-change-set.sql
+START TRANSACTION;
+
+DELETE FROM fby_change_set
+ WHERE id = 4;
+
+END TRANSACTION;
+```
+
+A superseded change set and its re-issue reference each other, so neither can be deleted on its own. Delete them in the same statement.
+
+```sql
+DELETE FROM fby_change_set
+ WHERE id IN (2, 4);
+```
 
 ## API
 Filby provides a set of lifecycle methods and an API for retrieving change sets and projections, and for executing database queries.
