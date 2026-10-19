@@ -55,6 +55,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 ### Fixed
 
 - `getAggregates` quotes the aggregate function name, so an entity whose name contains characters that are not valid in an unquoted identifier can be read through the API as well as through its table (#27).
+- A YAML data frame field with no value (`label:` or `label: ~`) is stored as `NULL`. Previously text columns stored an empty string and other columns failed with a cast error. A nested map or list is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column; a quoted value is still stored as text (#8).
 
 ### Added
 

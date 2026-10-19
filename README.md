@@ -316,6 +316,8 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
       # DELETE,TP,
 ```
 
+A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column.
+
 ```yaml
 # migrations/0003.drop-unused-objects.yaml
 

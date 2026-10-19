@@ -1390,6 +1390,54 @@ describe('DSL', () => {
         return true;
       });
     });
+
+    it('should store a field with no value as NULL', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'label', type: 'TEXT' }, 2), vatRateWith('label:'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].label, null);
+    });
+
+    it('should store a tilde as NULL', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'label', type: 'TEXT' }, 2), vatRateWith('label: ~'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].label, null);
+    });
+
+    it('should store a field with no value in a numeric column as NULL', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'threshold', type: 'INTEGER' }, 2), vatRateWith('threshold:'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].threshold, null);
+    });
+
+    it('should store a nested map as JSON', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'metadata', type: 'JSONB' }, 2), vatRateWith('metadata:\n            pool: true\n            region: south west'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      deq(frames[0].metadata, { pool: true, region: 'south west' });
+    });
+
+    it('should store a nested list as JSON', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'tags', type: 'JSONB' }, 2), vatRateWith('tags:\n            - food\n            - drink'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      deq(frames[0].tags, ['food', 'drink']);
+    });
+
+    it('should store a quoted string that looks like a map as text', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'label', type: 'TEXT' }, 2), vatRateWith('label: "{ pool: true }"'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].label, '{ pool: true }');
+    });
   });
 
   describe('Add Hook', () => {
@@ -2233,6 +2281,21 @@ describe('DSL', () => {
       data:
         - type: ${type}
           rate: ${rate}`;
+  }
+
+  function vatRateWith(field) {
+    return `
+- operation: ADD_CHANGE_SET
+  description: 2020 VAT Rates
+  effective: 2020-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: SET
+      data:
+        - type: standard
+          rate: 0.2
+          ${field}`;
   }
 
   async function getChangeSets(description) {
