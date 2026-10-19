@@ -316,7 +316,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
       # DELETE,TP,
 ```
 
-A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column.
+A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column. CSV cells are read as text and cast by Postgres to the column type, so a code such as `007` keeps its leading zeros in a TEXT column, `1.50` is stored as `1.50` in a NUMERIC column, and `abc` in an INTEGER column fails the migration. An empty CSV cell is stored as NULL.
 
 ```yaml
 # migrations/0003.drop-unused-objects.yaml
