@@ -22,8 +22,8 @@ Never run `docker compose down`, `npm run docker` or `npm run test:all` from a w
 
 1. Create a worktree on a branch named `m-<item>-<slug>`, for example `m-b5-csv-typing`. If the worktree tool chose a different branch name, rename it with `git branch -m`.
 2. In the worktree root, write `.env` containing `PGDATABASE=fby_<slug>` using only lower case letters, digits and underscores, for example `PGDATABASE=fby_b5_csv_typing`.
-3. Run `npm run db:create`. This creates the database on all three servers.
-4. Run `npm ci` in the root, `examples/javascript` and `examples/typescript`.
+3. Run `npm ci` in the root, `examples/javascript` and `examples/typescript`.
+4. Run `npm run db:create`. This creates the database on all three servers.
 5. Work as normal. `npm test`, `npm run coverage` and the example suites refuse to run in a worktree that has no `PGDATABASE`.
 6. When the branch is merged, run `npm run db:drop` before removing the worktree.
 
