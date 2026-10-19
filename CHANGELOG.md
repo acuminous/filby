@@ -59,3 +59,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 
 - Entity definitions are recorded in `fby_entity_field`, `fby_entity_check` and `fby_enum`. Existing entities and enums are backfilled on upgrade (#3).
 - `fby_change_set` gains `superseded_by` and `reissued_from`. `getChangeLog` and `getCurrentChangeSet` exclude change sets whose `superseded_by` is set, while `getChangeSet` still returns them. Change sets gain `reissuedFrom`, the id of the change set they re-issue, if any. (#99).
+
+### Fixed
+
+- Filby no longer modifies the shared Handlebars module. Its helpers and partials are registered on a private Handlebars environment, and the guard that rejects unescaped expressions is installed only while a Filby migration is rendered. Previously, loading Filby made a host application's own Handlebars templates throw and replaced any helper the host had registered under the same name (#24).
