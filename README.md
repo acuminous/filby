@@ -223,9 +223,10 @@ Notifications are retried a configurable number of times using an exponential ba
 A *Hook* is an event the framework will emit whenever a projection is added, dropped or updated via a change set. Your application can handle these events how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
 
 ## Data Definition
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. A JSON schema is available in /lib/schema.json
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. The JSON schema is published at https://acuminous.github.io/filby/lib/schema.json, and a YAML migration that starts with the `# yaml-language-server` comment shown below is validated and completed as you type by any editor with YAML language server support, such as VS Code with the YAML extension.
 
 ```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0001.define-park-schema.yaml
 
 # Add enums for your reference data
@@ -300,6 +301,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 ```
 
 ```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0002.initial-data-load.yaml
 
 # Add a change set containing one or more changes to the previously defined entities
@@ -355,6 +357,7 @@ The effective date may be a calendar date, such as `2019-01-01`, or a timestamp 
 A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column. CSV cells are read as text and cast by Postgres to the column type, so a code such as `007` keeps its leading zeros in a TEXT column, `1.50` is stored as `1.50` in a NUMERIC column, and `abc` in an INTEGER column fails the migration. An empty CSV cell is stored as NULL. A field or CSV column that the entity does not declare fails the migration.
 
 ```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0003.drop-unused-objects.yaml
 
 # Deletes the specified enum
@@ -392,6 +395,7 @@ Some parts of the DSL can be written in more than one way. The forms in each row
 | `action: SET` | `action: POST` |
 
 ```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 - operation: ADD_ENTITY
   name: park
   version: 1
@@ -453,6 +457,7 @@ Adding a change set with the same effective date as an existing one re-issues no
 To fix a change set that was published with the wrong data, add a change set with the same effective date and the corrected frames. The higher id wins the tie, so the correction overrides the original from that date onwards, clients following the current change set see it immediately, and the original snapshot is unchanged for anyone who cached it. Any pre-released change set with a later effective date is re-issued as usual.
 
 ```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0005.correct-initial-data.yaml
 - operation: ADD_CHANGE_SET
   description: Initial Data (corrected)
