@@ -4,6 +4,7 @@ export { PoolConfig };
 
 export class Filby {
   static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
+  static NOTIFICATION_ERROR: string;
   constructor(config: Config);
   init(): Promise<void>;
   startNotifications(): Promise<void>;
@@ -61,6 +62,10 @@ export type Notification = {
 export type ErrorNotification<T> = {
   err: T extends Error ? T : never;
 } & Notification;
+
+export type NotificationError = {
+  error: Error;
+};
 
 export type Entity = {
   name: string;

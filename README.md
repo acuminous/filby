@@ -482,6 +482,14 @@ filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
 });
 ```
 
+If polling the database for notifications fails, for example because the database is briefly unavailable, Filby emits `Filby.NOTIFICATION_ERROR` and polls again at the next interval. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
+
+```js
+filby.subscribe(Filby.NOTIFICATION_ERROR, ({ error }) => {
+  console.error('Notification polling failed', error.stack); // Careful not to log secrets that may be on the error
+});
+```
+
 #### filby.unsubscribe&lt;T&gt;(event: string, handler?: (notification: T) => Promise&lt;void&gt;): void
 Unsubscribes the specified handler, or all handlers if none is specified, from the specified event
 
