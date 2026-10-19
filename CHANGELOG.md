@@ -69,6 +69,7 @@ The `POST` value of `fby_action_type` is renamed to `SET`. YAML, JSON and CSV mi
 - A failed poll for notifications, such as a database outage, is reported by emitting `Filby.NOTIFICATION_ERROR` with the error, and polling continues at the next interval. Previously the first failed poll stopped polling for good and raised an unhandled rejection, which exits the process under Node's defaults (#14).
 - An unparseable `notifications` duration such as `interval: 'soon'` is rejected when Filby is constructed with `Invalid config: /notifications/interval must be a duration such as '30s'`. A negative duration is rejected too. Previously the string passed validation and `parse-duration` turned it into `null` at runtime, so failed hooks were retried with no backoff, handlers were aborted immediately or the poller looped without delay (#134).
 - A notification for a hook with no subscriber is treated as a failed attempt, so `last_error` records `No subscribers for hook '...'`, the normal backoff and `HOOK_MAX_ATTEMPTS_EXHAUSTED` apply, and a late subscriber receives it on the next attempt. Previously the notification was marked OK and deleted, so a hook name typo, a case mismatch or calling `startNotifications` before `subscribe` silently lost events (#15).
+- An error raised by the connection pool, such as the server closing an idle connection after a restart or failover, is reported by emitting `Filby.NOTIFICATION_ERROR` with the error. Previously the pool had no error listener, so the `error` event was unhandled and exited the process (#17).
 
 ### Added
 
