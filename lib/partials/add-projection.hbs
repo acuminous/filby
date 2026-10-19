@@ -20,7 +20,7 @@ BEGIN
     AND version = {{literal version}};
 
   IF v_entity_id IS NULL THEN
-    RAISE EXCEPTION 'Projection ''%'' references a non existent entity ''%''', {{literal ../name (v ../version)}}, {{literal entity (v version)}};
+    RAISE EXCEPTION 'Projection ''%'' references a non existent entity ''%''%', {{literal ../name (v ../version)}}, {{literal entity (v version)}}, fby_entity_hint({{literal entity}}, {{literal version}});
   END IF;
 
   INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
