@@ -1,4 +1,4 @@
-const { ok, strictEqual: eq, rejects, match } = require('node:assert');
+const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
 const { describe, it, before, beforeEach, after } = require('node:test');
 const { PostgresError: { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
 
@@ -221,6 +221,20 @@ describe('Database Schema', () => {
         eq(err.code, NOT_NULL_VIOLATION);
         return true;
       });
+    });
+
+    it('should reference superseding and reissued change sets', async () => {
+      const { rows: constraints } = await filby.withTransaction((tx) => tx.query(`
+        SELECT a.attname AS column, c.confrelid::regclass::TEXT AS referenced_table, fa.attname AS referenced_column
+        FROM pg_constraint c
+        INNER JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+        INNER JOIN pg_attribute fa ON fa.attrelid = c.confrelid AND fa.attnum = c.confkey[1]
+        WHERE c.conrelid = 'fby_change_set'::regclass AND c.contype = 'f'
+        ORDER BY a.attname`));
+      deq(constraints, [
+        { column: 'reissued_from', referenced_table: 'fby_change_set', referenced_column: 'id' },
+        { column: 'superseded_by', referenced_table: 'fby_change_set', referenced_column: 'id' },
+      ]);
     });
 
     it('should default last modified date to now', async () => {
