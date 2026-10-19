@@ -174,6 +174,30 @@ describe('Notifications', () => {
     match(notifications[0].last_error, /Oh Noes! 3/);
   });
 
+  it('should fail a notification that has no subscriber until one subscribes', async () => {
+    await setup();
+
+    const checkpoint = await getDatabaseTime();
+    filby.startNotifications();
+
+    await until(async () => (await getNotifications())[0].attempts > 0);
+
+    const failed = (await getNotifications())[0];
+    eq(failed.status, 'PENDING');
+    eq(failed.attempts, 1);
+    ok(failed.last_attempted >= checkpoint);
+    match(failed.last_error, /No subscribers for hook 'VAT Rate Changed'/);
+
+    const notification = await once(filby, 'VAT Rate Changed');
+    eq(notification.attempts, 2);
+
+    await until(async () => (await getNotifications())[0].status === 'OK');
+
+    const delivered = (await getNotifications())[0];
+    eq(delivered.attempts, 2);
+    eq(delivered.last_error, null);
+  });
+
   it('should emit an event when the last notification attempt fails', async () => {
     await setup();
 
@@ -290,7 +314,7 @@ describe('Notifications', () => {
 
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].status === 'OK');
+    await until(async () => (await getNotifications())[0].attempts > 0);
 
     eq(called, false);
   });
@@ -313,7 +337,7 @@ describe('Notifications', () => {
 
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].status === 'OK');
+    await until(async () => (await getNotifications())[0].attempts > 0);
 
     eq(calledFirst, false);
     eq(calledSecond, false);
