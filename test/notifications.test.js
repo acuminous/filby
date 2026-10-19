@@ -215,6 +215,45 @@ describe('Notifications', () => {
     eq(notification.attempts, 3);
   });
 
+  it('should report a throwing exhausted handler as a notification error and keep polling', async () => {
+    await setup();
+
+    const rejections = [];
+    const onUnhandledRejection = (err) => rejections.push(err);
+    process.on('unhandledRejection', onUnhandledRejection);
+    try {
+      filby.subscribe('VAT Rate Changed', () => {
+        throw new Error('Oh Noes!');
+      });
+      filby.subscribe(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async () => {
+        throw new Error('Alerting is down');
+      });
+
+      const failed = once(filby, TestFilby.NOTIFICATION_ERROR);
+      filby.startNotifications();
+      const { error, notification } = await failed;
+
+      eq(error.message, 'Alerting is down');
+      deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
+      deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
+      eq(notification.attempts, 3);
+
+      const cgtDelivered = once(filby, 'CGT Rate Changed');
+      await filby.withTransaction(async (tx) => {
+        await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+          (2, 'CGT Rates', 1)`);
+      });
+      await cgtDelivered;
+
+      const [exhausted] = await getNotifications();
+      eq(exhausted.attempts, 3);
+      match(exhausted.last_error, /Oh Noes!/);
+      eq(rejections.length, 0);
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
+  });
+
   it('should pass an abort signal to handlers', async () => {
     await setup();
 

@@ -513,6 +513,8 @@ filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, (notification) => {
 });
 ```
 
+If the `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` handler itself throws, there is nothing left to retry, so the error is reported through `Filby.NOTIFICATION_ERROR` with the exhausted notification attached as `notification`, and polling carries on.
+
 If polling the database for notifications fails, for example because the database is briefly unavailable, Filby emits `Filby.NOTIFICATION_ERROR` and polls again at the next interval. Errors raised by the connection pool, such as the server closing an idle connection, are reported through the same event. The sole callback parameter is the NotificationError context (see the TypeScript definitions), e.g.
 
 ```js

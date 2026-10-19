@@ -71,6 +71,7 @@ export type ErrorNotification<T> = {
 
 export type NotificationError = {
   error: Error;
+  notification?: Notification;
 };
 
 export type NotificationStatus = {
