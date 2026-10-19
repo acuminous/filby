@@ -290,6 +290,45 @@ describe('API', () => {
       eq(changeSet.id, 1);
     });
 
+    it('should list change sets in order of change set id when added out of effective order', async (t) => {
+      await filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: VAT Rate
+  version: 1
+  fields:
+    - name: type
+      type: TEXT
+    - name: rate
+      type: NUMERIC
+  identified_by:
+    - type
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  dependencies:
+    - entity: VAT Rate
+      version: 1`, vatRate('2020', 0.1), vatRate('2023', 0.25), vatRate('2022', 0.2), vatRate('2021', 0.15));
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id FROM fby_change_set WHERE superseded_by IS NOT NULL'));
+      const supersededIds = rows.map(({ id }) => id);
+      eq(supersededIds.length, 3);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changelog = await filby.getChangeLog(projection);
+      const ids = changelog.map(({ id }) => id);
+      deq(ids, [...ids].sort((a, b) => a - b));
+      deq(changelog.map(({ description }) => description), ['2020 VAT Rates', '2021 VAT Rates', '2022 VAT Rates', '2023 VAT Rates']);
+      eq(ids.some((id) => supersededIds.includes(id)), false);
+
+      const current = await filby.getCurrentChangeSet(projection);
+      eq(current.id, ids[3]);
+      eq(supersededIds.includes(current.reissuedFrom), true);
+
+      for (const id of supersededIds) {
+        eq((await filby.getChangeSet(id)).id, id);
+      }
+    });
+
     it('should get change set by id', async () => {
       await filby.withTransaction(async (tx) => {
         await tx.query(`INSERT INTO fby_change_set (id, effective, description) VALUES
@@ -304,4 +343,18 @@ describe('API', () => {
       eq(changeSet.description, '2020 VAT Rates');
     });
   });
+
+  function vatRate(year, rate) {
+    return `
+- operation: ADD_CHANGE_SET
+  description: ${year} VAT Rates
+  effective: ${year}-04-05T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: SET
+      data:
+        - type: standard
+          rate: ${rate}`;
+  }
 });
