@@ -1,7 +1,7 @@
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
+const { strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert');
 const { describe, it, beforeEach, after } = require('node:test');
 const marv = require('marv/api/promise');
 const { Client } = require('pg');
@@ -328,6 +328,36 @@ describe('Upgrade', () => {
 
     const { rows: notifications } = await query('SELECT id FROM fby_notification');
     deq(notifications, []);
+  });
+
+  it('should upgrade databases created with pgcrypto', async () => {
+    await query(`
+      CREATE EXTENSION pgcrypto;
+      ALTER TABLE fby_change_set ALTER COLUMN entity_tag SET DEFAULT encode(gen_random_bytes(10), 'hex');
+      UPDATE migrations SET checksum = '77caf46a2363da07bdc85fd33238dc8b' WHERE namespace = 'filby' AND level = 6;
+      INSERT INTO fby_change_set (id, effective, description) VALUES (1, '2020-04-05T00:00:00.000Z', '2020 VAT Rates');
+    `);
+    const { rows: [{ entity_tag: before }] } = await query('SELECT entity_tag FROM fby_change_set WHERE id = 1');
+
+    await upgrade();
+
+    await query('DROP EXTENSION pgcrypto');
+    await query("INSERT INTO fby_change_set (id, effective, description) VALUES (2, '2021-04-05T00:00:00.000Z', '2021 VAT Rates')");
+    const { rows: changeSets } = await query('SELECT id, entity_tag FROM fby_change_set ORDER BY id');
+    eq(changeSets[0].entity_tag, before);
+    match(changeSets[1].entity_tag, /^[a-f0-9]{20}$/);
+  });
+
+  it('should install into databases that already have pgcrypto', async () => {
+    await execute(server, `DROP DATABASE ${upgradeDatabase} WITH (FORCE)`);
+    await execute(server, `CREATE DATABASE ${upgradeDatabase}`);
+    await query('CREATE EXTENSION pgcrypto');
+
+    await upgrade();
+
+    await query("INSERT INTO fby_change_set (id, effective, description) VALUES (1, '2020-04-05T00:00:00.000Z', '2020 VAT Rates')");
+    const { rows: [{ entity_tag: entityTag }] } = await query('SELECT entity_tag FROM fby_change_set WHERE id = 1');
+    match(entityTag, /^[a-f0-9]{20}$/);
   });
 
   async function expectSameLiveChangeSetsAsMigration(changeSets) {
