@@ -1,0 +1,42 @@
+-- alter enum
+DO $$
+DECLARE
+  v_enum OID;
+  v_exists BOOLEAN;
+BEGIN
+  SELECT oid INTO v_enum
+  FROM pg_type
+    WHERE typname = {{literal name}} AND typtype = 'e';
+
+  IF v_enum IS NULL THEN
+    RAISE EXCEPTION 'Enum '{{literal name}}' does not exist';
+  END IF;
+
+  {{#add}}
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_enum
+      WHERE enumtypid = v_enum AND enumlabel = {{literal this}}
+  ) INTO v_exists;
+
+  IF v_exists THEN
+    RAISE EXCEPTION 'Enum '{{literal ../name}}' already has value '{{literal this}}'';
+  END IF;
+
+  ALTER TYPE {{identifier ../name}} ADD VALUE {{literal this}};
+
+  {{/add}}
+END;
+$$ LANGUAGE plpgsql;
+
+INSERT INTO fby_enum (name, position, value)
+SELECT {{literal (canonical name)}}, e.position + v.ordinal, v.value
+FROM (
+  SELECT COALESCE(MAX(position), 0) AS position FROM fby_enum WHERE name = {{literal (canonical name)}}
+) e
+CROSS JOIN (
+  VALUES
+  {{#add}}
+  ({{ordinal}}, {{literal this}}){{#unless @last}},{{/unless}}
+  {{/add}}
+) AS v (ordinal, value);
