@@ -1,0 +1,21 @@
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  root: VAT Rate@1
+  parameters:
+    type:
+      field: type
+    prefix:
+      field: type
+      match: prefix
+    types:
+      field: type
+      match: in
+    rate:
+      field: rate
+      match: range
+  order:
+    - field: rate
+  paging:
+    page_size: 2
+    page_max: 3

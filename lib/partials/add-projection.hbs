@@ -3,6 +3,12 @@ DO $$
 DECLARE
   v_projection_id INTEGER;
   v_entity_id INTEGER;
+  v_root_id INTEGER;
+  v_type TEXT;
+  v_arguments TEXT;
+  v_columns TEXT;
+  v_outputs TEXT;
+  v_key_order TEXT;
 BEGIN
   BEGIN
     INSERT INTO fby_projection (name, version, description) VALUES
@@ -26,6 +32,88 @@ BEGIN
   INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
   (v_projection_id, v_entity_id);
   {{/dependencies}}
+
+  {{#if root}}
+  SELECT id INTO v_root_id
+  FROM fby_entity
+  WHERE name = {{literal root.entity}}
+    AND version = {{literal root.version}};
+
+  UPDATE fby_projection
+  SET root_entity_id = v_root_id,
+      page_size = {{literal paging.page_size}},
+      page_max = {{literal paging.page_max}}
+  WHERE id = v_projection_id;
+
+  {{#each parameters}}
+  IF {{literal (canonical name)}} IN ('change_set_id', 'page_offset', 'page_size') THEN
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' uses a reserved name', {{literal ../name (v ../version)}}, {{literal name}};
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical field)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{literal (canonical field)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+  END IF;
+
+  INSERT INTO fby_projection_parameter (projection_id, position, name, field, match) VALUES
+  (v_projection_id, {{ordinal}}, {{literal name}}, {{literal (canonical field)}}, {{literal match}});
+
+  {{/each}}
+  {{#each order}}
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical field)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal (canonical field)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+  END IF;
+
+  INSERT INTO fby_projection_order (projection_id, position, field, direction, nulls) VALUES
+  (v_projection_id, {{ordinal}}, {{literal (canonical field)}}, {{literal direction}}, {{literal nulls}});
+
+  {{/each}}
+  SELECT
+    string_agg(format('%I %s', name, type), ', ' ORDER BY position),
+    string_agg(format('a.%I', name), ', ' ORDER BY position)
+  INTO v_columns, v_outputs
+  FROM fby_entity_field
+  WHERE entity_id = v_root_id;
+
+  SELECT string_agg(format('a.%I ASC', name), ', ' ORDER BY position)
+  INTO v_key_order
+  FROM fby_entity_field
+  WHERE entity_id = v_root_id
+    AND identity;
+
+  v_arguments := 'p_change_set_id INTEGER';
+  {{#each parameters}}
+
+  SELECT type INTO v_type
+  FROM fby_entity_field
+  WHERE entity_id = v_root_id
+    AND name = {{literal (canonical field)}};
+  {{#each (projectionArguments this)}}
+
+  v_arguments := v_arguments || format(', %I %s DEFAULT NULL', {{literal name}}, v_type{{#if array}} || '[]'{{/if}});
+  {{/each}}
+  {{/each}}
+  {{#if paging}}
+
+  v_arguments := v_arguments || ', p_page_offset INTEGER DEFAULT 0, p_page_size INTEGER DEFAULT ' || {{literal paging.page_size}};
+  v_columns := v_columns || ', fby_total INTEGER';
+  v_outputs := v_outputs || ', COUNT(*) OVER ()::INTEGER AS fby_total';
+  {{/if}}
+
+  EXECUTE format(
+    'CREATE FUNCTION %I(%s) RETURNS TABLE (%s) AS %L LANGUAGE sql STABLE',
+    {{literal (projectionFunction name version)}},
+    v_arguments,
+    v_columns,
+    format(
+      'SELECT %s FROM %I($1) a WHERE %s ORDER BY %s%s',
+      v_outputs,
+      {{literal (aggregate root.entity root.version)}},
+      {{literal (projectionPredicates parameters)}},
+      {{#if order}}{{literal (projectionOrder order)}} || ', ' || {{/if}}v_key_order,
+      {{#if paging}}{{literal (projectionLimit parameters paging)}}{{else}}''{{/if}}
+    )
+  );
+  {{/if}}
 
   PERFORM fby_schedule_notification(h.id, {{literal name}}, {{literal version}})
   FROM fby_hook h
