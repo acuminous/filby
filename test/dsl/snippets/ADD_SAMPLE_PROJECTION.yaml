@@ -1,0 +1,4 @@
+- operation: ADD_PROJECTION
+  name: Samples
+  version: 1
+  root: Sample@1

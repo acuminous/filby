@@ -62,6 +62,11 @@ export type Documents<T> = {
 
 export type FetchOptions = {
   basePath?: string;
+  info?: {
+    title: string;
+    version: string;
+    description?: string;
+  };
 };
 
 export type ChangeSet = {

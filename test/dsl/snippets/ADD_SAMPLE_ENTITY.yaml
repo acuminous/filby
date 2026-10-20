@@ -1,0 +1,40 @@
+- operation: ADD_ENTITY
+  name: Sample
+  version: 1
+  fields:
+    - name: id
+      type: INTEGER
+    - name: big
+      type: BIGINT
+      nullable: false
+    - name: amount
+      type: NUMERIC(10,2)
+      nullable: false
+    - name: ratio
+      type: DOUBLE PRECISION
+    - name: flag
+      type: BOOLEAN
+      nullable: false
+    - name: day
+      type: DATE
+      nullable: false
+    - name: occurred
+      type: TIMESTAMP(3) WITH TIME ZONE
+      nullable: false
+    - name: code
+      type: VARCHAR(10)
+      nullable: false
+    - name: ref
+      type: UUID
+      nullable: false
+    - name: extra
+      type: JSONB
+    - name: tags
+      type: TEXT[]
+    - name: category
+      type: vat_tax_rate
+    - name: span
+      type: INTERVAL
+      nullable: false
+  identified_by:
+    - id

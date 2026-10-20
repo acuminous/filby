@@ -1,0 +1,34 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 Samples
+  effective: 2020-01-01T00:00:00.000Z
+  changes:
+    - entity: Sample@1
+      action: SET
+      data:
+        - id: 1
+          big: '9007199254740993'
+          amount: 12.34
+          ratio: 0.5
+          flag: true
+          day: 2020-01-01
+          occurred: 2020-01-01T12:34:56.789Z
+          code: ABC
+          ref: 0b3a0f0e-7c1d-4b2a-9f1e-8d7c6b5a4f3e
+          extra:
+            nested: true
+          tags: '{"x","y"}'
+          category: standard
+          span: 1 day
+        - id: 2
+          big: 2
+          amount: 0
+          ratio: null
+          flag: false
+          day: 2020-01-02
+          occurred: 2020-01-02T00:00:00.000Z
+          code: DEF
+          ref: 1b3a0f0e-7c1d-4b2a-9f1e-8d7c6b5a4f3e
+          extra: null
+          tags: null
+          category: null
+          span: 2 hours
