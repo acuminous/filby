@@ -4,6 +4,9 @@ const { strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
+const { Validator } = require('@seriousme/openapi-schema-validator');
+const Ajv = require('ajv/dist/2020');
+const ajvFormats = require('ajv-formats');
 
 const TestFilby = require('./TestFilby');
 
@@ -17,6 +20,10 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_season_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
+    await tx.query('DROP FUNCTION IF EXISTS get_samples_v1');
+    await tx.query('DROP TABLE IF EXISTS sample_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_sample_v1_aggregate');
+    await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
   },
 };
 
@@ -28,6 +35,10 @@ const ADD_CHANGE_SET_2 = loadYaml('ADD_CHANGE_SET_2');
 const ADD_PARK_ENTITIES = loadYaml('ADD_PARK_ENTITIES');
 const ADD_NESTED_PROJECTION = loadYaml('ADD_NESTED_PROJECTION');
 const ADD_PARK_CHANGE_SET = loadYaml('ADD_PARK_CHANGE_SET');
+const ADD_ENUM = loadYaml('ADD_ENUM');
+const ADD_SAMPLE_ENTITY = loadYaml('ADD_SAMPLE_ENTITY');
+const ADD_SAMPLE_PROJECTION = loadYaml('ADD_SAMPLE_PROJECTION');
+const ADD_SAMPLE_CHANGE_SET = loadYaml('ADD_SAMPLE_CHANGE_SET');
 
 const RFC_1123 = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
 
@@ -540,6 +551,240 @@ describe('HTTP', () => {
         AS $$
           SELECT type, rate FROM get_vat_rate_v1_aggregate(p_change_set_id) ORDER BY type
         $$ LANGUAGE sql STABLE`));
+    }
+  });
+
+  describe('OpenAPI', () => {
+
+    const ajv = new Ajv();
+    ajvFormats(ajv);
+
+    it('should serve a document that validates against the OpenAPI 3.1 schema', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, ADD_ENTITY, ADD_ROOT_PROJECTION, transform(ADD_PROJECTION).set('0.version', 2), ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_SAMPLE_ENTITY, ADD_SAMPLE_PROJECTION);
+
+      const response = await get('/openapi.json');
+      eq(response.status, 200);
+      eq(response.headers.get('Content-Type'), 'application/json');
+      eq(response.headers.get('Cache-Control'), null);
+      eq(response.headers.get('ETag'), null);
+      const document = await response.json();
+      eq(document.openapi, '3.1.0');
+      deq(Object.keys(document.paths), ['/changelog', '/projections/Parks/v1', '/projections/Samples/v1', '/projections/VAT%20Rates/v1', '/projections/VAT%20Rates/v2']);
+      const { valid, errors } = await new Validator().validate(document);
+      deq(errors, undefined);
+      eq(valid, true);
+    });
+
+    it('should describe the change log', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2);
+
+      const { paths, components } = await getDocument();
+      const { get: operation } = paths['/changelog'];
+      eq(operation.operationId, 'getChangeLog');
+      deq(operation.parameters, [
+        { name: 'projection', in: 'query', required: true, schema: { type: 'string' } },
+        { name: 'version', in: 'query', required: true, schema: { type: 'integer' } },
+        { name: 'since', in: 'query', schema: { type: 'integer' } },
+      ]);
+      deq(Object.keys(operation.responses), ['200', '400', '404']);
+      deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified']);
+      deq(operation.responses['200'].content['application/json'].schema, { type: 'array', items: { $ref: '#/components/schemas/ChangeSet' } });
+      deq(operation.responses['400'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
+      deq(operation.responses['404'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
+      deq(components.schemas.ChangeSet, {
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          effective: { type: 'string', format: 'date-time' },
+          description: { type: 'string' },
+          lastModified: { type: 'string', format: 'date-time' },
+          entityTag: { type: 'string' },
+          reissuedFrom: { type: 'integer' },
+        },
+        required: ['id', 'effective', 'description', 'lastModified', 'entityTag'],
+        additionalProperties: false,
+      });
+      deq(components.schemas.Error, { type: 'object', properties: { error: { type: 'string' } }, required: ['error'], additionalProperties: false });
+
+      const validate = ajv.compile({ type: 'array', items: components.schemas.ChangeSet, minItems: 2 });
+      const changeLog = await (await get('/changelog?projection=VAT%20Rates&version=1')).json();
+      eq(validate(changeLog), true, JSON.stringify(validate.errors));
+    });
+
+    it('should describe a root projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.description', 'Rates of VAT'));
+
+      const { paths } = await getDocument();
+      const { get: operation } = paths['/projections/VAT%20Rates/v1'];
+      eq(operation.operationId, 'get_vat_rates_v1');
+      eq(operation.summary, 'VAT Rates v1');
+      eq(operation.description, 'Rates of VAT');
+      deq(operation.parameters, [
+        { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
+        { name: 'type', in: 'query', schema: { type: 'string' } },
+        { name: 'prefix', in: 'query', schema: { type: 'string' } },
+        { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true },
+        { name: 'rate_from', in: 'query', schema: { type: 'string' } },
+        { name: 'rate_to', in: 'query', schema: { type: 'string' } },
+        { name: 'above', in: 'query', schema: { type: 'string' } },
+        { name: 'at_least', in: 'query', schema: { type: 'string' } },
+        { name: 'below', in: 'query', schema: { type: 'string' } },
+        { name: 'at_most', in: 'query', schema: { type: 'string' } },
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
+      ]);
+      deq(Object.keys(operation.responses), ['200', '307', '400', '404']);
+      deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified', 'Cache-Control', 'X-Total-Count', 'Link']);
+      deq(Object.keys(operation.responses['307'].headers), ['Location']);
+      deq(operation.responses['400'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
+      deq(operation.responses['404'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
+    });
+
+    it('should omit the projection description when there is none', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const { paths } = await getDocument();
+      eq(paths['/projections/VAT%20Rates/v1'].get.description, undefined);
+    });
+
+    it('should omit the paging parameters when the projection has no paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.paging'));
+
+      const { paths } = await getDocument();
+      const names = paths['/projections/VAT%20Rates/v1'].get.parameters.map(({ name }) => name);
+      deq(names, ['changeSetId', 'type', 'prefix', 'types', 'rate_from', 'rate_to', 'above', 'at_least', 'below', 'at_most']);
+    });
+
+    it('should omit a declared parameter named page', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { page: { field: 'type' } }));
+
+      const { paths } = await getDocument();
+      deq(paths['/projections/VAT%20Rates/v1'].get.parameters.map(({ name }) => name), ['changeSetId', 'page', 'pageSize']);
+    });
+
+    it('should describe the documents of a nested projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+      const changeSetId = await getChangeSetId('2019 Parks');
+
+      const { paths } = await getDocument();
+      deq(paths['/projections/VAT%20Rates/v1'].get.responses['200'].content['application/json'].schema, {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { type: { type: 'string' }, rate: { type: ['string', 'null'] } },
+          required: ['type'],
+          additionalProperties: false,
+        },
+      });
+      const { schema } = paths['/projections/Parks/v1'].get.responses['200'].content['application/json'];
+      deq(schema, {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            code: { type: 'string' },
+            name: { type: ['string', 'null'] },
+            seasons: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { type: { type: 'string' }, start: { type: 'string', format: 'date-time' }, end: { type: ['string', 'null'], format: 'date-time' } },
+                required: ['type', 'start'],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ['code', 'seasons'],
+          additionalProperties: false,
+        },
+      });
+
+      const documents = await (await get(`/projections/Parks/v1?changeSetId=${changeSetId}`)).json();
+      eq(documents.length, 2);
+      const validate = ajv.compile(schema);
+      eq(validate(documents), true, JSON.stringify(validate.errors));
+      eq(validate([{ code: 'DC', name: 'Devon Cliffs', seasons: [{ type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z', park_code: 'DC' }] }]), false);
+    });
+
+    it('should map field types to what node-pg emits', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, ADD_SAMPLE_ENTITY, ADD_SAMPLE_PROJECTION, ADD_SAMPLE_CHANGE_SET);
+      const changeSetId = await getChangeSetId('2020 Samples');
+
+      const { paths } = await getDocument();
+      const { schema } = paths['/projections/Samples/v1'].get.responses['200'].content['application/json'];
+      deq(schema.items.properties, {
+        id: { type: 'integer' },
+        big: { type: 'string' },
+        amount: { type: 'string' },
+        ratio: { type: ['number', 'null'] },
+        flag: { type: 'boolean' },
+        day: { type: 'string', format: 'date-time' },
+        occurred: { type: 'string', format: 'date-time' },
+        code: { type: 'string' },
+        ref: { type: 'string', format: 'uuid' },
+        extra: {},
+        tags: { type: ['array', 'null'], items: { type: 'string' } },
+        category: { anyOf: [{ type: 'string', enum: ['standard', 'reduced', 'zero'] }, { type: 'null' }] },
+        span: {},
+      });
+      deq(schema.items.required, ['id', 'big', 'amount', 'flag', 'day', 'occurred', 'code', 'ref', 'span']);
+
+      const documents = await (await get(`/projections/Samples/v1?changeSetId=${changeSetId}`)).json();
+      eq(documents.length, 2);
+      eq(documents[0].big, '9007199254740993');
+      eq(documents[0].amount, '12.34');
+      deq(documents[0].tags, ['x', 'y']);
+      eq(documents[1].category, null);
+      const validate = ajv.compile(schema);
+      eq(validate(documents), true, JSON.stringify(validate.errors));
+    });
+
+    it('should describe a projection declared with dependencies', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION);
+
+      const { paths } = await getDocument();
+      const { get: operation } = paths['/projections/VAT%20Rates/v1'];
+      eq(operation.operationId, 'get_vat_rates_v1');
+      deq(operation.parameters, [
+        { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1 } },
+      ]);
+      deq(operation.responses['200'].content['application/json'].schema, { type: 'array', items: { type: 'object' } });
+    });
+
+    it('should serve the document under the base path', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const response = await get('/api/openapi.json', { basePath: '/api' });
+      eq(response.status, 200);
+      const document = await response.json();
+      deq(document.servers, [{ url: '/api' }]);
+      deq(Object.keys(document.paths), ['/changelog', '/projections/VAT%20Rates/v1']);
+
+      const outside = await get('/openapi.json', { basePath: '/api' });
+      eq(outside.status, 404);
+    });
+
+    it('should omit servers when there is no base path', async () => {
+      const document = await getDocument();
+      eq(document.servers, undefined);
+    });
+
+    it('should take info from the options', async () => {
+      const document = await getDocument({ info: { title: 'Holiday Parks', version: '2.0.0', description: 'Parks and their seasons' } });
+      deq(document.info, { title: 'Holiday Parks', version: '2.0.0', description: 'Parks and their seasons' });
+    });
+
+    it('should default info', async () => {
+      const document = await getDocument();
+      deq(document.info, { title: 'Filby', version: '1.0.0' });
+    });
+
+    async function getDocument(options) {
+      const response = await get('/openapi.json', options);
+      eq(response.status, 200);
+      return response.json();
     }
   });
 
