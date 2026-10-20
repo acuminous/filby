@@ -137,12 +137,14 @@ describe('HTTP', () => {
       eq(response.headers.get('Last-Modified'), null);
     });
 
-    it('should respond with 404 when the projection has no change sets', async (t) => {
+    it('should respond with an empty change log when the projection has no change sets', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
 
       const response = await get('/changelog?projection=VAT%20Rates&version=1');
-      eq(response.status, 404);
-      deq(await response.json(), { error: "Projection 'VAT Rates v1' has no change sets" });
+      eq(response.status, 200);
+      deq(await response.json(), []);
+      eq(response.headers.get('ETag'), null);
+      eq(response.headers.get('Last-Modified'), null);
     });
 
     it('should respond with 400 when the projection is missing', async () => {
