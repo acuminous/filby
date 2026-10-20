@@ -14,6 +14,7 @@ const driver = require('../lib/marv-filby-driver');
 
 const config = {
   nukeCustomObjects: async (tx) => {
+    await tx.query('DROP FUNCTION IF EXISTS get_vat_rates_v1');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v2');
@@ -37,6 +38,7 @@ const DROP_ENUM = loadYaml('DROP_ENUM');
 const ADD_ENTITY = loadYaml('ADD_ENTITY');
 const DROP_ENTITY = loadYaml('DROP_ENTITY');
 const ADD_PROJECTION = loadYaml('ADD_PROJECTION');
+const ADD_ROOT_PROJECTION = loadYaml('ADD_ROOT_PROJECTION');
 const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
 const ADD_CHANGE_SET_1 = loadYaml('ADD_CHANGE_SET_1');
 const ADD_HOOK_ADD_PROJECTION = loadYaml('ADD_HOOK_ADD_PROJECTION');
@@ -1253,9 +1255,257 @@ describe('DSL', () => {
         return true;
       });
     });
+
+    it('should derive the dependencies of a root projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+      eq(changeLog.length, 1);
+      eq(changeLog[0].description, '2020 VAT Rates');
+    });
+
+    it('should require the root entity to exist', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ROOT_PROJECTION), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' references a non existent entity 'VAT Rate v1'; no entities exist");
+        return true;
+      });
+    });
+
+    it('should require root to name a version', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.root', 'VAT Rate')), (err) => {
+        eq(err.message, '001.should-require-root-to-name-a-version.yaml: /0/root must match pattern "@[0-9]+$"');
+        return true;
+      });
+    });
+
+    it('should reject root together with dependencies', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.root', 'VAT Rate@1')), (err) => {
+        eq(err.message, "Projection 'VAT Rates' must specify either 'root' or 'dependencies', not both");
+        return true;
+      });
+    });
+
+    it('should require root to use parameters, order or paging', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.parameters', { type: { field: 'type' } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'parameters'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.order', ['type'])), (err) => {
+        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'order'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { size: 10, max: 100 })), (err) => {
+        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'paging'");
+        return true;
+      });
+    });
+
+    it('should return root rows in the declared order', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_size => 3');
+      deq(rows, [
+        { type: 'zero', rate: '0', fby_total: 3 },
+        { type: 'reduced', rate: '0.05', fby_total: 3 },
+        { type: 'standard', rate: '0.1', fby_total: 3 },
+      ]);
+    });
+
+    it('should order root rows by the entity key when no order is declared', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.order'), ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_size => 3');
+      deq(rows.map((row) => row.type), ['reduced', 'standard', 'zero']);
+    });
+
+    it('should return every root field without parameters or paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(transform(ADD_ROOT_PROJECTION).del('0.parameters')).del('0.order')).del('0.paging'), ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows();
+      deq(rows, [
+        { type: 'reduced', rate: '0.05' },
+        { type: 'standard', rate: '0.1' },
+        { type: 'zero', rate: '0' },
+      ]);
+    });
+
+    it('should filter by equality', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_type => $2', ['standard']);
+      deq(rows.map((row) => row.type), ['standard']);
+    });
+
+    it('should filter by prefix', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_prefix => $2', ['st']);
+      deq(rows.map((row) => row.type), ['standard']);
+    });
+
+    it('should match prefix wildcards literally', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, setRates({ standard: 0.2, super_reduced: 0.05, superb: 0.1 }));
+
+      deq((await getProjectionRows('p_prefix => $2', ['super_'])).map((row) => row.type), ['super_reduced']);
+      deq((await getProjectionRows('p_prefix => $2', ['s%'])).map((row) => row.type), []);
+      deq((await getProjectionRows('p_prefix => $2', ['_'])).map((row) => row.type), []);
+    });
+
+    it('should filter by membership', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_types => $2', [['standard', 'zero']]);
+      deq(rows.map((row) => row.type), ['zero', 'standard']);
+    });
+
+    it('should filter by inclusive range', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      deq((await getProjectionRows('p_rate_from => $2', [0.05])).map((row) => row.type), ['reduced', 'standard']);
+      deq((await getProjectionRows('p_rate_to => $2', [0.05])).map((row) => row.type), ['zero', 'reduced']);
+      deq((await getProjectionRows('p_rate_from => $2, p_rate_to => $3', [0.01, 0.09])).map((row) => row.type), ['reduced']);
+    });
+
+    it('should page root rows with the total', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      deq(await getProjectionRows(), [
+        { type: 'zero', rate: '0', fby_total: 3 },
+        { type: 'reduced', rate: '0.05', fby_total: 3 },
+      ]);
+      deq(await getProjectionRows('p_offset => 2'), [
+        { type: 'standard', rate: '0.1', fby_total: 3 },
+      ]);
+      deq(await getProjectionRows('p_offset => 3'), []);
+    });
+
+    it('should count only the rows that match the parameters', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      deq(await getProjectionRows('p_prefix => $2, p_size => 1', ['s']), [
+        { type: 'standard', rate: '0.1', fby_total: 1 },
+      ]);
+    });
+
+    it('should clamp the page size to the declared maximum', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
+
+      const rows = await getProjectionRows('p_size => 10');
+      deq(rows.map((row) => row.type), ['a', 'b', 'c']);
+      eq(rows[0].fby_total, 5);
+    });
+
+    it('should record the root, parameters, order and paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query(`
+        SELECT e.name AS root, e.version AS root_version, p.page_size, p.page_max
+        FROM fby_projection p
+        INNER JOIN fby_entity e ON e.id = p.root_entity_id
+      `));
+      deq(projections, [{ root: 'VAT Rate', root_version: 1, page_size: 2, page_max: 3 }]);
+
+      const { rows: parameters } = await filby.withTransaction((tx) => tx.query('SELECT position, name, field, match FROM fby_projection_parameter ORDER BY position'));
+      deq(parameters, [
+        { position: 1, name: 'type', field: 'type', match: 'equals' },
+        { position: 2, name: 'prefix', field: 'type', match: 'prefix' },
+        { position: 3, name: 'types', field: 'type', match: 'in' },
+        { position: 4, name: 'rate', field: 'rate', match: 'range' },
+      ]);
+
+      const { rows: order } = await filby.withTransaction((tx) => tx.query('SELECT position, field FROM fby_projection_order ORDER BY position'));
+      deq(order, [{ position: 1, field: 'rate' }]);
+    });
+
+    it('should canonicalise parameter and order fields', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_ROOT_PROJECTION).set('0.parameters.type.field', 'Type')).set('0.order', ['Rate']), ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_type => $2', ['standard']);
+      deq(rows.map((row) => row.type), ['standard']);
+    });
+
+    it('should reject a parameter on a field the root entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters.type.field', 'wombat')), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'type' references a non existent field 'wombat' of entity 'VAT Rate v1'; existing fields are 'type', 'rate'");
+        return true;
+      });
+    });
+
+    it('should reject an order on a field the root entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', ['wombat'])), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' orders by a non existent field 'wombat' of entity 'VAT Rate v1'; existing fields are 'type', 'rate'");
+        return true;
+      });
+    });
+
+    it('should escape parameter names', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { 'pwned" INTEGER); RAISE EXCEPTION $💀$You have been pwned!$💀$; --': { field: 'type' } }), ADD_CHANGE_SET_1);
+
+      ok(await hasFunction('get_vat_rates_v1'));
+    });
+
+    it('should require parameters to have a field', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).del('0.parameters.type.field')), (err) => {
+        eq(err.message, "001.should-require-parameters-to-have-a-field.yaml: /0/parameters/type must have required property 'field'");
+        return true;
+      });
+    });
+
+    it('should require parameter match to be a known operator', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.parameters.type.match', 'wombat')), (err) => {
+        eq(err.message, "001.should-require-parameter-match-to-be-a-known-operator.yaml: /0/parameters/type/match must be equal to one of the allowed values 'equals', 'prefix', 'in' or 'range'");
+        return true;
+      });
+    });
+
+    it('should require paging to have a positive size and max', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).del('0.paging.max')), (err) => {
+        eq(err.message, "001.should-require-paging-to-have-a-positive-size-and-max.yaml: /0/paging must have required property 'max'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.paging.size', 0)), (err) => {
+        eq(err.message, '001.should-require-paging-to-have-a-positive-size-and-max.yaml: /0/paging/size must be >= 1');
+        return true;
+      });
+    });
+
+    it('should forbid nested entities', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.nest', { seasons: { entity: 'season@1' } })), (err) => {
+        eq(err.message, "001.should-forbid-nested-entities.yaml: /0 must NOT have additional property 'nest'");
+        return true;
+      });
+    });
+
+    function setRates(rates) {
+      const data = Object.entries(rates).map(([type, rate]) => ({ type, rate }));
+      return transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data }]);
+    }
+
+    async function getProjectionRows(args = '', values = []) {
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const { rows } = await filby.withTransaction((tx) => tx.query(`SELECT * FROM get_vat_rates_v1($1${args ? `, ${args}` : ''})`, [changeSetId, ...values]));
+      return rows;
+    }
   });
 
   describe('Drop Projection', () => {
+
+    it('should drop the generated function', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, DROP_PROJECTION);
+      ok(!await hasFunction('get_vat_rates_v1'));
+    });
+
+    it('should leave a hand written function with the same name in place', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION);
+      await filby.withTransaction((tx) => tx.query('CREATE FUNCTION get_vat_rates_v1(p_change_set_id INTEGER) RETURNS INTEGER AS $$ SELECT 1 $$ LANGUAGE sql STABLE'));
+
+      await filby.applyYaml(t.name, DROP_PROJECTION);
+      ok(await hasFunction('get_vat_rates_v1'));
+    });
 
     it('should drop projection', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION);

@@ -203,7 +203,7 @@ Filby has the following important concepts
 </pre>
 
 ### Projections
-A *Projection* is a versioned view of one or more *Entities*, made available in the example application via a RESTful API. The implementor is responsible for writing the the projections, which will mostly be simple database to JSON transformations.
+A *Projection* is a versioned view of one or more *Entities*, made available in the example application via a RESTful API. Most projections are declared in the DSL: name a root entity and Filby generates a function that returns one row per root entity at a given change set, with optional parameters for filtering, a declared order and paging. When a projection needs a shape the DSL cannot express, write the SQL yourself and declare the entities it depends on, so Filby still knows which projections a change set affects.
 
 ### Entity
 An *Entity* represents reference data. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which a 'Park' entity has many 'Season' entities. If you are familiar with event sourcing, they are implemented as an aggregate of one or more *Data Frames*. The dependency between projections and entities must be explicitly stated so we can emit *Notifications* when a new data frame is added.
@@ -265,13 +265,42 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   checks:
     park_code_len: (LENGTH(code) >= 2)
 
-# Defining projections and their dependent entities
-# Filby uses the dependencies to work out what projections are affected by reference data updates
+# Defining projections
+# A projection names a root entity and Filby generates a function, here get_parks_v1,
+# that returns one row per root entity at the given change set. The root is also the
+# projection's dependency, which Filby uses to work out what projections are affected
+# by reference data updates
 - operation: ADD_PROJECTION
   name: parks
   # version defaults to 1
+  root: park@1 # References always name the version
+  # Each parameter becomes a nullable function argument, p_code and p_name here, which
+  # filters the rows when supplied. match defaults to equals; prefix matches the start
+  # of the field literally, in takes an array, and range takes p_<name>_from and
+  # p_<name>_to, each optional and inclusive
+  parameters:
+    code:
+      field: code
+    name:
+      field: name
+      match: prefix
+  # Root fields to sort by, ascending. The entity key is always appended as a tie break,
+  # and is the order when none is declared
+  order:
+    - code
+  # Adds p_offset (default 0) and p_size (default size, never more than max) arguments
+  # and an fby_total column holding the number of rows that matched the parameters.
+  # The function is then get_parks_v1(p_change_set_id, p_code, p_name, p_offset, p_size)
+  paging:
+    size: 50
+    max: 200
+
+# A projection whose SQL you write yourself (see the custom SQL migration below)
+# declares the entities it depends on instead of a root
+- operation: ADD_PROJECTION
+  name: park seasons
   dependencies:
-    - entity: park@1 # References always name the version
+    - entity: park@1
     - entity: season@1
 
 # A hook defines an asynchronous event that will be emitted by the framework whenever the

@@ -322,6 +322,10 @@
         "version": {
           "type": "integer"
         },
+        "root": {
+          "type": "string",
+          "pattern": "@[0-9]+$"
+        },
         "dependencies": {
           "type": "array",
           "minItems": 1,
@@ -348,14 +352,69 @@
               ]
             }
           }
+        },
+        "parameters": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "match": {
+                "type": "string",
+                "enum": [
+                  "equals",
+                  "prefix",
+                  "in",
+                  "range"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "field"
+            ]
+          }
+        },
+        "order": {
+          "$ref": "#/definitions/StringListType"
+        },
+        "paging": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "size",
+            "max"
+          ]
         }
       },
       "additionalProperties": false,
       "required": [
         "operation",
-        "name",
-        "dependencies"
-      ]
+        "name"
+      ],
+      "if": {
+        "required": [
+          "root"
+        ]
+      },
+      "else": {
+        "required": [
+          "dependencies"
+        ]
+      }
     },
     "AddHookType": {
       "type": "object",

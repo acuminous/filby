@@ -2,6 +2,7 @@
 DO $$
 DECLARE
   v_exists BOOLEAN;
+  v_root_id INTEGER;
 BEGIN
   SELECT EXISTS (
     SELECT 1
@@ -14,6 +15,11 @@ BEGIN
     RAISE EXCEPTION 'Projection '{{literal name (v version)}}' does not exist';
   END IF;
 
+  SELECT root_entity_id INTO v_root_id
+  FROM fby_projection
+  WHERE name = {{literal name}}
+    AND version = {{literal version}};
+
   DELETE FROM fby_projection
   WHERE name = {{literal name}}
     AND version = {{literal version}};
@@ -21,6 +27,10 @@ BEGIN
   DELETE FROM fby_notification
   WHERE projection_name = {{literal name}}
     AND projection_version = {{literal version}};
+
+  IF v_root_id IS NOT NULL THEN
+    EXECUTE format('DROP FUNCTION %I', {{literal (projectionFunction name version)}});
+  END IF;
 
   PERFORM fby_schedule_notification(h.id, {{literal name}}, {{literal version}})
   FROM fby_hook h
