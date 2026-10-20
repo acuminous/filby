@@ -6,21 +6,22 @@ export class Filby {
   static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
   static NOTIFICATION_ERROR: string;
   static MIGRATION_LOCK_KEY: number;
+  readonly config: Config;
   constructor(config: Config);
   init(): Promise<void>;
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
   getNotificationStatus(): Promise<NotificationStatus>;
-  subscribe<T>(event: string, handler: (notification: T, context: HandlerContext) => Promise<void>);
-  unsubscribe<T>(event: string, handler?: (notification: T, context: HandlerContext) => Promise<void>);
-  unsubscribeAll();
+  subscribe<T>(event: string, handler: (notification: T, context: HandlerContext) => Promise<void>): void;
+  unsubscribe<T>(event: string, handler?: (notification: T, context: HandlerContext) => Promise<void>): void;
+  unsubscribeAll(): void;
   stop(): Promise<void>;
   withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
   getProjections(): Promise<Projection[]>;
-  getProjection(name: string, version: number): Promise<Projection>;
+  getProjection(name: string, version: number): Promise<Projection | undefined>;
   getChangeLog(projection: Projection, options?: { since?: number }): Promise<ChangeSet[]>;
-  getCurrentChangeSet(projection: Projection): Promise<ChangeSet>;
-  getChangeSet(id: number): Promise<ChangeSet>;
+  getCurrentChangeSet(projection: Projection): Promise<ChangeSet | undefined>;
+  getChangeSet(id: number): Promise<ChangeSet | undefined>;
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
   getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
   fetch(request: Request, options?: FetchOptions): Promise<Response>;
@@ -44,6 +45,7 @@ export type HandlerContext = {
 };
 
 export type Projection = {
+  id: number;
   name: string;
   version: number;
   key: string;
@@ -86,7 +88,7 @@ export type Hook = {
 export type Notification = {
   id: number;
   hook: Hook;
-  projection: Projection;
+  projection: Omit<Projection, 'id'>;
   attempts: number;
 };
 
