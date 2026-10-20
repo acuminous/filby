@@ -19,7 +19,6 @@ module.exports = class Application {
     this.#app.use('/api/*', cors({ origin: '*', allowMethods: ['GET'] }));
     this.#app.get('/health', (c) => this.#getHealth(c));
     this.#app.get('/documentation', swaggerUI({ url: '/api/openapi.json' }));
-    this.#app.get('/api/projections/park/v1/code/:code', (c) => this.#getPark(c));
     this.#app.all('/api/*', (c) => this.#filby.fetch(c.req.raw, { basePath: '/api', info }));
   }
 
@@ -42,31 +41,6 @@ module.exports = class Application {
   async #getHealth(c) {
     const status = await this.#filby.getNotificationStatus();
     return c.json(status, status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
-  }
-
-  async #getPark(c) {
-    const projection = await this.#filby.getProjection('park', 1);
-    if (!projection) return c.json({ error: "Projection 'park v1' does not exist" }, 404);
-    if (!c.req.query('changeSetId')) return this.#redirectToCurrentChangeSet(c, projection);
-    const changeSetId = Number(c.req.query('changeSetId'));
-    const changeSet = Number.isInteger(changeSetId) ? await this.#filby.getChangeSet(changeSetId) : undefined;
-    if (!changeSet) return c.json({ error: `Change set ${c.req.query('changeSetId')} does not exist` }, 400);
-    const code = c.req.param('code').toUpperCase();
-    const { documents: [park] } = await this.#filby.getDocuments(projection, changeSet.id, { parameters: { code } });
-    if (!park) return c.json({ error: `Park '${code}' does not exist in change set ${changeSet.id}` }, 404);
-    return c.json(park, 200, {
-      ETag: changeSet.entityTag,
-      'Last-Modified': changeSet.lastModified.toUTCString(),
-      'Cache-Control': 'max-age=31536000, immutable',
-    });
-  }
-
-  async #redirectToCurrentChangeSet(c, projection) {
-    const changeSet = await this.#filby.getCurrentChangeSet(projection);
-    if (!changeSet) return c.json({ error: `Projection '${projection.key}' has no current change set` }, 404);
-    const url = new URL(c.req.url);
-    url.searchParams.set('changeSetId', changeSet.id);
-    return c.redirect(`${url.pathname}${url.search}`, 307);
   }
 
   #reportFailingWebhooks() {
