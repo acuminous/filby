@@ -29,7 +29,6 @@ export class Filby {
 export type Config = {
   database?: PoolConfig;
   migrations?: string[];
-  schema?: string;
   notifications?: {
     interval?: string;
     initialDelay?: string;
