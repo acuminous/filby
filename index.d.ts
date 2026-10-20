@@ -22,6 +22,7 @@ export class Filby {
   getCurrentChangeSet(projection: Projection): Promise<ChangeSet>;
   getChangeSet(id: number): Promise<ChangeSet>;
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
+  getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
 }
 
 export type Config = {
@@ -45,6 +46,17 @@ export type Projection = {
   name: string;
   version: number;
   key: string;
+};
+
+export type DocumentOptions = {
+  parameters?: Record<string, unknown>;
+  pageOffset?: number;
+  pageSize?: number;
+};
+
+export type Documents<T> = {
+  documents: T[];
+  total: number;
 };
 
 export type ChangeSet = {

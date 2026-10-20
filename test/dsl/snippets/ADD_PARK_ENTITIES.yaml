@@ -13,8 +13,8 @@
   fields:
     park_code: TEXT
     type: TEXT
-    start: DATE
-    end: DATE
+    start: TIMESTAMP WITH TIME ZONE
+    end: TIMESTAMP WITH TIME ZONE
   key:
     - park_code
     - type

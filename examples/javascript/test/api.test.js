@@ -181,8 +181,8 @@ describe('API', () => {
 
   function assertSeason(actual, expected) {
     eq(actual.type, expected.type);
-    eq(new Date(actual.start).toISOString(), expected.start);
-    eq(new Date(actual.end).toISOString(), expected.end);
+    eq(actual.start, expected.start);
+    eq(actual.end, expected.end);
   }
 
   async function get(path, options = { method: 'GET', validateStatus: () => true, maxRedirects: 0 }) {
