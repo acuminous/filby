@@ -282,9 +282,10 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   root: park@1 # References always name the version
   # Each parameter becomes a nullable function argument, p_code and p_name here, which
   # filters the rows when supplied. match defaults to equals; prefix matches the start
-  # of the field literally, in takes an array, and range takes p_<name>_from and
-  # p_<name>_to, each optional and inclusive. change_set_id, page_offset and page_size
-  # are reserved names
+  # of the field literally, in takes an array, range takes p_<name>_from and
+  # p_<name>_to, each optional and inclusive, and gt, gte, lt and lte compare the field
+  # with p_<name>, so gt and lte on the same field make a half-open interval. Parameters
+  # combine with AND. change_set_id, page_offset and page_size are reserved names
   parameters:
     code:
       field: code
