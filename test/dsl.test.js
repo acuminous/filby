@@ -1782,6 +1782,17 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject nests with the same canonical name', async (t) => {
+      const nest = { Seasons: { entity: 'season@1', on: { park_code: 'code' } }, seasons: { entity: 'season@1', on: { park_code: 'code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest)), (err) => {
+        eq(err.message, "Projection 'Parks v1' declares nest 'seasons' more than once");
+        return true;
+      });
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
+      eq(projections.length, 0);
+    });
+
     it('should require nest entries to have an entity', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).del('0.nest.seasons.entity')), (err) => {
         eq(err.message, "001.should-require-nest-entries-to-have-an-entity.yaml: /0/nest/seasons must have required property 'entity'");
