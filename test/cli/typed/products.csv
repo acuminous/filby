@@ -1,0 +1,4 @@
+action,code,status,quantity,price,taxable,available_from,tags
+SET,P3,Withdrawn,007,1e3,TRUE,2020-03-01 00:00:00Z,"{a,b}"
+SET,P4,,-12,.5,no,20200301,
+set,P5,Active, 3 ,+1.5e-2,0,now,

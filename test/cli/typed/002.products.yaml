@@ -1,0 +1,37 @@
+- operation: ADD_CHANGE_SET
+  description: Initial Products
+  effective: 2020-01-01T00:00:00Z
+  changes:
+    - entity: Product@1
+      action: SET
+      data:
+        - code: P1
+          status: Active
+          quantity: 7
+          price: 1.50
+          taxable: true
+          available_from: 2020-01-01T00:00:00Z
+          tags:
+            - food
+            - drink
+          metadata:
+            pool: true
+        - Code: P2
+          price: '2'
+    - entity: Product@1
+      source: ./products.csv
+
+- operation: ADD_CHANGE_SET
+  description: Withdraw Products
+  effective: 2021-01-01T00:00:00Z
+  changes:
+    - entity: Product@1
+      action: DELETE
+      data:
+        - code: P1
+    - entity: Product@1
+      action: SET
+      data:
+        - code: P2
+          status: Withdrawn
+          price: 0

@@ -1,0 +1,6 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 VAT Rates
+  effective: 2020-04-05T00:00:00Z
+  changes:
+    - entity: VAT Rate@1
+      source: ./vat-rates.csv

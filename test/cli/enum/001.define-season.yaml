@@ -1,0 +1,16 @@
+- operation: ADD_ENUM
+  name: season_type
+  values:
+    - Owners
+    - Guests
+
+- operation: ADD_ENTITY
+  name: season
+  fields:
+    park_code: TEXT
+    type: season_type
+    start: TIMESTAMP WITH TIME ZONE
+  key:
+    - park_code
+    - type
+    - start

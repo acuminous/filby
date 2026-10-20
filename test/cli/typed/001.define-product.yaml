@@ -1,0 +1,28 @@
+- operation: ADD_ENUM
+  name: product_status
+  values:
+    - Active
+    - Withdrawn
+
+- operation: ADD_ENTITY
+  name: Product
+  fields:
+    - name: Code
+      type: TEXT
+    - name: status
+      type: product_status
+    - name: quantity
+      type: INTEGER
+    - name: price
+      type: NUMERIC(10,2)
+      nullable: false
+    - name: taxable
+      type: BOOLEAN
+    - name: available_from
+      type: TIMESTAMP WITH TIME ZONE
+    - name: tags
+      type: TEXT[]
+    - name: metadata
+      type: JSONB
+  identified_by:
+    - Code

@@ -1,0 +1,13 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 Season
+  effective: 2020-01-01T00:00:00Z
+  changes:
+    - entity: season@1
+      action: SET
+      data:
+        - park_code: DC
+          type: Owners
+          start: 2020-03-01T00:00:00Z
+        - park_code: DC
+          type: Members
+          start: 2020-03-15T00:00:00Z

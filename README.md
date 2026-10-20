@@ -720,7 +720,13 @@ migrations/0004.season-2020.yaml: /0 must have required property 'effective'
 
 `filby validate` exits with code 1 if any migration failed and 0 otherwise, so it can run in CI. `filby preview` performs the same checks and then writes the SQL that `filby.init()` would run to stdout, in the order it would be applied, each migration preceded by a `-- <file>` comment and SQL migrations copied verbatim, so you can read what a change set will do or diff it in review. If any migration fails, `filby preview` writes the errors, no SQL, and exits with code 1.
 
-The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
+Change set data is also checked against the entity definitions the tool has seen so far. Walking the migrations in order, it builds a validator from each `ADD_ENTITY`, `ADD_ENUM` and `ALTER_ENUM`, retires it on `DROP_ENTITY` or `DROP_ENUM`, and checks every YAML and CSV data item in the change sets that follow: a field the entity does not have, a key field that is missing or null, a `nullable: false` field that is missing or null on a `SET` frame, a value that is not an integer, number or boolean for a field of that type, a value that is not text or a number for a date or timestamp field, and a value that is not one of an enum's values are each reported with the file, the row and the field. The checks accept everything Postgres accepts, including `'007'`, `1e3`, `yes` and `TRUE`, and arrays, JSON, text and custom types are not type checked, so Postgres remains the final check. `filby.init()` performs the same checks, seeded from `fby_entity_field` and `fby_enum`, before it runs any SQL for the migration, so an invalid change set is reported with the same message and leaves nothing behind.
+
+```
+migrations/0004.season-2020.yaml: /Users/me/project/migrations/csv/season-2020.csv:3 - value 'Members' for field 'type' of entity 'season v1' is not one of the season_type values 'Owners' or 'Guests'
+```
+
+The command line tool only reports what can be known from the files. An entity created by a SQL migration is unknown to it, so change sets that refer to one are not checked, and whether a change set refers to an entity that exists is still checked when `filby.init()` applies the migration.
 
 ## Example Applications
 This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.

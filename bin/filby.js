@@ -4,6 +4,7 @@ const { parseArgs } = require('node:util');
 const marv = require('marv/api/promise');
 
 const render = require('../lib/render-migration');
+const createValidator = require('../lib/data-validator');
 
 const commands = { validate, preview };
 
@@ -19,27 +20,28 @@ async function main() {
 }
 
 async function scan(directories) {
+  const validator = createValidator();
   const results = [];
   for (const directory of directories) {
-    results.push(...await scanDirectory(path.resolve(directory)));
+    results.push(...await scanDirectory(path.resolve(directory), validator));
   }
   return results;
 }
 
-async function scanDirectory(directory) {
+async function scanDirectory(directory, validator) {
   try {
     const scanned = await marv.scan(directory, { filter: /\.(ya?ml|json|sql)$/ });
     return scanned
       .sort((a, b) => a.level - b.level)
-      .map((migration) => renderMigration({ ...migration, directory, filename: label(path.join(directory, migration.filename)) }));
+      .map((migration) => renderMigration({ ...migration, directory, filename: label(path.join(directory, migration.filename)) }, validator));
   } catch (err) {
     return [{ error: describe(label(directory), err) }];
   }
 }
 
-function renderMigration(migration) {
+function renderMigration(migration, validator) {
   try {
-    return { filename: migration.filename, sql: render(migration) };
+    return { filename: migration.filename, sql: render(migration, validator) };
   } catch (err) {
     return { error: describe(migration.filename, err) };
   }

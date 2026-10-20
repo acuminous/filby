@@ -5,7 +5,7 @@ const { ok, strictEqual: eq, deepEqual: deq, rejects, doesNotThrow } = require('
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
-const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, UNSAFE_NEW_ENUM_VALUE_USAGE } } = require('pg-error-enum');
+const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, FOREIGN_KEY_VIOLATION, UNSAFE_NEW_ENUM_VALUE_USAGE } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
@@ -1856,7 +1856,7 @@ describe('DSL', () => {
 
     it('should reject data fields that do not exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).merge('0.frames.0.data.0', { wombat: 1 })), (err) => {
-        eq(err.message, "Change set '2020 VAT Rates' references a non existent field 'wombat' of entity 'VAT Rate v1'");
+        eq(err.message, `${filename(t.name)}: /1/frames/0/data/0/wombat references a non existent field 'wombat' of entity 'VAT Rate v1'`);
         return true;
       });
     });
@@ -1871,7 +1871,14 @@ describe('DSL', () => {
 
     it('should reject frames without a key', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).del('0.frames.0.data.0.type')), (err) => {
-        eq(err.code, NOT_NULL_VIOLATION);
+        eq(err.message, `${filename(t.name)}: /1/frames/0/data/0 key field 'type' of entity 'VAT Rate v1' must not be null`);
+        return true;
+      });
+    });
+
+    it('should reject frames with a null key', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0.type', null)), (err) => {
+        eq(err.message, `${filename(t.name)}: /1/frames/1/data/0 key field 'type' of entity 'VAT Rate v1' must not be null`);
         return true;
       });
     });
@@ -2064,6 +2071,137 @@ describe('DSL', () => {
       eq(frames.length, 1);
       eq(frames[0].label, '{ pool: true }');
     });
+
+    it('should reject values that are not numeric before any sql runs', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0.rate', 'abc')), (err) => {
+        eq(err.message, `${filename(t.name)}: /1/frames/1/data/0/rate value 'abc' for field 'rate' of entity 'VAT Rate v1' is not a valid NUMERIC`);
+        return true;
+      });
+
+      eq((await getChangeSets('2020 VAT Rates')).length, 0);
+    });
+
+    it('should reject values that are not integers', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'threshold', type: 'INTEGER' }, 2), vatRateWith('threshold: 1.5')), (err) => {
+        eq(err.message, `${filename(t.name)}: /1/frames/0/data/0/threshold value 1.5 for field 'threshold' of entity 'VAT Rate v1' is not a valid INTEGER`);
+        return true;
+      });
+    });
+
+    it('should reject values that are not booleans', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'flag', type: 'BOOLEAN' }, 2), vatRateWith('flag: maybe')), (err) => {
+        eq(err.message, `${filename(t.name)}: /1/frames/0/data/0/flag value 'maybe' for field 'flag' of entity 'VAT Rate v1' is not a valid BOOLEAN`);
+        return true;
+      });
+    });
+
+    it('should reject values that are not timestamps', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'expires', type: 'TIMESTAMP WITH TIME ZONE' }, 2), vatRateWith('expires: true')), (err) => {
+        eq(err.message, `${filename(t.name)}: /1/frames/0/data/0/expires value true for field 'expires' of entity 'VAT Rate v1' is not a valid TIMESTAMP WITH TIME ZONE`);
+        return true;
+      });
+    });
+
+    it('should reject values that are not enum values', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.0.type', 'vat_tax_rate'), transform(ADD_CHANGE_SET_1).set('0.frames.0.data.0.type', 'exempt')), (err) => {
+        eq(err.message, `${filename(t.name)}: /2/frames/0/data/0/type value 'exempt' for field 'type' of entity 'VAT Rate v1' is not one of the vat_tax_rate values 'standard', 'reduced' or 'zero'`);
+        return true;
+      });
+    });
+
+    it('should accept every form of value that postgres accepts', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'vat_tax_rate' },
+        { name: 'padded', type: 'INTEGER' },
+        { name: 'exponent', type: 'NUMERIC(10,2)' },
+        { name: 'flag', type: 'BOOLEAN' },
+        { name: 'expires', type: 'TIMESTAMP WITH TIME ZONE' },
+        { name: 'tags', type: 'TEXT[]' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data: [{ type: 'standard', padded: '007', exponent: '1e3', flag: ' yes ', expires: '2019-03-01 00:00:00Z', tags: '{food,drink}' }] }]);
+      await filby.applyYaml(t.name, ADD_ENUM, entity, changeSet);
+
+      const [frame] = await getDataFrames('2020 VAT Rates');
+      eq(frame.padded, 7);
+      eq(frame.exponent, '1000.00');
+      eq(frame.flag, true);
+      eq(frame.expires.toISOString(), '2019-03-01T00:00:00.000Z');
+      deq(frame.tags, ['food', 'drink']);
+    });
+
+    it('should match data fields by their canonical names', async (t) => {
+      const entity = transform(transform(ADD_ENTITY).set('0.fields', [{ name: 'Tax Type', type: 'TEXT' }, { name: 'Tax Rate', type: 'NUMERIC' }])).set('0.identified_by', ['Tax Type']);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data: [{ 'tax type': 'standard', TAX_RATE: 0.1 }] }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const [frame] = await getDataFrames('2020 VAT Rates');
+      eq(frame.tax_type, 'standard');
+      eq(frame.tax_rate, '0.1');
+    });
+
+    it('should require non nullable fields on set frames', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields.1.nullable', false);
+      await rejects(() => filby.applyYaml(t.name, entity, transform(ADD_CHANGE_SET_1).del('0.frames.2.data.0.rate')), (err) => {
+        eq(err.message, `${filename(t.name)}: /1/frames/2/data/0 field 'rate' of entity 'VAT Rate v1' must not be null`);
+        return true;
+      });
+    });
+
+    it('should not require non nullable fields on delete frames', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields.1.nullable', false);
+      const changeSet = transform(transform(ADD_CHANGE_SET_1).set('0.frames.2.action', 'DELETE')).del('0.frames.2.data.0.rate');
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => [frame.action, frame.type, frame.rate]), [['SET', 'standard', 0.1], ['SET', 'reduced', 0.05], ['DELETE', 'zero', null]]);
+    });
+
+    it('should validate against entities defined in earlier migrations', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY);
+      await rejects(() => applyLaterYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.data.0.rate', 'abc')), (err) => {
+        eq(err.message, `002.${slug(t.name)}.yaml: /0/frames/0/data/0/rate value 'abc' for field 'rate' of entity 'VAT Rate v1' is not a valid NUMERIC`);
+        return true;
+      });
+    });
+
+    it('should validate against enums defined in earlier migrations', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.0.type', 'vat_tax_rate'));
+      await rejects(() => applyLaterYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames.0.data.0.type', 'exempt')), (err) => {
+        eq(err.message, `002.${slug(t.name)}.yaml: /0/frames/0/data/0/type value 'exempt' for field 'type' of entity 'VAT Rate v1' is not one of the vat_tax_rate values 'standard', 'reduced' or 'zero'`);
+        return true;
+      });
+    });
+
+    it('should validate against the fields of a redefined entity', async (t) => {
+      const redefined = transform(ADD_ENTITY).set('0.fields.1', { name: 'amount', type: 'INTEGER' });
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data: [{ type: 'standard', amount: 7 }] }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, DROP_ENTITY, redefined, changeSet);
+
+      const [frame] = await getDataFrames('2020 VAT Rates');
+      eq(frame.amount, 7);
+    });
+
+    it('should reject the fields of a dropped entity definition', async (t) => {
+      const redefined = transform(ADD_ENTITY).set('0.fields.1', { name: 'amount', type: 'INTEGER' });
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, DROP_ENTITY, redefined, ADD_CHANGE_SET_1), (err) => {
+        eq(err.message, `${filename(t.name)}: /3/frames/0/data/0/rate references a non existent field 'rate' of entity 'VAT Rate v1'`);
+        return true;
+      });
+    });
+
+    function filename(name) {
+      return `001.${slug(name)}.yaml`;
+    }
+
+    function slug(name) {
+      return name.replace(/ /g, '-').toLowerCase();
+    }
+
+    async function applyLaterYaml(name, ...script) {
+      await fs.promises.unlink(path.join(__dirname, 'migrations', `001.${slug(name)}.yaml`));
+      await fs.promises.writeFile(path.join(__dirname, 'migrations', `002.${slug(name)}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      return filby.init();
+    }
   });
 
   describe('Add Hook', () => {
@@ -2965,16 +3103,37 @@ describe('DSL', () => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/invalid-cast.csv' }]);
 
       await rejects(() => filby.applyYaml(t.name, entity, changeSet), (err) => {
-        eq(err.code, INVALID_TEXT_REPRESENTATION);
+        eq(err.message, `${path.join(__dirname, 'dsl', 'datafiles', 'invalid-cast.csv')}:2 - value 'abc' for field 'quantity' of entity 'VAT Rate v1' is not a valid INTEGER`);
         return true;
       });
+
+      eq((await getChangeSets('2020 VAT Rates')).length, 0);
     });
 
     it('should report csv columns that do not exist', async (t) => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/unknown-column.csv' }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, "Change set '2020 VAT Rates' references a non existent field 'wombat' of entity 'VAT Rate v1'");
+        eq(err.message, `${path.join(__dirname, 'dsl', 'datafiles', 'unknown-column.csv')}:1 - references a non existent field 'wombat' of entity 'VAT Rate v1'`);
+        return true;
+      });
+    });
+
+    it('should report csv values that are not enum values', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields.0.type', 'vat_tax_rate');
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/unknown-enum-value.csv' }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, entity, changeSet), (err) => {
+        eq(err.message, `${path.join(__dirname, 'dsl', 'datafiles', 'unknown-enum-value.csv')}:3 - value 'exempt' for field 'type' of entity 'VAT Rate v1' is not one of the vat_tax_rate values 'standard', 'reduced' or 'zero'`);
+        return true;
+      });
+    });
+
+    it('should report csv rows without a key', async (t) => {
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/empty-key.csv' }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, `${path.join(__dirname, 'dsl', 'datafiles', 'empty-key.csv')}:3 - key field 'type' of entity 'VAT Rate v1' must not be null`);
         return true;
       });
     });

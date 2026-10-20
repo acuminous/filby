@@ -41,6 +41,31 @@ describe('CLI', () => {
       eq(code, 1);
       match(stderr, /^test\/cli\/missing: ENOENT/m);
     });
+
+    it('reports csv values that are not valid for the declared field type', async () => {
+      const { code, stdout, stderr } = await fails(['validate', 'test/cli/numeric']);
+      eq(code, 1);
+      eq(stdout, '');
+      eq(stderr, `test/cli/numeric/002.vat-rates.yaml: ${path.resolve('test/cli/numeric/vat-rates.csv')}:3 - value 'abc' for field 'rate' of entity 'VAT Rate v1' is not a valid NUMERIC\n`);
+    });
+
+    it('reports values that are not one of the enum values', async () => {
+      const { code, stderr } = await fails(['validate', 'test/cli/enum']);
+      eq(code, 1);
+      eq(stderr, "test/cli/enum/002.seasons.yaml: /0/changes/0/data/1/type value 'Members' for field 'type' of entity 'season v1' is not one of the season_type values 'Owners' or 'Guests'\n");
+    });
+
+    it('reports data fields that the entity does not have', async () => {
+      const { code, stderr } = await fails(['validate', 'test/cli/column']);
+      eq(code, 1);
+      eq(stderr, "test/cli/column/002.parks.yaml: /0/frames/0/data/0/nmae references a non existent field 'nmae' of entity 'park v1'\n");
+    });
+
+    it('accepts every form of value that postgres accepts', async () => {
+      const { stdout, stderr } = await run(process.execPath, [filby, 'validate', 'test/cli/typed']);
+      eq(stdout, '');
+      eq(stderr, '');
+    });
   });
 
   describe('preview', () => {

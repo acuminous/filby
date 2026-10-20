@@ -1,0 +1,7 @@
+- operation: ADD_ENTITY
+  name: VAT Rate
+  fields:
+    type: TEXT
+    rate: NUMERIC
+  key:
+    - type
