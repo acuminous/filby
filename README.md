@@ -658,6 +658,37 @@ async function getParks(changeSetId, code) {
 };
 ```
 
+#### filby.fetch(request: Request, options?: FetchOptions): Promise&lt;Response&gt;
+Serves projections and change logs over HTTP using the web standard [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), so it has no framework dependency. Routes are relative to `basePath` (default `''`), only `GET` is served (anything else is a 405), an unknown path is a 404 and every error is JSON `{ "error": "..." }`.
+
+- `GET /changelog?projection=<name>&version=<n>[&since=<id>]` returns the projection's change log as `getChangeLog` does, with `ETag` and `Last-Modified` from the latest entry. A projection with no change sets is a 404, but an empty list with `since` is a 200, because it means the consumer is up to date. A missing `projection` or `version`, or a `version` or `since` that is not an integer, is a 400; an unknown projection is a 404.
+- `GET /projections/<name>/v<n>` redirects (307) to the same URL with `changeSetId` set to the projection's current change set, keeping any other query parameters, or is a 404 when the projection has no current change set. The name is URL-encoded, so `/projections/VAT%20Rates/v1`.
+- `GET /projections/<name>/v<n>?changeSetId=<id>[&<parameter>=<value>...][&page=<n>][&pageSize=<n>]` returns the documents or rows at that change set as a JSON array. A `changeSetId` that is not an integer or does not exist is a 400. For a projection declared with a `root`, the parameters are the names `getDocuments` accepts (`code`, `rate_from`, `rate_to`, `types`), an `in` parameter is repeated (`?types=a&types=b`), and any other key, a repeated key that is not an `in`, or a value Postgres cannot convert to the field's type is a 400. `page` is 1-based and `pageSize` defaults to the declared `page_size` and is clamped to `page_max`; either on a projection without `paging` is a 400, and a declared parameter named `page` is unreachable, since the handler reads it. A projection declared with `dependencies` is served by calling `get_<name>_v<n>(changeSetId)` and returning its rows as they are, all of them unless `pageSize` is given, in which case they are paged by row; `changeSetId`, `page` and `pageSize` are its only query parameters, and a 500 reports a function that does not exist. Responses carry `ETag` (the change set's entity tag), `Last-Modified`, `Cache-Control: max-age=31536000, immutable`, `X-Total-Count` (the number of documents that matched the parameters, whatever the page) and `Link` headers with `rel="next"` and `rel="prev"` where those pages exist, preserving every other query parameter. The `ETag` is the same for every page and parameter combination at a change set, which is correct because the URL carries the page and parameters and the content at a change set never changes, so it must not be derived from the content.
+
+Errors the handler does not expect, such as a lost database connection, are thrown for the host application to log and turn into a 500.
+
+[Hono](https://hono.dev/) mounts the handler in one line:
+
+```js
+app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
+```
+
+Express needs a short adapter:
+
+```js
+app.use('/api', async (req, res, next) => {
+  try {
+    const request = new Request(`${req.protocol}://${req.get('host')}${req.originalUrl}`, { method: req.method });
+    const response = await filby.fetch(request, { basePath: '/api' });
+    res.status(response.status);
+    response.headers.forEach((value, name) => res.set(name, value));
+    res.send(Buffer.from(await response.arrayBuffer()));
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
 #### filby.withTransaction&lt;T&gt;(callback: (client: PoolClient) => Promise&lt;T&gt;): Promise&lt;T&gt;
 Passes a [node-pg client](https://node-postgres.com/) to the given callback. The callback runs inside a database transaction, which is committed when the callback returns and rolled back if it throws. Use this to directly query the aggregate entity data for your projections. See [Aggregate](#aggregate) for the naming convention of the aggregate functions, e.g.
 
