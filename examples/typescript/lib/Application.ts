@@ -1,18 +1,12 @@
-import { Context, Env, Hono } from 'hono';
+import { Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
 
-import { Filby, Projection, Notification, NotificationError } from '../../..';
+import { Filby, Notification, NotificationError } from '../../..';
 import pkg from '../package.json';
 import { ApplicationConfig } from '../config';
 
-type Season = { type: string; start: Date; end: Date };
-type Park = { code: string; name: string; seasons: Season[] };
 type ExhaustedNotification = NotificationError & { notification: Notification };
-
-const PARK_PATH = '/api/projections/park/v1/code/:code';
-
-type ParkContext = Context<Env, typeof PARK_PATH>;
 
 const info = { title: pkg.title, version: pkg.version, description: pkg.description };
 
@@ -28,7 +22,6 @@ export default class Application {
     this.#app.use('/api/*', cors({ origin: '*', allowMethods: ['GET'] }));
     this.#app.get('/health', (c) => this.#getHealth(c));
     this.#app.get('/documentation', swaggerUI({ url: '/api/openapi.json' }));
-    this.#app.get(PARK_PATH, (c) => this.#getPark(c));
     this.#app.all('/api/*', (c) => this.#filby.fetch(c.req.raw, { basePath: '/api', info }));
   }
 
@@ -51,31 +44,6 @@ export default class Application {
   async #getHealth(c: Context) {
     const status = await this.#filby.getNotificationStatus();
     return c.json(status, status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
-  }
-
-  async #getPark(c: ParkContext) {
-    const projection = await this.#filby.getProjection('park', 1);
-    if (!projection) return c.json({ error: "Projection 'park v1' does not exist" }, 404);
-    if (!c.req.query('changeSetId')) return this.#redirectToCurrentChangeSet(c, projection);
-    const changeSetId = Number(c.req.query('changeSetId'));
-    const changeSet = Number.isInteger(changeSetId) ? await this.#filby.getChangeSet(changeSetId) : undefined;
-    if (!changeSet) return c.json({ error: `Change set ${c.req.query('changeSetId')} does not exist` }, 400);
-    const code = c.req.param('code').toUpperCase();
-    const { documents: [park] } = await this.#filby.getDocuments<Park>(projection, changeSet.id, { parameters: { code } });
-    if (!park) return c.json({ error: `Park '${code}' does not exist in change set ${changeSet.id}` }, 404);
-    return c.json(park, 200, {
-      ETag: changeSet.entityTag,
-      'Last-Modified': changeSet.lastModified.toUTCString(),
-      'Cache-Control': 'max-age=31536000, immutable',
-    });
-  }
-
-  async #redirectToCurrentChangeSet(c: Context, projection: Projection) {
-    const changeSet = await this.#filby.getCurrentChangeSet(projection);
-    if (!changeSet) return c.json({ error: `Projection '${projection.key}' has no current change set` }, 404);
-    const url = new URL(c.req.url);
-    url.searchParams.set('changeSetId', String(changeSet.id));
-    return c.redirect(`${url.pathname}${url.search}`, 307);
   }
 
   #reportFailingWebhooks() {
