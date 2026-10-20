@@ -14,6 +14,7 @@ END IF;
 DECLARE
   v_rows CONSTANT json := {{literal rows}};
   v_field TEXT;
+  v_row RECORD;
 BEGIN
   SELECT f.name INTO v_field
   FROM unnest(ARRAY[{{#each fields}}{{literal this}}{{#unless @last}}, {{/unless}}{{/each}}]) AS f (name)
@@ -27,38 +28,24 @@ BEGIN
       {{literal ../entity (v ../version)}};
   END IF;
 
-  WITH rows AS (
-    SELECT nextval(pg_get_serial_sequence('fby_data_frame', 'id')) AS fby_frame_id, (e.value->>'action')::fby_action_type AS fby_action, {{#each fields}}r.{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}}
-    FROM json_array_elements(v_rows) WITH ORDINALITY e, json_populate_record(null::{{identifier (table ../entity ../version)}}, e.value->'data') r
-    ORDER BY e.ordinality
-  ), frames AS (
-    INSERT INTO fby_data_frame (id, change_set_id, entity_id, action)
-    SELECT fby_frame_id, v_change_set_id, v_entity_id, fby_action FROM rows
-  )
-  INSERT INTO {{identifier (table ../entity ../version)}} (fby_frame_id, fby_change_set_id, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}})
-  SELECT fby_frame_id, v_change_set_id, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}} FROM rows;
-EXCEPTION
-  WHEN unique_violation
-  THEN RAISE EXCEPTION 'Entity ''%'' has more than one frame with key (%) in change set ''%''',
-    {{literal ../entity (v ../version)}},
-    (WITH identity AS (
-       SELECT name, position FROM fby_entity_field WHERE entity_id = v_entity_id AND identity
-     ), chunk AS (
-       SELECT e.ordinality, e.value->'data' AS data, (SELECT jsonb_object_agg(i.name, to_jsonb(r)->i.name) FROM identity i) AS key
-       FROM json_array_elements(v_rows) WITH ORDINALITY e, json_populate_record(null::{{identifier (table ../entity ../version)}}, e.value->'data') r
-     ), existing AS (
-       SELECT (SELECT jsonb_object_agg(i.name, to_jsonb(x)->i.name) FROM identity i) AS key
-       FROM {{identifier (table ../entity ../version)}} x
-       WHERE x.fby_change_set_id = v_change_set_id
-     ), duplicate AS (
-       SELECT c.data FROM chunk c
-       WHERE EXISTS (SELECT 1 FROM existing x WHERE x.key = c.key)
-          OR EXISTS (SELECT 1 FROM chunk o WHERE o.key = c.key AND o.ordinality < c.ordinality)
-       ORDER BY c.ordinality
-       LIMIT 1
-     )
-     SELECT string_agg(format('%s=%s', i.name, d.data->>i.name), ', ' ORDER BY i.position)
-     FROM duplicate d, identity i),
-    (SELECT description FROM fby_change_set WHERE id = v_change_set_id);
+  FOR v_row IN SELECT e.ordinality, e.value FROM json_array_elements(v_rows) WITH ORDINALITY e ORDER BY e.ordinality LOOP
+    BEGIN
+      INSERT INTO fby_data_frame (change_set_id, entity_id, action)
+      VALUES (v_change_set_id, v_entity_id, (v_row.value->>'action')::fby_action_type)
+      RETURNING id INTO v_frame_id;
+
+      INSERT INTO {{identifier (table ../entity ../version)}} (fby_frame_id, fby_change_set_id, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}})
+      SELECT v_frame_id, v_change_set_id, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}}
+      FROM json_populate_record(null::{{identifier (table ../entity ../version)}}, v_row.value->'data');
+    EXCEPTION
+      WHEN unique_violation
+      THEN RAISE EXCEPTION 'Entity ''%'' has more than one frame with key (%) in change set ''%''',
+        {{literal ../entity (v ../version)}},
+        (SELECT string_agg(format('%s=%s', i.name, v_row.value->'data'->>i.name), ', ' ORDER BY i.position) FROM fby_entity_field i WHERE i.entity_id = v_entity_id AND i.identity),
+        (SELECT description FROM fby_change_set WHERE id = v_change_set_id);
+      WHEN OTHERS
+      THEN RAISE EXCEPTION '%: % - %', {{literal @filename}}, {{literal location.prefix}} || ({{location.first}} + v_row.ordinality - 1), SQLERRM USING ERRCODE = SQLSTATE;
+    END;
+  END LOOP;
 END;
 {{/each}}
