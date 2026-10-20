@@ -43,25 +43,16 @@ module.exports = (fastify, { projection, filby }, done) => {
 
   async function getParks(changeSet) {
     return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, season_type, season_start, season_end FROM get_park_v1($1)', [changeSet.id]);
-      const parkDictionary = rows.reduce(toParkDictionary, new Map());
-      return Array.from(parkDictionary.values());
+      const { rows } = await tx.query('SELECT code, name, seasons FROM get_park_v1($1)', [changeSet.id]);
+      return rows;
     });
   }
 
   async function getPark(changeSet, code) {
     return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, season_type, season_start, season_end FROM get_park_v1($1) WHERE code = upper($2)', [changeSet.id, code]);
-      const parkDictionary = rows.reduce(toParkDictionary, new Map());
-      return parkDictionary.get(code);
+      const { rows } = await tx.query('SELECT code, name, seasons FROM get_park_v1($1, $2)', [changeSet.id, code]);
+      return rows[0];
     });
-  }
-
-  function toParkDictionary(dictionary, row) {
-    const { code, name, season_type: type, season_start: start, season_end: end } = row;
-    const park = dictionary.get(code) || { code, name, seasons: [] };
-    park.seasons.push({ type, start, end });
-    return dictionary.set(code, park);
   }
 
   function getResponseHeaders(changeSet) {

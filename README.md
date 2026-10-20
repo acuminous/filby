@@ -306,6 +306,22 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   paging:
     page_size: 50
     page_max: 200
+  # Nests child entities under each root row. Each entry adds a JSONB column named by
+  # its key, here seasons, holding a list of documents with the child's fields, except
+  # the join fields, in the nested order (the child's key is appended as a tie break),
+  # or an empty list when the root has no children. A page is N parks with all their
+  # seasons, and fby_total counts parks. The nested entities are dependencies of the
+  # projection too, so a change set for a season notifies the hooks below
+  nest:
+    seasons:
+      entity: season@1
+      # Maps the child's field to the root's field
+      on:
+        park_code: code
+      order:
+        - field: start
+          direction: DESC
+        - field: type
 
 # A projection whose SQL you write yourself (see the custom SQL migration below)
 # declares the entities it depends on instead of a root

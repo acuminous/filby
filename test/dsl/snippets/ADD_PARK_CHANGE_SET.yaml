@@ -1,0 +1,32 @@
+- operation: ADD_CHANGE_SET
+  description: 2019 Parks
+  effective: 2019-01-01T00:00:00.000Z
+  changes:
+    - entity: park@1
+      action: SET
+      data:
+        - code: DC
+          name: Devon Cliffs
+        - code: PV
+          name: Primrose Valley
+        - code: GA
+          name: Greenacres
+    - entity: season@1
+      action: SET
+      data:
+        - park_code: DC
+          type: Owners
+          start: 2019-03-01
+          end: 2019-11-30
+        - park_code: DC
+          type: Guests
+          start: 2019-03-15
+          end: 2019-11-15
+        - park_code: DC
+          type: Guests
+          start: 2019-02-01
+          end: 2019-02-28
+        - park_code: PV
+          type: Guests
+          start: 2019-03-15
+          end: 2019-11-15

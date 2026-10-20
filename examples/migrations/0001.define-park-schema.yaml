@@ -33,9 +33,19 @@
 
 - operation: ADD_PROJECTION
   name: park
-  dependencies:
-    - entity: park@1
-    - entity: season@1
+  root: park@1
+  parameters:
+    code:
+      field: code
+  nest:
+    seasons:
+      entity: season@1
+      on:
+        park_code: code
+      order:
+        - field: start
+          direction: DESC
+        - field: type
 
 - operation: ADD_HOOK
   name: httpbin/add-change-set/park-v1

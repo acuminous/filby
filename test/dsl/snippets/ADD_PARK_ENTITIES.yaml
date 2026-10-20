@@ -1,0 +1,21 @@
+- operation: ADD_ENTITY
+  name: park
+  version: 1
+  fields:
+    code: TEXT
+    name: TEXT
+  key:
+    - code
+
+- operation: ADD_ENTITY
+  name: season
+  version: 1
+  fields:
+    park_code: TEXT
+    type: TEXT
+    start: DATE
+    end: DATE
+  key:
+    - park_code
+    - type
+    - start

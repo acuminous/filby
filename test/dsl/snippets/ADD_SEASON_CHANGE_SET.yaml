@@ -1,0 +1,11 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 Seasons
+  effective: 2020-01-01T00:00:00.000Z
+  changes:
+    - entity: season@1
+      action: SET
+      data:
+        - park_code: PV
+          type: Owners
+          start: 2020-03-01
+          end: 2020-11-30

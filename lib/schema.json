@@ -382,30 +382,7 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": "object",
-            "properties": {
-              "field": {
-                "type": "string"
-              },
-              "direction": {
-                "type": "string",
-                "enum": [
-                  "ASC",
-                  "DESC"
-                ]
-              },
-              "nulls": {
-                "type": "string",
-                "enum": [
-                  "FIRST",
-                  "LAST"
-                ]
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "field"
-            ]
+            "$ref": "#/definitions/OrderItemType"
           }
         },
         "paging": {
@@ -425,6 +402,38 @@
             "page_size",
             "page_max"
           ]
+        },
+        "nest": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "entity": {
+                "type": "string",
+                "pattern": "@[0-9]+$"
+              },
+              "on": {
+                "type": "object",
+                "minProperties": 1,
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "order": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/definitions/OrderItemType"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "entity",
+              "on"
+            ]
+          }
         }
       },
       "additionalProperties": false,
@@ -782,6 +791,32 @@
         "DROP_PROJECTION",
         "ADD_CHANGE_SET",
         "COMMENCE_CHANGE_SET"
+      ]
+    },
+    "OrderItemType": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        "nulls": {
+          "type": "string",
+          "enum": [
+            "FIRST",
+            "LAST"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "field"
       ]
     },
     "StringListType": {
