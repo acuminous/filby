@@ -298,7 +298,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # A projection whose SQL you write yourself (see the custom SQL migration below)
 # declares the entities it depends on instead of a root
 - operation: ADD_PROJECTION
-  name: park seasons
+  name: park
   dependencies:
     - entity: park@1
     - entity: season@1
