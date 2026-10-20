@@ -10,13 +10,9 @@
     "docker": "pushd ../.. && npm run docker && popd"
   },
   "dependencies": {
-    "@fastify/cors": "^8.5.0",
-    "@fastify/swagger": "^8.12.2",
-    "@fastify/swagger-ui": "^2.0.1",
-    "axios": "^1.6.5",
-    "fast-uri": "^2.3.0",
-    "fastify": "^4.25.2",
-    "http-errors": "^2.0.0"
+    "@hono/node-server": "^2.1.5",
+    "@hono/swagger-ui": "^0.6.1",
+    "hono": "^4.13.13"
   },
   "author": "Stephen Cresswell",
   "license": "ISC"

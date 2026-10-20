@@ -1,142 +1,87 @@
-const path = require('node:path');
-
-const Fastify = require('fastify');
-const swagger = require('@fastify/swagger');
-const swaggerUI = require('@fastify/swagger-ui');
-const cors = require('@fastify/cors');
-const axios = require('axios');
+const { Hono } = require('hono');
+const { cors } = require('hono/cors');
+const { swaggerUI } = require('@hono/swagger-ui');
 
 const { Filby } = require('../../..');
 const pkg = require('../package.json');
-const changeLogRoute = require('./routes/changelog-v1');
-const healthRoute = require('./routes/health');
-const ProjectionsApi = require('./ProjectionsApi');
+
+const info = { title: pkg.title, version: pkg.version, description: pkg.description };
 
 module.exports = class Application {
 
   #config;
-  #logger;
-  #fastify;
   #filby;
-  #projectionsApi = new ProjectionsApi();
+  #app = new Hono();
 
   constructor({ config }) {
     this.#config = config;
-    const migrations = this.#config.filby.migrations?.map((directory) => path.resolve(__dirname, '..', directory));
-    this.#filby = new Filby({ ...this.#config.filby, migrations });
-    this.#fastify = Fastify(this.#config.fastify);
-    this.#logger = this.#fastify.log;
+    this.#filby = new Filby(config.filby);
+    this.#app.use('/api/*', cors({ origin: '*', allowMethods: ['GET'] }));
+    this.#app.get('/health', (c) => this.#getHealth(c));
+    this.#app.get('/documentation', swaggerUI({ url: '/api/openapi.json' }));
+    this.#app.get('/api/projections/park/v1/code/:code', (c) => this.#getPark(c));
+    this.#app.all('/api/*', (c) => this.#filby.fetch(c.req.raw, { basePath: '/api', info }));
   }
 
-  get port() {
-    return this.#fastify.server.address().port;
+  get app() {
+    return this.#app;
   }
 
   async start() {
-    await this.#initFilby();
-    await this.#initFastify();
-    await this.#fastify.listen(this.#config.server);
+    await this.#filby.init();
+    this.#reportFailingWebhooks();
+    this.#registerWebhooks();
     await this.#filby.startNotifications();
   }
 
   async stop() {
-    await this.#filby?.stopNotifications();
-    await this.#fastify?.close();
-    await this.#filby?.stop();
+    await this.#filby.stopNotifications();
+    await this.#filby.stop();
   }
 
-  async #initFilby() {
-    await this.#filby.init();
-    await this.#reportFailingWebhooks();
-    await this.#regsiterWebhooks();
+  async #getHealth(c) {
+    const status = await this.#filby.getNotificationStatus();
+    return c.json(status, status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
   }
 
-  async #reportFailingWebhooks() {
+  async #getPark(c) {
+    const projection = await this.#filby.getProjection('park', 1);
+    if (!projection) return c.json({ error: "Projection 'park v1' does not exist" }, 404);
+    if (!c.req.query('changeSetId')) return this.#redirectToCurrentChangeSet(c, projection);
+    const changeSetId = Number(c.req.query('changeSetId'));
+    const changeSet = Number.isInteger(changeSetId) ? await this.#filby.getChangeSet(changeSetId) : undefined;
+    if (!changeSet) return c.json({ error: `Change set ${c.req.query('changeSetId')} does not exist` }, 400);
+    const code = c.req.param('code').toUpperCase();
+    const { documents: [park] } = await this.#filby.getDocuments(projection, changeSet.id, { parameters: { code } });
+    if (!park) return c.json({ error: `Park '${code}' does not exist in change set ${changeSet.id}` }, 404);
+    return c.json(park, 200, {
+      ETag: changeSet.entityTag,
+      'Last-Modified': changeSet.lastModified.toUTCString(),
+      'Cache-Control': 'max-age=31536000, immutable',
+    });
+  }
+
+  async #redirectToCurrentChangeSet(c, projection) {
+    const changeSet = await this.#filby.getCurrentChangeSet(projection);
+    if (!changeSet) return c.json({ error: `Projection '${projection.key}' has no current change set` }, 404);
+    const url = new URL(c.req.url);
+    url.searchParams.set('changeSetId', changeSet.id);
+    return c.redirect(`${url.pathname}${url.search}`, 307);
+  }
+
+  #reportFailingWebhooks() {
     this.#filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ error, notification }) => {
-      const message = `Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`;
-      this.#logger.error({ notification }, message);
-
-      const details = error.isAxiosError
-        ? { message: error.message, stack: error.stack, method: error.config?.method, url: error.config?.url }
-        : { message: error.message, stack: error.stack };
-      this.#logger.error(details);
+      console.error(`Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`, error);
     });
   }
 
-  async #regsiterWebhooks() {
-    const webhooks = Object.entries(this.#config.webhooks || {});
-    for (const [event, url] of webhooks) {
-      this.#registerWebhook(event, url);
+  #registerWebhooks() {
+    for (const [event, url] of Object.entries(this.#config.webhooks)) {
+      this.#filby.subscribe(event, async (notification, { signal }) => {
+        const api = `/api/projections/${encodeURIComponent(notification.projection.name)}/v${notification.projection.version}`;
+        const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...notification, api }), signal });
+        if (!response.ok) throw new Error(`POST ${url} responded with ${response.status}`);
+      });
     }
-  }
-
-  async #registerWebhook(event, url) {
-    this.#filby.subscribe(event, async (notification) => {
-      const api = this.#projectionsApi.get(notification.projection);
-      // console.log(`POST ${url}`, { ...notification })
-      await axios.post(url, { ...notification, api });
-    });
-  }
-
-  async #initFastify() {
-    this.#fastify.addHook('onRoute', (routeOptions) => this.#projectionsApi.update(routeOptions));
-    await this.#fastify.register(cors, { origin: '*', methods: ['GET'] });
-    await this.#registerSwagger();
-    await this.#registerHealth();
-    await this.#registerChangelog();
-    await this.#registerProjections();
-  }
-
-  async #registerHealth() {
-    await this.#fastify.register(healthRoute, { prefix: '/health', filby: this.#filby });
-  }
-
-  async #registerSwagger() {
-    await this.#fastify.register(swagger, {
-      swagger: {
-        info: {
-          title: pkg.title,
-          description: pkg.description,
-          version: pkg.version,
-        },
-        schemes: ['http'],
-        consumes: ['application/json'],
-        produces: ['application/json'],
-      },
-    });
-
-    await this.#fastify.register(swaggerUI, {
-      routePrefix: this.#config.swagger.prefix,
-      uiConfig: {
-        docExpansion: 'full',
-        deepLinking: false,
-      },
-      uiHooks: {
-        onRequest(_, __, next) { next(); },
-        preHandler(_, __, next) { next(); },
-      },
-      staticCSP: true,
-      transformStaticCSP: (header) => header,
-      transformSpecification: (swaggerObject) => swaggerObject,
-      transformSpecificationClone: true,
-    });
-  }
-
-  async #registerChangelog() {
-    await this.#fastify.register(changeLogRoute, { prefix: '/api/changelog', filby: this.#filby });
-  }
-
-  async #registerProjections() {
-    const projections = await this.#filby.getProjections();
-    for (const projection of projections) {
-      await this.#registerProjection(projection);
-    }
-  }
-
-  async #registerProjection(projection) {
-    const routePath = path.join(__dirname, 'routes', `${projection.name}-v${projection.version}`);
-    const route = require(routePath);
-    const prefix = `/api/projection/v${projection.version}/${projection.name}`;
-    await this.#fastify.register(route, { prefix, projection, filby: this.#filby });
   }
 };
