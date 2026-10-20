@@ -1,0 +1,21 @@
+- operation: ADD_PROJECTION
+  name: Parks
+  version: 1
+  root: park@1
+  parameters:
+    code:
+      field: code
+  order:
+    - field: name
+  paging:
+    page_size: 2
+    page_max: 3
+  nest:
+    seasons:
+      entity: season@1
+      on:
+        park_code: code
+      order:
+        - field: start
+          direction: DESC
+        - field: type

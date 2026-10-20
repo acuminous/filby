@@ -8,7 +8,13 @@ DECLARE
   v_arguments TEXT;
   v_columns TEXT;
   v_outputs TEXT;
-  v_key_order TEXT;
+  v_order TEXT;
+  v_nest_id INTEGER;
+  v_nest_entity_id INTEGER;
+  v_nest_fields TEXT;
+  v_nest_order TEXT;
+  v_nests TEXT := '';
+  v_body TEXT;
 BEGIN
   BEGIN
     INSERT INTO fby_projection (name, version, description) VALUES
@@ -74,8 +80,8 @@ BEGIN
   FROM fby_entity_field
   WHERE entity_id = v_root_id;
 
-  SELECT string_agg(format('a.%I ASC', name), ', ' ORDER BY position)
-  INTO v_key_order
+  SELECT {{#if order}}{{literal (projectionOrder order)}} || ', ' || {{/if}}string_agg(format('a.%I ASC', name), ', ' ORDER BY position)
+  INTO v_order
   FROM fby_entity_field
   WHERE entity_id = v_root_id
     AND identity;
@@ -98,20 +104,82 @@ BEGIN
   v_columns := v_columns || ', fby_total INTEGER';
   v_outputs := v_outputs || ', COUNT(*) OVER ()::INTEGER AS fby_total';
   {{/if}}
+  {{#each nest}}
+
+  IF {{literal (canonical name)}} = 'fby_total' THEN
+    RAISE EXCEPTION 'Projection ''%'' nest ''%'' uses a reserved name', {{literal ../name (v ../version)}}, {{literal name}};
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical name)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' nest ''%'' has the same name as a field of entity ''%''', {{literal ../name (v ../version)}}, {{literal name}}, {{literal ../root.entity (v ../root.version)}};
+  END IF;
+
+  SELECT id INTO v_nest_entity_id
+  FROM fby_entity
+  WHERE name = {{literal entity}}
+    AND version = {{literal version}};
+
+  INSERT INTO fby_projection_nest (projection_id, position, name, entity_id) VALUES
+  (v_projection_id, {{ordinal}}, {{literal (canonical name)}}, v_nest_entity_id)
+  RETURNING id INTO v_nest_id;
+
+  {{#each on}}
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal (canonical field)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' nest ''%'' joins on a non existent field ''%'' of entity ''%''%', {{literal ../../name (v ../../version)}}, {{literal ../name}}, {{literal (canonical field)}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical root_field)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' nest ''%'' joins on a non existent field ''%'' of entity ''%''%', {{literal ../../name (v ../../version)}}, {{literal ../name}}, {{literal (canonical root_field)}}, {{literal ../../root.entity (v ../../root.version)}}, fby_entity_field_hint(v_root_id);
+  END IF;
+
+  INSERT INTO fby_projection_nest_on (nest_id, position, field, root_field) VALUES
+  (v_nest_id, {{ordinal}}, {{literal (canonical field)}}, {{literal (canonical root_field)}});
+
+  {{/each}}
+  {{#each order}}
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal (canonical field)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' nest ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../../name (v ../../version)}}, {{literal ../name}}, {{literal (canonical field)}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);
+  END IF;
+
+  INSERT INTO fby_projection_nest_order (nest_id, position, field, direction, nulls) VALUES
+  (v_nest_id, {{ordinal}}, {{literal (canonical field)}}, {{literal direction}}, {{literal nulls}});
+
+  {{/each}}
+  SELECT string_agg(format('%L, c.%I', name, name), ', ' ORDER BY position)
+  INTO v_nest_fields
+  FROM fby_entity_field
+  WHERE entity_id = v_nest_entity_id
+    AND name NOT IN ({{#each on}}{{literal (canonical field)}}{{#unless @last}}, {{/unless}}{{/each}});
+
+  SELECT {{#if order}}{{literal (nestOrder order)}} || ', ' || {{/if}}string_agg(format('c.%I ASC', name), ', ' ORDER BY position)
+  INTO v_nest_order
+  FROM fby_entity_field
+  WHERE entity_id = v_nest_entity_id
+    AND identity;
+
+  v_nests := v_nests || format(', (SELECT COALESCE(jsonb_agg(jsonb_build_object(%s) ORDER BY %s), jsonb_build_array()) FROM %I($1) c WHERE %s) AS %I', v_nest_fields, v_nest_order, {{literal (aggregate entity version)}}, {{literal (nestPredicates on)}}, {{literal (canonical name)}});
+  v_columns := v_columns || format(', %I JSONB', {{literal (canonical name)}});
+  {{/each}}
+
+  v_body := format(
+    'SELECT %s FROM %I($1) a WHERE %s ORDER BY %s%s',
+    v_outputs,
+    {{literal (aggregate root.entity root.version)}},
+    {{literal (projectionPredicates parameters)}},
+    v_order,
+    {{#if paging}}{{literal (projectionLimit parameters paging)}}{{else}}''{{/if}}
+  );
+  {{#if nest.length}}
+
+  v_body := format('SELECT a.*%s FROM (%s) a ORDER BY %s', v_nests, v_body, v_order);
+  {{/if}}
 
   EXECUTE format(
     'CREATE FUNCTION %I(%s) RETURNS TABLE (%s) AS %L LANGUAGE sql STABLE',
     {{literal (projectionFunction name version)}},
     v_arguments,
     v_columns,
-    format(
-      'SELECT %s FROM %I($1) a WHERE %s ORDER BY %s%s',
-      v_outputs,
-      {{literal (aggregate root.entity root.version)}},
-      {{literal (projectionPredicates parameters)}},
-      {{#if order}}{{literal (projectionOrder order)}} || ', ' || {{/if}}v_key_order,
-      {{#if paging}}{{literal (projectionLimit parameters paging)}}{{else}}''{{/if}}
-    )
+    v_body
   );
   {{/if}}
 

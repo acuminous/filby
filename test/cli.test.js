@@ -1,3 +1,4 @@
+const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
@@ -59,8 +60,9 @@ describe('CLI', () => {
     });
 
     it('prints SQL migrations verbatim', async () => {
-      const { stdout } = await run(process.execPath, [filby, 'preview', 'examples/migrations']);
-      ok(stdout.includes('CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)'));
+      const { stdout } = await run(process.execPath, [filby, 'preview', 'test/cli/sql']);
+      const script = fs.readFileSync(path.resolve('test/cli/sql/001.create-get-park-codes-v1-fn.sql'), 'utf8');
+      eq(stdout, `-- test/cli/sql/001.create-get-park-codes-v1-fn.sql\n${script}\n`);
     });
 
     it('exits 1 and prints no SQL when any migration is invalid', async () => {
