@@ -42,17 +42,13 @@ module.exports = (fastify, { projection, filby }, done) => {
   }
 
   async function getParks(changeSet) {
-    return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, seasons FROM get_park_v1($1)', [changeSet.id]);
-      return rows;
-    });
+    const { documents } = await filby.getDocuments(projection, changeSet.id);
+    return documents;
   }
 
   async function getPark(changeSet, code) {
-    return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, seasons FROM get_park_v1($1, $2)', [changeSet.id, code]);
-      return rows[0];
-    });
+    const { documents } = await filby.getDocuments(projection, changeSet.id, { parameters: { code } });
+    return documents[0];
   }
 
   function getResponseHeaders(changeSet) {

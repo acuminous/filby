@@ -1583,64 +1583,117 @@ describe('DSL', () => {
     it('should nest child entities in the declared order', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
 
-      const rows = await getNestedRows('p_page_size => 3');
-      deq(rows, [
+      const { documents, total } = await getDocuments({ pageSize: 3 });
+      eq(total, 3);
+      deq(documents, [
         {
           code: 'DC',
           name: 'Devon Cliffs',
-          fby_total: 3,
           seasons: [
-            { type: 'Guests', start: '2019-03-15', end: '2019-11-15' },
-            { type: 'Owners', start: '2019-03-01', end: '2019-11-30' },
-            { type: 'Guests', start: '2019-02-01', end: '2019-02-28' },
+            { type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), end: new Date('2019-11-15T00:00:00Z') },
+            { type: 'Owners', start: new Date('2019-03-01T00:00:00Z'), end: new Date('2019-11-30T00:00:00Z') },
+            { type: 'Guests', start: new Date('2019-02-01T00:00:00Z'), end: new Date('2019-02-28T00:00:00Z') },
           ],
         },
-        { code: 'GA', name: 'Greenacres', fby_total: 3, seasons: [] },
-        { code: 'PV', name: 'Primrose Valley', fby_total: 3, seasons: [{ type: 'Guests', start: '2019-03-15', end: '2019-11-15' }] },
+        { code: 'GA', name: 'Greenacres', seasons: [] },
+        { code: 'PV', name: 'Primrose Valley', seasons: [{ type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), end: new Date('2019-11-15T00:00:00Z') }] },
       ]);
     });
 
     it('should order nested entities by their entity key when no nest order is declared', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).del('0.nest.seasons.order'), ADD_PARK_CHANGE_SET);
 
-      const rows = await getNestedRows('p_code => $2', ['DC']);
-      deq(rows[0].seasons.map(({ type, start }) => `${type} ${start}`), ['Guests 2019-02-01', 'Guests 2019-03-15', 'Owners 2019-03-01']);
+      const { documents } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(documents[0].seasons.map(({ type, start }) => `${type} ${start.toISOString()}`), ['Guests 2019-02-01T00:00:00.000Z', 'Guests 2019-03-15T00:00:00.000Z', 'Owners 2019-03-01T00:00:00.000Z']);
     });
 
     it('should nest child entities without parameters or paging', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(transform(transform(ADD_NESTED_PROJECTION).del('0.parameters')).del('0.order')).del('0.paging'), ADD_PARK_CHANGE_SET);
 
-      const rows = await getNestedRows();
-      deq(rows.map((row) => row.code), ['DC', 'GA', 'PV']);
-      deq(Object.keys(rows[0]), ['code', 'name', 'seasons']);
-      eq(rows[0].seasons.length, 3);
+      const { documents, total } = await getDocuments({ pageOffset: 1, pageSize: 1 });
+      eq(total, 3);
+      deq(documents.map((document) => document.code), ['DC', 'GA', 'PV']);
+      deq(Object.keys(documents[0]), ['code', 'name', 'seasons']);
+      eq(documents[0].seasons.length, 3);
     });
 
     it('should page root rows with all their nested entities', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
 
-      const page1 = await getNestedRows();
-      deq(page1.map((row) => [row.code, row.fby_total, row.seasons.length]), [['DC', 3, 3], ['GA', 3, 0]]);
+      const page1 = await getDocuments();
+      eq(page1.total, 3);
+      deq(page1.documents.map((document) => [document.code, document.seasons.length]), [['DC', 3], ['GA', 0]]);
 
-      const page2 = await getNestedRows('p_page_offset => 2');
-      deq(page2.map((row) => [row.code, row.fby_total, row.seasons.length]), [['PV', 3, 1]]);
+      const page2 = await getDocuments({ pageOffset: 2 });
+      eq(page2.total, 3);
+      deq(page2.documents.map((document) => [document.code, document.seasons.length]), [['PV', 1]]);
+
+      const page3 = await getDocuments({ pageOffset: 3 });
+      eq(page3.total, 0);
+      deq(page3.documents, []);
     });
 
     it('should filter root rows by parameters without filtering their nested entities', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
 
-      const rows = await getNestedRows('p_code => $2', ['DC']);
-      deq(rows.map((row) => [row.code, row.fby_total, row.seasons.length]), [['DC', 1, 3]]);
+      const { documents, total } = await getDocuments({ parameters: { code: 'DC' } });
+      eq(total, 1);
+      deq(documents.map((document) => [document.code, document.seasons.length]), [['DC', 3]]);
     });
 
     it('should nest more than one entity', async (t) => {
       const nest = { seasons: { entity: 'season@1', on: { park_code: 'code' } }, guests: { entity: 'season@1', on: { park_code: 'code', type: 'name' } } };
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest), ADD_PARK_CHANGE_SET);
 
-      const rows = await getNestedRows('p_code => $2', ['DC']);
-      deq(Object.keys(rows[0]), ['code', 'name', 'fby_total', 'seasons', 'guests']);
-      eq(rows[0].seasons.length, 3);
-      deq(rows[0].guests, []);
+      const { documents } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(Object.keys(documents[0]), ['code', 'name', 'seasons', 'guests']);
+      eq(documents[0].seasons.length, 3);
+      deq(documents[0].guests, []);
+    });
+
+    it('should nest child entities under every root row they join to', async (t) => {
+      const nest = { seasons: { entity: 'season@1', on: { type: 'name' } } };
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest), transform(ADD_PARK_CHANGE_SET).set('0.changes.0.data', [{ code: 'DC', name: 'Guests' }, { code: 'PV', name: 'Guests' }]));
+
+      const { documents } = await getDocuments();
+      deq(documents.map((document) => [document.code, document.seasons.map((season) => season.park_code)]), [['DC', ['DC', 'DC', 'PV']], ['PV', ['DC', 'DC', 'PV']]]);
+    });
+
+    it('should return nested and root values of the same type identically', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_PARK_ENTITIES).set('0.fields.opened', 'TIMESTAMP WITH TIME ZONE'), ADD_NESTED_PROJECTION, transform(ADD_PARK_CHANGE_SET).set('0.changes.0.data.0.opened', '2019-03-15T00:00:00Z'));
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      ok(park.opened instanceof Date);
+      ok(park.seasons[0].start instanceof Date);
+      deq(park.opened, park.seasons[0].start);
+    });
+
+    it('should generate a function that returns flat rows', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      const changeSetId = await getChangeSetId('2019 Parks');
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT * FROM get_parks_v1($1)', [changeSetId]));
+      deq(Object.keys(rows[0]), ['code', 'name', 'fby_total']);
+    });
+
+    it('should reject documents for a projection without a root', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      await rejects(() => filby.getDocuments(projection, changeSetId), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' is not declared with a root");
+        return true;
+      });
+    });
+
+    it('should reject documents for an unknown parameter', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      await rejects(() => getDocuments({ parameters: { wombat: 'DC' } }), (err) => {
+        eq(err.message, "Projection 'Parks v1' has no parameter 'wombat'; existing parameters are 'code'");
+        return true;
+      });
     });
 
     it('should derive the dependencies of nested entities', async (t) => {
@@ -1676,8 +1729,8 @@ describe('DSL', () => {
       const nest = { 'Park Seasons': { entity: 'season@1', on: { 'Park Code': 'Code' }, order: [{ field: 'Start' }] } };
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest), ADD_PARK_CHANGE_SET);
 
-      const rows = await getNestedRows('p_code => $2', ['DC']);
-      deq(rows[0].park_seasons.map((season) => season.start), ['2019-02-01', '2019-03-01', '2019-03-15']);
+      const { documents } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(documents[0].park_seasons.map((season) => season.start.toISOString()), ['2019-02-01T00:00:00.000Z', '2019-03-01T00:00:00.000Z', '2019-03-15T00:00:00.000Z']);
     });
 
     it('should require root to use nest', async (t) => {
@@ -1787,10 +1840,10 @@ describe('DSL', () => {
       return rows;
     }
 
-    async function getNestedRows(args = '', values = []) {
+    async function getDocuments(options) {
+      const projection = await filby.getProjection('Parks', 1);
       const changeSetId = await getChangeSetId('2019 Parks');
-      const { rows } = await filby.withTransaction((tx) => tx.query(`SELECT * FROM get_parks_v1($1${args ? `, ${args}` : ''})`, [changeSetId, ...values]));
-      return rows;
+      return filby.getDocuments(projection, changeSetId, options);
     }
   });
 

@@ -11,9 +11,6 @@ DECLARE
   v_order TEXT;
   v_nest_id INTEGER;
   v_nest_entity_id INTEGER;
-  v_nest_fields TEXT;
-  v_nest_order TEXT;
-  v_nests TEXT := '';
   v_body TEXT;
 BEGIN
   BEGIN
@@ -145,20 +142,6 @@ BEGIN
   (v_nest_id, {{ordinal}}, {{literal (canonical field)}}, {{literal direction}}, {{literal nulls}});
 
   {{/each}}
-  SELECT string_agg(format('%L, c.%I', name, name), ', ' ORDER BY position)
-  INTO v_nest_fields
-  FROM fby_entity_field
-  WHERE entity_id = v_nest_entity_id
-    AND name NOT IN ({{#each on}}{{literal (canonical field)}}{{#unless @last}}, {{/unless}}{{/each}});
-
-  SELECT {{#if order}}{{literal (nestOrder order)}} || ', ' || {{/if}}string_agg(format('c.%I ASC', name), ', ' ORDER BY position)
-  INTO v_nest_order
-  FROM fby_entity_field
-  WHERE entity_id = v_nest_entity_id
-    AND identity;
-
-  v_nests := v_nests || format(', (SELECT COALESCE(jsonb_agg(jsonb_build_object(%s) ORDER BY %s), jsonb_build_array()) FROM %I($1) c WHERE %s) AS %I', v_nest_fields, v_nest_order, {{literal (aggregate entity version)}}, {{literal (nestPredicates on)}}, {{literal (canonical name)}});
-  v_columns := v_columns || format(', %I JSONB', {{literal (canonical name)}});
   {{/each}}
 
   v_body := format(
@@ -169,10 +152,6 @@ BEGIN
     v_order,
     {{#if paging}}{{literal (projectionLimit parameters paging)}}{{else}}''{{/if}}
   );
-  {{#if nest.length}}
-
-  v_body := format('SELECT a.*%s FROM (%s) a ORDER BY %s', v_nests, v_body, v_order);
-  {{/if}}
 
   EXECUTE format(
     'CREATE FUNCTION %I(%s) RETURNS TABLE (%s) AS %L LANGUAGE sql STABLE',

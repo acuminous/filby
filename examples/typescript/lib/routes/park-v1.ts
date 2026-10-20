@@ -8,6 +8,8 @@ import getParkSchema from '../../../schemas/get-park-schema.json';
 
 type ChangeSetId = number;
 type FilbyQueryString = { changeSetId?: ChangeSetId };
+type Season = { type: string, start: Date, end: Date };
+type Park = { code: string, name: string, seasons: Season[] };
 
 export default (fastify: FastifyInstance, { projection, filby }: { projection: Projection, filby: Filby }, done: (err?: Error) => void) => {
 
@@ -51,17 +53,13 @@ export default (fastify: FastifyInstance, { projection, filby }: { projection: P
   }
 
   async function getParks(changeSet: ChangeSet) {
-    return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, seasons FROM get_park_v1($1)', [changeSet.id]);
-      return rows;
-    });
+    const { documents } = await filby.getDocuments<Park>(projection, changeSet.id);
+    return documents;
   }
 
   async function getPark(changeSet: ChangeSet, code: string) {
-    return filby.withTransaction(async (tx) => {
-      const { rows } = await tx.query('SELECT code, name, seasons FROM get_park_v1($1, $2)', [changeSet.id, code]);
-      return rows[0];
-    });
+    const { documents } = await filby.getDocuments<Park>(projection, changeSet.id, { parameters: { code } });
+    return documents[0];
   };
 
   function getResponseHeaders(changeSet: ChangeSet) {

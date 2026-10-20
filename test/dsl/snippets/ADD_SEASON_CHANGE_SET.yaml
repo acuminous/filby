@@ -7,5 +7,5 @@
       data:
         - park_code: PV
           type: Owners
-          start: 2020-03-01
-          end: 2020-11-30
+          start: 2020-03-01T00:00:00Z
+          end: 2020-11-30T00:00:00Z

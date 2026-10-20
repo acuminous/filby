@@ -16,17 +16,17 @@
       data:
         - park_code: DC
           type: Owners
-          start: 2019-03-01
-          end: 2019-11-30
+          start: 2019-03-01T00:00:00Z
+          end: 2019-11-30T00:00:00Z
         - park_code: DC
           type: Guests
-          start: 2019-03-15
-          end: 2019-11-15
+          start: 2019-03-15T00:00:00Z
+          end: 2019-11-15T00:00:00Z
         - park_code: DC
           type: Guests
-          start: 2019-02-01
-          end: 2019-02-28
+          start: 2019-02-01T00:00:00Z
+          end: 2019-02-28T00:00:00Z
         - park_code: PV
           type: Guests
-          start: 2019-03-15
-          end: 2019-11-15
+          start: 2019-03-15T00:00:00Z
+          end: 2019-11-15T00:00:00Z
