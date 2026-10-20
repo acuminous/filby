@@ -843,7 +843,7 @@ migrations/0004.season-2020.yaml: /0 must have required property 'effective'
 The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
 
 ## Example Applications
-This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business. Each is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand.
+This repository includes a [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example application based on a Caravan Park business. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand.
 
 ### Installation
 ```bash
@@ -851,18 +851,7 @@ git clone git@github.com:acuminous/filby.git
 cd filby
 npm i
 npm run docker
-```
-
-### TypeScript variant
-```bash
 cd examples/typescript
-npm i
-npm start
-```
-
-### JavaScript Variant
-```bash
-cd examples/javascript
 npm i
 npm start
 ```
@@ -875,13 +864,13 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The applications serve Swagger UI at http://localhost:3000/documentation but for a headstart try the following
+The application serves Swagger UI at http://localhost:3000/documentation but for a headstart try the following
 
 ```
 GET http://localhost:3000/api/changelog?projection=park&version=1
 ```
 
-This will return the changelog for the applications 'Park' projection.
+This will return the changelog for the application's 'Park' projection.
 
 ```json
 [
