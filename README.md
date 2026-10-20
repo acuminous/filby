@@ -760,6 +760,24 @@ Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.co
 
 Run the process that reads data with `TZ=UTC`. [node-pg](https://node-postgres.com/) converts `DATE` and `TIMESTAMP` values using the process time zone, so the same row renders differently on machines with different time zones. Filby never uses the process time zone for migrations, so this only affects the values your application reads.
 
+### Using a schema
+Filby references every object unqualified, so everything lands in the first schema on the connection's search path, which for a new role is `"$user", public`: the role's own schema if one exists, otherwise `public`. To use another schema, create it and grant the Filby role `USAGE` and `CREATE` on it, then point the search path at it, either on the role
+
+```sql
+ALTER ROLE filby SET search_path = reference_data;
+```
+
+or with the [pg](https://www.npmjs.com/package/pg) connection option in the config, which Filby passes to every connection it opens, including marv's
+
+```js
+"database": {
+  "user": "filby",
+  "options": "-c search_path=reference_data"
+}
+```
+
+Filby's tables, marv's `migrations` table, entity tables, enums, generated functions and your own migration SQL then land in that schema with no other change. Extensions, types and functions that live in `public` must be qualified in projection SQL and entity field types, and connections Filby did not open, such as your application's own pool, must set the same search path or qualify names.
+
 ### Migration Directories
 Filby scans every directory in the `migrations` list and applies the combined set of migrations with [marv](https://github.com/guidesmiths/marv) in a single run, so you can split a large set of migrations across several directories, for example one for schema and one for data.
 
