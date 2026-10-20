@@ -5,7 +5,7 @@ const { ok, strictEqual: eq, deepEqual: deq, rejects, doesNotThrow } = require('
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
-const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, UNSAFE_NEW_ENUM_VALUE_USAGE } } = require('pg-error-enum');
+const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, INVALID_DATETIME_FORMAT, UNSAFE_NEW_ENUM_VALUE_USAGE } } = require('pg-error-enum');
 
 const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
@@ -284,7 +284,7 @@ describe('DSL', () => {
       await filby.applyYaml(t.name, ADD_ENUM, ADD_ENUM_ENTITY);
       await rejects(() => applyLaterYaml(t.name, ALTER_ENUM, ADD_EXEMPT_RATE), (err) => {
         eq(err.code, UNSAFE_NEW_ENUM_VALUE_USAGE);
-        eq(err.message, 'unsafe use of new value "exempt" of enum type vat_tax_rate');
+        eq(err.message, '002.should-reject-a-change-set-in-the-same-file-that-uses-an-added-value.yaml: /1/frames/0/data/0 - unsafe use of new value "exempt" of enum type vat_tax_rate');
         return true;
       });
     });
@@ -2193,6 +2193,66 @@ describe('DSL', () => {
     it('should reject frames without a key', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).del('0.frames.0.data.0.type')), (err) => {
         eq(err.code, NOT_NULL_VIOLATION);
+        eq(err.message, '001.should-reject-frames-without-a-key.yaml: /1/frames/0/data/0 - null value in column "type" of relation "vat_rate_v1" violates not-null constraint');
+        return true;
+      });
+    });
+
+    it('should report the file and row of a value that cannot be cast to the column type', async (t) => {
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames.1.data', [{ type: 'reduced', rate: 0.05 }, { type: 'super', rate: 0.2 }, { type: 'wombat', rate: 'abc' }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.code, INVALID_TEXT_REPRESENTATION);
+        eq(err.message, '001.should-report-the-file-and-row-of-a-value-that-cannot-be-cast-to-the-column-type.yaml: /1/frames/1/data/2 - invalid input syntax for type numeric: "abc"');
+        return true;
+      });
+
+      const changeSets = await getChangeSets('2020 VAT Rates');
+      eq(changeSets.length, 0);
+    });
+
+    it('should report the row location as changes when the change set uses changes', async (t) => {
+      const { 0: { frames, ...changeSet } } = YAML.parse(ADD_CHANGE_SET_1);
+      frames[2].data[0].rate = 'abc';
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, YAML.stringify([{ ...changeSet, changes: frames }])), (err) => {
+        eq(err.message, '001.should-report-the-row-location-as-changes-when-the-change-set-uses-changes.yaml: /1/changes/2/data/0 - invalid input syntax for type numeric: "abc"');
+        return true;
+      });
+    });
+
+    it('should report the file and row of an unknown enum value', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'vat_tax_rate' },
+        { name: 'rate', type: 'NUMERIC' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0.type', 'wombat');
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, entity, changeSet), (err) => {
+        eq(err.code, INVALID_TEXT_REPRESENTATION);
+        eq(err.message, '001.should-report-the-file-and-row-of-an-unknown-enum-value.yaml: /2/frames/1/data/0 - invalid input value for enum vat_tax_rate: "wombat"');
+        return true;
+      });
+    });
+
+    it('should report the file and row of a check violation', async (t) => {
+      const entity = transform(ADD_ENTITY).merge('0.checks', { max_rate: '(rate <= 1)' });
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames.2.data.0.rate', 1.1);
+
+      await rejects(() => filby.applyYaml(t.name, entity, changeSet), (err) => {
+        eq(err.code, CHECK_VIOLATION);
+        eq(err.message, '001.should-report-the-file-and-row-of-a-check-violation.yaml: /1/frames/2/data/0 - new row for relation "vat_rate_v1" violates check constraint "chk_max_rate"');
+        return true;
+      });
+    });
+
+    it('should report the file and row of a malformed timestamp', async (t) => {
+      const entity = transform(ADD_ENTITY).insert('0.fields', { name: 'expires', type: 'TIMESTAMP WITH TIME ZONE' }, 2);
+      const changeSet = transform(ADD_CHANGE_SET_1).merge('0.frames.0.data.0', { expires: 'wombat' });
+
+      await rejects(() => filby.applyYaml(t.name, entity, changeSet), (err) => {
+        eq(err.code, INVALID_DATETIME_FORMAT);
+        eq(err.message, '001.should-report-the-file-and-row-of-a-malformed-timestamp.yaml: /1/frames/0/data/0 - invalid input syntax for type timestamp with time zone: "wombat"');
         return true;
       });
     });
@@ -3287,6 +3347,18 @@ describe('DSL', () => {
 
       await rejects(() => filby.applyYaml(t.name, entity, changeSet), (err) => {
         eq(err.code, INVALID_TEXT_REPRESENTATION);
+        eq(err.message, '001.should-report-csv-values-that-cannot-be-cast-to-the-column-type.yaml: ../dsl/datafiles/invalid-cast.csv:4 - invalid input syntax for type integer: "abc"');
+        return true;
+      });
+    });
+
+    it('should report the csv line of a row beyond the first batch', async (t) => {
+      const source = await writeCsv(t.name, 1500);
+      await fs.promises.appendFile(path.join(__dirname, 'migrations', source), '\nSET,type-01501,abc');
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, `001.should-report-the-csv-line-of-a-row-beyond-the-first-batch.yaml: ${source}:1502 - invalid input syntax for type numeric: "abc"`);
         return true;
       });
     });

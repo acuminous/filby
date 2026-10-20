@@ -1,2 +1,4 @@
 action,type,quantity
-SET,standard,abc
+SET,standard,1
+SET,reduced,2
+SET,zero,abc
