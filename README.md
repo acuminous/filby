@@ -141,7 +141,7 @@ GET /api/projection/v1/park
 
 ```
 HTTP/1.1 307 Temporary Redirect
-location: /api/projection/v1/park?changeSetId=8
+location: /api/projection/v1/park?changeSetId=9
 ```
 
 ## Benefits
@@ -599,7 +599,7 @@ async function getParks(changeSetId) {
       SELECT p.code, p.name, s.type AS season_type, s.start AS season_start, s.end AS season_end
       FROM get_park_v1_aggregate($1) p
       LEFT JOIN get_season_v1_aggregate($1) s ON s.park_code = p.code
-      ORDER BY p.code ASC, s.start DESC, s.type desc ASC;
+      ORDER BY p.code ASC, s.start DESC, s.type ASC;
     `, [changeSetId]);
     return rows.map(toParkStructure);
   });
@@ -766,60 +766,67 @@ This will return the changelog for the applications 'Park' projection.
 ```json
 [
   {
-    "id":1,
-    "effective":"2019-01-01T00:00:00.000Z",
-    "description":"Initial Data",
-    "lastModified":"2024-01-08T07:37:55.415Z",
-    "entityTag":"e008f04be41843dd58cb"
+    "id": 1,
+    "effective": "2019-01-01T00:00:00.000Z",
+    "description": "Initial Data",
+    "lastModified": "2026-10-19T20:59:30.547Z",
+    "entityTag": "7c7f42c335444645a70d"
   },
   {
-    "id":2,
-    "effective":"2020-01-01T00:00:00.000Z",
-    "description":"Park Calendars - 2020",
-    "lastModified":"2024-01-08T07:37:55.434Z",
-    "entityTag":"fc32163580c134bec0c0"
+    "id": 2,
+    "effective": "2020-01-01T00:00:00.000Z",
+    "description": "2020 Season",
+    "lastModified": "2026-10-19T20:59:30.553Z",
+    "entityTag": "da011e40bb1a4929998a"
   },
   {
-    "id":3,
-    "effective":"2021-01-01T00:00:00.000Z",
-    "description":"Park Calendars - 2021",
-    "lastModified":"2024-01-08T07:37:55.444Z",
-    "entityTag":"c4240f6bab231fd059e2"
+    "id": 3,
+    "effective": "2021-01-01T00:00:00.000Z",
+    "description": "2021 Season",
+    "lastModified": "2026-10-19T20:59:30.555Z",
+    "entityTag": "5cf9083b211b4c3486cf"
   },
   {
-    "id":4,
-    "effective":"2021-04-01T00:00:00.000Z",
-    "description":"Add Richmond",
-    "lastModified":"2024-01-08T07:37:55.458Z",
-    "entityTag":"a40672de82626c2518ef"
+    "id": 4,
+    "effective": "2021-04-01T00:00:00.000Z",
+    "description": "Add Richmond",
+    "lastModified": "2026-10-19T20:59:30.557Z",
+    "entityTag": "bdbbe060466e43289c9b"
   },
   {
-    "id":5,
-    "effective":"2021-06-01T00:00:00.000Z",
-    "description":"Rename Richmond to Skegness",
-    "lastModified":"2024-01-08T07:37:55.466Z",
-    "entityTag":"d9766661224782a96ca6"
+    "id": 5,
+    "effective": "2021-06-01T00:00:00.000Z",
+    "description": "Rename Richmond to Skegness",
+    "lastModified": "2026-10-19T20:59:30.561Z",
+    "entityTag": "8b4035b7a07b4b6db7ab"
   },
   {
-    "id":6,
-    "effective":"2022-01-01T00:00:00.000Z",
-    "description":"Park Calendars - 2022",
-    "lastModified":"2024-01-08T07:37:55.476Z",
-    "entityTag":"841b9acde0c757decc20"
+    "id": 6,
+    "effective": "2022-01-01T00:00:00.000Z",
+    "description": "2022 Season",
+    "lastModified": "2026-10-19T20:59:30.564Z",
+    "entityTag": "1b791747687342bba29d"
   },
   {
-    "id":7,
-    "effective":"2022-05-01T00:00:00.000Z",
-    "description":"Delete Greenacres",
-    "lastModified":"2024-01-08T07:37:55.489Z",
-    "entityTag":"56aae19316c7eed13adb"
+    "id": 7,
+    "effective": "2022-05-01T00:00:00.000Z",
+    "description": "Delete Greenacres",
+    "lastModified": "2026-10-19T20:59:30.566Z",
+    "entityTag": "09262d8e872b483fa65b"
   },
   {
-    "id":8,
-    "effective":"2023-01-01T00:00:00.000Z",
-    "description":"Park Calendars - 2023",
-    "lastModified":"2024-01-08T07:37:55.495Z",
-    "entityTag":"25c02cea536038f310e7"
+    "id": 8,
+    "effective": "2023-01-01T00:00:00.000Z",
+    "description": "2023 Season",
+    "lastModified": "2026-10-19T20:59:30.568Z",
+    "entityTag": "75ccdb4964be4ac69bb0"
+  },
+  {
+    "id": 9,
+    "effective": "2024-01-01T00:00:00.000Z",
+    "description": "2024 Season",
+    "lastModified": "2026-10-19T20:59:30.571Z",
+    "entityTag": "ee39fe1b8de9459192bc"
   }
 ]
 ```
@@ -833,50 +840,50 @@ GET http://localhost:3000/api/projection/v1/park?changeSetId=1
 ```json
 [
   {
-    "code":"DC",
-    "name":"Devon Cliffs",
-    "seasons":[     
+    "code": "DC",
+    "name": "Devon Cliffs",
+    "seasons": [
       {
-        "type":"Owners",
-        "start":"2019-03-01T00:00:00.000Z",
-        "end":"2019-11-30T00:00:00.000Z"
+        "type": "Guests",
+        "start": "2019-03-15T00:00:00.000Z",
+        "end": "2019-11-15T00:00:00.000Z"
       },
       {
-        "type":"Guests",
-        "start":"2019-03-15T00:00:00.000Z",
-        "end":"2019-11-15T00:00:00.000Z"        
+        "type": "Owners",
+        "start": "2019-03-01T00:00:00.000Z",
+        "end": "2019-11-30T00:00:00.000Z"
       }
     ]
   },
   {
-    "code":"GA",
-    "name":"Greenacres",
-    "seasons":[     
+    "code": "GA",
+    "name": "Greenacres",
+    "seasons": [
       {
-        "type":"Owners",
-        "start":"2019-03-01T00:00:00.000Z",
-        "end":"2019-11-30T00:00:00.000Z"
+        "type": "Guests",
+        "start": "2019-03-15T00:00:00.000Z",
+        "end": "2019-11-15T00:00:00.000Z"
       },
       {
-        "type":"Guests",
-        "start":"2019-03-15T00:00:00.000Z",
-        "end":"2019-11-15T00:00:00.000Z"        
+        "type": "Owners",
+        "start": "2019-03-01T00:00:00.000Z",
+        "end": "2019-11-30T00:00:00.000Z"
       }
     ]
   },
   {
-    "code":"PV",
-    "name":"Primrose Valley",
-    "seasons":[     
+    "code": "PV",
+    "name": "Primrose Valley",
+    "seasons": [
       {
-        "type":"Owners",
-        "start":"2019-03-01T00:00:00.000Z",
-        "end":"2019-11-30T00:00:00.000Z"
+        "type": "Guests",
+        "start": "2019-03-15T00:00:00.000Z",
+        "end": "2019-11-15T00:00:00.000Z"
       },
       {
-        "type":"Guests",
-        "start":"2019-03-15T00:00:00.000Z",
-        "end":"2019-11-15T00:00:00.000Z"        
+        "type": "Owners",
+        "start": "2019-03-01T00:00:00.000Z",
+        "end": "2019-11-30T00:00:00.000Z"
       }
     ]
   }
