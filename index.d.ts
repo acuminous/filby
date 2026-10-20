@@ -23,6 +23,7 @@ export class Filby {
   getChangeSet(id: number): Promise<ChangeSet>;
   getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
   getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
+  fetch(request: Request, options?: FetchOptions): Promise<Response>;
 }
 
 export type Config = {
@@ -57,6 +58,10 @@ export type DocumentOptions = {
 export type Documents<T> = {
   documents: T[];
   total: number;
+};
+
+export type FetchOptions = {
+  basePath?: string;
 };
 
 export type ChangeSet = {
