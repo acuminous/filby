@@ -63,7 +63,7 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 │        │      │           │          ├──────────────────────────────────────────────────────────│          │
 │        │      │           │ Example  │                                                          │          │
 │   DB   │◀────▶│   Filby   │   App    │                                                          │  Client  │
-│        │      │           │          │  GET /api/projection/:version/:projection?changeSetId=$c │          │
+│        │      │           │          │ GET /api/projections/:projection/v:version?changeSetId=$c│          │
 │        │      │           │          ├──────────────────────────────────────────────────────────│          │
 └────────┘      └───────────┴──────────┘                                                          └──────────┘
                       ▲
@@ -110,10 +110,10 @@ GET /api/changelog?projection=park&version=1
 ]
 ```
 
-The second API call, namely `/api/projection/:version/:projection` will return the reference data, correct at the time of the given changeSetId.
+The second API call, namely `/api/projections/:projection/v:version` will return the reference data, correct at the time of the given changeSetId.
 
 ```
-GET /api/projection/v1/park?changeSetId=2
+GET /api/projections/park/v1?changeSetId=2
 ```
 
 ```json
@@ -133,15 +133,15 @@ GET /api/projection/v1/park?changeSetId=2
 ]
 ```
 
-The example applications include a convenience feature where if the changeSetId is omitted, the client will be redirected to projection at the current change set.
+Both API calls are served by `filby.fetch`, which the example applications mount in one line. If the changeSetId is omitted, the client is redirected to the projection at the current change set.
 
 ```
-GET /api/projection/v1/park
+GET /api/projections/park/v1
 ```
 
 ```
 HTTP/1.1 307 Temporary Redirect
-location: /api/projection/v1/park?changeSetId=9
+location: /api/projections/park/v1?changeSetId=9
 ```
 
 ## Benefits
@@ -571,10 +571,9 @@ Stops polling the database for notifications, aborts the signal passed to any in
 Reports the state of the notification poller and queue for health checks. `started` is whether Filby is polling. `poller` is `idle` between polls, `running` while a poll is in progress, `stopped` only transiently during `filby.stopNotifications()`, and `undefined` whenever Filby is not polling. `lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError` (`at` and `message`) are tracked in memory, so they survive `filby.stopNotifications()` but not a process restart. `failuresSinceLastSuccess` returns to 0 when a poll succeeds, whereas `lastError` keeps the most recent poll error. `pending` counts the notifications that have not yet been delivered, `overdue` those whose scheduled time has passed, and `exhausted` those that have reached `maxAttempts` and will not be retried. An exhausted notification is also overdue. A growing `overdue` count while polls succeed means handlers are failing. The counts come from a single query, so the method rejects when the database is unavailable, which is what a health check should do. `Filby.NOTIFICATION_ERROR` remains the as-it-happens signal, emitted for polling failures and for every failed delivery attempt, e.g.
 
 ```js
-fastify.get('/health', async (request, reply) => {
+app.get('/health', async (c) => {
   const status = await filby.getNotificationStatus();
-  reply.code(status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
-  return status;
+  return c.json(status, status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
 });
 ```
 
@@ -664,7 +663,7 @@ Serves projections and change logs over HTTP using the web standard [Request](ht
 - `GET /changelog?projection=<name>&version=<n>[&since=<id>]` returns the projection's change log as `getChangeLog` does, with `ETag` and `Last-Modified` from the latest entry. A projection with no change sets, or with nothing after `since`, is an empty list without `ETag` or `Last-Modified`. A missing `projection` or `version`, or a `version` or `since` that is not an integer, is a 400; an unknown projection is a 404.
 - `GET /projections/<name>/v<n>` redirects (307) to the same URL with `changeSetId` set to the projection's current change set, keeping any other query parameters, or is a 404 when the projection has no current change set. The name is URL-encoded, so `/projections/VAT%20Rates/v1`.
 - `GET /projections/<name>/v<n>?changeSetId=<id>[&<parameter>=<value>...][&page=<n>][&pageSize=<n>]` returns the documents or rows at that change set as a JSON array. A `changeSetId` that is not an integer or does not exist is a 400. For a projection declared with a `root`, the parameters are the names `getDocuments` accepts (`code`, `rate_from`, `rate_to`, `types`), an `in` parameter is repeated (`?types=a&types=b`), and any other key, a repeated key that is not an `in`, or a value Postgres cannot convert to the field's type is a 400. `page` is 1-based and `pageSize` defaults to the declared `page_size` and is clamped to `page_max`; either on a projection without `paging` is a 400, and a declared parameter named `page` is unreachable, since the handler reads it. A projection declared with `dependencies` is served by calling `get_<name>_v<n>(changeSetId)` and returning its rows as they are, all of them unless `pageSize` is given, in which case they are paged by row; `changeSetId`, `page` and `pageSize` are its only query parameters, and a 500 reports a function that does not exist. Responses carry `ETag` (the change set's entity tag), `Last-Modified`, `Cache-Control: max-age=31536000, immutable`, `X-Total-Count` (the number of documents that matched the parameters, whatever the page) and `Link` headers with `rel="next"` and `rel="prev"` where those pages exist, preserving every other query parameter. The `ETag` is the same for every page and parameter combination at a change set, which is correct because the URL carries the page and parameters and the content at a change set never changes, so it must not be derived from the content.
-- `GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from Filby's metadata tables: the `/changelog` path and one path per projection with its declared parameters, its paging parameters (`page`, and `pageSize` with the declared `page_size` as its default and `page_max` as its maximum) and a response schema derived from the root entity's fields and the nesting, so a new projection is documented, and its clients generated and requests validated, without anyone writing a schema. The document changes whenever a projection is added, so it is served without cache headers. Its `info` comes from `FetchOptions.info` (`{ title, version, description? }`) and defaults to `{ title: 'Filby', version: '1.0.0' }`, and `basePath` becomes its single `servers` entry. Field types describe what node-pg emits in JSON rather than the Postgres type: `INTEGER` and `SMALLINT` are integers, `REAL` and `DOUBLE PRECISION` are numbers, `NUMERIC` and `BIGINT` are strings because node-pg returns them as strings, `DATE` and `TIMESTAMP` are `date-time` strings, `UUID` is a `uuid` string, an enum lists its values, an array is an array of its element type, `JSON`, `JSONB` and any other type are unconstrained, and a nullable field also allows `null`. A projection declared with `dependencies` has only `changeSetId`, `page` and `pageSize` and a response of unconstrained objects, because Filby does not know the shape of its function. The example applications' Swagger UI will render this document once they move to Hono (#65).
+- `GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from Filby's metadata tables: the `/changelog` path and one path per projection with its declared parameters, its paging parameters (`page`, and `pageSize` with the declared `page_size` as its default and `page_max` as its maximum) and a response schema derived from the root entity's fields and the nesting, so a new projection is documented, and its clients generated and requests validated, without anyone writing a schema. The document changes whenever a projection is added, so it is served without cache headers. Its `info` comes from `FetchOptions.info` (`{ title, version, description? }`) and defaults to `{ title: 'Filby', version: '1.0.0' }`, and `basePath` becomes its single `servers` entry. Field types describe what node-pg emits in JSON rather than the Postgres type: `INTEGER` and `SMALLINT` are integers, `REAL` and `DOUBLE PRECISION` are numbers, `NUMERIC` and `BIGINT` are strings because node-pg returns them as strings, `DATE` and `TIMESTAMP` are `date-time` strings, `UUID` is a `uuid` string, an enum lists its values, an array is an array of its element type, `JSON`, `JSONB` and any other type are unconstrained, and a nullable field also allows `null`. A projection declared with `dependencies` has only `changeSetId`, `page` and `pageSize` and a response of unconstrained objects, because Filby does not know the shape of its function. The example applications' Swagger UI renders this document.
 
 Errors the handler does not expect, such as a lost database connection, are thrown for the host application to log and turn into a 500.
 
@@ -844,7 +843,7 @@ migrations/0004.season-2020.yaml: /0 must have required property 'effective'
 The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
 
 ## Example Applications
-This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business.
+This repository includes [JavaScript](https://github.com/acuminous/filby/tree/main/examples/javascript) and [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example applications based on a Caravan Park business. Each is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, adds one route of its own, `/api/projections/park/v1/code/:code`, to show how to extend the handler with a lookup of a single park, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand.
 
 ### Installation
 ```bash
@@ -873,10 +872,10 @@ Once successfully started you should see the following output.
 ```
 Server is listening on port 3000
 See http://localhost:3000/documentation
-Use CTRL+D or kill -TERM 18964 to stop
+Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The applications include swagger documentation for the APIs but for a headstart try the following
+The applications serve Swagger UI at http://localhost:3000/documentation but for a headstart try the following
 
 ```
 GET http://localhost:3000/api/changelog?projection=park&version=1
@@ -955,7 +954,7 @@ This will return the changelog for the applications 'Park' projection.
 Now pick a change set id and request the Park data at that point in time...
 
 ```
-GET http://localhost:3000/api/projection/v1/park?changeSetId=1
+GET http://localhost:3000/api/projections/park/v1?changeSetId=1
 ```
 
 ```json
@@ -1010,3 +1009,5 @@ GET http://localhost:3000/api/projection/v1/park?changeSetId=1
   }
 ]
 ```
+
+The handler also accepts the projection's declared parameters, so `GET http://localhost:3000/api/projections/park/v1?changeSetId=1&code=DC` returns a list of the one matching park, and the applications' own route, `GET http://localhost:3000/api/projections/park/v1/code/DC?changeSetId=1`, returns that park on its own.
