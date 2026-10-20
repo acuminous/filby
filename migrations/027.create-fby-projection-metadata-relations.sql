@@ -19,7 +19,11 @@ CREATE TABLE fby_projection_order (
   projection_id INTEGER REFERENCES fby_projection (id) ON DELETE CASCADE NOT NULL,
   position INTEGER NOT NULL,
   field TEXT NOT NULL,
-  PRIMARY KEY (projection_id, position)
+  direction TEXT NOT NULL,
+  nulls TEXT,
+  PRIMARY KEY (projection_id, position),
+  CONSTRAINT chk_fby_projection_order_direction CHECK (direction IN ('ASC', 'DESC')),
+  CONSTRAINT chk_fby_projection_order_nulls CHECK (nulls IN ('FIRST', 'LAST'))
 );
 
 CREATE OR REPLACE FUNCTION fby_entity_field_hint(p_entity_id INTEGER) RETURNS TEXT

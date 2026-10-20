@@ -41,11 +41,15 @@ BEGIN
 
   UPDATE fby_projection
   SET root_entity_id = v_root_id,
-      page_size = {{literal paging.size}},
-      page_max = {{literal paging.max}}
+      page_size = {{literal paging.page_size}},
+      page_max = {{literal paging.page_max}}
   WHERE id = v_projection_id;
 
   {{#each parameters}}
+  IF {{literal (canonical name)}} IN ('change_set_id', 'page_offset', 'page_size') THEN
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' uses a reserved name', {{literal ../name (v ../version)}}, {{literal name}};
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical field)}}) THEN
     RAISE EXCEPTION 'Projection ''%'' parameter ''%'' references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{literal (canonical field)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
   END IF;
@@ -55,12 +59,12 @@ BEGIN
 
   {{/each}}
   {{#each order}}
-  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical this)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal (canonical this)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical field)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal (canonical field)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
   END IF;
 
-  INSERT INTO fby_projection_order (projection_id, position, field) VALUES
-  (v_projection_id, {{ordinal}}, {{literal (canonical this)}});
+  INSERT INTO fby_projection_order (projection_id, position, field, direction, nulls) VALUES
+  (v_projection_id, {{ordinal}}, {{literal (canonical field)}}, {{literal direction}}, {{literal nulls}});
 
   {{/each}}
   SELECT
@@ -90,7 +94,7 @@ BEGIN
   {{/each}}
   {{#if paging}}
 
-  v_arguments := v_arguments || ', p_offset INTEGER DEFAULT 0, p_size INTEGER DEFAULT ' || {{literal paging.size}};
+  v_arguments := v_arguments || ', p_page_offset INTEGER DEFAULT 0, p_page_size INTEGER DEFAULT ' || {{literal paging.page_size}};
   v_columns := v_columns || ', fby_total INTEGER';
   v_outputs := v_outputs || ', COUNT(*) OVER ()::INTEGER AS fby_total';
   {{/if}}

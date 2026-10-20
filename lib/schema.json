@@ -379,24 +379,51 @@
           }
         },
         "order": {
-          "$ref": "#/definitions/StringListType"
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "ASC",
+                  "DESC"
+                ]
+              },
+              "nulls": {
+                "type": "string",
+                "enum": [
+                  "FIRST",
+                  "LAST"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "field"
+            ]
+          }
         },
         "paging": {
           "type": "object",
           "properties": {
-            "size": {
+            "page_size": {
               "type": "integer",
               "minimum": 1
             },
-            "max": {
+            "page_max": {
               "type": "integer",
               "minimum": 1
             }
           },
           "additionalProperties": false,
           "required": [
-            "size",
-            "max"
+            "page_size",
+            "page_max"
           ]
         }
       },

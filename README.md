@@ -277,23 +277,29 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   # Each parameter becomes a nullable function argument, p_code and p_name here, which
   # filters the rows when supplied. match defaults to equals; prefix matches the start
   # of the field literally, in takes an array, and range takes p_<name>_from and
-  # p_<name>_to, each optional and inclusive
+  # p_<name>_to, each optional and inclusive. change_set_id, page_offset and page_size
+  # are reserved names
   parameters:
     code:
       field: code
     name:
       field: name
       match: prefix
-  # Root fields to sort by, ascending. The entity key is always appended as a tie break,
-  # and is the order when none is declared
+  # Root fields to sort by. direction is ASC (the default) or DESC, and nulls is FIRST or
+  # LAST, otherwise Postgres decides. The entity key is always appended, ascending, as a
+  # tie break, and is the order when none is declared
   order:
-    - code
-  # Adds p_offset (default 0) and p_size (default size, never more than max) arguments
-  # and an fby_total column holding the number of rows that matched the parameters.
-  # The function is then get_parks_v1(p_change_set_id, p_code, p_name, p_offset, p_size)
+    - field: name
+      direction: DESC
+      nulls: LAST
+    - field: code
+  # Adds p_page_offset (default 0) and p_page_size (default page_size, never more than
+  # page_max) arguments and an fby_total column holding the number of rows that matched
+  # the parameters. The function is then
+  # get_parks_v1(p_change_set_id, p_code, p_name, p_page_offset, p_page_size)
   paging:
-    size: 50
-    max: 200
+    page_size: 50
+    page_max: 200
 
 # A projection whose SQL you write yourself (see the custom SQL migration below)
 # declares the entities it depends on instead of a root

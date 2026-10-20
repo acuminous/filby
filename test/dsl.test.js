@@ -1292,12 +1292,12 @@ describe('DSL', () => {
         return true;
       });
 
-      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.order', ['type'])), (err) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.order', [{ field: 'type' }])), (err) => {
         eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'order'");
         return true;
       });
 
-      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { size: 10, max: 100 })), (err) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { page_size: 10, page_max: 100 })), (err) => {
         eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'paging'");
         return true;
       });
@@ -1306,7 +1306,7 @@ describe('DSL', () => {
     it('should return root rows in the declared order', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
 
-      const rows = await getProjectionRows('p_size => 3');
+      const rows = await getProjectionRows('p_page_size => 3');
       deq(rows, [
         { type: 'zero', rate: '0', fby_total: 3 },
         { type: 'reduced', rate: '0.05', fby_total: 3 },
@@ -1317,7 +1317,7 @@ describe('DSL', () => {
     it('should order root rows by the entity key when no order is declared', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.order'), ADD_CHANGE_SET_1);
 
-      const rows = await getProjectionRows('p_size => 3');
+      const rows = await getProjectionRows('p_page_size => 3');
       deq(rows.map((row) => row.type), ['reduced', 'standard', 'zero']);
     });
 
@@ -1376,16 +1376,16 @@ describe('DSL', () => {
         { type: 'zero', rate: '0', fby_total: 3 },
         { type: 'reduced', rate: '0.05', fby_total: 3 },
       ]);
-      deq(await getProjectionRows('p_offset => 2'), [
+      deq(await getProjectionRows('p_page_offset => 2'), [
         { type: 'standard', rate: '0.1', fby_total: 3 },
       ]);
-      deq(await getProjectionRows('p_offset => 3'), []);
+      deq(await getProjectionRows('p_page_offset => 3'), []);
     });
 
     it('should count only the rows that match the parameters', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
 
-      deq(await getProjectionRows('p_prefix => $2, p_size => 1', ['s']), [
+      deq(await getProjectionRows('p_prefix => $2, p_page_size => 1', ['s']), [
         { type: 'standard', rate: '0.1', fby_total: 1 },
       ]);
     });
@@ -1393,7 +1393,7 @@ describe('DSL', () => {
     it('should clamp the page size to the declared maximum', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
 
-      const rows = await getProjectionRows('p_size => 10');
+      const rows = await getProjectionRows('p_page_size => 10');
       deq(rows.map((row) => row.type), ['a', 'b', 'c']);
       eq(rows[0].fby_total, 5);
     });
@@ -1416,12 +1416,12 @@ describe('DSL', () => {
         { position: 4, name: 'rate', field: 'rate', match: 'range' },
       ]);
 
-      const { rows: order } = await filby.withTransaction((tx) => tx.query('SELECT position, field FROM fby_projection_order ORDER BY position'));
-      deq(order, [{ position: 1, field: 'rate' }]);
+      const { rows: order } = await filby.withTransaction((tx) => tx.query('SELECT position, field, direction, nulls FROM fby_projection_order ORDER BY position'));
+      deq(order, [{ position: 1, field: 'rate', direction: 'ASC', nulls: null }]);
     });
 
     it('should canonicalise parameter and order fields', async (t) => {
-      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_ROOT_PROJECTION).set('0.parameters.type.field', 'Type')).set('0.order', ['Rate']), ADD_CHANGE_SET_1);
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_ROOT_PROJECTION).set('0.parameters.type.field', 'Type')).set('0.order', [{ field: 'Rate' }]), ADD_CHANGE_SET_1);
 
       const rows = await getProjectionRows('p_type => $2', ['standard']);
       deq(rows.map((row) => row.type), ['standard']);
@@ -1435,10 +1435,81 @@ describe('DSL', () => {
     });
 
     it('should reject an order on a field the root entity does not have', async (t) => {
-      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', ['wombat'])), (err) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'wombat' }])), (err) => {
         eq(err.message, "Projection 'VAT Rates v1' orders by a non existent field 'wombat' of entity 'VAT Rate v1'; existing fields are 'type', 'rate'");
         return true;
       });
+    });
+
+    it('should order root rows descending', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'rate', direction: 'DESC' }]), ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_page_size => 3');
+      deq(rows.map((row) => row.type), ['standard', 'reduced', 'zero']);
+    });
+
+    it('should order root rows by a mix of ascending and descending fields', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'rate', direction: 'DESC' }, { field: 'type', direction: 'ASC' }]), setRates({ a: 0.1, b: 0.2, c: 0.1 }));
+
+      const rows = await getProjectionRows('p_page_size => 3');
+      deq(rows.map((row) => row.type), ['b', 'a', 'c']);
+    });
+
+    it('should order nulls first or last', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'rate', nulls: 'FIRST' }]), setRates({ a: 0.1, b: null, c: 0.2 }));
+      deq((await getProjectionRows('p_page_size => 3')).map((row) => row.type), ['b', 'a', 'c']);
+
+      await filby.wipe();
+
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'rate', direction: 'DESC', nulls: 'LAST' }]), setRates({ a: 0.1, b: null, c: 0.2 }));
+      deq((await getProjectionRows('p_page_size => 3')).map((row) => row.type), ['c', 'a', 'b']);
+    });
+
+    it('should record the order direction and nulls', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'rate', direction: 'DESC', nulls: 'LAST' }, { field: 'type' }]));
+
+      const { rows: order } = await filby.withTransaction((tx) => tx.query('SELECT position, field, direction, nulls FROM fby_projection_order ORDER BY position'));
+      deq(order, [
+        { position: 1, field: 'rate', direction: 'DESC', nulls: 'LAST' },
+        { position: 2, field: 'type', direction: 'ASC', nulls: null },
+      ]);
+    });
+
+    it('should require order items to be objects', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.order', ['rate'])), (err) => {
+        eq(err.message, "001.should-require-order-items-to-be-objects.yaml: /0/order/0 must be of type 'object'");
+        return true;
+      });
+    });
+
+    it('should require order items to have a field', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.order', [{ direction: 'ASC' }])), (err) => {
+        eq(err.message, "001.should-require-order-items-to-have-a-field.yaml: /0/order/0 must have required property 'field'");
+        return true;
+      });
+    });
+
+    it('should require order direction to be ASC or DESC', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'rate', direction: 'desc' }])), (err) => {
+        eq(err.message, "001.should-require-order-direction-to-be-asc-or-desc.yaml: /0/order/0/direction must be equal to one of the allowed values 'ASC' or 'DESC'");
+        return true;
+      });
+    });
+
+    it('should require order nulls to be FIRST or LAST', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.order', [{ field: 'rate', nulls: 'wombat' }])), (err) => {
+        eq(err.message, "001.should-require-order-nulls-to-be-first-or-last.yaml: /0/order/0/nulls must be equal to one of the allowed values 'FIRST' or 'LAST'");
+        return true;
+      });
+    });
+
+    it('should reject reserved parameter names', async (t) => {
+      for (const name of ['change_set_id', 'page_offset', 'Page Size']) {
+        await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { [name]: { field: 'type' } })), (err) => {
+          eq(err.message, `Projection 'VAT Rates v1' parameter '${name}' uses a reserved name`);
+          return true;
+        });
+      }
     });
 
     it('should escape parameter names', async (t) => {
@@ -1462,13 +1533,13 @@ describe('DSL', () => {
     });
 
     it('should require paging to have a positive size and max', async (t) => {
-      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).del('0.paging.max')), (err) => {
-        eq(err.message, "001.should-require-paging-to-have-a-positive-size-and-max.yaml: /0/paging must have required property 'max'");
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).del('0.paging.page_max')), (err) => {
+        eq(err.message, "001.should-require-paging-to-have-a-positive-size-and-max.yaml: /0/paging must have required property 'page_max'");
         return true;
       });
 
-      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.paging.size', 0)), (err) => {
-        eq(err.message, '001.should-require-paging-to-have-a-positive-size-and-max.yaml: /0/paging/size must be >= 1');
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.paging.page_size', 0)), (err) => {
+        eq(err.message, '001.should-require-paging-to-have-a-positive-size-and-max.yaml: /0/paging/page_size must be >= 1');
         return true;
       });
     });

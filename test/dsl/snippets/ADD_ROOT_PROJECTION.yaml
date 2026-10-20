@@ -15,7 +15,7 @@
       field: rate
       match: range
   order:
-    - rate
+    - field: rate
   paging:
-    size: 2
-    max: 3
+    page_size: 2
+    page_max: 3
