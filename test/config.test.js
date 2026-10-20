@@ -9,6 +9,7 @@ describe('Config', () => {
     doesNotThrow(() => new Filby({
       database: { user: 'fby_test', password: 'fby_test' },
       migrations: ['test/migrations', 'test/data'],
+      schema: 'filby_test_schema',
       notifications: { interval: '1m', initialDelay: '1s', maxAttempts: 10, maxRescheduleDelay: '1h', handlerTimeout: '30s', listen: true },
     }));
   });
@@ -63,5 +64,15 @@ describe('Config', () => {
 
   it('should reject a listen flag that is not a boolean', () => {
     throws(() => new Filby({ notifications: { listen: 'yes' } }), { message: 'Invalid config: /notifications/listen must be boolean' });
+  });
+
+  for (const schema of ['Public', 'my-schema', '1st', 'public; DROP SCHEMA public']) {
+    it(`should reject a schema of '${schema}'`, () => {
+      throws(() => new Filby({ schema }), { message: 'Invalid config: /schema must be a lower case identifier' });
+    });
+  }
+
+  it('should reject a schema that is not a string', () => {
+    throws(() => new Filby({ schema: 1 }), { message: 'Invalid config: /schema must be string' });
   });
 });

@@ -725,6 +725,10 @@ Filby requires Node.js 22.12 or later and PostgreSQL 13 or later, and is tested 
     "path/to/data/migrations"
   ],
 
+  // The Postgres schema Filby creates its objects in and sets as the search_path on every connection it opens
+  // Defaults to the connection's search path, normally public
+  "schema": "reference_data",
+
   "notifications": {
 
     // The frequency Filby will check for new notifications
@@ -756,6 +760,8 @@ Filby requires Node.js 22.12 or later and PostgreSQL 13 or later, and is tested 
 ```
 
 Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax and are validated when Filby is constructed, so an unparseable duration fails with `Invalid config: /notifications/handlerTimeout must be a duration such as '30s'`.
+
+When `schema` is set, `filby.init()` creates the schema if it does not exist and every connection Filby opens has `search_path` set to that schema alone, so Filby's tables, marv's `migrations` table, entity tables, enums, generated functions and the SQL in your own migrations all land there without qualifying names. Extensions, types and functions that live in `public` are not on the search path, so qualify them in projection SQL and entity field types, for example `public.citext`. Connections Filby did not open, such as your application's own pool, must set the same `search_path` or qualify names. The schema must be a lower case identifier, matching `^[a-z_][a-z0-9_]*$`.
 
 Run the process that reads data with `TZ=UTC`. [node-pg](https://node-postgres.com/) converts `DATE` and `TIMESTAMP` values using the process time zone, so the same row renders differently on machines with different time zones. Filby never uses the process time zone for migrations, so this only affects the values your application reads.
 
