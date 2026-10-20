@@ -14,7 +14,7 @@ export default class ProjectionsApi {
     this.#upsertApiEntry(projection, index, path);
   }
 
-  get(projection: Projection) {
+  get(projection: Pick<Projection, 'key'>) {
     return this.#apis.get(projection.key);
   }
 
