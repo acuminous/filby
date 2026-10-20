@@ -1629,8 +1629,20 @@ describe('DSL', () => {
       deq(page2.documents.map((document) => [document.code, document.seasons.length]), [['PV', 1]]);
 
       const page3 = await getDocuments({ pageOffset: 3 });
-      eq(page3.total, 0);
+      eq(page3.total, 3);
       deq(page3.documents, []);
+    });
+
+    it('should report a total of zero on every page when no root rows match', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      const page1 = await getDocuments({ parameters: { code: 'XX' } });
+      eq(page1.total, 0);
+      deq(page1.documents, []);
+
+      const page2 = await getDocuments({ parameters: { code: 'XX' }, pageOffset: 2 });
+      eq(page2.total, 0);
+      deq(page2.documents, []);
     });
 
     it('should filter root rows by parameters without filtering their nested entities', async (t) => {

@@ -308,7 +308,7 @@ describe('HTTP', () => {
       const page4 = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&page=4`);
       eq(page4.status, 200);
       deq(await page4.json(), []);
-      eq(page4.headers.get('X-Total-Count'), '0');
+      eq(page4.headers.get('X-Total-Count'), '5');
       eq(page4.headers.get('Link'), `</projections/VAT%20Rates/v1?changeSetId=${changeSetId}&page=3>; rel="prev"`);
     });
 
