@@ -111,6 +111,10 @@ BEGIN
     RAISE EXCEPTION 'Projection ''%'' nest ''%'' has the same name as a field of entity ''%''', {{literal ../name (v ../version)}}, {{literal name}}, {{literal ../root.entity (v ../root.version)}};
   END IF;
 
+  IF EXISTS (SELECT 1 FROM fby_projection_nest WHERE projection_id = v_projection_id AND name = {{literal (canonical name)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' declares nest ''%'' more than once', {{literal ../name (v ../version)}}, {{literal (canonical name)}};
+  END IF;
+
   SELECT id INTO v_nest_entity_id
   FROM fby_entity
   WHERE name = {{literal entity}}
