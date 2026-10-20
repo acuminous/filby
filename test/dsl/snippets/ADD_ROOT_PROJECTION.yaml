@@ -14,6 +14,18 @@
     rate:
       field: rate
       match: range
+    above:
+      field: rate
+      match: gt
+    at_least:
+      field: rate
+      match: gte
+    below:
+      field: rate
+      match: lt
+    at_most:
+      field: rate
+      match: lte
   order:
     - field: rate
   paging:

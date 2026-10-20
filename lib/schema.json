@@ -368,7 +368,11 @@
                   "equals",
                   "prefix",
                   "in",
-                  "range"
+                  "range",
+                  "gt",
+                  "gte",
+                  "lt",
+                  "lte"
                 ]
               }
             },

@@ -1378,6 +1378,29 @@ describe('DSL', () => {
       deq((await getProjectionRows('p_rate_from => $2, p_rate_to => $3', [0.01, 0.09])).map((row) => row.type), ['reduced']);
     });
 
+    it('should filter by comparison', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      deq((await getProjectionRows('p_above => $2', [0.05])).map((row) => row.type), ['standard']);
+      deq((await getProjectionRows('p_at_least => $2', [0.05])).map((row) => row.type), ['reduced', 'standard']);
+      deq((await getProjectionRows('p_below => $2', [0.05])).map((row) => row.type), ['zero']);
+      deq((await getProjectionRows('p_at_most => $2', [0.05])).map((row) => row.type), ['zero', 'reduced']);
+    });
+
+    it('should ignore null comparison arguments', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_above => NULL, p_at_least => NULL, p_below => NULL, p_at_most => NULL, p_page_size => 3');
+      deq(rows.map((row) => row.type), ['zero', 'reduced', 'standard']);
+    });
+
+    it('should combine parameters on the same field', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_above => $2, p_at_most => $3', [0, 0.05]);
+      deq(rows.map((row) => row.type), ['reduced']);
+    });
+
     it('should page root rows with the total', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
 
@@ -1423,6 +1446,10 @@ describe('DSL', () => {
         { position: 2, name: 'prefix', field: 'type', match: 'prefix' },
         { position: 3, name: 'types', field: 'type', match: 'in' },
         { position: 4, name: 'rate', field: 'rate', match: 'range' },
+        { position: 5, name: 'above', field: 'rate', match: 'gt' },
+        { position: 6, name: 'at_least', field: 'rate', match: 'gte' },
+        { position: 7, name: 'below', field: 'rate', match: 'lt' },
+        { position: 8, name: 'at_most', field: 'rate', match: 'lte' },
       ]);
 
       const { rows: order } = await filby.withTransaction((tx) => tx.query('SELECT position, field, direction, nulls FROM fby_projection_order ORDER BY position'));
@@ -1536,7 +1563,7 @@ describe('DSL', () => {
 
     it('should require parameter match to be a known operator', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.parameters.type.match', 'wombat')), (err) => {
-        eq(err.message, "001.should-require-parameter-match-to-be-a-known-operator.yaml: /0/parameters/type/match must be equal to one of the allowed values 'equals', 'prefix', 'in' or 'range'");
+        eq(err.message, "001.should-require-parameter-match-to-be-a-known-operator.yaml: /0/parameters/type/match must be equal to one of the allowed values 'equals', 'prefix', 'in', 'range', 'gt', 'gte', 'lt' or 'lte'");
         return true;
       });
     });
