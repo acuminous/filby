@@ -5,7 +5,7 @@ import { formatDateTime, plural, timeZone, toDateTimeLocal } from '../src/format
 describe('formatDateTime', () => {
   it('formats an instant in the given locale and the local time zone', () => {
     expect(formatDateTime('2020-03-01T09:05:00.000Z', 'en-GB')).toBe('1 Mar 2020, 09:05');
-    expect(formatDateTime('2020-03-01T09:05:00.000Z', 'en-US')).toBe('Mar 1, 2020, 09:05 AM');
+    expect(formatDateTime('2020-03-01T09:05:00.000Z', 'en-US')).toBe('Mar 1, 2020, 9:05 AM');
   });
 
   it('defaults to the browser locale', () => {

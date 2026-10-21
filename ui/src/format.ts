@@ -1,8 +1,7 @@
 export function formatDateTime(iso: string, locale = navigator.language) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', ...(date.getSeconds() ? { second: '2-digit' } : {}) };
-  return new Intl.DateTimeFormat(locale, options).format(date);
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: date.getSeconds() ? 'medium' : 'short' }).format(date);
 }
 
 export function timeZone() {
