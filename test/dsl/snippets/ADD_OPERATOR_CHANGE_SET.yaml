@@ -1,0 +1,11 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 Operators
+  effective: 2020-01-01T00:00:00.000Z
+  changes:
+    - entity: operator@1
+      action: SET
+      data:
+        - code: HAV
+          name: Haven
+        - code: PKD
+          name: Parkdean

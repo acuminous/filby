@@ -409,6 +409,9 @@
         },
         "nest": {
           "$ref": "#/definitions/NestType"
+        },
+        "lookup": {
+          "$ref": "#/definitions/LookupType"
         }
       },
       "additionalProperties": false,
@@ -794,6 +797,34 @@
           },
           "nest": {
             "$ref": "#/definitions/NestType"
+          },
+          "lookup": {
+            "$ref": "#/definitions/LookupType"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "entity",
+          "on"
+        ]
+      }
+    },
+    "LookupType": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "pattern": "@[0-9]+$"
+          },
+          "on": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false,
