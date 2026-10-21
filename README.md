@@ -141,8 +141,8 @@ GET /api/projections/Catalogue/v1?changeSetId=2&code=VIC
         "vat_code": "Holiday Caravan",
         "grades": [
           {
-            "year": 2025,
-            "grade_code": "Bronze"
+            "grade_code": "Saver",
+            "year": 2025
           }
         ],
         "prices": [
@@ -394,7 +394,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
         - field: Name
       nest:
         Grades:
-          entity: Model Grade@1
+          entity: Grade Model@1
           # Maps the grade's field to the model's field
           on:
             Model Code: Code
@@ -923,7 +923,7 @@ migrations/0004.season-2020.yaml: /0 must have required property 'effective'
 The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
 
 ## Example Applications
-This repository includes a [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example application based on a Caravan Park business. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand.
+This repository includes a [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example application based on a Caravan Park business. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand. The seven projections are `Amenities`, `Catalogue`, `Grades`, `Models`, `Parks (Detailed)`, `Parks (Minimal)` and `VAT Rates`, each served at `/api/projections/<name>/v1`.
 
 ### Installation
 ```bash
@@ -944,7 +944,7 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, seasons, offers and the models they sell, and a catalogue of manufacturers, models, grades, accessories, prices and VAT rates. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
+The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, seasons, offers and the models they sell, and a catalogue of manufacturers, models, grades, accessories, prices and VAT rates. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
 
 | Id | Effective | Description |
 | -- | --------- | ----------- |
@@ -963,19 +963,19 @@ The walkthrough below asks five questions of the running example.
 
 ### What does Devon Cliffs sell?
 
-Ask `Parks` without a change set id and it redirects to the current one, which is change set 8 because change sets 9 and 10 do not touch any park.
+Ask `Parks (Detailed)` without a change set id and it redirects to the current one, which is change set 8 because change sets 9 and 10 do not touch any park.
 
 ```
-GET http://localhost:3000/api/projections/Parks/v1?code=DC
+GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC
 ```
 
 ```
 HTTP/1.1 307 Temporary Redirect
-location: /api/projections/Parks/v1?code=DC&changeSetId=8
+location: /api/projections/Parks%20(Detailed)/v1?code=DC&changeSetId=8
 ```
 
 ```
-GET http://localhost:3000/api/projections/Parks/v1?code=DC&changeSetId=8
+GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSetId=8
 ```
 
 ```json
@@ -990,32 +990,42 @@ GET http://localhost:3000/api/projections/Parks/v1?code=DC&changeSetId=8
     "region": "South West",
     "amenities": [
       {
-        "amenity_code": "ARCADE"
+        "amenity_code": "ARCADE",
+        "amenity": [
+          {
+            "name": "Amusement Arcade",
+            "category": "Entertainment",
+            "age_group": "All Ages",
+            "charge": "Paid",
+            "vat_code": "Family Attraction"
+          }
+        ]
       },
       {
-        "amenity_code": "BEACH"
+        "amenity_code": "BEACH",
+        "amenity": [
+          {
+            "name": "Beach Access",
+            "category": "Nature",
+            "age_group": "All Ages",
+            "charge": "Free",
+            "vat_code": "Family Attraction"
+          }
+        ]
       },
       {
-        "amenity_code": "CLUB"
+        "amenity_code": "CLUB",
+        "amenity": [
+          {
+            "name": "Kids Club",
+            "category": "Entertainment",
+            "age_group": "Children",
+            "charge": "Free",
+            "vat_code": "Family Attraction"
+          }
+        ]
       },
-      {
-        "amenity_code": "GOLF"
-      },
-      {
-        "amenity_code": "IPOOL"
-      },
-      {
-        "amenity_code": "OPOOL"
-      },
-      {
-        "amenity_code": "REST"
-      },
-      {
-        "amenity_code": "SHOW"
-      },
-      {
-        "amenity_code": "SPLASH"
-      }
+      ...
     ],
     "seasons": [
       {
@@ -1035,8 +1045,12 @@ GET http://localhost:3000/api/projections/Parks/v1?code=DC&changeSetId=8
     ],
     "offers": [
       {
-        "grade_code": "Gold",
+        "grade_code": "Platinum",
         "discount_percent": "0.00"
+      },
+      {
+        "grade_code": "Gold",
+        "discount_percent": "2.50"
       },
       {
         "grade_code": "Silver",
@@ -1044,6 +1058,10 @@ GET http://localhost:3000/api/projections/Parks/v1?code=DC&changeSetId=8
       },
       {
         "grade_code": "Bronze",
+        "discount_percent": "7.50"
+      },
+      {
+        "grade_code": "Saver",
         "discount_percent": "10.00"
       }
     ],
@@ -1077,7 +1095,9 @@ GET http://localhost:3000/api/projections/Parks/v1?code=DC&changeSetId=8
 ]
 ```
 
-`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. `Parks` pages ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null.
+Devon Cliffs has nine amenities; the listing above is cut to three. Each park amenity is a row of `Park Amenity`, and under it the `Amenity` nest reaches the `Amenity` entity for the name, category, age group, charge and VAT code. The nest is a one-element list because every nest is a list, and the amenity's code is left out of it because it is the join field and already on the park amenity. `Parks (Minimal)` is the same projection without that inner level, so its park amenities are codes alone, for a consumer that already holds `Amenities`.
+
+`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year.
 
 ### What was in the catalogue on 1 June 2025?
 
@@ -1137,8 +1157,8 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC
         "vat_code": "Holiday Caravan",
         "grades": [
           {
-            "year": 2025,
-            "grade_code": "Bronze"
+            "grade_code": "Saver",
+            "year": 2025
           }
         ],
         "prices": [
@@ -1167,7 +1187,7 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC
 
 ### Which VAT rate applied in August 2026?
 
-From 25 June to 1 September 2026 the rate for children's meals and family attractions was temporarily cut to 5%. Change sets 7 and 9 were entered together when the measure was announced: a rate that is true for ten weeks, loaded once, in advance. A consumer that prices a caravan or an amenity reads `Models` or `Parks` and `VAT Rates` at the same change set and gets one consistent answer.
+From 25 June to 1 September 2026 the rate for children's meals and family attractions was temporarily cut to 5%. Change sets 7 and 9 were entered together when the measure was announced: a rate that is true for ten weeks, loaded once, in advance. A consumer that prices a caravan or an amenity reads `Models` or `Parks (Detailed)` and `VAT Rates` at the same change set and gets one consistent answer.
 
 ```
 GET http://localhost:3000/api/projections/VAT%20Rates/v1?changeSetId=7
@@ -1235,16 +1255,16 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=10&code=VIC
         "vat_code": "Holiday Caravan",
         "grades": [
           {
-            "year": 2025,
-            "grade_code": "Bronze"
+            "grade_code": "Saver",
+            "year": 2025
           },
           {
-            "year": 2026,
-            "grade_code": "Bronze"
+            "grade_code": "Saver",
+            "year": 2026
           },
           {
-            "year": 2027,
-            "grade_code": "Bronze"
+            "grade_code": "Saver",
+            "year": 2027
           }
         ],
         "prices": [
@@ -1295,4 +1315,4 @@ action,Code,Name,Address,Town,County,Postcode,Region
 DELETE,GA,,,,,,
 ```
 
-`GET http://localhost:3000/api/projections/Parks/v1?changeSetId=6&code=RI` returns the park as Skegness with everything it had as Richmond, and `GET http://localhost:3000/api/projections/Parks/v1?changeSetId=8&code=GA` returns an empty list, while both parks are still there at any earlier change set.
+`GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?changeSetId=6&code=RI` returns the park as Skegness with everything it had as Richmond, and `GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?changeSetId=8&code=GA` returns an empty list, while both parks are still there at any earlier change set.

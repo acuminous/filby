@@ -1,0 +1,17 @@
+action,Grade Code,Attribute
+SET,Platinum,Double Glazing
+SET,Platinum,Central Heating
+SET,Platinum,Decking
+SET,Platinum,Dishwasher
+SET,Platinum,En Suite
+SET,Platinum,Patio Doors
+SET,Platinum,Integrated Appliances
+SET,Gold,Double Glazing
+SET,Gold,Central Heating
+SET,Gold,Decking
+SET,Gold,En Suite
+SET,Gold,Patio Doors
+SET,Silver,Double Glazing
+SET,Silver,Central Heating
+SET,Silver,Patio Doors
+SET,Bronze,Central Heating

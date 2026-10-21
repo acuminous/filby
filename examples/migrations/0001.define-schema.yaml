@@ -28,11 +28,37 @@
     - Nature
 
 - operation: ADD_ENUM
+  name: Age Group
+  values:
+    - All Ages
+    - Children
+    - Adults
+
+- operation: ADD_ENUM
+  name: Charge
+  values:
+    - Free
+    - Paid
+
+- operation: ADD_ENUM
   name: Grade Code
   values:
+    - Platinum
     - Gold
     - Silver
     - Bronze
+    - Saver
+
+- operation: ADD_ENUM
+  name: Attribute
+  values:
+    - Double Glazing
+    - Central Heating
+    - Decking
+    - Dishwasher
+    - En Suite
+    - Patio Doors
+    - Integrated Appliances
 
 - operation: ADD_ENUM
   name: Heating
@@ -85,6 +111,12 @@
       nullable: false
     Category:
       type: amenity_category
+      nullable: false
+    Age Group:
+      type: age_group
+      nullable: false
+    Charge:
+      type: charge
       nullable: false
     VAT Code:
       type: vat_code
@@ -206,29 +238,26 @@
   name: Grade
   fields:
     Code: grade_code
-    Minimum Bedrooms:
-      type: INTEGER
-      nullable: false
-    Minimum Year:
-      type: INTEGER
-      nullable: false
-    Central Heating:
-      type: BOOLEAN
-      nullable: false
-    Double Glazing:
-      type: BOOLEAN
-      nullable: false
   key:
     - Code
 
 - operation: ADD_ENTITY
-  name: Model Grade
+  name: Grade Attribute
   fields:
-    Model Code: TEXT
-    Year: INTEGER
+    Grade Code: grade_code
+    Attribute: attribute
+  key:
+    - Grade Code
+    - Attribute
+
+- operation: ADD_ENTITY
+  name: Grade Model
+  fields:
     Grade Code:
       type: grade_code
       nullable: false
+    Model Code: TEXT
+    Year: INTEGER
   key:
     - Model Code
     - Year
@@ -259,8 +288,21 @@
     - Code
 
 - operation: ADD_PROJECTION
-  name: Parks
-  description: Parks with their amenities, seasons, offers and the models they sell
+  name: Amenities
+  description: The amenities a park can offer, with their category, age group, charge and VAT code
+  root: Amenity@1
+  parameters:
+    code:
+      field: Code
+    category:
+      field: Category
+      match: in
+  order:
+    - field: Name
+
+- operation: ADD_PROJECTION
+  name: Parks (Minimal)
+  description: Parks with their amenity codes, seasons, offers and the models they sell
   root: Park@1
   parameters:
     code:
@@ -303,6 +345,57 @@
         - field: Model Code
 
 - operation: ADD_PROJECTION
+  name: Parks (Detailed)
+  description: Parks with their amenities in full, seasons, offers and the models they sell
+  root: Park@1
+  parameters:
+    code:
+      field: Code
+    name:
+      field: Name
+      match: prefix
+    region:
+      field: Region
+      match: in
+  order:
+    - field: Name
+  paging:
+    page_size: 10
+    page_max: 50
+  nest:
+    Amenities:
+      entity: Park Amenity@1
+      on:
+        Park Code: Code
+      order:
+        - field: Amenity Code
+      nest:
+        Amenity:
+          entity: Amenity@1
+          on:
+            Code: Amenity Code
+          order:
+            - field: Name
+    Seasons:
+      entity: Park Season@1
+      on:
+        Park Code: Code
+      order:
+        - field: Customer Type
+    Offers:
+      entity: Park Offer@1
+      on:
+        Park Code: Code
+      order:
+        - field: Grade Code
+    Models:
+      entity: Park Model@1
+      on:
+        Park Code: Code
+      order:
+        - field: Model Code
+
+- operation: ADD_PROJECTION
   name: Catalogue
   description: The whole product range, from manufacturer to model to each model's grades, prices and accessories
   root: Manufacturer@1
@@ -320,7 +413,7 @@
         - field: Name
       nest:
         Grades:
-          entity: Model Grade@1
+          entity: Grade Model@1
           on:
             Model Code: Code
           order:
@@ -366,7 +459,7 @@
     page_max: 100
   nest:
     Grades:
-      entity: Model Grade@1
+      entity: Grade Model@1
       on:
         Model Code: Code
       order:
@@ -385,6 +478,30 @@
         - field: Name
 
 - operation: ADD_PROJECTION
+  name: Grades
+  description: The grades a model can hold, with the attributes each grade requires and the models that hold it each year
+  root: Grade@1
+  parameters:
+    code:
+      field: Code
+  order:
+    - field: Code
+  nest:
+    Models:
+      entity: Grade Model@1
+      on:
+        Grade Code: Code
+      order:
+        - field: Model Code
+        - field: Year
+    Attributes:
+      entity: Grade Attribute@1
+      on:
+        Grade Code: Code
+      order:
+        - field: Attribute
+
+- operation: ADD_PROJECTION
   name: VAT Rates
   description: The VAT rates that apply to models and amenities
   root: VAT Rate@1
@@ -396,9 +513,9 @@
   event: ADD_PROJECTION
 
 - operation: ADD_HOOK
-  name: httpbin/add-change-set/parks-v1
+  name: httpbin/add-change-set/parks-minimal-v1
   event: ADD_CHANGE_SET
-  projection: Parks@1
+  projection: Parks (Minimal)@1
 
 - operation: ADD_HOOK
   name: httpbin/add-change-set/*

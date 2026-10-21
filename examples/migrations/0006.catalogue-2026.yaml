@@ -7,8 +7,8 @@
       source: ./csv/catalogue-2026/model.csv
     - entity: Accessory@1
       source: ./csv/catalogue-2026/accessory.csv
-    - entity: Model Grade@1
-      source: ./csv/catalogue-2026/model-grade.csv
+    - entity: Grade Model@1
+      source: ./csv/catalogue-2026/grade-model.csv
     - entity: Price@1
       source: ./csv/catalogue-2026/price.csv
     - entity: Park Model@1
