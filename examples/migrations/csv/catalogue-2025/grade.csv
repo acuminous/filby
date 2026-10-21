@@ -1,0 +1,4 @@
+action,Code,Minimum Bedrooms,Minimum Year,Central Heating,Double Glazing
+SET,Gold,2,2024,true,true
+SET,Silver,2,2022,true,false
+SET,Bronze,1,2017,false,false

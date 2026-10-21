@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+- operation: ADD_CHANGE_SET
+  description: Greenacres sold
+  effective: 2026-07-01T00:00:00Z
+  changes:
+    - entity: Park@1
+      source: ./csv/greenacres-sold/park.csv
+    - entity: Park Amenity@1
+      source: ./csv/greenacres-sold/park-amenity.csv
+    - entity: Park Season@1
+      source: ./csv/greenacres-sold/park-season.csv
+    - entity: Park Offer@1
+      source: ./csv/greenacres-sold/park-offer.csv
+    - entity: Park Model@1
+      source: ./csv/greenacres-sold/park-model.csv

@@ -1,0 +1,13 @@
+action,Code,Name,Category,VAT Code
+SET,IPOOL,Indoor Pool,Pool,Family Attraction
+SET,OPOOL,Outdoor Pool,Pool,Family Attraction
+SET,SPLASH,Splash Zone,Pool,Family Attraction
+SET,SHOW,Showbar,Entertainment,Family Attraction
+SET,ARCADE,Amusement Arcade,Entertainment,Family Attraction
+SET,CLUB,Kids Club,Entertainment,Family Attraction
+SET,GOLF,Crazy Golf,Sport,Family Attraction
+SET,COURTS,Sports Courts,Sport,Family Attraction
+SET,REST,Restaurant,Food,Standard
+SET,CAFE,Coffee Shop,Food,Standard
+SET,BEACH,Beach Access,Nature,Family Attraction
+SET,TRAIL,Nature Trail,Nature,Family Attraction

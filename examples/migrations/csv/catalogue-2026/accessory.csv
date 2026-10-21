@@ -1,0 +1,5 @@
+action,Code,Model Code,Name,Price
+SET,AMB-VER,AMB,Veranda,2495.00
+SET,AMB-DEC,AMB,Decking,3995.00
+DELETE,ARZ-VER,,,
+DELETE,ARZ-DEC,,,

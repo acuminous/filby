@@ -1,0 +1,16 @@
+action,Park Code,Grade Code,Discount Percent
+SET,DC,Gold,0.00
+SET,DC,Silver,5.00
+SET,DC,Bronze,10.00
+SET,PV,Gold,0.00
+SET,PV,Silver,5.00
+SET,PV,Bronze,10.00
+SET,GA,Gold,0.00
+SET,GA,Silver,5.00
+SET,GA,Bronze,10.00
+SET,CT,Gold,0.00
+SET,CT,Silver,5.00
+SET,CT,Bronze,10.00
+SET,KP,Gold,0.00
+SET,KP,Silver,5.00
+SET,KP,Bronze,10.00

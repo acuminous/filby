@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+- operation: ADD_CHANGE_SET
+  description: 2025 catalogue and price list
+  effective: 2025-01-01T00:00:00Z
+  changes:
+    - entity: Manufacturer@1
+      source: ./csv/catalogue-2025/manufacturer.csv
+    - entity: Model@1
+      source: ./csv/catalogue-2025/model.csv
+    - entity: Accessory@1
+      source: ./csv/catalogue-2025/accessory.csv
+    - entity: Grade@1
+      source: ./csv/catalogue-2025/grade.csv
+    - entity: Model Grade@1
+      source: ./csv/catalogue-2025/model-grade.csv
+    - entity: Price@1
+      source: ./csv/catalogue-2025/price.csv
+    - entity: VAT Rate@1
+      source: ./csv/catalogue-2025/vat-rate.csv
+    - entity: Park Model@1
+      source: ./csv/catalogue-2025/park-model.csv

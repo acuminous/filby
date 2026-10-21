@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+- operation: ADD_CHANGE_SET
+  description: 2025 season
+  effective: 2025-03-01T00:00:00Z
+  changes:
+    - entity: Park Season@1
+      source: ./csv/season-2025/park-season.csv
