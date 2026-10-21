@@ -7,7 +7,6 @@ require('./load-env');
 const servers = [
   { port: 5432, user: 'fby_test', password: 'fby_test' },
   { port: 5433, user: 'fby_example', password: 'fby_example' },
-  { port: 5434, user: 'fby_example', password: 'fby_example' },
 ];
 
 const commands = { check, create, drop };

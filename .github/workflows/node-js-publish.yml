@@ -23,7 +23,6 @@ jobs:
         with:
           node-version: '22.x'
       - run: npm ci
-      - run: pushd examples/javascript && npm ci
       - run: npm test
 
 

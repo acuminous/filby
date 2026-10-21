@@ -16,7 +16,7 @@ const config: ApplicationConfig = {
   },
   filby: {
     database: {
-      port: 5434,
+      port: 5433,
       user: 'fby_example',
       password: 'fby_example',
     },
