@@ -4,9 +4,10 @@ import { ApiError, getChangeLog, getDocuments, getOpenApi } from '../api';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { DocumentTable } from '../components/DocumentTable';
 import { Filters } from '../components/Filters';
+import { PageHeader } from '../components/PageHeader';
 import { Paging } from '../components/Paging';
-import { ErrorMessage, Loading } from '../components/Status';
-import { formatDateTime } from '../format';
+import { Empty, ErrorMessage, Loading } from '../components/Status';
+import { formatDateTime, plural } from '../format';
 import { type Resource, useEscape, useQuery, useResource } from '../hooks';
 import { changeSetsPath, documentsPath, parseVersion, projectionsPath } from '../routes';
 import { type ProjectionSchema, describeProjection, inferColumns } from '../schema';
@@ -21,7 +22,7 @@ export function Documents() {
   const changeSetId = Number(params.id);
   useEscape(changeSetsPath(name, version));
 
-  const context = useResource(() => loadContext(name, version, changeSetId), `${name}/${version}/${changeSetId}`);
+  const context = useResource(() => loadContext(name, version), `${name}/${version}/${changeSetId}`);
   const page = useResource(() => getDocuments(name, version, changeSetId, query), `${name}/${version}/${changeSetId}?${query}`);
 
   const navigate = (next: URLSearchParams) => route(documentsPath(name, version, changeSetId, next));
@@ -43,15 +44,26 @@ export function Documents() {
     else next.delete('pageSize');
     navigate(next);
   };
+  const changeChangeSet = (id: number) => route(documentsPath(name, version, id, query));
 
   return (
     <>
       <Breadcrumb crumbs={[{ label: 'Projections', href: projectionsPath() }, { label: `${name} ${params.version}`, href: changeSetsPath(name, version) }, { label: `Change set ${params.id}` }]} />
-      {context.status === 'loading' && <Loading />}
-      {context.status === 'error' && <ErrorMessage error={context.error} />}
+      {context.status === 'loading' && (
+        <>
+          <PageHeader name={name} version={version} />
+          <Loading />
+        </>
+      )}
+      {context.status === 'error' && (
+        <>
+          <PageHeader name={name} version={version} />
+          <ErrorMessage error={context.error} />
+        </>
+      )}
       {context.status === 'ready' && (
         <>
-          <Header name={name} version={version} changeSet={context.data.changeSet} page={page} />
+          <Header name={name} version={version} changeSetId={changeSetId} changeLog={context.data.changeLog} page={page} onChangeSet={changeChangeSet} />
           {context.data.schema.filters.length > 0 && <Filters filters={context.data.schema.filters} query={query} onSubmit={applyFilters} />}
           {page.status === 'loading' && <Loading />}
           {page.status === 'error' && <ErrorMessage error={page.error} />}
@@ -62,34 +74,46 @@ export function Documents() {
   );
 }
 
-type Context = { schema: ProjectionSchema; changeSet: ChangeSet | undefined };
+type Context = { schema: ProjectionSchema; changeLog: ChangeSet[] };
 
-async function loadContext(name: string, version: number, changeSetId: number): Promise<Context> {
+async function loadContext(name: string, version: number): Promise<Context> {
   const [document, changeLog] = await Promise.all([getOpenApi(), getChangeLog(name, version)]);
   const schema = describeProjection(document, name, version);
   if (!schema) throw new ApiError(404, `Projection '${name} v${version}' is not described by the OpenAPI document`);
-  return { schema, changeSet: changeLog.find(({ id }) => id === changeSetId) };
+  return { schema, changeLog };
 }
 
-function Header({ name, version, changeSet, page }: { name: string; version: number; changeSet: ChangeSet | undefined; page: Resource<Page> }) {
+type HeaderProps = { name: string; version: number; changeSetId: number; changeLog: ChangeSet[]; page: Resource<Page>; onChangeSet: (id: number) => void };
+
+function Header({ name, version, changeSetId, changeLog, page, onChangeSet }: HeaderProps) {
+  const changeSet = changeLog.find(({ id }) => id === changeSetId);
+  const ordered = [...changeLog].sort((a, b) => Date.parse(b.effective) - Date.parse(a.effective) || b.id - a.id);
+  const description = changeSet ? (
+    <>
+      Effective{' '}
+      <time dateTime={changeSet.effective} title={changeSet.effective}>
+        {formatDateTime(changeSet.effective)}
+      </time>
+      {page.status === 'ready' && ` · ${plural(page.data.total, 'document')}`}
+    </>
+  ) : (
+    "change set not in this projection's change log"
+  );
   return (
-    <header class="toolbar">
-      <h1>
-        {name} <span class="version">v{version}</span>
-      </h1>
-      {changeSet ? (
-        <span class="change-set">
-          change set <code>{changeSet.id}</code> effective{' '}
-          <time dateTime={changeSet.effective} title={changeSet.effective}>
-            {formatDateTime(changeSet.effective)}
-          </time>{' '}
-          <q>{changeSet.description}</q>
-        </span>
-      ) : (
-        <span class="change-set">change set not in this projection's change log</span>
-      )}
-      {page.status === 'ready' && <span class="count">{page.data.total === 1 ? '1 document' : `${page.data.total} documents`}</span>}
-    </header>
+    <PageHeader name={name} version={version}>
+      <label class="as-of">
+        Change set
+        <select class="select select-sm w-72" value={changeSet ? String(changeSetId) : ''} onChange={(event) => onChangeSet(Number((event.currentTarget as HTMLSelectElement).value))}>
+          {!changeSet && <option value="">{changeSetId}</option>}
+          {ordered.map((entry) => (
+            <option key={entry.id} value={String(entry.id)}>
+              #{entry.id} {entry.description}
+            </option>
+          ))}
+        </select>
+      </label>
+      <span class="muted">{description}</span>
+    </PageHeader>
   );
 }
 
@@ -99,10 +123,11 @@ function Results({ schema, page, query, onPage, onSize }: ResultsProps) {
   const columns = schema.columns ?? inferColumns(page.documents);
   const number = Number(query.get('page') ?? 1);
   const size = query.has('pageSize') ? Number(query.get('pageSize')) : schema.paging?.size;
+  if (page.documents.length === 0 && !schema.paging) return <Empty>No documents</Empty>;
   return (
-    <>
+    <div class="panel">
+      {page.documents.length === 0 ? <Empty>No documents</Empty> : <DocumentTable columns={columns} documents={page.documents} />}
       {schema.paging && <Paging paging={schema.paging} page={number} size={size} count={page.documents.length} total={page.total} prev={Boolean(page.prev)} next={Boolean(page.next)} onPage={onPage} onSize={onSize} />}
-      {page.documents.length === 0 ? <p class="empty">No documents</p> : <DocumentTable columns={columns} documents={page.documents} />}
-    </>
+    </div>
   );
 }

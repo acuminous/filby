@@ -19,12 +19,23 @@ describe('Documents', () => {
   it('shows the projection, the change set and the total', async () => {
     const requests = stub();
     renderAt('/projections/Parks/v1/change-sets/2');
-    expect(await screen.findByText('5 documents')).toBeTruthy();
+    expect(await screen.findByText(/5 documents/)).toBeTruthy();
     expect(screen.getByRole('heading').textContent).toBe('Parks v1');
-    expect(screen.getByRole('navigation').textContent).toBe('Projections/Parks v1/Change set 2');
-    expect(screen.getByText('2021 Parks')).toBeTruthy();
-    expect(screen.getByText('2021-01-01 00:00').getAttribute('title')).toBe('2021-01-01T00:00:00.000Z');
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' }).textContent).toBe('ProjectionsParks v1Change set 2');
+    const picker = screen.getByLabelText('Change set') as HTMLSelectElement;
+    expect(picker.value).toBe('2');
+    expect(Array.from(picker.options).map((option) => option.textContent)).toEqual(['#2 2021 Parks', '#1 2020 Parks']);
+    expect(screen.getByText('Jan 1, 2021, 12:00 AM').getAttribute('title')).toBe('2021-01-01T00:00:00.000Z');
     expect(requests.map(String)).toContain('http://localhost/api/projections/Parks/v1?changeSetId=2');
+  });
+
+  it('moves between change sets with the picker, keeping the filters', async () => {
+    stub();
+    renderAt('/projections/Parks/v1/change-sets/2?code=DC');
+    const picker = (await screen.findByLabelText('Change set')) as HTMLSelectElement;
+    fireEvent.change(picker, { target: { value: '1' } });
+    await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1/change-sets/1'));
+    expect(location.search).toBe('?code=DC');
   });
 
   it('renders the documents with nested arrays as sub-tables, dates in local time and nulls muted', async () => {
@@ -42,7 +53,7 @@ describe('Documents', () => {
     expect(details.querySelector('summary')?.textContent).toBe('seasons 1');
     const inner = within(details).getByRole('table');
     expect(within(inner).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['type', 'start', 'end']);
-    expect(Array.from(inner.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['Guests', '2020-03-01 00:00', '2020-11-01 00:00']);
+    expect(Array.from(inner.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['Guests', 'Mar 1, 2020, 12:00 AM', 'Nov 1, 2020, 12:00 AM']);
     expect(inner.querySelector('time')?.getAttribute('title')).toBe('2020-03-01T00:00:00.000Z');
     const second = Array.from(rows[2]?.querySelectorAll('td') ?? []);
     expect(second[1]?.textContent).toBe('null');
@@ -67,7 +78,7 @@ describe('Documents', () => {
     expect(within(tables[0] as HTMLElement).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['park', 'total', 'tags', 'type']);
     const cells = Array.from(tables[0]?.querySelectorAll(':scope > tbody > tr:not(.nest) td') ?? []).map((td) => td.textContent);
     expect(cells).toEqual(['DC', '3', 'a, b', 'PV', '1', 'empty']);
-    expect(screen.getByText('2 documents')).toBeTruthy();
+    expect(screen.getByText(/2 documents/)).toBeTruthy();
     expect(screen.getByText('1–2 of 2')).toBeTruthy();
   });
 
@@ -138,7 +149,7 @@ describe('Documents', () => {
   it('omits paging when the projection has none', async () => {
     stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters: [CHANGE_SET_ID, parameter('code')] }) }) }, '/api/projections/Parks/v1': { body: PARKS, headers: { 'X-Total-Count': '2' } } });
     renderAt('/projections/Parks/v1/change-sets/2');
-    expect(await screen.findByText('2 documents')).toBeTruthy();
+    expect(await screen.findByText(/2 documents/)).toBeTruthy();
     expect(screen.queryByText('Next')).toBeNull();
     expect(screen.queryByLabelText(/Page size/)).toBeNull();
   });
@@ -146,7 +157,7 @@ describe('Documents', () => {
   it('goes up to the change sets with Escape', async () => {
     stub();
     renderAt('/projections/Parks/v1/change-sets/2');
-    await screen.findByText('5 documents');
+    await screen.findByText(/5 documents/);
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1'));
   });
@@ -162,6 +173,9 @@ describe('Documents', () => {
     renderAt('/projections/Parks/v1/change-sets/9');
     expect((await screen.findByRole('alert')).textContent).toBe('Error 400 Change set 9 does not exist');
     expect(screen.getByText("change set not in this projection's change log")).toBeTruthy();
+    const picker = screen.getByLabelText('Change set') as HTMLSelectElement;
+    expect(picker.value).toBe('');
+    expect(Array.from(picker.options).map((option) => option.textContent)).toEqual(['9', '#2 2021 Parks', '#1 2020 Parks']);
   });
 
   it('says when there are no documents', async () => {

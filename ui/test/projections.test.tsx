@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/preact';
+import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it } from 'vitest';
 
 import { CHANGE_SET_ID, PAGE, deep, openapi, operation, parameter, projection, stubApi } from './fixtures';
@@ -23,45 +23,50 @@ function stub() {
   });
 }
 
+function main() {
+  return within(screen.getByRole('main'));
+}
+
+async function entries() {
+  const list = await main().findByRole('list');
+  return within(list)
+    .getAllByRole('listitem')
+    .map((item) => ({
+      title: item.querySelector('.title')?.textContent,
+      description: item.querySelector('.description')?.textContent,
+      details: Array.from(item.querySelectorAll('dd')).map((dd) => dd.textContent),
+      href: item.querySelector('a')?.getAttribute('href'),
+    }));
+}
+
 describe('Projections', () => {
   it('shows a loading state', () => {
     stub();
     renderAt('/');
-    expect(screen.getByText('Loading…')).toBeTruthy();
+    expect(main().getByText('Loading…')).toBeTruthy();
   });
 
   it('lists the projections with their shape from the OpenAPI document', async () => {
     stub();
     renderAt('/');
-    const rows = await screen.findAllByRole('row');
-    expect(rows).toHaveLength(4);
-    const cells = (index: number) => Array.from(rows[index]?.querySelectorAll('td') ?? []).map((cell) => cell.textContent?.trim());
-    expect(cells(1)).toEqual(['Parks', 'v1', 'Holiday parks and their seasons', 'codename', 'code', 'seasons', '2 (max 3)']);
-    expect(cells(2)).toEqual(['VAT Rates', 'v1', 'null', 'typerate', 'typetypesinraterange', 'none', '10']);
-    expect(cells(3)).toEqual(['Summary', 'v3', 'A function', 'function rows', 'none', 'none', 'on request']);
+    expect(await entries()).toEqual([
+      { title: 'Parksv1', description: 'Holiday parks and their seasons', details: ['codename', 'code', 'seasons', '2 per page, up to 3'], href: '/projections/Parks/v1' },
+      { title: 'VAT Ratesv1', description: '', details: ['typerate', 'typetypesinraterange', 'none', '10 per page'], href: '/projections/VAT%20Rates/v1' },
+      { title: 'Summaryv3', description: 'A function', details: ['function rows', 'none', 'none', 'on request'], href: '/projections/Summary/v3' },
+    ]);
   });
 
   it('shows nested arrays to any depth', async () => {
     stubApi({ '/api/projections': { body: [projection()] }, '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': deep() }) } });
     renderAt('/');
-    const row = (await screen.findAllByRole('row'))[1];
-    expect(Array.from(row?.querySelectorAll('td') ?? []).map((cell) => cell.textContent)).toEqual(['Parks', 'v1', 'Holiday parks and their seasons', 'id', 'none', 'aa.b', 'none']);
+    expect((await entries())[0]?.details).toEqual(['id', 'none', 'aa.b', 'none']);
   });
 
   it('opens the change sets on click', async () => {
     stub();
     renderAt('/');
-    fireEvent.click(await screen.findByText('VAT Rates'));
+    fireEvent.click(await main().findByText('VAT Rates'));
     await waitFor(() => expect(location.pathname).toBe('/projections/VAT%20Rates/v1'));
-  });
-
-  it('opens the change sets with Enter on a focusable row', async () => {
-    stub();
-    renderAt('/');
-    const row = (await screen.findByText('Parks')).closest('tr') as HTMLTableRowElement;
-    expect(row.tabIndex).toBe(0);
-    fireEvent.keyDown(row, { key: 'Enter' });
-    await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1'));
   });
 
   it('shows the API error', async () => {

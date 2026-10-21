@@ -1,3 +1,5 @@
+import { ListFilter } from 'lucide-preact';
+
 import type { Filter } from '../schema';
 
 type Props = { filters: Filter[]; query: URLSearchParams; onSubmit: (query: URLSearchParams) => void };
@@ -9,13 +11,18 @@ export function Filters({ filters, query, onSubmit }: Props) {
   };
   const clear = () => onSubmit(new URLSearchParams());
   return (
-    <form class="filters" key={query.toString()} onSubmit={submit}>
+    <form class="toolbar" key={query.toString()} onSubmit={submit}>
+      <span class="muted" style="align-self: center; margin-bottom: 0.25rem">
+        <ListFilter size={16} aria-hidden="true" />
+      </span>
       {filters.map((filter) => (
         <Field key={filter.name} filter={filter} query={query} />
       ))}
       <div class="actions">
-        <button type="submit">Apply</button>
-        <button type="button" class="secondary" onClick={clear}>
+        <button type="submit" class="btn btn-sm btn-primary">
+          Apply
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost" onClick={clear}>
           Clear
         </button>
       </div>
@@ -24,34 +31,33 @@ export function Filters({ filters, query, onSubmit }: Props) {
 }
 
 function Field({ filter, query }: { filter: Filter; query: URLSearchParams }) {
-  const list = filter.kind === 'range' ? undefined : filter.values && `${filter.name}-values`;
-  const options = list && (
-    <datalist id={list}>
-      {filter.kind !== 'range' && filter.values?.map((value) => <option key={value} value={value} />)}
-    </datalist>
-  );
   if (filter.kind === 'range') {
     return (
-      <fieldset class="range">
+      <fieldset class="field">
         <legend>{filter.name}</legend>
-        <label>
-          from
-          <input name={filter.from} defaultValue={query.get(filter.from) ?? ''} />
-        </label>
-        <label>
-          to
-          <input name={filter.to} defaultValue={query.get(filter.to) ?? ''} />
-        </label>
+        <div class="range">
+          <label>
+            from
+            <input class="input input-sm w-28" name={filter.from} defaultValue={query.get(filter.from) ?? ''} />
+          </label>
+          <label>
+            to
+            <input class="input input-sm w-28" name={filter.to} defaultValue={query.get(filter.to) ?? ''} />
+          </label>
+        </div>
       </fieldset>
     );
   }
+  const list = filter.values && `${filter.name}-values`;
   const value = filter.kind === 'list' ? query.getAll(filter.name).join(', ') : (query.get(filter.name) ?? '');
   return (
-    <label>
-      {filter.name}
-      {filter.kind === 'list' && <span class="hint">comma separated</span>}
-      <input name={filter.name} defaultValue={value} list={list} />
-      {options}
+    <label class="field">
+      <span>
+        {filter.name}
+        {filter.kind === 'list' && ' (comma separated)'}
+      </span>
+      <input class="input input-sm w-44" name={filter.name} defaultValue={value} list={list} />
+      {list && <datalist id={list}>{filter.values?.map((option) => <option key={option} value={option} />)}</datalist>}
     </label>
   );
 }

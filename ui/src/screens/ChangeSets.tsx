@@ -3,9 +3,9 @@ import { useRoute } from 'preact-iso';
 
 import { ApiError, getChangeLog } from '../api';
 import { Breadcrumb } from '../components/Breadcrumb';
-import { LinkRow } from '../components/LinkRow';
-import { ErrorMessage, Loading } from '../components/Status';
-import { formatDateTime, toDateTimeLocal } from '../format';
+import { PageHeader } from '../components/PageHeader';
+import { Empty, ErrorMessage, Loading } from '../components/Status';
+import { formatDateTime, plural, toDateTimeLocal } from '../format';
 import { useEscape, useResource } from '../hooks';
 import { resolveChangeSet } from '../resolveChangeSet';
 import { documentsPath, parseVersion, projectionsPath } from '../routes';
@@ -20,14 +20,24 @@ export function ChangeSets() {
   return (
     <>
       <Breadcrumb crumbs={[{ label: 'Projections', href: projectionsPath() }, { label: `${name} ${params.version}` }]} />
-      {resource.status === 'loading' && <Loading />}
-      {resource.status === 'error' && <ErrorMessage error={resource.error} />}
-      {resource.status === 'ready' && version !== undefined && <ChangeSetTable name={name} version={version} changeSets={resource.data} />}
+      {resource.status === 'loading' && (
+        <>
+          <PageHeader name={name} version={version} />
+          <Loading />
+        </>
+      )}
+      {resource.status === 'error' && (
+        <>
+          <PageHeader name={name} version={version} />
+          <ErrorMessage error={resource.error} />
+        </>
+      )}
+      {resource.status === 'ready' && version !== undefined && <Timeline name={name} version={version} changeSets={resource.data} />}
     </>
   );
 }
 
-function ChangeSetTable({ name, version, changeSets }: { name: string; version: number; changeSets: ChangeSet[] }) {
+function Timeline({ name, version, changeSets }: { name: string; version: number; changeSets: ChangeSet[] }) {
   const asOf = useSignal(toDateTimeLocal(new Date()));
   const now = new Date();
   const current = resolveChangeSet(changeSets, now);
@@ -36,60 +46,49 @@ function ChangeSetTable({ name, version, changeSets }: { name: string; version: 
   const ordered = [...changeSets].sort((a, b) => Date.parse(b.effective) - Date.parse(a.effective) || b.id - a.id);
   return (
     <>
-      <header class="toolbar">
-        <h1>
-          {name} <span class="version">v{version}</span>
-        </h1>
-        <span class="count">{changeSets.length === 1 ? '1 change set' : `${changeSets.length} change sets`}</span>
+      <PageHeader name={name} version={version} description={plural(changeSets.length, 'change set')}>
         <label class="as-of">
           As of
-          <input type="datetime-local" value={asOf.value} onInput={(event) => (asOf.value = (event.currentTarget as HTMLInputElement).value)} />
-          <span class="hint">{resolved ? `change set ${resolved.id}` : 'no change set in force'}</span>
+          <input class="input input-sm w-52" type="datetime-local" value={asOf.value} onInput={(event) => (asOf.value = (event.currentTarget as HTMLInputElement).value)} />
+          <span class="muted">{resolved ? `change set ${resolved.id}` : 'no change set in force'}</span>
         </label>
-      </header>
+      </PageHeader>
       {changeSets.length === 0 ? (
-        <p class="empty">No change sets</p>
+        <Empty>No change sets</Empty>
       ) : (
-        <table class="change-sets">
-          <thead>
-            <tr>
-              <th>Id</th>
-              <th>Effective</th>
-              <th>Description</th>
-              <th>Last modified</th>
-              <th>Entity tag</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ordered.map((changeSet) => (
-              <LinkRow key={changeSet.id} href={documentsPath(name, version, changeSet.id)} class={changeSet === resolved ? 'resolved' : undefined} selected={changeSet === resolved}>
-                <td class="id">
-                  <code>{changeSet.id}</code>
-                </td>
-                <td>
-                  <time dateTime={changeSet.effective} title={changeSet.effective}>
-                    {formatDateTime(changeSet.effective)}
-                  </time>
-                </td>
-                <td>{changeSet.description}</td>
-                <td>
-                  <time dateTime={changeSet.lastModified} title={changeSet.lastModified}>
-                    {formatDateTime(changeSet.lastModified)}
-                  </time>
-                </td>
-                <td>
-                  <code>{changeSet.entityTag}</code>
-                </td>
-                <td class="status">
-                  {changeSet === current && <span class="badge live">live</span>}
-                  {Date.parse(changeSet.effective) > now.getTime() && <span class="badge future">not yet live</span>}
-                  {changeSet === resolved && <span class="badge as-of">as of</span>}
-                </td>
-              </LinkRow>
-            ))}
-          </tbody>
-        </table>
+        <ol class="history">
+          {ordered.map((changeSet) => {
+            const future = Date.parse(changeSet.effective) > now.getTime();
+            const classes = [changeSet === current && 'live', changeSet === resolved && 'resolved', future && 'future'].filter(Boolean).join(' ');
+            return (
+              <li key={changeSet.id} class={classes || undefined}>
+                <a href={documentsPath(name, version, changeSet.id)} aria-current={changeSet === resolved ? 'true' : undefined}>
+                  <span class="dot" aria-hidden="true" />
+                  <span class="when">
+                    <time dateTime={changeSet.effective} title={changeSet.effective}>
+                      {formatDateTime(changeSet.effective)}
+                    </time>
+                  </span>
+                  <span class="what">
+                    <span class="id">#{changeSet.id}</span>
+                    {changeSet.description}
+                    {changeSet === current && <span class="badge badge-sm badge-success badge-soft">live</span>}
+                    {future && <span class="badge badge-sm badge-warning badge-soft">not yet live</span>}
+                    {changeSet === resolved && <span class="badge badge-sm badge-primary badge-soft">as of</span>}
+                  </span>
+                  <span class="meta">
+                    modified{' '}
+                    <time dateTime={changeSet.lastModified} title={changeSet.lastModified}>
+                      {formatDateTime(changeSet.lastModified)}
+                    </time>
+                    {' · '}
+                    <code>{changeSet.entityTag}</code>
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ol>
       )}
     </>
   );

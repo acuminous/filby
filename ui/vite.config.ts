@@ -1,10 +1,11 @@
 import preact from '@preact/preset-vite';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 
 import { target } from './lib/target.js';
 
 export default defineConfig({
-  plugins: [preact()],
+  plugins: [preact(), tailwindcss()],
   server: {
     proxy: {
       ...(target(process.env) ? { '/api': target(process.env) } : {}),

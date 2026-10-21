@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-preact';
 import { Fragment } from 'preact';
 
 import { type Column, inferColumns } from '../schema';
@@ -39,7 +40,8 @@ function Nest({ column, rows, span }: { column: Column; rows: unknown; span: num
       <td colSpan={span}>
         <details open>
           <summary>
-            {column.name} <span class="count">{documents.length}</span>
+            <ChevronRight size={14} aria-hidden="true" />
+            {column.name} <span class="badge badge-ghost badge-xs">{documents.length}</span>
           </summary>
           {documents.length > 0 && <DocumentTable columns={column.columns ?? inferColumns(documents)} documents={documents} />}
         </details>

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/preact';
+import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { changeSet, stubApi } from './fixtures';
@@ -9,6 +9,18 @@ const CHANGE_SETS = [
   changeSet({ id: 2, effective: '2021-01-01T00:00:00.000Z', description: '2021 Parks', entityTag: 'ffff0000' }),
   changeSet({ id: 3, effective: '2022-01-01T00:00:00.000Z', description: '2022 Parks' }),
 ];
+
+async function history() {
+  const list = await within(screen.getByRole('main')).findByRole('list');
+  return within(list)
+    .getAllByRole('listitem')
+    .map((item) => ({
+      when: item.querySelector('.when')?.textContent,
+      what: item.querySelector('.what')?.textContent,
+      meta: item.querySelector('.meta')?.textContent,
+      current: item.querySelector('a')?.getAttribute('aria-current'),
+    }));
+}
 
 describe('Change sets', () => {
   beforeEach(() => {
@@ -22,22 +34,22 @@ describe('Change sets', () => {
   it('lists the change sets newest first, marking the live one and flagging future ones', async () => {
     const requests = stubApi({ '/api/changelog': { body: CHANGE_SETS } });
     renderAt('/projections/VAT%20Rates/v1');
-    const rows = await screen.findAllByRole('row');
-    expect(requests.map(String)).toEqual(['http://localhost/api/changelog?projection=VAT+Rates&version=1']);
+    const items = await history();
+    expect(requests.map(String)).toContain('http://localhost/api/changelog?projection=VAT+Rates&version=1');
     expect(screen.getByRole('heading').textContent).toBe('VAT Rates v1');
-    expect(screen.getByRole('navigation').textContent).toBe('Projections/VAT Rates v1');
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' }).textContent).toBe('ProjectionsVAT Rates v1');
     expect(screen.getByText('3 change sets')).toBeTruthy();
-    const cells = (index: number) => Array.from(rows[index]?.querySelectorAll('td') ?? []).map((cell) => cell.textContent?.trim());
-    expect(cells(1)).toEqual(['3', '2022-01-01 00:00', '2022 Parks', '2019-12-01 10:30', 'a1b2c3d4', 'not yet live']);
-    expect(cells(2)).toEqual(['2', '2021-01-01 00:00', '2021 Parks', '2019-12-01 10:30', 'ffff0000', 'liveas of']);
-    expect(cells(3)).toEqual(['1', '2020-01-01 00:00', '2020 Parks', '2019-12-01 10:30', 'a1b2c3d4', '']);
-    expect(rows[2]?.getAttribute('aria-selected')).toBe('true');
+    expect(items).toEqual([
+      { when: 'Jan 1, 2022, 12:00 AM', what: '#32022 Parksnot yet live', meta: 'modified Dec 1, 2019, 10:30 AM · a1b2c3d4', current: null },
+      { when: 'Jan 1, 2021, 12:00 AM', what: '#22021 Parksliveas of', meta: 'modified Dec 1, 2019, 10:30 AM · ffff0000', current: 'true' },
+      { when: 'Jan 1, 2020, 12:00 AM', what: '#12020 Parks', meta: 'modified Dec 1, 2019, 10:30 AM · a1b2c3d4', current: null },
+    ]);
   });
 
   it('shows the UTC value of a date on hover', async () => {
     stubApi({ '/api/changelog': { body: CHANGE_SETS } });
     renderAt('/projections/Parks/v1');
-    const time = await screen.findByText('2022-01-01 00:00');
+    const time = await screen.findByText('Jan 1, 2022, 12:00 AM');
     expect(time.getAttribute('title')).toBe('2022-01-01T00:00:00.000Z');
   });
 
@@ -49,11 +61,11 @@ describe('Change sets', () => {
     expect(screen.getByText('change set 2')).toBeTruthy();
     fireEvent.input(input, { target: { value: '2020-06-01T00:00' } });
     expect(await screen.findByText('change set 1')).toBeTruthy();
-    const rows = screen.getAllByRole('row');
-    expect(rows[3]?.getAttribute('aria-selected')).toBe('true');
-    expect(rows[3]?.textContent).toContain('as of');
-    expect(rows[2]?.textContent).toContain('live');
-    expect(rows[2]?.textContent).not.toContain('as of');
+    const items = await history();
+    expect(items.map(({ current }) => current)).toEqual([null, null, 'true']);
+    expect(items[2]?.what).toContain('as of');
+    expect(items[1]?.what).toContain('live');
+    expect(items[1]?.what).not.toContain('as of');
     fireEvent.input(input, { target: { value: '2019-06-01T00:00' } });
     expect(await screen.findByText('no change set in force')).toBeTruthy();
   });

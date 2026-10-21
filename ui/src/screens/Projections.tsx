@@ -1,7 +1,8 @@
+import { ChevronRight } from 'lucide-preact';
+
 import { getOpenApi, getProjections } from '../api';
-import { Breadcrumb } from '../components/Breadcrumb';
-import { LinkRow } from '../components/LinkRow';
-import { ErrorMessage, Loading } from '../components/Status';
+import { PageHeader } from '../components/PageHeader';
+import { Empty, ErrorMessage, Loading } from '../components/Status';
 import { useResource } from '../hooks';
 import { changeSetsPath } from '../routes';
 import { type Column, type Filter, describeProjection } from '../schema';
@@ -13,70 +14,68 @@ export function Projections() {
   const resource = useResource(() => Promise.all([getProjections(), getOpenApi()]), 'projections');
   return (
     <>
-      <Breadcrumb crumbs={[{ label: 'Projections' }]} />
+      <PageHeader name="Projections" description="The reference data this application serves" />
       {resource.status === 'loading' && <Loading />}
       {resource.status === 'error' && <ErrorMessage error={resource.error} />}
-      {resource.status === 'ready' && <ProjectionTable projections={resource.data[0]} document={resource.data[1]} />}
+      {resource.status === 'ready' && <Catalog projections={resource.data[0]} document={resource.data[1]} />}
     </>
   );
 }
 
-function ProjectionTable({ projections, document }: { projections: Projection[]; document: OpenApi }) {
-  if (projections.length === 0) return <p class="empty">No projections</p>;
+function Catalog({ projections, document }: { projections: Projection[]; document: OpenApi }) {
+  if (projections.length === 0) return <Empty>No projections</Empty>;
   return (
-    <table class="projections">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Version</th>
-          <th>Description</th>
-          <th>Fields</th>
-          <th>Parameters</th>
-          <th>Nested</th>
-          <th>Paging</th>
-        </tr>
-      </thead>
-      <tbody>
-        {projections.map((projection) => (
-          <ProjectionRow key={`${projection.name} v${projection.version}`} projection={projection} document={document} />
-        ))}
-      </tbody>
-    </table>
+    <ul class="catalog">
+      {projections.map((projection) => (
+        <Entry key={`${projection.name} v${projection.version}`} projection={projection} document={document} />
+      ))}
+    </ul>
   );
 }
 
-function ProjectionRow({ projection, document }: { projection: Projection; document: OpenApi }) {
+function Entry({ projection, document }: { projection: Projection; document: OpenApi }) {
   const schema = describeProjection(document, projection.name, projection.version);
   return (
-    <LinkRow href={changeSetsPath(projection.name, projection.version)}>
-      <td class="name">{projection.name}</td>
-      <td class="version">v{projection.version}</td>
-      <td>{projection.description ?? <span class="null">null</span>}</td>
-      <td>{schema?.columns ? codes(schema.columns.filter(({ kind }) => kind !== 'table').map(({ name }) => name)) : <span class="null">function rows</span>}</td>
-      <td>
-        {schema?.filters.length ? (
-          schema.filters.map((filter) => (
-            <span class="parameter" key={filter.name}>
-              <code>{filter.name}</code>
-              {KINDS[filter.kind] && <span class="kind">{KINDS[filter.kind]}</span>}
-            </span>
-          ))
-        ) : (
-          <span class="null">none</span>
-        )}
-      </td>
-      <td>{codes(nests(schema?.columns ?? []))}</td>
-      <td>{paging(schema?.paging)}</td>
-    </LinkRow>
+    <li>
+      <a href={changeSetsPath(projection.name, projection.version)}>
+        <div class="title">
+          {projection.name}
+          <span class="version">v{projection.version}</span>
+          <ChevronRight size={18} aria-hidden="true" />
+        </div>
+        <div class="description">{projection.description}</div>
+        <dl>
+          <dt>Fields</dt>
+          <dd>{schema?.columns ? chips(schema.columns.filter(({ kind }) => kind !== 'table').map(({ name }) => name)) : <span class="null">function rows</span>}</dd>
+          <dt>Parameters</dt>
+          <dd>
+            {schema?.filters.length ? (
+              schema.filters.map((filter) => (
+                <span class="chip" key={filter.name}>
+                  {filter.name}
+                  {KINDS[filter.kind] && <span class="kind">{KINDS[filter.kind]}</span>}
+                </span>
+              ))
+            ) : (
+              <span class="null">none</span>
+            )}
+          </dd>
+          <dt>Nested</dt>
+          <dd>{chips(nests(schema?.columns ?? []))}</dd>
+          <dt>Paging</dt>
+          <dd>{paging(schema?.paging)}</dd>
+        </dl>
+      </a>
+    </li>
   );
 }
 
-function codes(names: string[]) {
+function chips(names: string[]) {
   if (names.length === 0) return <span class="null">none</span>;
   return names.map((name) => (
-    <code class="field" key={name}>
+    <span class="chip" key={name}>
       {name}
-    </code>
+    </span>
   ));
 }
 
@@ -87,5 +86,5 @@ function nests(columns: Column[], prefix = ''): string[] {
 function paging(schema: { size?: number; max?: number } | undefined) {
   if (!schema) return <span class="null">none</span>;
   if (!schema.size) return 'on request';
-  return `${schema.size}${schema.max ? ` (max ${schema.max})` : ''}`;
+  return `${schema.size} per page${schema.max ? `, up to ${schema.max}` : ''}`;
 }
