@@ -31,6 +31,7 @@ const config = {
     await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
     await tx.query('DROP TYPE IF EXISTS cgt_tax_rate');
     await tx.query('DROP TYPE IF EXISTS season_type');
+    await tx.query('DROP TYPE IF EXISTS amenity_category');
     await tx.query('DROP SCHEMA IF EXISTS other CASCADE');
     await tx.query('DROP TYPE IF EXISTS pwned');
     await tx.query('DROP TYPE IF EXISTS "pwned_as_enum_();_raise_exception_$💀$you_have_been_pwned!$💀$;_create_type_vat_tax_rate"');
@@ -503,6 +504,14 @@ describe('DSL', () => {
 
   describe('Add Entity', () => {
 
+    const ADD_AMENITY_CATEGORY = `
+- operation: ADD_ENUM
+  name: Amenity Category
+  values:
+    - Pool
+    - Entertainment
+`;
+
     it('should add entity', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY);
 
@@ -836,6 +845,44 @@ describe('DSL', () => {
       eq(await getRate(), 'low');
     });
 
+    it('should accept an enum field type written as declared', async (t) => {
+      await filby.applyYaml(t.name, ADD_AMENITY_CATEGORY, transform(ADD_ENTITY).set('0.fields.1.type', 'Amenity Category'), setRate('Pool'));
+
+      eq(await getRate(), 'Pool');
+      eq(await getAggregatedRate(), 'Pool');
+      eq((await getEntityFields())[1].type, 'amenity_category');
+    });
+
+    it('should constrain an enum field type written as declared to the enum values', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_AMENITY_CATEGORY, transform(ADD_ENTITY).set('0.fields.1.type', 'Amenity Category'), setRate('Spa')), (err) => {
+        eq(err.code, INVALID_TEXT_REPRESENTATION);
+        return true;
+      });
+    });
+
+    it('should accept an enum array field type written as declared', async (t) => {
+      await filby.applyYaml(t.name, ADD_AMENITY_CATEGORY, transform(ADD_ENTITY).set('0.fields.1.type', 'Amenity Category[]'), setRate('{"Pool","Entertainment"}'));
+
+      eq(await getRate(), '{Pool,Entertainment}');
+      eq(await getAggregatedRate(), '{Pool,Entertainment}');
+      eq((await getEntityFields())[1].type, 'amenity_category[]');
+    });
+
+    it('should accept an enum field type declared in an earlier migration', async (t) => {
+      await filby.applyYaml(t.name, ADD_AMENITY_CATEGORY);
+      await applyLaterYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'Amenity Category'), setRate('Pool'));
+
+      eq(await getRate(), 'Pool');
+      eq((await getEntityFields())[1].type, 'amenity_category');
+    });
+
+    it('should leave built in field types as written', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: 'TEXT', rate: 'double precision', band: 'Numeric(5,2)' }), setRate(1.5));
+
+      eq(await getRate(), 1.5);
+      deq((await getEntityFields()).map(({ type }) => type), ['TEXT', 'double precision', 'Numeric(5,2)']);
+    });
+
     it('should require at least one identifier column', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).del('0.identified_by')), (err) => {
         eq(err.message, "001.should-require-at-least-one-identifier-column.yaml: /0 must have required property 'identified_by'");
@@ -911,6 +958,19 @@ describe('DSL', () => {
         return true;
       });
     });
+
+    async function applyLaterYaml(name, ...script) {
+      const slug = name.replace(/ /g, '-').toLowerCase();
+      await fs.promises.unlink(path.join(__dirname, 'migrations', `001.${slug}.yaml`));
+      await fs.promises.writeFile(path.join(__dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      return filby.init();
+    }
+
+    async function getAggregatedRate() {
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const [{ rate }] = await filby.getAggregates(changeSetId, 'VAT Rate', 1);
+      return rate;
+    }
   });
 
   describe('Drop Entity', () => {
