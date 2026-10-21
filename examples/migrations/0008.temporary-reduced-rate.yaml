@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+- operation: ADD_CHANGE_SET
+  description: Temporary reduced rate for children's meals and family attractions
+  effective: 2026-06-25T00:00:00Z
+  changes:
+    - entity: VAT Rate@1
+      source: ./csv/temporary-reduced-rate/vat-rate.csv

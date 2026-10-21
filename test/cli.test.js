@@ -56,7 +56,7 @@ describe('CLI', () => {
         .map((migration) => `-- examples/migrations/${migration.filename}\n${render({ ...migration, directory })}\n`)
         .join('');
       eq(stdout, expected);
-      ok(stdout.indexOf('-- examples/migrations/0001.define-park-schema.yaml') < stdout.indexOf('-- examples/migrations/0011.season-2024.yaml'));
+      ok(stdout.indexOf('-- examples/migrations/0001.define-schema.yaml') < stdout.indexOf('-- examples/migrations/0011.catalogue-2027.yaml'));
     });
 
     it('prints SQL migrations verbatim', async () => {

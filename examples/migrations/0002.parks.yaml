@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+- operation: ADD_CHANGE_SET
+  description: Parks
+  effective: 2024-10-01T00:00:00Z
+  changes:
+    - entity: Park@1
+      source: ./csv/parks/park.csv
+    - entity: Amenity@1
+      source: ./csv/parks/amenity.csv
+    - entity: Park Amenity@1
+      source: ./csv/parks/park-amenity.csv
+    - entity: Park Season@1
+      source: ./csv/parks/park-season.csv

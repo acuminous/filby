@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+- operation: ADD_CHANGE_SET
+  description: 2026 season and Richmond becomes Skegness
+  effective: 2026-03-01T00:00:00Z
+  changes:
+    - entity: Park Season@1
+      source: ./csv/season-2026/park-season.csv
+    - entity: Park@1
+      source: ./csv/season-2026/park.csv

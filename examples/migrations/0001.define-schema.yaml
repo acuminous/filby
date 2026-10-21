@@ -1,0 +1,405 @@
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+- operation: ADD_ENUM
+  name: Park Region
+  values:
+    - Scotland
+    - North East
+    - Yorkshire
+    - North West
+    - Wales
+    - Midlands
+    - East
+    - South East
+    - South West
+
+- operation: ADD_ENUM
+  name: Customer Type
+  values:
+    - Guest
+    - Owner
+
+- operation: ADD_ENUM
+  name: Amenity Category
+  values:
+    - Pool
+    - Entertainment
+    - Sport
+    - Food
+    - Nature
+
+- operation: ADD_ENUM
+  name: Grade Code
+  values:
+    - Gold
+    - Silver
+    - Bronze
+
+- operation: ADD_ENUM
+  name: Heating
+  values:
+    - Gas
+    - Electric
+    - None
+
+- operation: ADD_ENUM
+  name: VAT Code
+  values:
+    - Standard
+    - Holiday Caravan
+    - Residential Caravan
+    - Family Attraction
+
+- operation: ADD_ENTITY
+  name: Park
+  fields:
+    Code: TEXT
+    Name:
+      type: TEXT
+      nullable: false
+    Address:
+      type: TEXT
+      nullable: false
+    Town:
+      type: TEXT
+      nullable: false
+    County:
+      type: TEXT
+      nullable: false
+    Postcode:
+      type: TEXT
+      nullable: false
+    Region:
+      type: park_region
+      nullable: false
+  key:
+    - Code
+  checks:
+    park_code_len: (LENGTH(code) = 2)
+
+- operation: ADD_ENTITY
+  name: Amenity
+  fields:
+    Code: TEXT
+    Name:
+      type: TEXT
+      nullable: false
+    Category:
+      type: amenity_category
+      nullable: false
+    VAT Code:
+      type: vat_code
+      nullable: false
+  key:
+    - Code
+
+- operation: ADD_ENTITY
+  name: Park Amenity
+  fields:
+    Park Code: TEXT
+    Amenity Code: TEXT
+  key:
+    - Park Code
+    - Amenity Code
+
+- operation: ADD_ENTITY
+  name: Park Season
+  fields:
+    Park Code: TEXT
+    Customer Type: customer_type
+    Current Season Start:
+      type: DATE
+      nullable: false
+    Current Season End:
+      type: DATE
+      nullable: false
+    Next Season Start: DATE
+    Next Season End: DATE
+  key:
+    - Park Code
+    - Customer Type
+  checks:
+    park_season_current_order: (current_season_start < current_season_end)
+    park_season_next_order: (next_season_start IS NULL OR next_season_start < next_season_end)
+
+- operation: ADD_ENTITY
+  name: Park Offer
+  fields:
+    Park Code: TEXT
+    Grade Code: grade_code
+    Discount Percent:
+      type: NUMERIC(5,2)
+      nullable: false
+  key:
+    - Park Code
+    - Grade Code
+
+- operation: ADD_ENTITY
+  name: Park Model
+  fields:
+    Park Code: TEXT
+    Model Code: TEXT
+  key:
+    - Park Code
+    - Model Code
+
+- operation: ADD_ENTITY
+  name: Manufacturer
+  fields:
+    Code: TEXT
+    Name:
+      type: TEXT
+      nullable: false
+  key:
+    - Code
+
+- operation: ADD_ENTITY
+  name: Model
+  fields:
+    Code: TEXT
+    Manufacturer Code:
+      type: TEXT
+      nullable: false
+    Name:
+      type: TEXT
+      nullable: false
+    Berths:
+      type: INTEGER
+      nullable: false
+    Bedrooms:
+      type: INTEGER
+      nullable: false
+    Length:
+      type: NUMERIC(4,1)
+      nullable: false
+    Width:
+      type: NUMERIC(4,1)
+      nullable: false
+    Heating:
+      type: heating
+      nullable: false
+    Double Glazed:
+      type: BOOLEAN
+      nullable: false
+    VAT Code:
+      type: vat_code
+      nullable: false
+  key:
+    - Code
+
+- operation: ADD_ENTITY
+  name: Accessory
+  fields:
+    Code: TEXT
+    Model Code:
+      type: TEXT
+      nullable: false
+    Name:
+      type: TEXT
+      nullable: false
+    Price:
+      type: NUMERIC(10,2)
+      nullable: false
+  key:
+    - Code
+
+- operation: ADD_ENTITY
+  name: Grade
+  fields:
+    Code: grade_code
+    Minimum Bedrooms:
+      type: INTEGER
+      nullable: false
+    Minimum Year:
+      type: INTEGER
+      nullable: false
+    Central Heating:
+      type: BOOLEAN
+      nullable: false
+    Double Glazing:
+      type: BOOLEAN
+      nullable: false
+  key:
+    - Code
+
+- operation: ADD_ENTITY
+  name: Model Grade
+  fields:
+    Model Code: TEXT
+    Year: INTEGER
+    Grade Code:
+      type: grade_code
+      nullable: false
+  key:
+    - Model Code
+    - Year
+
+- operation: ADD_ENTITY
+  name: Price
+  fields:
+    Model Code: TEXT
+    Year: INTEGER
+    List Price:
+      type: NUMERIC(10,2)
+      nullable: false
+  key:
+    - Model Code
+    - Year
+
+- operation: ADD_ENTITY
+  name: VAT Rate
+  fields:
+    Code: vat_code
+    Name:
+      type: TEXT
+      nullable: false
+    Rate:
+      type: NUMERIC(5,2)
+      nullable: false
+  key:
+    - Code
+
+- operation: ADD_PROJECTION
+  name: Parks
+  description: Parks with their amenities, seasons, offers and the models they sell
+  root: Park@1
+  parameters:
+    code:
+      field: Code
+    name:
+      field: Name
+      match: prefix
+    region:
+      field: Region
+      match: in
+  order:
+    - field: Name
+  paging:
+    page_size: 10
+    page_max: 50
+  nest:
+    Amenities:
+      entity: Park Amenity@1
+      on:
+        Park Code: Code
+      order:
+        - field: Amenity Code
+    Seasons:
+      entity: Park Season@1
+      on:
+        Park Code: Code
+      order:
+        - field: Customer Type
+    Offers:
+      entity: Park Offer@1
+      on:
+        Park Code: Code
+      order:
+        - field: Grade Code
+    Models:
+      entity: Park Model@1
+      on:
+        Park Code: Code
+      order:
+        - field: Model Code
+
+- operation: ADD_PROJECTION
+  name: Catalogue
+  description: The whole product range, from manufacturer to model to each model's grades, prices and accessories
+  root: Manufacturer@1
+  parameters:
+    code:
+      field: Code
+  order:
+    - field: Name
+  nest:
+    Models:
+      entity: Model@1
+      on:
+        Manufacturer Code: Code
+      order:
+        - field: Name
+      nest:
+        Grades:
+          entity: Model Grade@1
+          on:
+            Model Code: Code
+          order:
+            - field: Year
+        Prices:
+          entity: Price@1
+          on:
+            Model Code: Code
+          order:
+            - field: Year
+        Accessories:
+          entity: Accessory@1
+          on:
+            Model Code: Code
+          order:
+            - field: Name
+
+- operation: ADD_PROJECTION
+  name: Models
+  description: Models with their grades, list prices and accessories, for a search page
+  root: Model@1
+  parameters:
+    code:
+      field: Code
+    name:
+      field: Name
+      match: prefix
+    manufacturer:
+      field: Manufacturer Code
+    bedrooms:
+      field: Bedrooms
+    berths:
+      field: Berths
+      match: range
+    heating:
+      field: Heating
+      match: in
+  order:
+    - field: Manufacturer Code
+    - field: Name
+  paging:
+    page_size: 10
+    page_max: 100
+  nest:
+    Grades:
+      entity: Model Grade@1
+      on:
+        Model Code: Code
+      order:
+        - field: Year
+    Prices:
+      entity: Price@1
+      on:
+        Model Code: Code
+      order:
+        - field: Year
+    Accessories:
+      entity: Accessory@1
+      on:
+        Model Code: Code
+      order:
+        - field: Name
+
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  description: The VAT rates that apply to models and amenities
+  root: VAT Rate@1
+  order:
+    - field: Code
+
+- operation: ADD_HOOK
+  name: httpbin/add-projection
+  event: ADD_PROJECTION
+
+- operation: ADD_HOOK
+  name: httpbin/add-change-set/parks-v1
+  event: ADD_CHANGE_SET
+  projection: Parks@1
+
+- operation: ADD_HOOK
+  name: httpbin/add-change-set/*
+  event: ADD_CHANGE_SET

@@ -1,0 +1,13 @@
+action,Code,Manufacturer Code,Name,Berths,Bedrooms,Length,Width,Heating,Double Glazed,VAT Code
+SET,RIO,WIL,Willerby Rio,6,2,35.0,12.0,Gas,true,Holiday Caravan
+SET,AVO,WIL,Willerby Avonmore,6,2,37.0,12.0,Gas,true,Holiday Caravan
+SET,CLW,WIL,Willerby Clearwater Lodge,6,3,40.0,20.0,Gas,true,Residential Caravan
+SET,BEV,ABI,ABI Beverley,6,2,36.0,12.0,Gas,true,Holiday Caravan
+SET,ARZ,ABI,ABI Arizona,6,3,36.0,12.0,Electric,false,Holiday Caravan
+SET,LOI,SWI,Swift Loire,6,2,35.0,12.0,Gas,true,Holiday Caravan
+SET,CHA,SWI,Swift Challenger 580,4,1,24.5,7.4,Gas,true,Standard
+SET,MOO,ATL,Atlas Moonstone,6,2,35.0,12.0,Gas,false,Holiday Caravan
+SET,FES,ATL,Atlas Festival,8,3,36.0,12.0,Electric,false,Holiday Caravan
+SET,CAS,CAR,Carnaby Cascade,8,3,38.0,12.0,Gas,true,Holiday Caravan
+SET,HEL,CAR,Carnaby Helmsley,6,2,41.0,13.0,Gas,true,Holiday Caravan
+SET,VER,VIC,Victory Vermont,6,2,35.0,12.0,None,false,Holiday Caravan

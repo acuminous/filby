@@ -15,7 +15,7 @@ Filby is like source control for reference data but at runtime.
 
 Like checking out a commit, your applications can use Filby to retrieve reference data for a given change set id. They can also inspect the changelog to find which change set was in effect at a given point in time, and subscribe to reference data update notifications.
 
-See the [example applications](#example-applications) for usage.
+See the [example application](#example-applications) for usage.
 
 ## Contents
 - [The Snapshot Guarantee](#the-snapshot-guarantee)
@@ -51,7 +51,7 @@ Most applications require reference data that changes slowly over time. This pre
 | Evolution     | Both reference data, and our understanding of the application domain evolves over time. We will at some point need to make backwards incompatible changes to our reference data, and will need to do so without breaking client applications. This suggests a versioning and validation mechanism. The issue of temporality compounds the challenge of evolution, since we may need to retrospecively add data to historic records. In some cases this data will not be known. |
 | Local Testing | Applications may be tested locally, and therefore any solution sould work well on a local development machine.                                                                                                                                                                                                                                                                                                                                                                        |
 
-Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing temporal reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. [Example applications](#example-applications) are provided to demonstrate how.
+Solving such a complex problem becomes simpler when broken down. This project provides a server side framework for managing temporal reference data. In the following diagram, the mechanism for defining, loading, accessing and receiving notifications about reference data are provided by this framework. The RESTful API and Webhook must be manually created by the application developer. An [example application](#example-applications) is provided to demonstrate how.
 
 <pre>
                          Change
@@ -88,24 +88,31 @@ Solving such a complex problem becomes simpler when broken down. This project pr
 The first of the two API calls, namely `/api/changelog` discloses the changes undergone by a projection (a view of the reference data), and provides a set of ids for requesting the projection at a point in time.
 
 ```
-GET /api/changelog?projection=park&version=1
+GET /api/changelog?projection=Catalogue&version=1
 ```
 
 ```json
 [
   {
-    "id": 1,
-    "effective": "2019-01-01T00:00:00.000Z",
-    "description": "Initial park data",
-    "lastModified": "2018-12-01T16:20:34.383Z",
-    "entityTag": "142475a5eddeec8f0786"
+    "id": 2,
+    "effective": "2025-01-01T00:00:00.000Z",
+    "description": "2025 catalogue and price list",
+    "lastModified": "2026-10-21T10:30:08.999Z",
+    "entityTag": "6a8f467b146c4695a674"
   },
   {
-    "id": 2,
-    "effective": "2020-01-01T00:00:00.000Z",
-    "description": "Park Calendars - 2020",
-    "lastModified": "2019-12-01T14:49:34.405Z",
-    "entityTag": "a3dc15aa8d59d26e349d"
+    "id": 5,
+    "effective": "2026-01-01T00:00:00.000Z",
+    "description": "2026 catalogue and price list",
+    "lastModified": "2026-10-21T10:30:09.015Z",
+    "entityTag": "3e13cd64b7be4e29a14b"
+  },
+  {
+    "id": 10,
+    "effective": "2027-01-01T00:00:00.000Z",
+    "description": "2027 catalogue and price list",
+    "lastModified": "2026-10-21T10:30:09.030Z",
+    "entityTag": "bddaac93c92a45b19983"
   }
 ]
 ```
@@ -113,35 +120,64 @@ GET /api/changelog?projection=park&version=1
 The second API call, namely `/api/projections/:projection/v:version` will return the reference data, correct at the time of the given changeSetId.
 
 ```
-GET /api/projections/park/v1?changeSetId=2
+GET /api/projections/Catalogue/v1?changeSetId=2&code=VIC
 ```
 
 ```json
 [
   {
-    "code": "DC",
-    "name": "Devon Cliffs"
-  },
-  {
-    "code": "GA",
-    "name": "Greenacres"
-  },
-  {
-    "code": "PV",
-    "name": "Primrose Valley"
+    "code": "VIC",
+    "name": "Victory",
+    "models": [
+      {
+        "code": "VER",
+        "name": "Victory Vermont",
+        "berths": 6,
+        "bedrooms": 2,
+        "length": "35.0",
+        "width": "12.0",
+        "heating": "None",
+        "double_glazed": false,
+        "vat_code": "Holiday Caravan",
+        "grades": [
+          {
+            "year": 2025,
+            "grade_code": "Bronze"
+          }
+        ],
+        "prices": [
+          {
+            "year": 2025,
+            "list_price": "15995.00"
+          }
+        ],
+        "accessories": [
+          {
+            "code": "VER-DEC",
+            "name": "Decking",
+            "price": "3995.00"
+          },
+          {
+            "code": "VER-VER",
+            "name": "Veranda",
+            "price": "2495.00"
+          }
+        ]
+      }
+    ]
   }
 ]
 ```
 
-Both API calls are served by `filby.fetch`, which the example applications mount in one line. If the changeSetId is omitted, the client is redirected to the projection at the current change set.
+Both API calls are served by `filby.fetch`, which the example application mounts in one line. If the changeSetId is omitted, the client is redirected to the projection at the current change set, which is the latest one whose effective date has passed.
 
 ```
-GET /api/projections/park/v1
+GET /api/projections/Catalogue/v1
 ```
 
 ```
 HTTP/1.1 307 Temporary Redirect
-location: /api/projections/park/v1?changeSetId=9
+location: /api/projections/Catalogue/v1?changeSetId=5
 ```
 
 ## Benefits
@@ -204,19 +240,19 @@ Filby has the following important concepts
 
 
 ### Entity
-An *Entity* represents a type of reference data. Entities may be stand alone, or form an object graph. We use a holiday park as an example, in which a 'Park' entity has many 'Season' entities. An entity is declared with a name, a version, its fields, the key fields that identify one record, and optionally some checks. A field may be of any PostgreSQL type, including an enum declared with `ADD_ENUM` and extended with `ALTER_ENUM`, so the database enforces the set of permitted values. Checks become PostgreSQL check constraints on the entity's table. Evolving reference data means adding version 2 of an entity alongside version 1 rather than altering it in place, so a reference to an entity always names the version, as `park@1` or as `entity: park` with `version: 1`. The key may be written as `key` or `identified_by`; see [Equivalent forms](#equivalent-forms). The records of an entity are stored as *Data Frames* and read back through its *Aggregate*, both described below.
+An *Entity* represents a type of reference data. Entities may be stand alone, or form an object graph. We use a holiday park business as an example, in which a 'Park' entity has many 'Park Season' entities and a 'Manufacturer' entity has many 'Model' entities. An entity is declared with a name, a version, its fields, the key fields that identify one record, and optionally some checks. A field may be of any PostgreSQL type, including an enum declared with `ADD_ENUM` and extended with `ALTER_ENUM`, so the database enforces the set of permitted values. Checks become PostgreSQL check constraints on the entity's table. Evolving reference data means adding version 2 of an entity alongside version 1 rather than altering it in place, so a reference to an entity always names the version, as `Park@1` or as `entity: Park` with `version: 1`. The key may be written as `key` or `identified_by`; see [Equivalent forms](#equivalent-forms). The records of an entity are stored as *Data Frames* and read back through its *Aggregate*, both described below.
 
 ### Data Frame
 A *Data Frame* is a snapshot of one entity record, taken as part of a *Change Set*. There are two types of data frame: `SET` records the values of the record at a point in time, and `DELETE` records that the record has been deleted. `POST` is an equivalent form of `SET`. Data frames are only ever inserted, never updated, so the history of a record is the sequence of its frames.
 
 ### Change Set
-A *Change Set* groups data frames, potentially for different entities, into a single unit with a common effective date, which is the date from which its frames are in force. The effective date may be in the future, so reference data can be loaded ahead of time. Each change set is identified by an id from a sequence and is added in a single transaction, so it is either wholly visible or not there at all, and its id is an immutable snapshot key; see [The Snapshot Guarantee](#the-snapshot-guarantee). In the DSL the frames of a change set are listed under `changes`, or equivalently `frames`.
+A *Change Set* groups data frames, potentially for different entities, into a single unit with a common effective date, which is the date from which its frames are in force. The effective date may be in the future, so reference data can be loaded ahead of time. It is not a date in the data: a park season's start and end are facts about the park, whereas the effective date of the change set that carries them is when the park started saying so. Each change set is identified by an id from a sequence and is added in a single transaction, so it is either wholly visible or not there at all, and its id is an immutable snapshot key; see [The Snapshot Guarantee](#the-snapshot-guarantee). In the DSL the frames of a change set are listed under `changes`, or equivalently `frames`.
 
 ### Aggregate
-An *Aggregate* is the state of an entity at a change set: one row per key, resolved from the entity's data frames by the rule in [The Snapshot Guarantee](#the-snapshot-guarantee), with a record whose latest frame is a `DELETE` omitted. Filby creates an aggregate function for each entity version, with the signature `get_<entity>_v<version>_aggregate(p_change_set_id INTEGER)`. Entity names are converted to lowercase and spaces to underscores, so the aggregate of version 1 of the 'Park' entity is `get_park_v1_aggregate`. Projections are built on these functions, and `getAggregates` calls them for you.
+An *Aggregate* is the state of an entity at a change set: one row per key, resolved from the entity's data frames by the rule in [The Snapshot Guarantee](#the-snapshot-guarantee), with a record whose latest frame is a `DELETE` omitted. Filby creates an aggregate function for each entity version, with the signature `get_<entity>_v<version>_aggregate(p_change_set_id INTEGER)`. Entity, field, enum and nest names may be written in Title Case with spaces, as `Park Season`; Filby canonicalises them to lower case with underscores for tables, columns, types and functions, and in the documents it serves, so the aggregate of version 1 of the 'Park Season' entity is `get_park_season_v1_aggregate` and its 'Park Code' field is the column `park_code`. Projection names are kept as written, so a projection declared as `Parks` is `Parks` in the API. Projections are built on these functions, and `getAggregates` calls them for you.
 
 ### Projection
-A *Projection* is a versioned view of one or more entities, made available in the example applications via a RESTful API. Most projections are declared in the DSL by naming a root entity, and Filby generates a function that returns one row per root record at a given change set, with optional parameters for filtering, a declared order and paging. One-to-many related entities can be nested under the root with a `nest` block, and a nested entity can nest its own children to any depth, each level joining to its parent. `getDocuments` assembles one document per root record with the related records embedded at every level, with paging still counting root records. The projection's dependencies, the entities whose change sets affect it, are derived from the root and the nested entities. When a projection needs a shape the DSL cannot express, write the SQL yourself over the aggregate functions and declare the entities it depends on instead, so Filby still knows which projections a change set affects. A reference to a projection always names the version, as `parks@1` or as `projection: parks` with `version: 1`.
+A *Projection* is a versioned view of one or more entities, made available in the example application via a RESTful API. Most projections are declared in the DSL by naming a root entity, and Filby generates a function that returns one row per root record at a given change set, with optional parameters for filtering, a declared order and paging. One-to-many related entities can be nested under the root with a `nest` block, and a nested entity can nest its own children to any depth, each level joining to its parent. `getDocuments` assembles one document per root record with the related records embedded at every level, with paging still counting root records. The projection's dependencies, the entities whose change sets affect it, are derived from the root and the nested entities. When a projection needs a shape the DSL cannot express, write the SQL yourself over the aggregate functions and declare the entities it depends on instead, so Filby still knows which projections a change set affects. A reference to a projection always names the version, as `parks@1` or as `projection: parks` with `version: 1`.
 
 ### Hook
 A *Hook* pairs a unique name with an *Event*. Your application registers a handler for the hook by name with `filby.subscribe`, and can handle the event how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
@@ -229,26 +265,26 @@ A *Notification* is raised for a hook and a projection whenever the hook's event
 Notifications are retried a configurable number of times using an exponential backoff algorithm. It is safe for multiple instances of the framework to poll for notifications concurrently. Each notification is claimed and delivered inside a single database transaction, which holds a row lock for the duration of the handler, so other instances skip it and each notification is delivered by only one instance. Notifications pause while migrations run. `filby.init()` holds an exclusive advisory lock for the duration of the migrations, and each poll takes the same lock in shared mode, so no new delivery starts on any instance until the migrations have finished, and a migration waits for deliveries already in flight to complete. A migration, and therefore `filby.init()`, can wait up to the handler timeout for an in-flight delivery of the same hook and projection, so keep `handlerTimeout` short. The advisory lock key is `102105108098121` (available as `Filby.MIGRATION_LOCK_KEY`), which is distinct from the key Marv uses to serialise migrations, so other tools can respect it. With `notifications.listen` enabled, Filby also holds a dedicated connection that `LISTEN`s for the `NOTIFY` sent whenever a notification is scheduled and polls immediately, so `ADD_CHANGE_SET`, `ADD_PROJECTION` and `DROP_PROJECTION` are delivered without waiting for the next interval, while polling remains the safety net because a `NOTIFY` sent while that connection is down is lost, and `COMMENCE_CHANGE_SET` is always delivered by the poll since a change set reaching its effective date is not a database write.
 
 ## Data Definition
-All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. The JSON schema is published at https://acuminous.github.io/filby/lib/schema.json, and a YAML migration that starts with the `# yaml-language-server` comment shown below is validated and completed as you type by any editor with YAML language server support, such as VS Code with the YAML extension.
+All of above objects (Projections, Entities, Data Frames, etc) are defined using a domain specific language, which is dynamically converted into SQL and applied using a database migration tool called [Marv](https://www.npmjs.com/package/marv). Names may be written in Title Case with spaces and are canonicalised as described under [Aggregate](#aggregate), except that an enum used as a field type must be written by its canonical name, as `customer_type` below. Whenever you need to make an update, simply create a new JSON or YAML migration file in the configurable migrations folder. The JSON schema is published at https://acuminous.github.io/filby/lib/schema.json, and a YAML migration that starts with the `# yaml-language-server` comment shown below is validated and completed as you type by any editor with YAML language server support, such as VS Code with the YAML extension.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0001.define-park-schema.yaml
+# migrations/0001.define-schema.yaml
 
 # Add enums for your reference data
 # Equivalent of PostgreSQL's CREATE TYPE statement
 - operation: ADD_ENUM
-  name: season_type
+  name: Customer Type
   values:
-    - Owners
-    - Guests
+    - Guest
+    - Owner
 
 # Add values to an existing enum, after its current values
 # Equivalent of PostgreSQL's ALTER TYPE ... ADD VALUE statement
 # A change set that uses a new value belongs in a later migration file, because
 # Postgres cannot use a new enum value in the transaction that added it
 - operation: ALTER_ENUM
-  name: season_type
+  name: Customer Type
   add:
     - Staff
 
@@ -257,19 +293,38 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # 2. Creates a table 'park_v1' for holding reference data
 # 3. Creates an aggregate function 'get_park_v1_aggregate' to be used by projections
 - operation: ADD_ENTITY
-  name: park
+  name: Park
   # version defaults to 1
   fields:
-    code: TEXT # Any valid PostgreSQL type (including enums) is supported
-    name:
+    Code: TEXT # Any valid PostgreSQL type (including enums) is supported
+    Name:
       type: TEXT
       nullable: false # Recorded in fby_entity_field; fields are nullable unless you say otherwise
   key:
-    - code # Used to aggregate the data frames
+    - Code # Used to aggregate the data frames
 
   # Creates PostgreSQL check constraints
   checks:
-    park_code_len: (LENGTH(code) >= 2)
+    park_code_len: (LENGTH(code) = 2)
+
+# A park has a season for each type of customer: the season running now and the
+# one after it, which the park may not have announced yet
+- operation: ADD_ENTITY
+  name: Park Season
+  fields:
+    Park Code: TEXT
+    Customer Type: customer_type
+    Current Season Start:
+      type: DATE
+      nullable: false
+    Current Season End:
+      type: DATE
+      nullable: false
+    Next Season Start: DATE
+    Next Season End: DATE
+  key:
+    - Park Code
+    - Customer Type
 
 # Defining projections
 # A projection names a root entity and Filby generates a function, here get_parks_v1,
@@ -277,9 +332,10 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 # projection's dependency, which Filby uses to work out what projections are affected
 # by reference data updates
 - operation: ADD_PROJECTION
-  name: parks
+  name: Parks
   # version defaults to 1
-  root: park@1 # References always name the version
+  description: Parks with their seasons
+  root: Park@1 # References always name the version
   # Each parameter becomes a nullable function argument, p_code and p_name here, which
   # filters the rows when supplied. match defaults to equals; prefix matches the start
   # of the field literally, in takes an array, range takes p_<name>_from and
@@ -288,61 +344,72 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   # combine with AND. change_set_id, page_offset and page_size are reserved names
   parameters:
     code:
-      field: code
+      field: Code
     name:
-      field: name
+      field: Name
       match: prefix
   # Root fields to sort by. direction is ASC (the default) or DESC, and nulls is FIRST or
   # LAST, otherwise Postgres decides. The entity key is always appended, ascending, as a
   # tie break, and is the order when none is declared
   order:
-    - field: name
+    - field: Name
       direction: DESC
       nulls: LAST
-    - field: code
+    - field: Code
   # Adds p_page_offset (default 0) and p_page_size (default page_size, never more than
   # page_max) arguments and an fby_total column holding the number of rows that matched
   # the parameters. The function is then
   # get_parks_v1(p_change_set_id, p_code, p_name, p_page_offset, p_page_size)
   paging:
-    page_size: 50
-    page_max: 200
+    page_size: 10
+    page_max: 50
   # Nests child entities under each root row. The generated function is unchanged, but
   # filby.getDocuments returns one document per root row with a property per entry,
   # here seasons, holding a list of the child's fields, except the join fields, in the
   # nested order (the child's key is appended as a tie break), or an empty list when
-  # the root has no children. An entry may nest its own children in the same way, to
-  # any depth, so each season here holds its rates. A page is N parks with all their
-  # seasons and rates, and the total counts parks. The nested entities are dependencies
-  # of the projection too, so a change set for a season or a rate notifies the hooks
-  # below
+  # the root has no children. A page is N parks with all their seasons, and the total
+  # counts parks. The nested entities are dependencies of the projection too, so a
+  # change set for a season notifies the hooks below
   nest:
-    seasons:
-      entity: season@1
+    Seasons:
+      entity: Park Season@1
       # Maps the child's field to the parent's field, here the root's
       on:
-        park_code: code
+        Park Code: Code
       order:
-        - field: start
-          direction: DESC
-        - field: type
+        - field: Customer Type
+
+# An entry may nest its own children in the same way, to any depth, each level joining
+# to its parent. Here each manufacturer holds its models and each model holds the
+# grade it was awarded each year
+- operation: ADD_PROJECTION
+  name: Catalogue
+  root: Manufacturer@1
+  nest:
+    Models:
+      entity: Model@1
+      on:
+        Manufacturer Code: Code
+      order:
+        - field: Name
       nest:
-        rates:
-          entity: rate@1
-          # Maps the rate's field to the season's field
+        Grades:
+          entity: Model Grade@1
+          # Maps the grade's field to the model's field
           on:
-            park_code: park_code
-            season_type: type
+            Model Code: Code
           order:
-            - field: band
+            - field: Year
 
 # A projection whose SQL you write yourself (see the custom SQL migration below)
-# declares the entities it depends on instead of a root
+# declares the entities it depends on instead of a root. Filby still knows which
+# change sets affect it, and filby.fetch serves it by calling get_price_list_v1
 - operation: ADD_PROJECTION
-  name: park
+  name: Price List
   dependencies:
-    - entity: park@1
-    - entity: season@1
+    - entity: Model@1
+    - entity: Price@1
+    - entity: VAT Rate@1
 
 # A hook defines an asynchronous event that will be emitted by the framework whenever the
 # reference data the projection changes.
@@ -353,7 +420,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 - operation: ADD_HOOK
   name: sns/add-change-set/parks-v1 # Must be unique
   event: ADD_CHANGE_SET
-  projection: parks@1
+  projection: Parks@1
 
 # This hook fires when a change set for the specified projection takes
 # effect: immediately if its effective date has already passed, otherwise
@@ -361,7 +428,7 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 - operation: ADD_HOOK
   name: sns/commence-change-set/parks-v1 # Must be unique
   event: COMMENCE_CHANGE_SET
-  projection: parks@1
+  projection: Parks@1
 
 # This is a general hook that fires when the data
 # supporting any projection changes
@@ -372,33 +439,35 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0002.initial-data-load.yaml
+# migrations/0003.initial-data.yaml
 
 # Add a change set containing one or more changes to the previously defined entities
 - operation: ADD_CHANGE_SET
-  description: Initial Data
+  description: Parks
   # The date the change set takes effect. A calendar date is midnight
   # in the change set's timezone, which must be an IANA name
-  effective: 2019-01-01
+  effective: 2024-10-01
   timezone: Europe/London
   changes:
-    - entity: park@1
+    - entity: Park@1
       # SET or DELETE, in any case
       action: SET
       data:
           # Adds a data frame for Devon Cliffs
-        - code: DC
-          name: Devon Cliffs
+        - Code: DC
+          Name: Devon Cliffs
+          Region: South West
           # Adds a data frame for Primrose Valley
-        - code: PV
-          name: Primrose Valley
+        - Code: PV
+          Name: Primrose Valley
+          Region: Yorkshire
 
-    - entity: park@1
+    - entity: Park@1
       # Adds a data frame that will delete the entity identified
       # by code HF from the effective data
       action: DELETE
       data:
-        - code: HF
+        - Code: HF
 
       # YAML can get verbose, so you can also import data frames from a local CSV
       # The source path is relative to the directory containing the migration file
@@ -406,45 +475,46 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
       # Without an action on the frame, the CSV must have an action column
       # and every cell in it must be filled. When deleting data you only
       # need to include the fields that identify the entity
-    - entity: park@1
-      source: ./data/park-data-2019.csv
-      # action,code,name
-      # SET,KC,Kent Coast
-      # SET,CA,Caistor
-      # DELETE,TP,
+    - entity: Park@1
+      source: ./csv/parks/park.csv
+      # action,Code,Name,Region
+      # SET,KP,Kiln Park,Wales
+      # SET,RP,Rockley Park,South West
+      # DELETE,TP,,
 
       # An action on the frame applies to every row of the CSV,
       # which must not have an action column
-    - entity: park@1
-      action: DELETE
-      source: ./data/park-closures-2019.csv
-      # code
-      # SK
+    - entity: Price@1
+      action: SET
+      source: ./csv/catalogue-2025/price.csv
+      # Model Code,Year,List Price
+      # RIO,2025,24995.00
+      # AVO,2025,29995.00
 ```
 
-The effective date may be a calendar date, such as `2019-01-01`, or a timestamp with an explicit offset, such as `2019-01-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, so the stored effective date follows daylight saving time, and a bare date without a `timezone` is rejected: Filby never uses the process timezone, because the same migration would render differently on different machines. A timestamp with an explicit offset is stored as written, with or without a `timezone`.
+The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, so the stored effective date follows daylight saving time, and a bare date without a `timezone` is rejected: Filby never uses the process timezone, because the same migration would render differently on different machines. A timestamp with an explicit offset is stored as written, with or without a `timezone`.
 
 A field with no value is stored as NULL, and a nested map or list is stored as JSON so it can be loaded into a JSON or JSONB column. CSV cells are read as text and cast by Postgres to the column type, so a code such as `007` keeps its leading zeros in a TEXT column, `1.50` is stored as `1.50` in a NUMERIC column, and `abc` in an INTEGER column fails the migration. An empty CSV cell is stored as NULL. A field or CSV column that the entity does not declare fails the migration.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0003.drop-unused-objects.yaml
+# migrations/0013.drop-unused-objects.yaml
 
 # Deletes the specified enum
 # Fails if the enums are still use
 - operation: DROP_ENUM
-  name: season_type
+  name: Customer Type
 
 # Deletes the specified entity
 # Fails if the entities are depended on by projections or used in change sets
 - operation: DROP_ENTITY
-  name: park
+  name: Park
   version: 1
 
 # Deletes the specified projection and associated hooks
 # Fails if the entities are still depended on by projections
 - operation: DROP_PROJECTION
-  name: parks
+  name: Parks
   version: 1
 
 # Deletes the specified hook and associated notifications
@@ -467,48 +537,46 @@ Some parts of the DSL can be written in more than one way. The forms in each row
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 - operation: ADD_ENTITY
-  name: park
+  name: Park
   version: 1
   fields:
-    - name: code
+    - name: Code
       type: TEXT
-    - name: name
+    - name: Name
       type: TEXT
       nullable: false
   identified_by:
-    - code
+    - Code
 
 - operation: ADD_CHANGE_SET
-  description: Initial Data
-  effective: 2019-01-01T00:00:00Z
+  description: Parks
+  effective: 2024-10-01T00:00:00Z
   frames:
-    - entity: park
+    - entity: Park
       version: 1
       action: POST
       data:
-        - code: DC
-          name: Devon Cliffs
+        - Code: DC
+          Name: Devon Cliffs
 ```
 
 `version` defaults to 1 on `ADD_ENTITY` and `ADD_PROJECTION`, and nowhere else. A change, a projection dependency or a hook must say which version it refers to, either as `park@1` or with a `version` property, because a defaulted reference would silently write to the wrong version once version 2 exists. Say it once: `park@1` together with `version: 1` is an error, as is `key` together with `identified_by`, or `changes` together with `frames`.
 
 Fields are nullable unless declared `nullable: false`, and key fields are never nullable. Each field's nullability is recorded in `fby_entity_field` for tooling to read. It is not yet enforced on the entity table, because a `DELETE` frame carries only the key fields.
 
-The DSL deliberately omits the ability to drop change sets and data frames since they are supposed to be immutable. However, since Marv works with SQL, you can also use it for regular database migrations. One use is deleting a change set that was never served, see [Correcting and Re-issuing Data](#correcting-and-re-issuing-data). Another is adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one.
+The DSL deliberately omits the ability to drop change sets and data frames since they are supposed to be immutable. However, since Marv works with SQL, you can also use it for regular database migrations. One use is deleting a change set that was never served, see [Correcting and Re-issuing Data](#correcting-and-re-issuing-data). Another is adding custom views or functions over the aggregated data frames to make your projections more efficient. Simply create a SQL migration file in the migrations directory instead of a YAML or JSON one. The function below serves the `Price List` projection declared above. It joins three aggregates at the same change set, so a price and the VAT rate that applies to it always come from one snapshot, which is why the projection declares all three entities as dependencies.
 
 ```sql
--- migrations/0004.create-get-park-v1-function.sql
-CREATE FUNCTION get_park_v1(p_change_set_id INTEGER)
-RETURNS TABLE (code TEXT, name TEXT, season_type season_type, season_start TIMESTAMPTZ, season_end TIMESTAMPTZ)
+-- migrations/0004.create-get-price-list-v1-function.sql
+CREATE FUNCTION get_price_list_v1(p_change_set_id INTEGER)
+RETURNS TABLE (code TEXT, name TEXT, year INTEGER, list_price NUMERIC(10,2), vat_code vat_code, vat_rate NUMERIC(5,2))
 AS $$
-BEGIN
-  RETURN QUERY
-  SELECT p.code, p.name, s.type AS season_type, s.start AS season_start, s.end AS season_end
-  FROM get_park_v1_aggregate(p_change_set_id) p
-  LEFT JOIN get_season_v1_aggregate(p_change_set_id) s ON s.park_code = p.code
-  ORDER BY p.code ASC, s.start DESC, s.type ASC;
-END;
-$$ LANGUAGE plpgsql STABLE;
+  SELECT m.code, m.name, p.year, p.list_price, m.vat_code, r.rate AS vat_rate
+  FROM get_model_v1_aggregate(p_change_set_id) m
+  INNER JOIN get_price_v1_aggregate(p_change_set_id) p ON p.model_code = m.code
+  INNER JOIN get_vat_rate_v1_aggregate(p_change_set_id) r ON r.code = m.vat_code
+  ORDER BY m.manufacturer_code, m.name, p.year
+$$ LANGUAGE sql STABLE;
 ```
 
 Declare such functions `STABLE`, since their results depend on the change sets in the database, and do any caching in the application. The aggregates for a change set never change, so a cache keyed by projection, version and change set id needs no invalidation, but every new change set is a new key, so bound it with an LRU or TTL cache rather than an unbounded map. This is the in-process complement to using the change set id as an HTTP cache buster.
@@ -675,7 +743,7 @@ Serves projections and change logs over HTTP using the web standard [Request](ht
 - `GET /changelog?projection=<name>&version=<n>[&since=<id>]` returns the projection's change log as `getChangeLog` does, with `ETag` and `Last-Modified` from the latest entry. A projection with no change sets, or with nothing after `since`, is an empty list without `ETag` or `Last-Modified`. A missing `projection` or `version`, or a `version` or `since` that is not an integer, is a 400; an unknown projection is a 404.
 - `GET /projections/<name>/v<n>` redirects (307) to the same URL with `changeSetId` set to the projection's current change set, keeping any other query parameters, or is a 404 when the projection has no current change set. The name is URL-encoded, so `/projections/VAT%20Rates/v1`.
 - `GET /projections/<name>/v<n>?changeSetId=<id>[&<parameter>=<value>...][&page=<n>][&pageSize=<n>]` returns the documents or rows at that change set as a JSON array. A `changeSetId` that is not an integer or does not exist is a 400. For a projection declared with a `root`, the parameters are the names `getDocuments` accepts (`code`, `rate_from`, `rate_to`, `types`), an `in` parameter is repeated (`?types=a&types=b`), and any other key, a repeated key that is not an `in`, or a value Postgres cannot convert to the field's type is a 400. `page` is 1-based and `pageSize` defaults to the declared `page_size` and is clamped to `page_max`; either on a projection without `paging` is a 400, and a declared parameter named `page` is unreachable, since the handler reads it. A projection declared with `dependencies` is served by calling `get_<name>_v<n>(changeSetId)` and returning its rows as they are, all of them unless `pageSize` is given, in which case they are paged by row; `changeSetId`, `page` and `pageSize` are its only query parameters, and a 500 reports a function that does not exist. Responses carry `ETag` (the change set's entity tag), `Last-Modified`, `Cache-Control: max-age=31536000, immutable`, `X-Total-Count` (the number of documents that matched the parameters, whatever the page) and `Link` headers with `rel="next"` and `rel="prev"` where those pages exist, preserving every other query parameter. The `ETag` is the same for every page and parameter combination at a change set, which is correct because the URL carries the page and parameters and the content at a change set never changes, so it must not be derived from the content.
-- `GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from Filby's metadata tables: the `/projections` and `/changelog` paths and one path per projection with its declared parameters, its paging parameters (`page`, and `pageSize` with the declared `page_size` as its default and `page_max` as its maximum) and a response schema derived from the root entity's fields and the nesting, so a new projection is documented, and its clients generated and requests validated, without anyone writing a schema. The document changes whenever a projection is added, so it is served without cache headers. Its `info` comes from `FetchOptions.info` (`{ title, version, description? }`) and defaults to `{ title: 'Filby', version: '1.0.0' }`, and `basePath` becomes its single `servers` entry. Field types describe what node-pg emits in JSON rather than the Postgres type: `INTEGER` and `SMALLINT` are integers, `REAL` and `DOUBLE PRECISION` are numbers, `NUMERIC` and `BIGINT` are strings because node-pg returns them as strings, `DATE` and `TIMESTAMP` are `date-time` strings, `UUID` is a `uuid` string, an enum lists its values, an array is an array of its element type, `JSON`, `JSONB` and any other type are unconstrained, and a nullable field also allows `null`. A projection declared with `dependencies` has only `changeSetId`, `page` and `pageSize` and a response of unconstrained objects, because Filby does not know the shape of its function. The example applications' Swagger UI renders this document.
+- `GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from Filby's metadata tables: the `/projections` and `/changelog` paths and one path per projection with its declared parameters, its paging parameters (`page`, and `pageSize` with the declared `page_size` as its default and `page_max` as its maximum) and a response schema derived from the root entity's fields and the nesting, so a new projection is documented, and its clients generated and requests validated, without anyone writing a schema. The document changes whenever a projection is added, so it is served without cache headers. Its `info` comes from `FetchOptions.info` (`{ title, version, description? }`) and defaults to `{ title: 'Filby', version: '1.0.0' }`, and `basePath` becomes its single `servers` entry. Field types describe what node-pg emits in JSON rather than the Postgres type: `INTEGER` and `SMALLINT` are integers, `REAL` and `DOUBLE PRECISION` are numbers, `NUMERIC` and `BIGINT` are strings because node-pg returns them as strings, `DATE` and `TIMESTAMP` are `date-time` strings, `UUID` is a `uuid` string, an enum lists its values, an array is an array of its element type, `JSON`, `JSONB` and any other type are unconstrained, and a nullable field also allows `null`. A projection declared with `dependencies` has only `changeSetId`, `page` and `pageSize` and a response of unconstrained objects, because Filby does not know the shape of its function. The example application's Swagger UI renders this document.
 
 Errors the handler does not expect, such as a lost database connection, are thrown for the host application to log and turn into a 500.
 
@@ -876,86 +944,38 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The application serves Swagger UI at http://localhost:3000/documentation but for a headstart try the following
+The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, seasons, offers and the models they sell, and a catalogue of manufacturers, models, grades, accessories, prices and VAT rates. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
+
+| Id | Effective | Description |
+| -- | --------- | ----------- |
+| 1 | 2024-10-01 | Parks |
+| 2 | 2025-01-01 | 2025 catalogue and price list |
+| 3 | 2025-03-01 | 2025 season |
+| 4 | 2025-06-01 | Summer offers |
+| 5 | 2026-01-01 | 2026 catalogue and price list |
+| 6 | 2026-03-01 | 2026 season and Richmond becomes Skegness |
+| 7 | 2026-06-25 | Temporary reduced rate for children's meals and family attractions |
+| 8 | 2026-07-01 | Greenacres sold |
+| 9 | 2026-09-02 | Temporary reduced rate ends |
+| 10 | 2027-01-01 | 2027 catalogue and price list |
+
+The walkthrough below asks five questions of the running example.
+
+### What does Devon Cliffs sell?
+
+Ask `Parks` without a change set id and it redirects to the current one, which is change set 8 because change sets 9 and 10 do not touch any park.
 
 ```
-GET http://localhost:3000/api/changelog?projection=park&version=1
+GET http://localhost:3000/api/projections/Parks/v1?code=DC
 ```
 
-This will return the changelog for the application's 'Park' projection.
-
-```json
-[
-  {
-    "id": 1,
-    "effective": "2019-01-01T00:00:00.000Z",
-    "description": "Initial Data",
-    "lastModified": "2026-10-19T20:59:30.547Z",
-    "entityTag": "7c7f42c335444645a70d"
-  },
-  {
-    "id": 2,
-    "effective": "2020-01-01T00:00:00.000Z",
-    "description": "2020 Season",
-    "lastModified": "2026-10-19T20:59:30.553Z",
-    "entityTag": "da011e40bb1a4929998a"
-  },
-  {
-    "id": 3,
-    "effective": "2021-01-01T00:00:00.000Z",
-    "description": "2021 Season",
-    "lastModified": "2026-10-19T20:59:30.555Z",
-    "entityTag": "5cf9083b211b4c3486cf"
-  },
-  {
-    "id": 4,
-    "effective": "2021-04-01T00:00:00.000Z",
-    "description": "Add Richmond",
-    "lastModified": "2026-10-19T20:59:30.557Z",
-    "entityTag": "bdbbe060466e43289c9b"
-  },
-  {
-    "id": 5,
-    "effective": "2021-06-01T00:00:00.000Z",
-    "description": "Rename Richmond to Skegness",
-    "lastModified": "2026-10-19T20:59:30.561Z",
-    "entityTag": "8b4035b7a07b4b6db7ab"
-  },
-  {
-    "id": 6,
-    "effective": "2022-01-01T00:00:00.000Z",
-    "description": "2022 Season",
-    "lastModified": "2026-10-19T20:59:30.564Z",
-    "entityTag": "1b791747687342bba29d"
-  },
-  {
-    "id": 7,
-    "effective": "2022-05-01T00:00:00.000Z",
-    "description": "Delete Greenacres",
-    "lastModified": "2026-10-19T20:59:30.566Z",
-    "entityTag": "09262d8e872b483fa65b"
-  },
-  {
-    "id": 8,
-    "effective": "2023-01-01T00:00:00.000Z",
-    "description": "2023 Season",
-    "lastModified": "2026-10-19T20:59:30.568Z",
-    "entityTag": "75ccdb4964be4ac69bb0"
-  },
-  {
-    "id": 9,
-    "effective": "2024-01-01T00:00:00.000Z",
-    "description": "2024 Season",
-    "lastModified": "2026-10-19T20:59:30.571Z",
-    "entityTag": "ee39fe1b8de9459192bc"
-  }
-]
+```
+HTTP/1.1 307 Temporary Redirect
+location: /api/projections/Parks/v1?code=DC&changeSetId=8
 ```
 
-Now pick a change set id and request the Park data at that point in time...
-
 ```
-GET http://localhost:3000/api/projections/park/v1?changeSetId=1
+GET http://localhost:3000/api/projections/Parks/v1?code=DC&changeSetId=8
 ```
 
 ```json
@@ -963,52 +983,316 @@ GET http://localhost:3000/api/projections/park/v1?changeSetId=1
   {
     "code": "DC",
     "name": "Devon Cliffs",
-    "seasons": [
+    "address": "Sandy Bay",
+    "town": "Exmouth",
+    "county": "Devon",
+    "postcode": "EX8 5BT",
+    "region": "South West",
+    "amenities": [
       {
-        "type": "Guests",
-        "start": "2019-03-15T00:00:00.000Z",
-        "end": "2019-11-15T00:00:00.000Z"
+        "amenity_code": "ARCADE"
       },
       {
-        "type": "Owners",
-        "start": "2019-03-01T00:00:00.000Z",
-        "end": "2019-11-30T00:00:00.000Z"
+        "amenity_code": "BEACH"
+      },
+      {
+        "amenity_code": "CLUB"
+      },
+      {
+        "amenity_code": "GOLF"
+      },
+      {
+        "amenity_code": "IPOOL"
+      },
+      {
+        "amenity_code": "OPOOL"
+      },
+      {
+        "amenity_code": "REST"
+      },
+      {
+        "amenity_code": "SHOW"
+      },
+      {
+        "amenity_code": "SPLASH"
       }
-    ]
-  },
-  {
-    "code": "GA",
-    "name": "Greenacres",
+    ],
     "seasons": [
       {
-        "type": "Guests",
-        "start": "2019-03-15T00:00:00.000Z",
-        "end": "2019-11-15T00:00:00.000Z"
+        "customer_type": "Guest",
+        "current_season_start": "2026-03-16T00:00:00.000Z",
+        "current_season_end": "2026-11-03T00:00:00.000Z",
+        "next_season_start": "2027-03-16T00:00:00.000Z",
+        "next_season_end": "2027-11-03T00:00:00.000Z"
       },
       {
-        "type": "Owners",
-        "start": "2019-03-01T00:00:00.000Z",
-        "end": "2019-11-30T00:00:00.000Z"
+        "customer_type": "Owner",
+        "current_season_start": "2026-03-01T00:00:00.000Z",
+        "current_season_end": "2027-01-06T00:00:00.000Z",
+        "next_season_start": "2027-03-01T00:00:00.000Z",
+        "next_season_end": "2028-01-06T00:00:00.000Z"
       }
-    ]
-  },
-  {
-    "code": "PV",
-    "name": "Primrose Valley",
-    "seasons": [
+    ],
+    "offers": [
       {
-        "type": "Guests",
-        "start": "2019-03-15T00:00:00.000Z",
-        "end": "2019-11-15T00:00:00.000Z"
+        "grade_code": "Gold",
+        "discount_percent": "0.00"
       },
       {
-        "type": "Owners",
-        "start": "2019-03-01T00:00:00.000Z",
-        "end": "2019-11-30T00:00:00.000Z"
+        "grade_code": "Silver",
+        "discount_percent": "5.00"
+      },
+      {
+        "grade_code": "Bronze",
+        "discount_percent": "10.00"
+      }
+    ],
+    "models": [
+      {
+        "model_code": "AMB"
+      },
+      {
+        "model_code": "AVO"
+      },
+      {
+        "model_code": "BEV"
+      },
+      {
+        "model_code": "CAS"
+      },
+      {
+        "model_code": "CLW"
+      },
+      {
+        "model_code": "HEL"
+      },
+      {
+        "model_code": "LOI"
+      },
+      {
+        "model_code": "RIO"
       }
     ]
   }
 ]
 ```
 
-The handler also accepts the projection's declared parameters, so `GET http://localhost:3000/api/projections/park/v1?changeSetId=1&code=DC` returns a list of the one matching park.
+`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. `Parks` pages ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null.
+
+### What was in the catalogue on 1 June 2025?
+
+The change log of `Catalogue` says which change set was in force on that date. It lists only the change sets that touch the catalogue's entities, so the parks, seasons and offers are absent, and it includes change set 10, which is dated in the future.
+
+```
+GET http://localhost:3000/api/changelog?projection=Catalogue&version=1
+```
+
+```json
+[
+  {
+    "id": 2,
+    "effective": "2025-01-01T00:00:00.000Z",
+    "description": "2025 catalogue and price list",
+    "lastModified": "2026-10-21T10:30:08.999Z",
+    "entityTag": "6a8f467b146c4695a674"
+  },
+  {
+    "id": 5,
+    "effective": "2026-01-01T00:00:00.000Z",
+    "description": "2026 catalogue and price list",
+    "lastModified": "2026-10-21T10:30:09.015Z",
+    "entityTag": "3e13cd64b7be4e29a14b"
+  },
+  {
+    "id": 10,
+    "effective": "2027-01-01T00:00:00.000Z",
+    "description": "2027 catalogue and price list",
+    "lastModified": "2026-10-21T10:30:09.030Z",
+    "entityTag": "bddaac93c92a45b19983"
+  }
+]
+```
+
+Change set 2 was in force on 1 June 2025, so `Catalogue` at change set 2 is the whole range as it stood, each manufacturer with its models and each model with the grades, prices and accessories it had then. It has no paging because a product range is read whole; `Models` is the same data one model at a time, with the parameters a search page needs.
+
+```
+GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC
+```
+
+```json
+[
+  {
+    "code": "VIC",
+    "name": "Victory",
+    "models": [
+      {
+        "code": "VER",
+        "name": "Victory Vermont",
+        "berths": 6,
+        "bedrooms": 2,
+        "length": "35.0",
+        "width": "12.0",
+        "heating": "None",
+        "double_glazed": false,
+        "vat_code": "Holiday Caravan",
+        "grades": [
+          {
+            "year": 2025,
+            "grade_code": "Bronze"
+          }
+        ],
+        "prices": [
+          {
+            "year": 2025,
+            "list_price": "15995.00"
+          }
+        ],
+        "accessories": [
+          {
+            "code": "VER-DEC",
+            "name": "Decking",
+            "price": "3995.00"
+          },
+          {
+            "code": "VER-VER",
+            "name": "Veranda",
+            "price": "2495.00"
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+### Which VAT rate applied in August 2026?
+
+From 25 June to 1 September 2026 the rate for children's meals and family attractions was temporarily cut to 5%. Change sets 7 and 9 were entered together when the measure was announced: a rate that is true for ten weeks, loaded once, in advance. A consumer that prices a caravan or an amenity reads `Models` or `Parks` and `VAT Rates` at the same change set and gets one consistent answer.
+
+```
+GET http://localhost:3000/api/projections/VAT%20Rates/v1?changeSetId=7
+```
+
+```json
+[
+  {
+    "code": "Standard",
+    "name": "Standard rate",
+    "rate": "20.00"
+  },
+  {
+    "code": "Holiday Caravan",
+    "name": "Reduced rate for static holiday caravans",
+    "rate": "5.00"
+  },
+  {
+    "code": "Residential Caravan",
+    "name": "Zero rate for caravans built to BS 3632",
+    "rate": "0.00"
+  },
+  {
+    "code": "Family Attraction",
+    "name": "Children's meals and family attractions",
+    "rate": "5.00"
+  }
+]
+```
+
+At change set 9 the same request returns `Family Attraction` at `20.00` and nothing else changes.
+
+### What will the 2027 price list be?
+
+Change set 10 exists today and is not yet live. The change log lists it, `Catalogue` at change set 10 returns the 2027 prices, and a request without a change set id still redirects to change set 5, because the current change set is the latest one whose effective date has passed.
+
+```
+GET http://localhost:3000/api/projections/Catalogue/v1
+```
+
+```
+HTTP/1.1 307 Temporary Redirect
+location: /api/projections/Catalogue/v1?changeSetId=5
+```
+
+```
+GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=10&code=VIC
+```
+
+```json
+[
+  {
+    "code": "VIC",
+    "name": "Victory",
+    "models": [
+      {
+        "code": "VER",
+        "name": "Victory Vermont Classic",
+        "berths": 6,
+        "bedrooms": 2,
+        "length": "35.0",
+        "width": "12.0",
+        "heating": "None",
+        "double_glazed": false,
+        "vat_code": "Holiday Caravan",
+        "grades": [
+          {
+            "year": 2025,
+            "grade_code": "Bronze"
+          },
+          {
+            "year": 2026,
+            "grade_code": "Bronze"
+          },
+          {
+            "year": 2027,
+            "grade_code": "Bronze"
+          }
+        ],
+        "prices": [
+          {
+            "year": 2025,
+            "list_price": "15995.00"
+          },
+          {
+            "year": 2026,
+            "list_price": "16450.00"
+          },
+          {
+            "year": 2027,
+            "list_price": "16950.00"
+          }
+        ],
+        "accessories": [
+          {
+            "code": "VER-DEC",
+            "name": "Decking",
+            "price": "4195.00"
+          },
+          {
+            "code": "VER-VER",
+            "name": "Veranda",
+            "price": "2595.00"
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+### How is a park renamed, or sold?
+
+A change set is whatever the data owner sends. Richmond became Skegness in change set 6 with one row in `csv/season-2026/park.csv`, a `SET` of the same park with its new name, so its seasons, amenities and models follow it:
+
+```
+action,Code,Name,Address,Town,County,Postcode,Region
+SET,RI,Skegness,Richmond Drive,Skegness,Lincolnshire,PE25 2SE,Midlands
+```
+
+Greenacres was sold in change set 8, which deletes the park and its amenities, seasons, offers and models, each from its own file. `csv/greenacres-sold/park.csv` needs only the key:
+
+```
+action,Code,Name,Address,Town,County,Postcode,Region
+DELETE,GA,,,,,,
+```
+
+`GET http://localhost:3000/api/projections/Parks/v1?changeSetId=6&code=RI` returns the park as Skegness with everything it had as Richmond, and `GET http://localhost:3000/api/projections/Parks/v1?changeSetId=8&code=GA` returns an empty list, while both parks are still there at any earlier change set.
