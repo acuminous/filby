@@ -43,7 +43,7 @@ export function useEscape(href: string | undefined) {
 
 export function useQuery() {
   const { url } = useLocation();
-  return new URLSearchParams(url.slice(url.indexOf('?') + 1 || url.length));
+  return new URLSearchParams(new URL(url, location.origin).search);
 }
 
 function toApiError(err: unknown) {

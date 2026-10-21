@@ -1,6 +1,6 @@
 import { Fragment } from 'preact';
 
-import type { Column } from '../schema';
+import { type Column, inferColumns } from '../schema';
 import type { Document } from '../types';
 import { Value } from './Value';
 
@@ -46,17 +46,4 @@ function Nest({ column, rows, span }: { column: Column; rows: unknown; span: num
       </td>
     </tr>
   );
-}
-
-export function inferColumns(documents: Document[]): Column[] {
-  const names = [...new Set(documents.flatMap((document) => Object.keys(document)))];
-  return names.map((name) => {
-    const values = documents.map((document) => document[name]).filter((value) => value !== null && value !== undefined);
-    const nested = values.filter(Array.isArray).flat();
-    if (values.length > 0 && values.every(Array.isArray) && nested.length > 0 && nested.every((item) => typeof item === 'object' && item !== null)) {
-      return { name, kind: 'table', columns: inferColumns(nested as Document[]) };
-    }
-    if (values.length > 0 && values.every(Array.isArray)) return { name, kind: 'array' };
-    return { name, kind: 'value' };
-  });
 }

@@ -2,14 +2,14 @@ import { useLocation, useRoute } from 'preact-iso';
 
 import { ApiError, getChangeLog, getDocuments, getOpenApi } from '../api';
 import { Breadcrumb } from '../components/Breadcrumb';
-import { DocumentTable, inferColumns } from '../components/DocumentTable';
+import { DocumentTable } from '../components/DocumentTable';
 import { Filters } from '../components/Filters';
 import { Paging } from '../components/Paging';
 import { ErrorMessage, Loading } from '../components/Status';
 import { formatDateTime } from '../format';
-import { useEscape, useQuery, useResource } from '../hooks';
+import { type Resource, useEscape, useQuery, useResource } from '../hooks';
 import { changeSetsPath, documentsPath, parseVersion, projectionsPath } from '../routes';
-import { type ProjectionSchema, describeProjection } from '../schema';
+import { type ProjectionSchema, describeProjection, inferColumns } from '../schema';
 import type { ChangeSet, Page } from '../types';
 
 export function Documents() {
@@ -71,7 +71,7 @@ async function loadContext(name: string, version: number, changeSetId: number): 
   return { schema, changeSet: changeLog.find(({ id }) => id === changeSetId) };
 }
 
-function Header({ name, version, changeSet, page }: { name: string; version: number; changeSet: ChangeSet | undefined; page: ReturnType<typeof useResource<Page>> }) {
+function Header({ name, version, changeSet, page }: { name: string; version: number; changeSet: ChangeSet | undefined; page: Resource<Page> }) {
   return (
     <header class="toolbar">
       <h1>

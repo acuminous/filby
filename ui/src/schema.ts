@@ -1,4 +1,4 @@
-import type { OpenApi, Operation, Parameter, Schema } from './types';
+import type { Document, OpenApi, Operation, Parameter, Schema } from './types';
 
 const RESERVED = ['changeSetId', 'page', 'pageSize'];
 
@@ -51,6 +51,19 @@ export function paging(parameters: Parameter[]): Paging | undefined {
   const pageSize = parameters.find(({ name }) => name === 'pageSize');
   if (!pageSize) return undefined;
   return { size: pageSize.schema.default, max: pageSize.schema.maximum };
+}
+
+export function inferColumns(documents: Document[]): Column[] {
+  const names = [...new Set(documents.flatMap((document) => Object.keys(document)))];
+  return names.map((name) => {
+    const values = documents.map((document) => document[name]).filter((value) => value !== null && value !== undefined);
+    const nested = values.filter(Array.isArray).flat();
+    if (values.length > 0 && values.every(Array.isArray) && nested.length > 0 && nested.every((item) => typeof item === 'object' && item !== null)) {
+      return { name, kind: 'table', columns: inferColumns(nested as Document[]) };
+    }
+    if (values.length > 0 && values.every(Array.isArray)) return { name, kind: 'array' };
+    return { name, kind: 'value' };
+  });
 }
 
 function baseType(schema: Schema | undefined): string | undefined {
