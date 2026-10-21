@@ -13,9 +13,10 @@
     "noFallthroughCasesInSwitch": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
+    "allowJs": true,
     "skipLibCheck": true,
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "test", "vite.config.ts"]
+  "include": ["src", "test", "lib", "bin", "vite.config.ts"]
 }

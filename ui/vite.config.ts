@@ -1,5 +1,5 @@
 import preact from '@preact/preset-vite';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 import { target } from './lib/target.js';
 
