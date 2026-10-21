@@ -19,3 +19,16 @@
     - park_code
     - type
     - start
+
+- operation: ADD_ENTITY
+  name: rate
+  version: 1
+  fields:
+    park_code: TEXT
+    season_type: TEXT
+    band: TEXT
+    amount: NUMERIC(10,2)
+  key:
+    - park_code
+    - season_type
+    - band

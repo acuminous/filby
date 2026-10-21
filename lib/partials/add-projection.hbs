@@ -9,8 +9,6 @@ DECLARE
   v_columns TEXT;
   v_outputs TEXT;
   v_order TEXT;
-  v_nest_id INTEGER;
-  v_nest_entity_id INTEGER;
   v_body TEXT;
 BEGIN
   BEGIN
@@ -102,50 +100,7 @@ BEGIN
   v_outputs := v_outputs || ', COUNT(*) OVER ()::INTEGER AS fby_total';
   {{/if}}
   {{#each nest}}
-
-  IF {{literal (canonical name)}} = 'fby_total' THEN
-    RAISE EXCEPTION 'Projection ''%'' nest ''%'' uses a reserved name', {{literal ../name (v ../version)}}, {{literal name}};
-  END IF;
-
-  IF EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical name)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' nest ''%'' has the same name as a field of entity ''%''', {{literal ../name (v ../version)}}, {{literal name}}, {{literal ../root.entity (v ../root.version)}};
-  END IF;
-
-  IF EXISTS (SELECT 1 FROM fby_projection_nest WHERE projection_id = v_projection_id AND name = {{literal (canonical name)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' declares nest ''%'' more than once', {{literal ../name (v ../version)}}, {{literal (canonical name)}};
-  END IF;
-
-  SELECT id INTO v_nest_entity_id
-  FROM fby_entity
-  WHERE name = {{literal entity}}
-    AND version = {{literal version}};
-
-  INSERT INTO fby_projection_nest (projection_id, position, name, entity_id) VALUES
-  (v_projection_id, {{ordinal}}, {{literal (canonical name)}}, v_nest_entity_id)
-  RETURNING id INTO v_nest_id;
-
-  {{#each on}}
-  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal (canonical field)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' nest ''%'' joins on a non existent field ''%'' of entity ''%''%', {{literal ../../name (v ../../version)}}, {{literal ../name}}, {{literal (canonical field)}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical root_field)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' nest ''%'' joins on a non existent field ''%'' of entity ''%''%', {{literal ../../name (v ../../version)}}, {{literal ../name}}, {{literal (canonical root_field)}}, {{literal ../../root.entity (v ../../root.version)}}, fby_entity_field_hint(v_root_id);
-  END IF;
-
-  INSERT INTO fby_projection_nest_on (nest_id, position, field, root_field) VALUES
-  (v_nest_id, {{ordinal}}, {{literal (canonical field)}}, {{literal (canonical root_field)}});
-
-  {{/each}}
-  {{#each order}}
-  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal (canonical field)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' nest ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../../name (v ../../version)}}, {{literal ../name}}, {{literal (canonical field)}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);
-  END IF;
-
-  INSERT INTO fby_projection_nest_order (nest_id, position, field, direction, nulls) VALUES
-  (v_nest_id, {{ordinal}}, {{literal (canonical field)}}, {{literal direction}}, {{literal nulls}});
-
-  {{/each}}
+  {{> add_projection_nest projection_name=../name projection_version=../version parent_entity=../root.entity parent_version=../root.version}}
   {{/each}}
 
   v_body := format(

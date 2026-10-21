@@ -30,3 +30,18 @@
           type: Guests
           start: 2019-03-15T00:00:00Z
           end: 2019-11-15T00:00:00Z
+    - entity: rate@1
+      action: SET
+      data:
+        - park_code: DC
+          season_type: Guests
+          band: B
+          amount: 80.00
+        - park_code: DC
+          season_type: Guests
+          band: A
+          amount: 120.00
+        - park_code: PV
+          season_type: Guests
+          band: A
+          amount: 100.00

@@ -19,3 +19,11 @@
         - field: start
           direction: DESC
         - field: type
+      nest:
+        rates:
+          entity: rate@1
+          on:
+            park_code: park_code
+            season_type: type
+          order:
+            - field: band
