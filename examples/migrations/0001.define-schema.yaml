@@ -95,7 +95,7 @@
       type: TEXT
       nullable: false
     Region:
-      type: park_region
+      type: Park Region
       nullable: false
   key:
     - Code
@@ -110,16 +110,16 @@
       type: TEXT
       nullable: false
     Category:
-      type: amenity_category
+      type: Amenity Category
       nullable: false
     Age Group:
-      type: age_group
+      type: Age Group
       nullable: false
     Charge:
-      type: charge
+      type: Charge
       nullable: false
     VAT Code:
-      type: vat_code
+      type: VAT Code
       nullable: false
   key:
     - Code
@@ -137,7 +137,7 @@
   name: Park Season
   fields:
     Park Code: TEXT
-    Customer Type: customer_type
+    Customer Type: Customer Type
     Current Season Start:
       type: DATE
       nullable: false
@@ -157,7 +157,7 @@
   name: Park Offer
   fields:
     Park Code: TEXT
-    Grade Code: grade_code
+    Grade Code: Grade Code
     Discount Percent:
       type: NUMERIC(5,2)
       nullable: false
@@ -207,13 +207,13 @@
       type: NUMERIC(4,1)
       nullable: false
     Heating:
-      type: heating
+      type: Heating
       nullable: false
     Double Glazed:
       type: BOOLEAN
       nullable: false
     VAT Code:
-      type: vat_code
+      type: VAT Code
       nullable: false
   key:
     - Code
@@ -237,15 +237,15 @@
 - operation: ADD_ENTITY
   name: Grade
   fields:
-    Code: grade_code
+    Code: Grade Code
   key:
     - Code
 
 - operation: ADD_ENTITY
   name: Grade Attribute
   fields:
-    Grade Code: grade_code
-    Attribute: attribute
+    Grade Code: Grade Code
+    Attribute: Attribute
   key:
     - Grade Code
     - Attribute
@@ -254,7 +254,7 @@
   name: Grade Model
   fields:
     Grade Code:
-      type: grade_code
+      type: Grade Code
       nullable: false
     Model Code: TEXT
     Year: INTEGER
@@ -277,7 +277,7 @@
 - operation: ADD_ENTITY
   name: VAT Rate
   fields:
-    Code: vat_code
+    Code: VAT Code
     Name:
       type: TEXT
       nullable: false
