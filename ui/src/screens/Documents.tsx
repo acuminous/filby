@@ -46,7 +46,7 @@ export function Documents() {
 
   return (
     <>
-      <Breadcrumb crumbs={[{ label: 'Projections', href: projectionsPath() }, { label: `${name} v${params.version}`, href: changeSetsPath(name, version) }, { label: `Change set ${params.id}` }]} />
+      <Breadcrumb crumbs={[{ label: 'Projections', href: projectionsPath() }, { label: `${name} ${params.version}`, href: changeSetsPath(name, version) }, { label: `Change set ${params.id}` }]} />
       {context.status === 'loading' && <Loading />}
       {context.status === 'error' && <ErrorMessage error={context.error} />}
       {context.status === 'ready' && (

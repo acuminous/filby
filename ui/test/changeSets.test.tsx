@@ -25,6 +25,7 @@ describe('Change sets', () => {
     const rows = await screen.findAllByRole('row');
     expect(requests.map(String)).toEqual(['http://localhost/api/changelog?projection=VAT+Rates&version=1']);
     expect(screen.getByRole('heading').textContent).toBe('VAT Rates v1');
+    expect(screen.getByRole('navigation').textContent).toBe('Projections/VAT Rates v1');
     expect(screen.getByText('3 change sets')).toBeTruthy();
     const cells = (index: number) => Array.from(rows[index]?.querySelectorAll('td') ?? []).map((cell) => cell.textContent?.trim());
     expect(cells(1)).toEqual(['3', '2022-01-01 00:00', '2022 Parks', '2019-12-01 10:30', 'a1b2c3d4', 'not yet live']);

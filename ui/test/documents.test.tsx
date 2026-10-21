@@ -21,6 +21,7 @@ describe('Documents', () => {
     renderAt('/projections/Parks/v1/change-sets/2');
     expect(await screen.findByText('5 documents')).toBeTruthy();
     expect(screen.getByRole('heading').textContent).toBe('Parks v1');
+    expect(screen.getByRole('navigation').textContent).toBe('Projections/Parks v1/Change set 2');
     expect(screen.getByText('2021 Parks')).toBeTruthy();
     expect(screen.getByText('2021-01-01 00:00').getAttribute('title')).toBe('2021-01-01T00:00:00.000Z');
     expect(requests.map(String)).toContain('http://localhost/api/projections/Parks/v1?changeSetId=2');

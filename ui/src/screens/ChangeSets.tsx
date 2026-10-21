@@ -19,7 +19,7 @@ export function ChangeSets() {
   const resource = useResource(() => (version === undefined ? Promise.reject(new ApiError(404, `No route for ${location.pathname}`)) : getChangeLog(name, version)), `${name}/${version}`);
   return (
     <>
-      <Breadcrumb crumbs={[{ label: 'Projections', href: projectionsPath() }, { label: `${name} v${params.version}` }]} />
+      <Breadcrumb crumbs={[{ label: 'Projections', href: projectionsPath() }, { label: `${name} ${params.version}` }]} />
       {resource.status === 'loading' && <Loading />}
       {resource.status === 'error' && <ErrorMessage error={resource.error} />}
       {resource.status === 'ready' && version !== undefined && <ChangeSetTable name={name} version={version} changeSets={resource.data} />}

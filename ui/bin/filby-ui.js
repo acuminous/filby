@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 
 import { configure, usage } from '../lib/config.js';
 import { createApp } from '../lib/server.js';
 
-const dist = new URL('../dist', import.meta.url).pathname;
+const dist = fileURLToPath(new URL('../dist', import.meta.url));
 const config = configure(process.env);
 
 if (config.missing) {
