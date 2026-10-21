@@ -1,0 +1,11 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 Rates
+  effective: 2020-01-01T00:00:00.000Z
+  changes:
+    - entity: rate@1
+      action: SET
+      data:
+        - park_code: PV
+          season_type: Guests
+          band: B
+          amount: 70.00

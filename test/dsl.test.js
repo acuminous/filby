@@ -20,6 +20,8 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_park_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS season_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_season_v1_aggregate');
+    await tx.query('DROP TABLE IF EXISTS rate_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v2');
@@ -48,6 +50,7 @@ const ADD_PARK_ENTITIES = loadYaml('ADD_PARK_ENTITIES');
 const ADD_NESTED_PROJECTION = loadYaml('ADD_NESTED_PROJECTION');
 const ADD_PARK_CHANGE_SET = loadYaml('ADD_PARK_CHANGE_SET');
 const ADD_SEASON_CHANGE_SET = loadYaml('ADD_SEASON_CHANGE_SET');
+const ADD_RATE_CHANGE_SET = loadYaml('ADD_RATE_CHANGE_SET');
 const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
 const ADD_CHANGE_SET_1 = loadYaml('ADD_CHANGE_SET_1');
 const ADD_HOOK_ADD_PROJECTION = loadYaml('ADD_HOOK_ADD_PROJECTION');
@@ -1580,7 +1583,7 @@ describe('DSL', () => {
       });
     });
 
-    it('should nest child entities in the declared order', async (t) => {
+    it('should nest child entities in the declared order at every depth', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
 
       const { documents, total } = await getDocuments({ pageSize: 3 });
@@ -1590,14 +1593,24 @@ describe('DSL', () => {
           code: 'DC',
           name: 'Devon Cliffs',
           seasons: [
-            { type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), end: new Date('2019-11-15T00:00:00Z') },
-            { type: 'Owners', start: new Date('2019-03-01T00:00:00Z'), end: new Date('2019-11-30T00:00:00Z') },
-            { type: 'Guests', start: new Date('2019-02-01T00:00:00Z'), end: new Date('2019-02-28T00:00:00Z') },
+            { type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), end: new Date('2019-11-15T00:00:00Z'), rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+            { type: 'Owners', start: new Date('2019-03-01T00:00:00Z'), end: new Date('2019-11-30T00:00:00Z'), rates: [] },
+            { type: 'Guests', start: new Date('2019-02-01T00:00:00Z'), end: new Date('2019-02-28T00:00:00Z'), rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
           ],
         },
         { code: 'GA', name: 'Greenacres', seasons: [] },
-        { code: 'PV', name: 'Primrose Valley', seasons: [{ type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), end: new Date('2019-11-15T00:00:00Z') }] },
+        { code: 'PV', name: 'Primrose Valley', seasons: [{ type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), end: new Date('2019-11-15T00:00:00Z'), rates: [{ band: 'A', amount: '100.00' }] }] },
       ]);
+    });
+
+    it('should nest the same entity at more than one level', async (t) => {
+      const nest = { seasons: { entity: 'season@1', on: { park_code: 'code' }, nest: { siblings: { entity: 'season@1', on: { park_code: 'park_code' } } } } };
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest), ADD_PARK_CHANGE_SET);
+
+      const { documents } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(Object.keys(documents[0].seasons[0]), ['type', 'start', 'end', 'siblings']);
+      deq(documents[0].seasons.map((season) => season.siblings.length), [3, 3, 3]);
+      deq(Object.keys(documents[0].seasons[0].siblings[0]), ['type', 'start', 'end']);
     });
 
     it('should order nested entities by their entity key when no nest order is declared', async (t) => {
@@ -1622,11 +1635,11 @@ describe('DSL', () => {
 
       const page1 = await getDocuments();
       eq(page1.total, 3);
-      deq(page1.documents.map((document) => [document.code, document.seasons.length]), [['DC', 3], ['GA', 0]]);
+      deq(page1.documents.map((document) => [document.code, document.seasons.map((season) => season.rates.length)]), [['DC', [2, 0, 2]], ['GA', []]]);
 
       const page2 = await getDocuments({ pageOffset: 2 });
       eq(page2.total, 3);
-      deq(page2.documents.map((document) => [document.code, document.seasons.length]), [['PV', 1]]);
+      deq(page2.documents.map((document) => [document.code, document.seasons.map((season) => season.rates.length)]), [['PV', [1]]]);
 
       const page3 = await getDocuments({ pageOffset: 3 });
       eq(page3.total, 3);
@@ -1650,7 +1663,7 @@ describe('DSL', () => {
 
       const { documents, total } = await getDocuments({ parameters: { code: 'DC' } });
       eq(total, 1);
-      deq(documents.map((document) => [document.code, document.seasons.length]), [['DC', 3]]);
+      deq(documents.map((document) => [document.code, document.seasons.map((season) => season.rates.length)]), [['DC', [2, 0, 2]]]);
     });
 
     it('should nest more than one entity', async (t) => {
@@ -1672,12 +1685,16 @@ describe('DSL', () => {
     });
 
     it('should return nested and root values of the same type identically', async (t) => {
-      await filby.applyYaml(t.name, transform(ADD_PARK_ENTITIES).set('0.fields.opened', 'TIMESTAMP WITH TIME ZONE'), ADD_NESTED_PROJECTION, transform(ADD_PARK_CHANGE_SET).set('0.changes.0.data.0.opened', '2019-03-15T00:00:00Z'));
+      const entities = transform(transform(ADD_PARK_ENTITIES).set('0.fields.opened', 'TIMESTAMP WITH TIME ZONE')).set('0.fields.deposit', 'NUMERIC(10,2)');
+      const changeSet = transform(transform(ADD_PARK_CHANGE_SET).set('0.changes.0.data.0.opened', '2019-03-15T00:00:00Z')).set('0.changes.0.data.0.deposit', 120);
+      await filby.applyYaml(t.name, entities, ADD_NESTED_PROJECTION, changeSet);
 
       const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
       ok(park.opened instanceof Date);
       ok(park.seasons[0].start instanceof Date);
       deq(park.opened, park.seasons[0].start);
+      eq(park.deposit, '120.00');
+      eq(park.seasons[0].rates[0].amount, '120.00');
     });
 
     it('should generate a function that returns flat rows', async (t) => {
@@ -1708,32 +1725,59 @@ describe('DSL', () => {
       });
     });
 
-    it('should derive the dependencies of nested entities', async (t) => {
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET, ADD_SEASON_CHANGE_SET);
+    it('should derive the dependencies of nested entities at every depth', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET, ADD_SEASON_CHANGE_SET, ADD_RATE_CHANGE_SET);
 
       const projection = await filby.getProjection('Parks', 1);
       const changeLog = await filby.getChangeLog(projection);
-      deq(changeLog.map((changeSet) => changeSet.description), ['2019 Parks', '2020 Seasons']);
+      deq(changeLog.map((changeSet) => changeSet.description), ['2019 Parks', '2020 Seasons', '2020 Rates']);
     });
 
-    it('should record the nested entities', async (t) => {
+    it('should notify hooks of a change set for an entity nested at any depth', async (t) => {
+      const hook = transform(transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.name', 'sns/add-change-set/parks-v1')).set('0.projection', 'Parks');
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, hook, ADD_RATE_CHANGE_SET);
+
+      const { rows: notifications } = await filby.withTransaction((tx) => tx.query('SELECT h.name AS hook, n.event, n.projection_name, n.projection_version FROM fby_notification n INNER JOIN fby_hook h ON h.id = n.hook_id'));
+      deq(notifications, [{ hook: 'sns/add-change-set/parks-v1', event: 'ADD_CHANGE_SET', projection_name: 'Parks', projection_version: 1 }]);
+    });
+
+    it('should record the nested entities with their parents', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION);
 
       const { rows: nests } = await filby.withTransaction((tx) => tx.query(`
-        SELECT n.position, n.name, e.name AS entity, e.version
+        SELECT n.position, n.name, p.name AS parent, e.name AS entity, e.version
         FROM fby_projection_nest n
         INNER JOIN fby_entity e ON e.id = n.entity_id
-        ORDER BY n.position
+        LEFT JOIN fby_projection_nest p ON p.id = n.parent_nest_id
+        ORDER BY n.id
       `));
-      deq(nests, [{ position: 1, name: 'seasons', entity: 'season', version: 1 }]);
+      deq(nests, [
+        { position: 1, name: 'seasons', parent: null, entity: 'season', version: 1 },
+        { position: 1, name: 'rates', parent: 'seasons', entity: 'rate', version: 1 },
+      ]);
 
-      const { rows: joins } = await filby.withTransaction((tx) => tx.query('SELECT position, field, root_field FROM fby_projection_nest_on ORDER BY position'));
-      deq(joins, [{ position: 1, field: 'park_code', root_field: 'code' }]);
+      const { rows: joins } = await filby.withTransaction((tx) => tx.query(`
+        SELECT n.name, o.position, o.field, o.parent_field
+        FROM fby_projection_nest_on o
+        INNER JOIN fby_projection_nest n ON n.id = o.nest_id
+        ORDER BY n.id, o.position
+      `));
+      deq(joins, [
+        { name: 'seasons', position: 1, field: 'park_code', parent_field: 'code' },
+        { name: 'rates', position: 1, field: 'park_code', parent_field: 'park_code' },
+        { name: 'rates', position: 2, field: 'season_type', parent_field: 'type' },
+      ]);
 
-      const { rows: order } = await filby.withTransaction((tx) => tx.query('SELECT position, field, direction, nulls FROM fby_projection_nest_order ORDER BY position'));
+      const { rows: order } = await filby.withTransaction((tx) => tx.query(`
+        SELECT n.name, o.position, o.field, o.direction, o.nulls
+        FROM fby_projection_nest_order o
+        INNER JOIN fby_projection_nest n ON n.id = o.nest_id
+        ORDER BY n.id, o.position
+      `));
       deq(order, [
-        { position: 1, field: 'start', direction: 'DESC', nulls: null },
-        { position: 2, field: 'type', direction: 'ASC', nulls: null },
+        { name: 'seasons', position: 1, field: 'start', direction: 'DESC', nulls: null },
+        { name: 'seasons', position: 2, field: 'type', direction: 'ASC', nulls: null },
+        { name: 'rates', position: 1, field: 'band', direction: 'ASC', nulls: null },
       ]);
     });
 
@@ -1754,7 +1798,7 @@ describe('DSL', () => {
 
     it('should require the nested entity to exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.entity', 'Season@2')), (err) => {
-        eq(err.message, "Projection 'Parks v1' references a non existent entity 'Season v2'; existing entities are 'park v1', 'season v1'");
+        eq(err.message, "Projection 'Parks v1' references a non existent entity 'Season v2'; existing entities are 'park v1', 'rate v1', 'season v1'");
         return true;
       });
     });
@@ -1803,6 +1847,86 @@ describe('DSL', () => {
 
       const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
       eq(projections.length, 0);
+    });
+
+    it('should require a nested entity to exist at any depth', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.entity', 'Rate@2')), (err) => {
+        eq(err.message, "Projection 'Parks v1' references a non existent entity 'Rate v2'; existing entities are 'park v1', 'rate v1', 'season v1'");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest join on a field the nested entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.on', { wombat: 'type' })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.rates' joins on a non existent field 'wombat' of entity 'rate v1'; existing fields are 'park_code', 'season_type', 'band', 'amount'");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest join on a field the parent entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.on', { park_code: 'code' })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.rates' joins on a non existent field 'code' of entity 'season v1'; existing fields are 'park_code', 'type', 'start', 'end'");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest order on a field the nested entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.order', [{ field: 'wombat' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.rates' orders by a non existent field 'wombat' of entity 'rate v1'; existing fields are 'park_code', 'season_type', 'band', 'amount'");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest with the same name as a parent field', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', { Type: { entity: 'rate@1', on: { park_code: 'park_code' } } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.Type' has the same name as a field of entity 'season v1'");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest with a reserved name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', { fby_total: { entity: 'rate@1', on: { park_code: 'park_code' } } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.fby_total' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject nested nests with the same canonical name under the same parent', async (t) => {
+      const nest = { Rates: { entity: 'rate@1', on: { park_code: 'park_code' } }, rates: { entity: 'rate@1', on: { park_code: 'park_code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', nest)), (err) => {
+        eq(err.message, "Projection 'Parks v1' declares nest 'seasons.rates' more than once");
+        return true;
+      });
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
+      eq(projections.length, 0);
+    });
+
+    it('should allow nests with the same name under different parents', async (t) => {
+      const nest = { seasons: { entity: 'season@1', on: { park_code: 'code' }, nest: { rates: { entity: 'rate@1', on: { park_code: 'park_code', season_type: 'type' } } } }, rates: { entity: 'rate@1', on: { park_code: 'code' } } };
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(Object.keys(park), ['code', 'name', 'seasons', 'rates']);
+      eq(park.rates.length, 2);
+      deq(park.seasons.map((season) => season.rates.length), [2, 2, 0]);
+    });
+
+    it('should require nested nest entries to have an entity and a join', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).del('0.nest.seasons.nest.rates.entity')), (err) => {
+        eq(err.message, "001.should-require-nested-nest-entries-to-have-an-entity-and-a-join.yaml: /0/nest/seasons/nest/rates must have required property 'entity'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.on', {})), (err) => {
+        eq(err.message, '001.should-require-nested-nest-entries-to-have-an-entity-and-a-join.yaml: /0/nest/seasons/nest/rates/on must NOT have fewer than 1 properties');
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).merge('0.nest.seasons.nest.rates', { wombat: 1 })), (err) => {
+        eq(err.message, "001.should-require-nested-nest-entries-to-have-an-entity-and-a-join.yaml: /0/nest/seasons/nest/rates must NOT have additional property 'wombat'");
+        return true;
+      });
     });
 
     it('should require nest entries to have an entity', async (t) => {
@@ -1877,12 +2001,14 @@ describe('DSL', () => {
       ok(!await hasFunction('get_vat_rates_v1'));
     });
 
-    it('should drop a nested projection with its nested entities', async (t) => {
+    it('should drop a nested projection with its nested entities at every depth', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, transform(DROP_PROJECTION).set('0.name', 'Parks'));
       ok(!await hasFunction('get_parks_v1'));
 
       const { rows: nests } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection_nest'));
       eq(nests.length, 0);
+      const { rows: joins } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection_nest_on'));
+      eq(joins.length, 0);
 
       await filby.applyYaml(t.name, ADD_NESTED_PROJECTION);
       ok(await hasFunction('get_parks_v1'));

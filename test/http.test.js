@@ -18,6 +18,8 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_park_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS season_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_season_v1_aggregate');
+    await tx.query('DROP TABLE IF EXISTS rate_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
     await tx.query('DROP FUNCTION IF EXISTS get_samples_v1');
@@ -491,9 +493,9 @@ describe('HTTP', () => {
           code: 'DC',
           name: 'Devon Cliffs',
           seasons: [
-            { type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z' },
-            { type: 'Owners', start: '2019-03-01T00:00:00.000Z', end: '2019-11-30T00:00:00.000Z' },
-            { type: 'Guests', start: '2019-02-01T00:00:00.000Z', end: '2019-02-28T00:00:00.000Z' },
+            { type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z', rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+            { type: 'Owners', start: '2019-03-01T00:00:00.000Z', end: '2019-11-30T00:00:00.000Z', rates: [] },
+            { type: 'Guests', start: '2019-02-01T00:00:00.000Z', end: '2019-02-28T00:00:00.000Z', rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
           ],
         },
       ]);
@@ -755,8 +757,21 @@ describe('HTTP', () => {
               type: 'array',
               items: {
                 type: 'object',
-                properties: { type: { type: 'string' }, start: { type: 'string', format: 'date-time' }, end: { type: ['string', 'null'], format: 'date-time' } },
-                required: ['type', 'start'],
+                properties: {
+                  type: { type: 'string' },
+                  start: { type: 'string', format: 'date-time' },
+                  end: { type: ['string', 'null'], format: 'date-time' },
+                  rates: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: { band: { type: 'string' }, amount: { type: ['string', 'null'] } },
+                      required: ['band'],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ['type', 'start', 'rates'],
                 additionalProperties: false,
               },
             },
@@ -770,7 +785,8 @@ describe('HTTP', () => {
       eq(documents.length, 2);
       const validate = ajv.compile(schema);
       eq(validate(documents), true, JSON.stringify(validate.errors));
-      eq(validate([{ code: 'DC', name: 'Devon Cliffs', seasons: [{ type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z', park_code: 'DC' }] }]), false);
+      eq(validate([{ code: 'DC', name: 'Devon Cliffs', seasons: [{ type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z', rates: [], park_code: 'DC' }] }]), false);
+      eq(validate([{ code: 'DC', name: 'Devon Cliffs', seasons: [{ type: 'Guests', start: '2019-03-15T00:00:00.000Z', end: '2019-11-15T00:00:00.000Z', rates: [{ band: 'A', amount: '120.00', park_code: 'DC' }] }] }]), false);
     });
 
     it('should map field types to what node-pg emits', async (t) => {

@@ -408,36 +408,7 @@
           ]
         },
         "nest": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "entity": {
-                "type": "string",
-                "pattern": "@[0-9]+$"
-              },
-              "on": {
-                "type": "object",
-                "minProperties": 1,
-                "additionalProperties": {
-                  "type": "string"
-                }
-              },
-              "order": {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "$ref": "#/definitions/OrderItemType"
-                }
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "entity",
-              "on"
-            ]
-          }
+          "$ref": "#/definitions/NestType"
         }
       },
       "additionalProperties": false,
@@ -796,6 +767,41 @@
         "ADD_CHANGE_SET",
         "COMMENCE_CHANGE_SET"
       ]
+    },
+    "NestType": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "pattern": "@[0-9]+$"
+          },
+          "on": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "order": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/definitions/OrderItemType"
+            }
+          },
+          "nest": {
+            "$ref": "#/definitions/NestType"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "entity",
+          "on"
+        ]
+      }
     },
     "OrderItemType": {
       "type": "object",

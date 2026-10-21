@@ -216,7 +216,7 @@ A *Change Set* groups data frames, potentially for different entities, into a si
 An *Aggregate* is the state of an entity at a change set: one row per key, resolved from the entity's data frames by the rule in [The Snapshot Guarantee](#the-snapshot-guarantee), with a record whose latest frame is a `DELETE` omitted. Filby creates an aggregate function for each entity version, with the signature `get_<entity>_v<version>_aggregate(p_change_set_id INTEGER)`. Entity names are converted to lowercase and spaces to underscores, so the aggregate of version 1 of the 'Park' entity is `get_park_v1_aggregate`. Projections are built on these functions, and `getAggregates` calls them for you.
 
 ### Projection
-A *Projection* is a versioned view of one or more entities, made available in the example applications via a RESTful API. Most projections are declared in the DSL by naming a root entity, and Filby generates a function that returns one row per root record at a given change set, with optional parameters for filtering, a declared order and paging. One-to-many related entities can be nested under the root with a `nest` block, and `getDocuments` assembles one document per root record with the related records embedded, with paging still counting root records. The projection's dependencies, the entities whose change sets affect it, are derived from the root and the nested entities. When a projection needs a shape the DSL cannot express, write the SQL yourself over the aggregate functions and declare the entities it depends on instead, so Filby still knows which projections a change set affects. A reference to a projection always names the version, as `parks@1` or as `projection: parks` with `version: 1`.
+A *Projection* is a versioned view of one or more entities, made available in the example applications via a RESTful API. Most projections are declared in the DSL by naming a root entity, and Filby generates a function that returns one row per root record at a given change set, with optional parameters for filtering, a declared order and paging. One-to-many related entities can be nested under the root with a `nest` block, and a nested entity can nest its own children to any depth, each level joining to its parent. `getDocuments` assembles one document per root record with the related records embedded at every level, with paging still counting root records. The projection's dependencies, the entities whose change sets affect it, are derived from the root and the nested entities. When a projection needs a shape the DSL cannot express, write the SQL yourself over the aggregate functions and declare the entities it depends on instead, so Filby still knows which projections a change set affects. A reference to a projection always names the version, as `parks@1` or as `projection: parks` with `version: 1`.
 
 ### Hook
 A *Hook* pairs a unique name with an *Event*. Your application registers a handler for the hook by name with `filby.subscribe`, and can handle the event how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
@@ -311,19 +311,30 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
   # filby.getDocuments returns one document per root row with a property per entry,
   # here seasons, holding a list of the child's fields, except the join fields, in the
   # nested order (the child's key is appended as a tie break), or an empty list when
-  # the root has no children. A page is N parks with all their seasons, and the total
-  # counts parks. The nested entities are dependencies of the projection too, so a
-  # change set for a season notifies the hooks below
+  # the root has no children. An entry may nest its own children in the same way, to
+  # any depth, so each season here holds its rates. A page is N parks with all their
+  # seasons and rates, and the total counts parks. The nested entities are dependencies
+  # of the projection too, so a change set for a season or a rate notifies the hooks
+  # below
   nest:
     seasons:
       entity: season@1
-      # Maps the child's field to the root's field
+      # Maps the child's field to the parent's field, here the root's
       on:
         park_code: code
       order:
         - field: start
           direction: DESC
         - field: type
+      nest:
+        rates:
+          entity: rate@1
+          # Maps the rate's field to the season's field
+          on:
+            park_code: park_code
+            season_type: type
+          order:
+            - field: band
 
 # A projection whose SQL you write yourself (see the custom SQL migration below)
 # declares the entities it depends on instead of a root
@@ -648,7 +659,7 @@ async function getParks(changeSetId) {
 ```
 
 #### filby.getDocuments&lt;T&gt;(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise&lt;Documents&lt;T&gt;&gt;
-Calls the function generated for a projection declared with a `root` and returns its rows as documents, each with one array property per `nest` entry. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `rate_from`, `rate_to` or `types`, with values of the type the function expects (an array for `in`); a parameter that is not supplied does not filter, and an unknown one rejects with `Projection 'parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Nested values pass through [node-pg](https://node-postgres.com/) exactly as the root's do, so a timestamp is a `Date` at either level. Rejects with `Projection 'park v1' is not declared with a root` for a projection declared with `dependencies`; call its function directly instead.
+Calls the function generated for a projection declared with a `root` and returns its rows as documents, each with one array property per `nest` entry, and each nested document likewise carries the entries nested under it, to the declared depth. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `rate_from`, `rate_to` or `types`, with values of the type the function expects (an array for `in`); a parameter that is not supplied does not filter, and an unknown one rejects with `Projection 'parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Nested values pass through [node-pg](https://node-postgres.com/) exactly as the root's do, so a timestamp is a `Date` at either level. Rejects with `Projection 'park v1' is not declared with a root` for a projection declared with `dependencies`; call its function directly instead.
 
 ```js
 async function getParks(changeSetId, code) {
@@ -708,7 +719,7 @@ async function getParks(changeSetId) {
 ```
 
 ## Configuration
-Filby requires Node.js 22.12 or later and PostgreSQL 13 or later, and is tested against PostgreSQL 16.
+Filby requires Node.js 22.12 or later and PostgreSQL 15 or later, and is tested against PostgreSQL 16.
 
 ```js
 {
