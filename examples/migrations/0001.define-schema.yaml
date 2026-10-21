@@ -397,7 +397,7 @@
 
 - operation: ADD_PROJECTION
   name: Catalogue
-  description: The whole product range, from manufacturer to model to each model's grades, prices and accessories
+  description: The whole product range, from manufacturer to model to each model's prices and accessories
   root: Manufacturer@1
   parameters:
     code:
@@ -412,12 +412,6 @@
       order:
         - field: Name
       nest:
-        Grades:
-          entity: Grade Model@1
-          on:
-            Model Code: Code
-          order:
-            - field: Year
         Prices:
           entity: Price@1
           on:
@@ -433,7 +427,7 @@
 
 - operation: ADD_PROJECTION
   name: Models
-  description: Models with their grades, list prices and accessories, for a search page
+  description: Models with their list prices and accessories, for a search page
   root: Model@1
   parameters:
     code:
@@ -458,12 +452,6 @@
     page_size: 10
     page_max: 100
   nest:
-    Grades:
-      entity: Grade Model@1
-      on:
-        Model Code: Code
-      order:
-        - field: Year
     Prices:
       entity: Price@1
       on:

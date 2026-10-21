@@ -80,15 +80,15 @@ describe('API', () => {
       deq(park, {
         ...devonCliffs,
         amenities: [
-          { amenity_code: 'ARCADE', amenity: [{ name: 'Amusement Arcade', category: 'Entertainment', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' }] },
-          { amenity_code: 'BEACH', amenity: [{ name: 'Beach Access', category: 'Nature', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
-          { amenity_code: 'CLUB', amenity: [{ name: 'Kids Club', category: 'Entertainment', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' }] },
-          { amenity_code: 'GOLF', amenity: [{ name: 'Crazy Golf', category: 'Sport', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' }] },
-          { amenity_code: 'IPOOL', amenity: [{ name: 'Indoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
-          { amenity_code: 'OPOOL', amenity: [{ name: 'Outdoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
-          { amenity_code: 'REST', amenity: [{ name: 'Restaurant', category: 'Food', age_group: 'All Ages', charge: 'Paid', vat_code: 'Standard' }] },
-          { amenity_code: 'SHOW', amenity: [{ name: 'Showbar', category: 'Entertainment', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
-          { amenity_code: 'SPLASH', amenity: [{ name: 'Splash Zone', category: 'Pool', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'AMUSEMENT_ARCADE', amenity: [{ name: 'Amusement Arcade', category: 'Entertainment', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'BEACH_ACCESS', amenity: [{ name: 'Beach Access', category: 'Nature', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'CRAZY_GOLF', amenity: [{ name: 'Crazy Golf', category: 'Sport', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'INDOOR_POOL', amenity: [{ name: 'Indoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'KIDS_CLUB', amenity: [{ name: 'Kids Club', category: 'Entertainment', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'OUTDOOR_POOL', amenity: [{ name: 'Outdoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'RESTAURANT', amenity: [{ name: 'Restaurant', category: 'Food', age_group: 'All Ages', charge: 'Paid', vat_code: 'Standard' }] },
+          { amenity_code: 'SHOWBAR', amenity: [{ name: 'Showbar', category: 'Entertainment', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' }] },
+          { amenity_code: 'SPLASH_ZONE', amenity: [{ name: 'Splash Zone', category: 'Pool', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' }] },
         ],
       });
     });
@@ -104,7 +104,7 @@ describe('API', () => {
       const [park] = await response.json();
       deq(park, {
         ...devonCliffs,
-        amenities: ['ARCADE', 'BEACH', 'CLUB', 'GOLF', 'IPOOL', 'OPOOL', 'REST', 'SHOW', 'SPLASH'].map((amenity_code) => ({ amenity_code })),
+        amenities: ['AMUSEMENT_ARCADE', 'BEACH_ACCESS', 'CRAZY_GOLF', 'INDOOR_POOL', 'KIDS_CLUB', 'OUTDOOR_POOL', 'RESTAURANT', 'SHOWBAR', 'SPLASH_ZONE'].map((amenity_code) => ({ amenity_code })),
       });
     });
   });
@@ -141,9 +141,9 @@ describe('API', () => {
     });
 
     it('should respond with the amenity', async () => {
-      const response = await get('/api/projections/Amenities/v1?changeSetId=1&code=CLUB');
+      const response = await get('/api/projections/Amenities/v1?changeSetId=1&code=KIDS_CLUB');
       eq(response.status, 200);
-      deq(await response.json(), [{ code: 'CLUB', name: 'Kids Club', category: 'Entertainment', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' }]);
+      deq(await response.json(), [{ code: 'KIDS_CLUB', name: 'Kids Club', category: 'Entertainment', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' }]);
     });
 
     it('should filter the amenities by a list of categories in name order', async () => {
@@ -165,7 +165,7 @@ describe('API', () => {
       ]);
     });
 
-    it('should respond with the manufacturers, their models, and each model\'s grades, prices and accessories', async () => {
+    it('should respond with the manufacturers, their models, and each model\'s prices and accessories', async () => {
       const response = await get('/api/projections/Catalogue/v1?changeSetId=5');
       eq(response.status, 200);
       const manufacturers = await response.json();
@@ -173,12 +173,10 @@ describe('API', () => {
 
       const [ambleside, arizona, beverley] = manufacturers[0].models;
       eq(ambleside.name, 'ABI Ambleside');
-      deq(ambleside.grades, [{ grade_code: 'Silver', year: 2026 }]);
       deq(ambleside.prices, [{ year: 2026, list_price: '22995.00' }]);
       deq(ambleside.accessories, [{ code: 'AMB-DEC', name: 'Decking', price: '3995.00' }, { code: 'AMB-VER', name: 'Veranda', price: '2495.00' }]);
 
       eq(arizona.name, 'ABI Arizona');
-      deq(arizona.grades, [{ grade_code: 'Bronze', year: 2025 }]);
       deq(arizona.prices, [{ year: 2025, list_price: '19995.00' }]);
       deq(arizona.accessories, []);
 
@@ -212,7 +210,6 @@ describe('API', () => {
       const [victory] = await response.json();
       eq(victory.models.length, 1);
       eq(victory.models[0].name, 'Victory Vermont Classic');
-      deq(victory.models[0].grades, [{ grade_code: 'Saver', year: 2025 }, { grade_code: 'Saver', year: 2026 }, { grade_code: 'Saver', year: 2027 }]);
       deq(victory.models[0].prices, [{ year: 2025, list_price: '15995.00' }, { year: 2026, list_price: '16450.00' }, { year: 2027, list_price: '16950.00' }]);
       deq(victory.models[0].accessories, [{ code: 'VER-DEC', name: 'Decking', price: '4195.00' }, { code: 'VER-VER', name: 'Veranda', price: '2595.00' }]);
     });
@@ -318,9 +315,10 @@ describe('API', () => {
       deq(models.properties.berths, { type: 'integer' });
       deq(models.properties.length, { type: 'string' });
       deq(models.properties.double_glazed, { type: 'boolean' });
-      deq(models.required, ['code', 'manufacturer_code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'grades', 'prices', 'accessories']);
+      deq(models.required, ['code', 'manufacturer_code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories']);
 
       const catalogue = schema(document, 'Catalogue');
+      deq(Object.keys(catalogue.properties.models.items.properties), ['code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories']);
       deq(Object.keys(catalogue.properties.models.items.properties.prices.items.properties), ['year', 'list_price']);
     });
   });

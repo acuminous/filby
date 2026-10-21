@@ -139,12 +139,6 @@ GET /api/projections/Catalogue/v1?changeSetId=2&code=VIC
         "heating": "None",
         "double_glazed": false,
         "vat_code": "Holiday Caravan",
-        "grades": [
-          {
-            "grade_code": "Saver",
-            "year": 2025
-          }
-        ],
         "prices": [
           {
             "year": 2025,
@@ -380,26 +374,26 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
         - field: Customer Type
 
 # An entry may nest its own children in the same way, to any depth, each level joining
-# to its parent. Here each manufacturer holds its models and each model holds the
-# grade it was awarded each year
+# to its parent. Here each park holds the amenities it offers and each of those holds
+# the amenity itself, so a document carries the amenity's name rather than its code
 - operation: ADD_PROJECTION
-  name: Catalogue
-  root: Manufacturer@1
+  name: Parks (Detailed)
+  root: Park@1
   nest:
-    Models:
-      entity: Model@1
+    Amenities:
+      entity: Park Amenity@1
       on:
-        Manufacturer Code: Code
+        Park Code: Code
       order:
-        - field: Name
+        - field: Amenity Code
       nest:
-        Grades:
-          entity: Grade Model@1
-          # Maps the grade's field to the model's field
+        Amenity:
+          entity: Amenity@1
+          # Maps the amenity's field to the park amenity's field
           on:
-            Model Code: Code
+            Code: Amenity Code
           order:
-            - field: Year
+            - field: Name
 
 # A projection whose SQL you write yourself (see the custom SQL migration below)
 # declares the entities it depends on instead of a root. Filby still knows which
@@ -944,7 +938,7 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, seasons, offers and the models they sell, and a catalogue of manufacturers, models, grades, accessories, prices and VAT rates. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
+The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
 
 | Id | Effective | Description |
 | -- | --------- | ----------- |
@@ -990,7 +984,7 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
     "region": "South West",
     "amenities": [
       {
-        "amenity_code": "ARCADE",
+        "amenity_code": "AMUSEMENT_ARCADE",
         "amenity": [
           {
             "name": "Amusement Arcade",
@@ -1002,7 +996,7 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
         ]
       },
       {
-        "amenity_code": "BEACH",
+        "amenity_code": "BEACH_ACCESS",
         "amenity": [
           {
             "name": "Beach Access",
@@ -1014,13 +1008,13 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
         ]
       },
       {
-        "amenity_code": "CLUB",
+        "amenity_code": "CRAZY_GOLF",
         "amenity": [
           {
-            "name": "Kids Club",
-            "category": "Entertainment",
-            "age_group": "Children",
-            "charge": "Free",
+            "name": "Crazy Golf",
+            "category": "Sport",
+            "age_group": "All Ages",
+            "charge": "Paid",
             "vat_code": "Family Attraction"
           }
         ]
@@ -1133,7 +1127,7 @@ GET http://localhost:3000/api/changelog?projection=Catalogue&version=1
 ]
 ```
 
-Change set 2 was in force on 1 June 2025, so `Catalogue` at change set 2 is the whole range as it stood, each manufacturer with its models and each model with the grades, prices and accessories it had then. It has no paging because a product range is read whole; `Models` is the same data one model at a time, with the parameters a search page needs.
+Change set 2 was in force on 1 June 2025, so `Catalogue` at change set 2 is the whole range as it stood, each manufacturer with its models and each model with the prices and accessories it had then. It has no paging because a product range is read whole; `Models` is the same data one model at a time, with the parameters a search page needs.
 
 ```
 GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC
@@ -1155,12 +1149,6 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC
         "heating": "None",
         "double_glazed": false,
         "vat_code": "Holiday Caravan",
-        "grades": [
-          {
-            "grade_code": "Saver",
-            "year": 2025
-          }
-        ],
         "prices": [
           {
             "year": 2025,
@@ -1253,20 +1241,6 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=10&code=VIC
         "heating": "None",
         "double_glazed": false,
         "vat_code": "Holiday Caravan",
-        "grades": [
-          {
-            "grade_code": "Saver",
-            "year": 2025
-          },
-          {
-            "grade_code": "Saver",
-            "year": 2026
-          },
-          {
-            "grade_code": "Saver",
-            "year": 2027
-          }
-        ],
         "prices": [
           {
             "year": 2025,
