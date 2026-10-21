@@ -11,8 +11,10 @@
       source: ./csv/catalogue-2025/accessory.csv
     - entity: Grade@1
       source: ./csv/catalogue-2025/grade.csv
-    - entity: Model Grade@1
-      source: ./csv/catalogue-2025/model-grade.csv
+    - entity: Grade Attribute@1
+      source: ./csv/catalogue-2025/grade-attribute.csv
+    - entity: Grade Model@1
+      source: ./csv/catalogue-2025/grade-model.csv
     - entity: Price@1
       source: ./csv/catalogue-2025/price.csv
     - entity: VAT Rate@1

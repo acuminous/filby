@@ -5,8 +5,8 @@
   changes:
     - entity: Model@1
       source: ./csv/catalogue-2027/model.csv
-    - entity: Model Grade@1
-      source: ./csv/catalogue-2027/model-grade.csv
+    - entity: Grade Model@1
+      source: ./csv/catalogue-2027/grade-model.csv
     - entity: Price@1
       source: ./csv/catalogue-2027/price.csv
     - entity: Accessory@1
