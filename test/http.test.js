@@ -84,6 +84,9 @@ describe('HTTP', () => {
 
       const changelog = await get('/api/changelog?projection=VAT%20Rates&version=1', { basePath: '/api' });
       eq(changelog.status, 200);
+
+      const projections = await get('/api/projections', { basePath: '/api' });
+      eq(projections.status, 200);
     });
 
     it('should respond with 404 for a path outside the base path', async () => {
@@ -96,6 +99,44 @@ describe('HTTP', () => {
 
       const response = await get('/changelog?projection=VAT%20Rates&version=1');
       eq(response.headers.get('Content-Type'), 'application/json');
+    });
+  });
+
+  describe('Projection List', () => {
+
+    it('should respond with an empty list when there are no projections', async () => {
+      const response = await get('/projections');
+      eq(response.status, 200);
+      eq(response.headers.get('Content-Type'), 'application/json');
+      deq(await response.json(), []);
+    });
+
+    it('should list the projections in name and version order', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.description', 'Rates of VAT'), transform(ADD_PROJECTION).set('0.version', 2), ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION);
+
+      const response = await get('/projections');
+      eq(response.status, 200);
+      deq(await response.json(), [
+        { name: 'Parks', version: 1, description: null },
+        { name: 'VAT Rates', version: 1, description: 'Rates of VAT' },
+        { name: 'VAT Rates', version: 2, description: null },
+      ]);
+    });
+
+    it('should not set caching headers', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const response = await get('/projections');
+      eq(response.headers.get('Cache-Control'), null);
+      eq(response.headers.get('ETag'), null);
+      eq(response.headers.get('Last-Modified'), null);
+    });
+
+    it('should respond with 405 for a method other than GET', async () => {
+      const response = await filby.fetch(new Request('http://localhost/projections', { method: 'POST' }));
+      eq(response.status, 405);
+      eq(response.headers.get('Allow'), 'GET');
+      deq(await response.json(), { error: 'Method POST is not allowed' });
     });
   });
 
@@ -569,10 +610,36 @@ describe('HTTP', () => {
       eq(response.headers.get('ETag'), null);
       const document = await response.json();
       eq(document.openapi, '3.1.0');
-      deq(Object.keys(document.paths), ['/changelog', '/projections/Parks/v1', '/projections/Samples/v1', '/projections/VAT%20Rates/v1', '/projections/VAT%20Rates/v2']);
+      deq(Object.keys(document.paths), ['/projections', '/changelog', '/projections/Parks/v1', '/projections/Samples/v1', '/projections/VAT%20Rates/v1', '/projections/VAT%20Rates/v2']);
       const { valid, errors } = await new Validator().validate(document);
       deq(errors, undefined);
       eq(valid, true);
+    });
+
+    it('should describe the projection list', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.description', 'Rates of VAT'), transform(ADD_PROJECTION).set('0.version', 2));
+
+      const { paths, components } = await getDocument();
+      const { get: operation } = paths['/projections'];
+      eq(operation.operationId, 'getProjections');
+      eq(operation.parameters, undefined);
+      deq(Object.keys(operation.responses), ['200']);
+      eq(operation.responses['200'].headers, undefined);
+      deq(operation.responses['200'].content['application/json'].schema, { type: 'array', items: { $ref: '#/components/schemas/Projection' } });
+      deq(components.schemas.Projection, {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          version: { type: 'integer' },
+          description: { type: ['string', 'null'] },
+        },
+        required: ['name', 'version', 'description'],
+        additionalProperties: false,
+      });
+
+      const validate = ajv.compile({ type: 'array', items: components.schemas.Projection, minItems: 2 });
+      const projections = await (await get('/projections')).json();
+      eq(validate(projections), true, JSON.stringify(validate.errors));
     });
 
     it('should describe the change log', async (t) => {
@@ -760,7 +827,7 @@ describe('HTTP', () => {
       eq(response.status, 200);
       const document = await response.json();
       deq(document.servers, [{ url: '/api' }]);
-      deq(Object.keys(document.paths), ['/changelog', '/projections/VAT%20Rates/v1']);
+      deq(Object.keys(document.paths), ['/projections', '/changelog', '/projections/VAT%20Rates/v1']);
 
       const outside = await get('/openapi.json', { basePath: '/api' });
       eq(outside.status, 404);
