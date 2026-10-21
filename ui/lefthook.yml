@@ -1,0 +1,6 @@
+pre-commit:
+  jobs:
+    - name: lint
+      glob: '*.{js,ts,tsx}'
+      run: npx biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true

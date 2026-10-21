@@ -1,0 +1,40 @@
+{
+  "name": "filby-ui",
+  "version": "0.1.0",
+  "description": "A read-only web UI for any application that mounts Filby's HTTP handler",
+  "private": true,
+  "type": "module",
+  "author": "Stephen Cresswell",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "bin": {
+    "filby-ui": "bin/filby-ui.js"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "lint": "biome ci .",
+    "prepare": "lefthook install",
+    "start": "node bin/filby-ui.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@preact/signals": "^2.11.3",
+    "hono": "^4.13.13",
+    "preact": "^11.0.1",
+    "preact-iso": "^2.12.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@preact/preset-vite": "^2.10.6",
+    "@testing-library/preact": "^3.2.4",
+    "happy-dom": "^21.0.4",
+    "lefthook": "^2.2.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}
