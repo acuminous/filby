@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { columns, describeProjection, filters, paging } from '../src/schema';
-import { CHANGE_SET_ID, PAGE, PAGE_SIZE, PARK_SCHEMA, openapi, operation, parameter } from './fixtures';
+import { columns, describeProjection, filters, inferColumns, paging } from '../src/schema';
+import { CHANGE_SET_ID, DETAILED_SCHEMA, PAGE, PAGE_SIZE, PARK_SCHEMA, detailedPark, openapi, operation, parameter } from './fixtures';
 
 describe('filters', () => {
   it('ignores the reserved parameters', () => {
@@ -55,8 +55,43 @@ describe('columns', () => {
     expect(columns({ type: 'object', properties: { type: { anyOf: [{ type: 'string', enum: ['a'] }, { type: 'null' }] } } })).toEqual([{ name: 'type', kind: 'value' }]);
   });
 
+  it('treats a nullable object as a lookup with its own columns', () => {
+    expect(columns(DETAILED_SCHEMA)).toEqual([
+      { name: 'code', kind: 'value' },
+      { name: 'name', kind: 'value' },
+      { name: 'amenities', kind: 'table', columns: [{ name: 'amenity_code', kind: 'value' }, { name: 'amenity', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'category', kind: 'value' }] }] },
+      { name: 'beach_routes', kind: 'table', columns: [{ name: 'beach_code', kind: 'value' }, { name: 'distance_metres', kind: 'value' }, { name: 'beach', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'surfaces', kind: 'array' }, { name: 'surveyed', kind: 'date-time' }] }] },
+    ]);
+  });
+
+  it('treats an object at the root as a lookup', () => {
+    expect(columns({ type: 'object', properties: { code: { type: 'string' }, region: { type: 'object', properties: { name: { type: 'string' } } } } })).toEqual([
+      { name: 'code', kind: 'value' },
+      { name: 'region', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }] },
+    ]);
+  });
+
   it('returns nothing for an unconstrained schema', () => {
     expect(columns({ type: 'object' })).toBeUndefined();
+  });
+});
+
+describe('inferColumns', () => {
+  it('infers nested arrays, value arrays and lookups from the documents', () => {
+    expect(inferColumns([detailedPark(), detailedPark({ code: 'PV', amenities: [], beach_routes: [{ beach_code: 'NONE', distance_metres: 0, beach: null }] })])).toEqual([
+      { name: 'code', kind: 'value' },
+      { name: 'name', kind: 'value' },
+      { name: 'amenities', kind: 'table', columns: [{ name: 'amenity_code', kind: 'value' }, { name: 'amenity', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'category', kind: 'value' }] }] },
+      { name: 'beach_routes', kind: 'table', columns: [{ name: 'beach_code', kind: 'value' }, { name: 'distance_metres', kind: 'value' }, { name: 'beach', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'surfaces', kind: 'array' }, { name: 'surveyed', kind: 'value' }] }] },
+    ]);
+  });
+
+  it('keeps a property that is sometimes an object as a value', () => {
+    expect(inferColumns([{ a: { b: 1 } }, { a: 2 }, { a: null }])).toEqual([{ name: 'a', kind: 'value' }]);
+  });
+
+  it('keeps a property that is always null as a value', () => {
+    expect(inferColumns([{ a: null }])).toEqual([{ name: 'a', kind: 'value' }]);
   });
 });
 

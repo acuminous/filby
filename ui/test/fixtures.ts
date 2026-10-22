@@ -72,6 +72,39 @@ export function stubApi(routes: Routes) {
   return requests;
 }
 
+const AMENITY: Schema = { type: 'object', properties: { name: { type: 'string' }, category: { type: 'string', enum: ['Pool', 'Entertainment'] } }, required: ['name', 'category'], additionalProperties: false };
+
+const BEACH: Schema = { type: 'object', properties: { name: { type: 'string' }, surfaces: { type: 'array', items: { type: 'string', enum: ['Sandy', 'Rocky'] } }, surveyed: { type: 'string', format: 'date-time' } }, required: ['name', 'surfaces', 'surveyed'], additionalProperties: false };
+
+export const DETAILED_SCHEMA: Schema = {
+  type: 'object',
+  properties: {
+    code: { type: 'string' },
+    name: { type: 'string' },
+    amenities: { type: 'array', items: { type: 'object', properties: { amenity_code: { type: 'string' }, amenity: { anyOf: [AMENITY, { type: 'null' }] } }, required: ['amenity_code', 'amenity'], additionalProperties: false } },
+    beach_routes: { type: 'array', items: { type: 'object', properties: { beach_code: { type: 'string' }, distance_metres: { type: 'integer' }, beach: { anyOf: [BEACH, { type: 'null' }] } }, required: ['beach_code', 'distance_metres', 'beach'], additionalProperties: false } },
+  },
+  required: ['code', 'name', 'amenities', 'beach_routes'],
+  additionalProperties: false,
+};
+
+export function detailed(): Operation {
+  return operation({ operationId: 'get_parks_detailed_v1', summary: 'Parks (Detailed) v1', parameters: [CHANGE_SET_ID], responses: { 200: { description: 'The documents', content: { 'application/json': { schema: { type: 'array', items: DETAILED_SCHEMA } } } } } });
+}
+
+export function detailedPark(overrides: Partial<Document> = {}): Document {
+  return {
+    code: 'DC',
+    name: 'Devon Cliffs',
+    amenities: [
+      { amenity_code: 'INDOOR_POOL', amenity: { name: 'Indoor Pool', category: 'Pool' } },
+      { amenity_code: 'LIDO', amenity: null },
+    ],
+    beach_routes: [{ beach_code: 'SANDY_BAY', distance_metres: 400, beach: { name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'], surveyed: '2020-03-01T00:00:00.000Z' } }],
+    ...overrides,
+  };
+}
+
 export const DEEP_SCHEMA: Schema = {
   type: 'object',
   properties: {

@@ -4,7 +4,7 @@ const RESERVED = ['changeSetId', 'page', 'pageSize'];
 
 export type Filter = { kind: 'value'; name: string; values?: string[] } | { kind: 'list'; name: string; values?: string[] } | { kind: 'range'; name: string; from: string; to: string };
 
-export type Column = { name: string; kind: 'value' | 'date-time' | 'array' | 'table'; columns?: Column[] };
+export type Column = { name: string; kind: 'value' | 'date-time' | 'array' | 'table' | 'lookup'; columns?: Column[] };
 
 export type Paging = { size?: number; max?: number };
 
@@ -42,6 +42,8 @@ export function columns(schema: Schema): Column[] | undefined {
     const type = baseType(property);
     if (type === 'array' && property.items?.properties) return { name, kind: 'table', columns: columns(property.items) };
     if (type === 'array') return { name, kind: 'array' };
+    const object = objectSchema(property);
+    if (object) return { name, kind: 'lookup', columns: columns(object) };
     if (property.format === 'date-time') return { name, kind: 'date-time' };
     return { name, kind: 'value' };
   });
@@ -62,8 +64,18 @@ export function inferColumns(documents: Document[]): Column[] {
       return { name, kind: 'table', columns: inferColumns(nested as Document[]) };
     }
     if (values.length > 0 && values.every(Array.isArray)) return { name, kind: 'array' };
+    if (values.length > 0 && values.every(isPlainObject)) return { name, kind: 'lookup', columns: inferColumns(values as Document[]) };
     return { name, kind: 'value' };
   });
+}
+
+function isPlainObject(value: unknown): value is Document {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function objectSchema(schema: Schema): Schema | undefined {
+  if (schema.properties) return schema;
+  return schema.anyOf?.find((option) => option.properties);
 }
 
 function baseType(schema: Schema | undefined): string | undefined {

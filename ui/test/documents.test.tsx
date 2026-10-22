@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it } from 'vitest';
 
-import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, deep, openapi, operation, parameter, park, stubApi } from './fixtures';
+import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, deep, detailed, detailedPark, openapi, operation, parameter, park, stubApi } from './fixtures';
 import { renderAt } from './render';
 
 const PARKS = [park(), park({ code: 'PV', name: null, seasons: [] })];
@@ -68,6 +68,34 @@ describe('Documents', () => {
     const tables = await screen.findAllByRole('table');
     expect(tables).toHaveLength(3);
     expect(Array.from(tables[2]?.querySelectorAll('td') ?? []).map((td) => td.textContent)).toEqual(['7', '8']);
+  });
+
+  it('renders lookups as columns of the parent table under a grouped header', async () => {
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': detailed() }) }, '/api/projections/Parks%20(Detailed)/v1': { body: [detailedPark()] } });
+    renderAt('/projections/Parks%20(Detailed)/v1/change-sets/2');
+    const tables = await screen.findAllByRole('table');
+    expect(tables).toHaveLength(3);
+    expect(tables[0]?.querySelectorAll(':scope > thead > tr')).toHaveLength(1);
+    const amenities = tables[1] as HTMLTableElement;
+    const [groups, names] = Array.from(amenities.querySelectorAll(':scope > thead > tr')) as HTMLTableRowElement[];
+    expect(Array.from(groups?.cells ?? []).map((th) => [th.textContent, th.colSpan])).toEqual([['', 1], ['amenity', 2]]);
+    expect(Array.from(names?.cells ?? []).map((th) => th.textContent)).toEqual(['amenity_code', 'name', 'category']);
+    const rows = Array.from(amenities.querySelectorAll(':scope > tbody > tr'));
+    expect(Array.from(rows[0]?.querySelectorAll('td') ?? []).map((td) => td.textContent)).toEqual(['INDOOR_POOL', 'Indoor Pool', 'Pool']);
+    expect(Array.from(rows[1]?.querySelectorAll('td') ?? []).map((td) => td.textContent)).toEqual(['LIDO', 'null', 'null']);
+    expect(rows[1]?.querySelectorAll('td .null')).toHaveLength(2);
+    const routes = tables[2] as HTMLTableElement;
+    expect(within(routes).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['', '', 'beach', 'beach_code', 'distance_metres', 'name', 'surfaces', 'surveyed']);
+    expect(Array.from(routes.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['SANDY_BAY', '400', 'Sandy Bay', 'Sandy, Rocky', 'Mar 1, 2020, 12:00 AM']);
+  });
+
+  it('infers lookups from the documents', async () => {
+    const rows = operation({ parameters: [CHANGE_SET_ID], responses: { 200: { description: 'Rows', content: { 'application/json': { schema: { type: 'array', items: { type: 'object' } } } } } } });
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': rows }) }, '/api/projections/Parks/v1': { body: [{ park: 'DC', region: { name: 'South West' } }, { park: 'PV', region: null }] } });
+    renderAt('/projections/Parks/v1/change-sets/2');
+    const table = (await screen.findByRole('table')) as HTMLTableElement;
+    expect(within(table).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['', 'region', 'park', 'name']);
+    expect(Array.from(table.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['DC', 'South West', 'PV', 'null']);
   });
 
   it('infers the columns of function rows from the documents', async () => {

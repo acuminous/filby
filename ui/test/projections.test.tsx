@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it } from 'vitest';
 
-import { CHANGE_SET_ID, PAGE, deep, openapi, operation, parameter, projection, stubApi } from './fixtures';
+import { CHANGE_SET_ID, PAGE, deep, detailed, openapi, operation, parameter, projection, stubApi } from './fixtures';
 import { renderAt } from './render';
 
 const VAT_RATES = operation({
@@ -50,16 +50,22 @@ describe('Projections', () => {
     stub();
     renderAt('/');
     expect(await entries()).toEqual([
-      { title: 'Parksv1', description: 'Holiday parks and their seasons', details: ['codename', 'code', 'seasons', '2 per page, up to 3'], href: '/projections/Parks/v1' },
-      { title: 'VAT Ratesv1', description: '', details: ['typerate', 'typetypesinraterange', 'none', '10 per page'], href: '/projections/VAT%20Rates/v1' },
-      { title: 'Summaryv3', description: 'A function', details: ['function rows', 'none', 'none', 'on request'], href: '/projections/Summary/v3' },
+      { title: 'Parksv1', description: 'Holiday parks and their seasons', details: ['codename', 'code', 'seasons', 'none', '2 per page, up to 3'], href: '/projections/Parks/v1' },
+      { title: 'VAT Ratesv1', description: '', details: ['typerate', 'typetypesinraterange', 'none', 'none', '10 per page'], href: '/projections/VAT%20Rates/v1' },
+      { title: 'Summaryv3', description: 'A function', details: ['function rows', 'none', 'none', 'none', 'on request'], href: '/projections/Summary/v3' },
     ]);
   });
 
   it('shows nested arrays to any depth', async () => {
     stubApi({ '/api/projections': { body: [projection()] }, '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': deep() }) } });
     renderAt('/');
-    expect((await entries())[0]?.details).toEqual(['id', 'none', 'aa.b', 'none']);
+    expect((await entries())[0]?.details).toEqual(['id', 'none', 'aa.b', 'none', 'none']);
+  });
+
+  it('shows lookups as dotted paths', async () => {
+    stubApi({ '/api/projections': { body: [projection({ name: 'Parks (Detailed)' })] }, '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': detailed() }) } });
+    renderAt('/');
+    expect((await entries())[0]?.details).toEqual(['codename', 'none', 'amenitiesbeach_routes', 'amenities.amenitybeach_routes.beach', 'none']);
   });
 
   it('opens the change sets on click', async () => {
