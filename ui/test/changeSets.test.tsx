@@ -41,7 +41,7 @@ describe('Change sets', () => {
     expect(screen.getByText('3 change sets')).toBeTruthy();
     expect(items).toEqual([
       { when: 'Jan 1, 2022, 12:00 AM', what: '#32022 Parksnot yet live', meta: 'modified Dec 1, 2019, 10:30 AM · a1b2c3d4', current: null },
-      { when: 'Jan 1, 2021, 12:00 AM', what: '#22021 Parksliveas of', meta: 'modified Dec 1, 2019, 10:30 AM · ffff0000', current: 'true' },
+      { when: 'Jan 1, 2021, 12:00 AM', what: '#22021 Parkslive', meta: 'modified Dec 1, 2019, 10:30 AM · ffff0000', current: 'true' },
       { when: 'Jan 1, 2020, 12:00 AM', what: '#12020 Parks', meta: 'modified Dec 1, 2019, 10:30 AM · a1b2c3d4', current: null },
     ]);
   });
@@ -66,6 +66,9 @@ describe('Change sets', () => {
     expect(items[2]?.what).toContain('as of');
     expect(items[1]?.what).toContain('live');
     expect(items[1]?.what).not.toContain('as of');
+    fireEvent.input(input, { target: { value: '2021-06-15T12:00' } });
+    expect(await screen.findByText('change set 2')).toBeTruthy();
+    expect((await history()).some(({ what }) => what?.includes('as of'))).toBe(false);
     fireEvent.input(input, { target: { value: '2019-06-01T00:00' } });
     expect(await screen.findByText('no change set in force')).toBeTruthy();
   });

@@ -74,7 +74,7 @@ function Timeline({ name, version, changeSets }: { name: string; version: number
                     {changeSet.description}
                     {changeSet === current && <span class="badge badge-sm badge-success badge-soft">live</span>}
                     {future && <span class="badge badge-sm badge-warning badge-soft">not yet live</span>}
-                    {changeSet === resolved && <span class="badge badge-sm badge-primary badge-soft">as of</span>}
+                    {changeSet === resolved && changeSet !== current && <span class="badge badge-sm badge-primary badge-soft">as of</span>}
                   </span>
                   <span class="meta">
                     modified{' '}
