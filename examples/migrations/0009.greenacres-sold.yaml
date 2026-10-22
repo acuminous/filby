@@ -7,6 +7,8 @@
       source: ./csv/greenacres-sold/park.csv
     - entity: Park Amenity@1
       source: ./csv/greenacres-sold/park-amenity.csv
+    - entity: Beach Route@1
+      source: ./csv/greenacres-sold/beach-route.csv
     - entity: Park Season@1
       source: ./csv/greenacres-sold/park-season.csv
     - entity: Park Offer@1

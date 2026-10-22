@@ -1,0 +1,10 @@
+action,Code,Name,Surfaces
+SET,SANDY_BAY,Sandy Bay,"{Sandy,Rocky}"
+SET,HUNMANBY_GAP,Hunmanby Gap,{Sandy}
+SET,BLACK_ROCK_SANDS,Black Rock Sands,{Sandy}
+SET,HEADS_OF_AYR,Heads of Ayr,"{Sandy,Pebbles}"
+SET,TENBY_SOUTH,Tenby South Beach,{Sandy}
+SET,TENBY_CASTLE,Tenby Castle Beach,"{Sandy,Rocky}"
+SET,ROCKLEY_POINT,Rockley Point,{Shingle}
+SET,MABLETHORPE,Mablethorpe Beach,{Sandy}
+SET,GREAT_YARMOUTH_NORTH,Great Yarmouth North Beach,{Sandy}

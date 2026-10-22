@@ -9,5 +9,9 @@
       source: ./csv/parks/amenity.csv
     - entity: Park Amenity@1
       source: ./csv/parks/park-amenity.csv
+    - entity: Beach@1
+      source: ./csv/parks/beach.csv
+    - entity: Beach Route@1
+      source: ./csv/parks/beach-route.csv
     - entity: Park Season@1
       source: ./csv/parks/park-season.csv

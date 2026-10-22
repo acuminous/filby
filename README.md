@@ -746,7 +746,7 @@ async function getParks(changeSetId) {
 ```
 
 #### filby.getDocuments&lt;T&gt;(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise&lt;Documents&lt;T&gt;&gt;
-Calls the function generated for a projection declared with a `root` and returns its rows as documents, each with one array property per `nest` entry, and each nested document likewise carries the entries nested under it, to the declared depth. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `rate_from`, `rate_to` or `types`, with values of the type the function expects (an array for `in`); a parameter that is not supplied does not filter, and an unknown one rejects with `Projection 'parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Nested values pass through [node-pg](https://node-postgres.com/) exactly as the root's do, so a timestamp is a `Date` at either level. Rejects with `Projection 'park v1' is not declared with a root` for a projection declared with `dependencies`; call its function directly instead.
+Calls the function generated for a projection declared with a `root` and returns its rows as documents, each with one array property per `nest` entry and one object property per `lookup` entry, `null` when the row finds no record at the change set, and each nested document likewise carries the entries nested under and looked up from it, to the declared depth. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `rate_from`, `rate_to` or `types`, with values of the type the function expects (an array for `in`); a parameter that is not supplied does not filter, and an unknown one rejects with `Projection 'parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Nested values pass through [node-pg](https://node-postgres.com/) exactly as the root's do, so a timestamp is a `Date` at either level. Rejects with `Projection 'park v1' is not declared with a root` for a projection declared with `dependencies`; call its function directly instead.
 
 ```js
 async function getParks(changeSetId, code) {
@@ -762,7 +762,7 @@ Serves projections and change logs over HTTP using the web standard [Request](ht
 - `GET /changelog?projection=<name>&version=<n>[&since=<id>]` returns the projection's change log as `getChangeLog` does, with `ETag` and `Last-Modified` from the latest entry. A projection with no change sets, or with nothing after `since`, is an empty list without `ETag` or `Last-Modified`. A missing `projection` or `version`, or a `version` or `since` that is not an integer, is a 400; an unknown projection is a 404.
 - `GET /projections/<name>/v<n>` redirects (307) to the same URL with `changeSetId` set to the projection's current change set, keeping any other query parameters, or is a 404 when the projection has no current change set. The name is URL-encoded, so `/projections/VAT%20Rates/v1`.
 - `GET /projections/<name>/v<n>?changeSetId=<id>[&<parameter>=<value>...][&page=<n>][&pageSize=<n>]` returns the documents or rows at that change set as a JSON array. A `changeSetId` that is not an integer or does not exist is a 400. For a projection declared with a `root`, the parameters are the names `getDocuments` accepts (`code`, `rate_from`, `rate_to`, `types`), an `in` parameter is repeated (`?types=a&types=b`), and any other key, a repeated key that is not an `in`, or a value Postgres cannot convert to the field's type is a 400. `page` is 1-based and `pageSize` defaults to the declared `page_size` and is clamped to `page_max`; either on a projection without `paging` is a 400, and a declared parameter named `page` is unreachable, since the handler reads it. A projection declared with `dependencies` is served by calling `get_<name>_v<n>(changeSetId)` and returning its rows as they are, all of them unless `pageSize` is given, in which case they are paged by row; `changeSetId`, `page` and `pageSize` are its only query parameters, and a 500 reports a function that does not exist. Responses carry `ETag` (the change set's entity tag), `Last-Modified`, `Cache-Control: max-age=31536000, immutable`, `X-Total-Count` (the number of documents that matched the parameters, whatever the page) and `Link` headers with `rel="next"` and `rel="prev"` where those pages exist, preserving every other query parameter. The `ETag` is the same for every page and parameter combination at a change set, which is correct because the URL carries the page and parameters and the content at a change set never changes, so it must not be derived from the content.
-- `GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from Filby's metadata tables: the `/projections` and `/changelog` paths and one path per projection with its declared parameters, its paging parameters (`page`, and `pageSize` with the declared `page_size` as its default and `page_max` as its maximum) and a response schema derived from the root entity's fields and the nesting, so a new projection is documented, and its clients generated and requests validated, without anyone writing a schema. The document changes whenever a projection is added, so it is served without cache headers. Its `info` comes from `FetchOptions.info` (`{ title, version, description? }`) and defaults to `{ title: 'Filby', version: '1.0.0' }`, and `basePath` becomes its single `servers` entry. Field types describe what node-pg emits in JSON rather than the Postgres type: `INTEGER` and `SMALLINT` are integers, `REAL` and `DOUBLE PRECISION` are numbers, `NUMERIC` and `BIGINT` are strings because node-pg returns them as strings, `DATE` and `TIMESTAMP` are `date-time` strings, `UUID` is a `uuid` string, an enum lists its values, an array is an array of its element type, `JSON`, `JSONB` and any other type are unconstrained, and a nullable field also allows `null`. A projection declared with `dependencies` has only `changeSetId`, `page` and `pageSize` and a response of unconstrained objects, because Filby does not know the shape of its function. The example application's Swagger UI renders this document.
+- `GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from Filby's metadata tables: the `/projections` and `/changelog` paths and one path per projection with its declared parameters, its paging parameters (`page`, and `pageSize` with the declared `page_size` as its default and `page_max` as its maximum) and a response schema derived from the root entity's fields, the nesting and the lookups, each lookup being its object schema or `null`, so a new projection is documented, and its clients generated and requests validated, without anyone writing a schema. The document changes whenever a projection is added, so it is served without cache headers. Its `info` comes from `FetchOptions.info` (`{ title, version, description? }`) and defaults to `{ title: 'Filby', version: '1.0.0' }`, and `basePath` becomes its single `servers` entry. Field types describe what node-pg emits in JSON rather than the Postgres type: `INTEGER` and `SMALLINT` are integers, `REAL` and `DOUBLE PRECISION` are numbers, `NUMERIC` and `BIGINT` are strings because node-pg returns them as strings, `DATE` and `TIMESTAMP` are `date-time` strings, `UUID` is a `uuid` string, an enum lists its values, an array is an array of its element type, `JSON`, `JSONB` and any other type are unconstrained, and a nullable field also allows `null`. A projection declared with `dependencies` has only `changeSetId`, `page` and `pageSize` and a response of unconstrained objects, because Filby does not know the shape of its function. The example application's Swagger UI renders this document.
 
 Errors the handler does not expect, such as a lost database connection, are thrown for the host application to log and turn into a 500.
 
@@ -942,7 +942,7 @@ migrations/0004.season-2020.yaml: /0 must have required property 'effective'
 The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
 
 ## Example Applications
-This repository includes a [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example application based on a Caravan Park business. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand. The seven projections are `Amenities`, `Catalogue`, `Grades`, `Models`, `Parks (Detailed)`, `Parks (Minimal)` and `VAT Rates`, each served at `/api/projections/<name>/v1`.
+This repository includes a [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example application based on a Caravan Park business. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand. The eight projections are `Amenities`, `Beaches`, `Catalogue`, `Grades`, `Models`, `Parks (Detailed)`, `Parks (Minimal)` and `VAT Rates`, each served at `/api/projections/<name>/v1`.
 
 ### Installation
 ```bash
@@ -963,7 +963,7 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
+The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, the beaches they reach and the routes to them, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
 
 | Id | Effective | Description |
 | -- | --------- | ----------- |
@@ -1010,41 +1010,57 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
     "amenities": [
       {
         "amenity_code": "AMUSEMENT_ARCADE",
-        "amenity": [
-          {
-            "name": "Amusement Arcade",
-            "category": "Entertainment",
-            "age_group": "All Ages",
-            "charge": "Paid",
-            "vat_code": "Family Attraction"
-          }
-        ]
-      },
-      {
-        "amenity_code": "BEACH_ACCESS",
-        "amenity": [
-          {
-            "name": "Beach Access",
-            "category": "Nature",
-            "age_group": "All Ages",
-            "charge": "Free",
-            "vat_code": "Family Attraction"
-          }
-        ]
+        "amenity": {
+          "name": "Amusement Arcade",
+          "category": "Entertainment",
+          "age_group": "All Ages",
+          "charge": "Paid",
+          "vat_code": "Family Attraction"
+        }
       },
       {
         "amenity_code": "CRAZY_GOLF",
-        "amenity": [
-          {
-            "name": "Crazy Golf",
-            "category": "Sport",
-            "age_group": "All Ages",
-            "charge": "Paid",
-            "vat_code": "Family Attraction"
-          }
-        ]
+        "amenity": {
+          "name": "Crazy Golf",
+          "category": "Sport",
+          "age_group": "All Ages",
+          "charge": "Paid",
+          "vat_code": "Family Attraction"
+        }
+      },
+      {
+        "amenity_code": "INDOOR_POOL",
+        "amenity": {
+          "name": "Indoor Pool",
+          "category": "Pool",
+          "age_group": "All Ages",
+          "charge": "Free",
+          "vat_code": "Family Attraction"
+        }
       },
       ...
+    ],
+    "beach_routes": [
+      {
+        "beach_code": "SANDY_BAY",
+        "name": "Along the beach road",
+        "distance_metres": 1200,
+        "accessibility": "Step Free",
+        "beach": {
+          "name": "Sandy Bay",
+          "surfaces": "{Sandy,Rocky}"
+        }
+      },
+      {
+        "beach_code": "SANDY_BAY",
+        "name": "Via the cliff path",
+        "distance_metres": 400,
+        "accessibility": "Steep Steps",
+        "beach": {
+          "name": "Sandy Bay",
+          "surfaces": "{Sandy,Rocky}"
+        }
+      }
     ],
     "seasons": [
       {
@@ -1114,7 +1130,7 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
 ]
 ```
 
-Devon Cliffs has nine amenities; the listing above is cut to three. Each park amenity is a row of `Park Amenity`, and under it the `Amenity` nest reaches the `Amenity` entity for the name, category, age group, charge and VAT code. The nest is a one-element list because every nest is a list, and the amenity's code is left out of it because it is the join field and already on the park amenity. `Parks (Minimal)` is the same projection without that inner level, so its park amenities are codes alone, for a consumer that already holds `Amenities`.
+Devon Cliffs has eight amenities; the listing above is cut to three. Each park amenity is a row of `Park Amenity`, and the `Amenity` lookup under it embeds the one `Amenity` record it refers to as an object with the name, category, age group, charge and VAT code. The amenity's code is left out of the object because it is the join field and already on the park amenity. The beach routes have the same shape: each route is a row of `Beach Route` with facts of its own, the distance and how accessible it is, and the `Beach` lookup embeds the beach it leads to. Devon Cliffs reaches Sandy Bay two ways, step free along the beach road or down the steep cliff path, so the same beach appears under both routes. `surfaces` is a Postgres array of an enum type, which node-pg serves as the string `{Sandy,Rocky}` rather than a JSON array. `Parks (Minimal)` is the same projection without the lookups, so its park amenities are codes alone and its routes carry the beach code alone, for a consumer that already holds `Amenities` and `Beaches`.
 
 `code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year.
 

@@ -1,0 +1,11 @@
+action,Park Code,Beach Code,Name,Distance Metres,Accessibility
+SET,DC,SANDY_BAY,Via the cliff path,400,Steep Steps
+SET,DC,SANDY_BAY,Along the beach road,1200,Step Free
+SET,PV,HUNMANBY_GAP,Down Hunmanby Gap,700,Steps
+SET,GA,BLACK_ROCK_SANDS,Across the dunes,300,Step Free
+SET,CT,HEADS_OF_AYR,Along the promenade,200,Step Free
+SET,KP,TENBY_SOUTH,Through the dunes,300,Step Free
+SET,KP,TENBY_CASTLE,Into town past the harbour,1800,Steps
+SET,RP,ROCKLEY_POINT,Down to the harbour shore,250,Step Free
+SET,GS,MABLETHORPE,Over the sea wall,150,Steps
+SET,SS,GREAT_YARMOUTH_NORTH,Across North Drive,100,Step Free
