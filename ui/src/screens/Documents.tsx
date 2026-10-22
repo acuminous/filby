@@ -1,3 +1,4 @@
+import { ChevronsDownUp, ChevronsUpDown } from 'lucide-preact';
 import { useLocation, useRoute } from 'preact-iso';
 
 import { ApiError, getChangeLog, getDocuments, getOpenApi } from '../api';
@@ -8,9 +9,10 @@ import { PageHeader } from '../components/PageHeader';
 import { Paging } from '../components/Paging';
 import { Empty, ErrorMessage, Loading } from '../components/Status';
 import { formatDateTime, plural } from '../format';
-import { type Resource, useEscape, useQuery, useResource } from '../hooks';
+import { type Resource, useEscape, useNests, useQuery, useResource } from '../hooks';
+import { type NestState, storageKey, withAll } from '../nests';
 import { changeSetsPath, documentsPath, parseVersion, projectionsPath } from '../routes';
-import { type ProjectionSchema, describeProjection, inferColumns } from '../schema';
+import { type ProjectionSchema, describeProjection, inferColumns, nests } from '../schema';
 import type { ChangeSet, Page } from '../types';
 
 export function Documents() {
@@ -21,6 +23,7 @@ export function Documents() {
   const version = parseVersion(params.version ?? '') ?? Number.NaN;
   const changeSetId = Number(params.id);
   useEscape(changeSetsPath(name, version));
+  const [nestState, setNests] = useNests(storageKey(name, version));
 
   const context = useResource(() => loadContext(name, version), `${name}/${version}/${changeSetId}`);
   const page = useResource(() => getDocuments(name, version, changeSetId, query), `${name}/${version}/${changeSetId}?${query}`);
@@ -67,7 +70,7 @@ export function Documents() {
           {context.data.schema.filters.length > 0 && <Filters filters={context.data.schema.filters} query={query} onSubmit={applyFilters} />}
           {page.status === 'loading' && <Loading />}
           {page.status === 'error' && <ErrorMessage error={page.error} />}
-          {page.status === 'ready' && <Results schema={context.data.schema} page={page.data} query={query} onPage={changePage} onSize={changeSize} />}
+          {page.status === 'ready' && <Results schema={context.data.schema} page={page.data} query={query} nests={nestState} onNests={setNests} onPage={changePage} onSize={changeSize} />}
         </>
       )}
     </>
@@ -117,16 +120,28 @@ function Header({ name, version, changeSetId, changeLog, page, onChangeSet }: He
   );
 }
 
-type ResultsProps = { schema: ProjectionSchema; page: Page; query: URLSearchParams; onPage: (page: number) => void; onSize: (size: number | undefined) => void };
+type ResultsProps = { schema: ProjectionSchema; page: Page; query: URLSearchParams; nests: NestState; onNests: (state: NestState) => void; onPage: (page: number) => void; onSize: (size: number | undefined) => void };
 
-function Results({ schema, page, query, onPage, onSize }: ResultsProps) {
+function Results({ schema, page, query, nests: state, onNests, onPage, onSize }: ResultsProps) {
   const columns = schema.columns ?? inferColumns(page.documents);
   const number = Number(query.get('page') ?? 1);
   const size = query.has('pageSize') ? Number(query.get('pageSize')) : schema.paging?.size;
   if (page.documents.length === 0 && !schema.paging) return <Empty>No documents</Empty>;
+  const paths = page.documents.length > 0 ? nests(columns) : [];
   return (
     <div class="panel">
-      {page.documents.length === 0 ? <Empty>No documents</Empty> : <DocumentTable columns={columns} documents={page.documents} />}
+      {paths.length > 0 && (
+        <div class="head">
+          <span>Nests</span>
+          {paths.map((path) => (
+            <button type="button" key={path} class={`btn btn-xs btn-ghost${state[path] ? ' btn-active' : ''}`} aria-pressed={Boolean(state[path])} title={`${state[path] ? 'Collapse' : 'Expand'} all ${path}`} onClick={() => onNests(withAll(state, path, !state[path]))}>
+              {state[path] ? <ChevronsDownUp size={14} aria-hidden="true" /> : <ChevronsUpDown size={14} aria-hidden="true" />}
+              {path}
+            </button>
+          ))}
+        </div>
+      )}
+      {page.documents.length === 0 ? <Empty>No documents</Empty> : <DocumentTable columns={columns} documents={page.documents} nests={state} onNests={onNests} />}
       {schema.paging && <Paging paging={schema.paging} page={number} size={size} count={page.documents.length} total={page.total} prev={Boolean(page.prev)} next={Boolean(page.next)} onPage={onPage} onSize={onSize} />}
     </div>
   );

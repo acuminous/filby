@@ -3,6 +3,7 @@ import { useEffect } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
 
 import { ApiError } from './api';
+import { type NestState, loadNests, saveNests } from './nests';
 
 export type Resource<T> = { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; error: ApiError };
 
@@ -24,6 +25,18 @@ export function useResource<T>(load: () => Promise<T>, key: string): Resource<T>
     };
   }, [key]);
   return state.value;
+}
+
+export function useNests(key: string): [NestState, (state: NestState) => void] {
+  const state = useSignal<NestState>({});
+  useEffect(() => {
+    state.value = loadNests(key);
+  }, [key]);
+  const update = (next: NestState) => {
+    state.value = next;
+    saveNests(key, next);
+  };
+  return [state.value, update];
 }
 
 export function useEscape(href: string | undefined) {

@@ -5,7 +5,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Empty, ErrorMessage, Loading } from '../components/Status';
 import { useResource } from '../hooks';
 import { changeSetsPath } from '../routes';
-import { type Column, type Filter, describeProjection } from '../schema';
+import { type Filter, describeProjection, lookups, nests } from '../schema';
 import type { OpenApi, Projection } from '../types';
 
 const KINDS: Record<Filter['kind'], string> = { value: '', list: 'in', range: 'range' };
@@ -46,7 +46,7 @@ function Entry({ projection, document }: { projection: Projection; document: Ope
         <div class="description">{projection.description}</div>
         <dl>
           <dt>Fields</dt>
-          <dd>{schema?.columns ? chips(schema.columns.filter(({ kind }) => kind !== 'table').map(({ name }) => name)) : <span class="null">function rows</span>}</dd>
+          <dd>{schema?.columns ? chips(schema.columns.filter(({ kind }) => kind !== 'table' && kind !== 'lookup').map(({ name }) => name)) : <span class="null">function rows</span>}</dd>
           <dt>Parameters</dt>
           <dd>
             {schema?.filters.length ? (
@@ -62,6 +62,8 @@ function Entry({ projection, document }: { projection: Projection; document: Ope
           </dd>
           <dt>Nested</dt>
           <dd>{chips(nests(schema?.columns ?? []))}</dd>
+          <dt>Lookups</dt>
+          <dd>{chips(lookups(schema?.columns ?? []))}</dd>
           <dt>Paging</dt>
           <dd>{paging(schema?.paging)}</dd>
         </dl>
@@ -77,10 +79,6 @@ function chips(names: string[]) {
       {name}
     </span>
   ));
-}
-
-function nests(columns: Column[], prefix = ''): string[] {
-  return columns.filter(({ kind }) => kind === 'table').flatMap((column) => [`${prefix}${column.name}`, ...nests(column.columns ?? [], `${prefix}${column.name}.`)]);
 }
 
 function paging(schema: { size?: number; max?: number } | undefined) {
