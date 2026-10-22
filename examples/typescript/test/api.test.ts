@@ -53,8 +53,8 @@ describe('API', () => {
       postcode: 'EX8 5BT',
       region: 'South West',
       seasons: [
-        { customer_type: 'Guest', current_season_start: date('2026-03-16'), current_season_end: date('2026-11-03'), next_season_start: date('2027-03-16'), next_season_end: date('2027-11-03') },
-        { customer_type: 'Owner', current_season_start: date('2026-03-01'), current_season_end: date('2027-01-06'), next_season_start: date('2027-03-01'), next_season_end: date('2028-01-06') },
+        { customer_type: 'Guest', current_season_start: '2026-03-16T00:00:00.000Z', current_season_end: '2026-11-03T00:00:00.000Z', next_season_start: '2027-03-16T00:00:00.000Z', next_season_end: '2027-11-03T00:00:00.000Z' },
+        { customer_type: 'Owner', current_season_start: '2026-03-01T00:00:00.000Z', current_season_end: '2027-01-06T00:00:00.000Z', next_season_start: '2027-03-01T00:00:00.000Z', next_season_end: '2028-01-06T00:00:00.000Z' },
       ],
       offers: [
         { grade_code: 'Platinum', discount_percent: '0.00' },
@@ -388,11 +388,6 @@ describe('API', () => {
 
   function schema(document: any, projection: string) {
     return document.paths[`/projections/${encodeURIComponent(projection)}/v1`].get.responses['200'].content['application/json'].schema.items;
-  }
-
-  function date(day: string) {
-    const [year, month, dayOfMonth] = day.split('-').map(Number);
-    return new Date(year, month - 1, dayOfMonth).toISOString();
   }
 
   function get(path: string) {
