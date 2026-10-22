@@ -93,7 +93,7 @@ describe('API', () => {
           { amenity_code: 'SHOWBAR', amenity: { name: 'Showbar', category: 'Entertainment', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
           { amenity_code: 'SPLASH_ZONE', amenity: { name: 'Splash Zone', category: 'Pool', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' } },
         ],
-        beach_routes: devonCliffs.beach_routes.map((route) => ({ ...route, beach: { name: 'Sandy Bay', surfaces: '{Sandy,Rocky}' } })),
+        beach_routes: devonCliffs.beach_routes.map((route) => ({ ...route, beach: { name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] } })),
       });
     });
 
@@ -125,7 +125,7 @@ describe('API', () => {
       eq(response.status, 200);
       const beaches = await response.json();
       deq(beaches.map((beach: any) => beach.name), ['Black Rock Sands', 'Great Yarmouth North Beach', 'Heads of Ayr', 'Hunmanby Gap', 'Mablethorpe Beach', 'Rockley Point', 'Sandy Bay', 'Tenby Castle Beach', 'Tenby South Beach']);
-      deq(beaches.find((beach: any) => beach.code === 'SANDY_BAY'), { code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: '{Sandy,Rocky}' });
+      deq(beaches.find((beach: any) => beach.code === 'SANDY_BAY'), { code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] });
     });
 
     it('should list two beaches for Kiln Park, one route to each', async () => {
@@ -139,13 +139,13 @@ describe('API', () => {
     it('should list two routes to Sandy Bay for Devon Cliffs, each with the same beach', async () => {
       const [devonCliffs] = await (await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=8&code=DC')).json();
       deq(devonCliffs.beach_routes.map(({ name, accessibility }: any) => `${name} (${accessibility})`), ['Along the beach road (Step Free)', 'Via the cliff path (Steep Steps)']);
-      deq(devonCliffs.beach_routes.map((route: any) => route.beach), [{ name: 'Sandy Bay', surfaces: '{Sandy,Rocky}' }, { name: 'Sandy Bay', surfaces: '{Sandy,Rocky}' }]);
+      deq(devonCliffs.beach_routes.map((route: any) => route.beach), [{ name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] }, { name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] }]);
     });
 
     it('should keep the beach when the park that reached it is sold', async () => {
       const [greenacres] = await (await get('/api/projections/Parks%20(Minimal)/v1?changeSetId=7&code=GA')).json();
       deq(greenacres.beach_routes, [{ beach_code: 'BLACK_ROCK_SANDS', name: 'Across the dunes', distance_metres: 300, accessibility: 'Step Free' }]);
-      deq(await (await get('/api/projections/Beaches/v1?changeSetId=8&code=BLACK_ROCK_SANDS')).json(), [{ code: 'BLACK_ROCK_SANDS', name: 'Black Rock Sands', surfaces: '{Sandy}' }]);
+      deq(await (await get('/api/projections/Beaches/v1?changeSetId=8&code=BLACK_ROCK_SANDS')).json(), [{ code: 'BLACK_ROCK_SANDS', name: 'Black Rock Sands', surfaces: ['Sandy'] }]);
     });
   });
 

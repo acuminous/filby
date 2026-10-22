@@ -746,7 +746,7 @@ async function getParks(changeSetId) {
 ```
 
 #### filby.getDocuments&lt;T&gt;(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise&lt;Documents&lt;T&gt;&gt;
-Calls the function generated for a projection declared with a `root` and returns its rows as documents, each with one array property per `nest` entry and one object property per `lookup` entry, `null` when the row finds no record at the change set, and each nested document likewise carries the entries nested under and looked up from it, to the declared depth. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `rate_from`, `rate_to` or `types`, with values of the type the function expects (an array for `in`); a parameter that is not supplied does not filter, and an unknown one rejects with `Projection 'parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Nested values pass through [node-pg](https://node-postgres.com/) exactly as the root's do, so a timestamp is a `Date` at either level. Rejects with `Projection 'park v1' is not declared with a root` for a projection declared with `dependencies`; call its function directly instead.
+Calls the function generated for a projection declared with a `root` and returns its rows as documents, each with one array property per `nest` entry and one object property per `lookup` entry, `null` when the row finds no record at the change set, and each nested document likewise carries the entries nested under and looked up from it, to the declared depth. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `rate_from`, `rate_to` or `types`, with values of the type the function expects (an array for `in`); a parameter that is not supplied does not filter, and an unknown one rejects with `Projection 'parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Nested values pass through [node-pg](https://node-postgres.com/) exactly as the root's do, so a timestamp is a `Date` at either level, and an array of an enum declared by `ADD_ENUM` is an array of strings, as an array of a built-in type is. Rejects with `Projection 'park v1' is not declared with a root` for a projection declared with `dependencies`; call its function directly instead.
 
 ```js
 async function getParks(changeSetId, code) {
@@ -1048,7 +1048,7 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
         "accessibility": "Step Free",
         "beach": {
           "name": "Sandy Bay",
-          "surfaces": "{Sandy,Rocky}"
+          "surfaces": ["Sandy", "Rocky"]
         }
       },
       {
@@ -1058,7 +1058,7 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
         "accessibility": "Steep Steps",
         "beach": {
           "name": "Sandy Bay",
-          "surfaces": "{Sandy,Rocky}"
+          "surfaces": ["Sandy", "Rocky"]
         }
       }
     ],
@@ -1130,7 +1130,7 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
 ]
 ```
 
-Devon Cliffs has eight amenities; the listing above is cut to three. Each park amenity is a row of `Park Amenity`, and the `Amenity` lookup under it embeds the one `Amenity` record it refers to as an object with the name, category, age group, charge and VAT code. The amenity's code is left out of the object because it is the join field and already on the park amenity. The beach routes have the same shape: each route is a row of `Beach Route` with facts of its own, the distance and how accessible it is, and the `Beach` lookup embeds the beach it leads to. Devon Cliffs reaches Sandy Bay two ways, step free along the beach road or down the steep cliff path, so the same beach appears under both routes. `surfaces` is a Postgres array of an enum type, which node-pg serves as the string `{Sandy,Rocky}` rather than a JSON array. `Parks (Minimal)` is the same projection without the lookups, so its park amenities are codes alone and its routes carry the beach code alone, for a consumer that already holds `Amenities` and `Beaches`.
+Devon Cliffs has eight amenities; the listing above is cut to three. Each park amenity is a row of `Park Amenity`, and the `Amenity` lookup under it embeds the one `Amenity` record it refers to as an object with the name, category, age group, charge and VAT code. The amenity's code is left out of the object because it is the join field and already on the park amenity. The beach routes have the same shape: each route is a row of `Beach Route` with facts of its own, the distance and how accessible it is, and the `Beach` lookup embeds the beach it leads to. Devon Cliffs reaches Sandy Bay two ways, step free along the beach road or down the steep cliff path, so the same beach appears under both routes. `Parks (Minimal)` is the same projection without the lookups, so its park amenities are codes alone and its routes carry the beach code alone, for a consumer that already holds `Amenities` and `Beaches`.
 
 `code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year.
 
