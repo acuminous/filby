@@ -34,9 +34,15 @@ Every screen has a sidebar listing the projections, with the one on screen marke
 
 **Projections.** The list from `GET /projections`, with each projection's description and, from the OpenAPI document, its fields, its parameters and how each one matches (a single value, a list of values or a from/to range), the nested arrays in its documents and its paging. Open a projection to see its change sets.
 
+![The projections screen listing each projection with its fields, parameters, nests, lookups and paging](docs/screenshots/projections.png)
+
 **Change sets.** The change log of a projection from `GET /changelog` as a timeline, newest first, with each change set's id, effective date, description, last modified date and entity tag. The change set currently in force is marked as live and change sets effective in the future are flagged as not yet live. An "as of" date and time, defaulting to now, resolves to the change set in force at that instant using Filby's rule (effective on or before the instant, latest effective date first, then highest id) and highlights it on the timeline. Open a change set to see the documents at it. Escape goes back to the projections.
 
+![The change sets screen showing the change log of Parks (Detailed) as a timeline with the live change set marked](docs/screenshots/change-sets.png)
+
 **Documents.** The documents of the projection at the change set from `GET /projections/<name>/v<n>?changeSetId=<id>`, as a table whose columns come from the OpenAPI response schema, with nested arrays rendered as sub-tables under their row to any depth and nulls shown muted. The sub-tables start collapsed, showing the nest's name and row count; one opens on click, a button above the table for each nest expands or collapses every row's, and the choice is remembered per projection in the browser's local storage. A lookup, the single object a document or nested row embeds for a many-to-one relationship, is flattened into the table as a group of columns under a header naming it once, and shows `null` in each of its columns where there is no record. A picker in the header moves between change sets without leaving the screen. The projection's declared parameters become filters (text for a single value, comma separated values for a list, a from/to pair for a range) that are applied on submit and reflected in the URL, so a view can be linked to. Paging uses `page`, `pageSize`, `X-Total-Count` and the `Link` header, with a page size control bounded by the projection's maximum. Escape goes back to the change sets.
+
+![The documents screen showing Devon Cliffs with its amenities and beach routes expanded, each amenity and beach flattened into the row](docs/screenshots/documents.png)
 
 ## Development
 
