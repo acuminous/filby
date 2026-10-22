@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, deep, detailed, detailedPark, openapi, operation, parameter, park, stubApi } from './fixtures';
 import { renderAt } from './render';
@@ -38,19 +38,20 @@ describe('Documents', () => {
     expect(location.search).toBe('?code=DC');
   });
 
-  it('renders the documents with nested arrays as sub-tables, dates in local time and nulls muted', async () => {
+  it('renders the documents with nested arrays as collapsed sub-tables, dates in local time and nulls muted', async () => {
     stub();
     renderAt('/projections/Parks/v1/change-sets/2');
-    const tables = await screen.findAllByRole('table');
-    expect(tables).toHaveLength(2);
-    const outer = tables[0] as HTMLTableElement;
-    expect(within(outer).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['code', 'name', 'type', 'start', 'end']);
+    const outer = (await screen.findByRole('table')) as HTMLTableElement;
+    expect(within(outer).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['code', 'name']);
     const rows = Array.from(outer.querySelectorAll(':scope > tbody > tr'));
     expect(rows.map((row) => row.className)).toEqual(['', 'nest', '', 'nest']);
     expect(Array.from(rows[0]?.querySelectorAll('td') ?? []).map((td) => td.textContent)).toEqual(['DC', 'Devon Cliffs']);
     const details = rows[1]?.querySelector('details') as HTMLDetailsElement;
-    expect(details.open).toBe(true);
+    expect(details.open).toBe(false);
     expect(details.querySelector('summary')?.textContent).toBe('seasons 1');
+    expect(details.querySelector('table')).toBeNull();
+    fireEvent.click(details.querySelector('summary') as HTMLElement);
+    expect(details.open).toBe(true);
     const inner = within(details).getByRole('table');
     expect(within(inner).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['type', 'start', 'end']);
     expect(Array.from(inner.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['Guests', 'Mar 1, 2020, 12:00 AM', 'Nov 1, 2020, 12:00 AM']);
@@ -59,21 +60,85 @@ describe('Documents', () => {
     expect(second[1]?.textContent).toBe('null');
     expect(second[1]?.querySelector('.null')).toBeTruthy();
     expect(rows[3]?.querySelector('summary')?.textContent).toBe('seasons 0');
+    expect(rows[3]?.querySelector('details')?.open).toBe(false);
+    fireEvent.click(rows[3]?.querySelector('summary') as HTMLElement);
+    expect(rows[3]?.querySelector('details')?.open).toBe(true);
     expect(rows[3]?.querySelector('table')).toBeNull();
   });
 
-  it('renders nested arrays to any depth', async () => {
+  it('expands and collapses every nest of a column, remembering the choice', async () => {
+    stub();
+    renderAt('/projections/Parks/v1/change-sets/2');
+    const button = (await screen.findByRole('button', { name: 'seasons' })) as HTMLButtonElement;
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.title).toBe('Expand all seasons');
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.title).toBe('Collapse all seasons');
+    expect(Array.from(document.querySelectorAll('details')).map((details) => details.open)).toEqual([true, true]);
+    expect(screen.getAllByRole('table')).toHaveLength(2);
+    expect(JSON.parse(localStorage.getItem('filby-ui/nests/Parks/v1') ?? '')).toEqual({ seasons: true });
+    fireEvent.click(screen.getAllByText('seasons')[1] as HTMLElement);
+    expect(Array.from(document.querySelectorAll('details')).map((details) => details.open)).toEqual([false, true]);
+    expect(JSON.parse(localStorage.getItem('filby-ui/nests/Parks/v1') ?? '')).toEqual({ seasons: true, 'seasons#0': false });
+    fireEvent.click(button);
+    expect(Array.from(document.querySelectorAll('details')).map((details) => details.open)).toEqual([false, false]);
+    expect(JSON.parse(localStorage.getItem('filby-ui/nests/Parks/v1') ?? '')).toEqual({ seasons: false });
+  });
+
+  it('restores the nests that were open', async () => {
+    localStorage.setItem('filby-ui/nests/Parks/v1', JSON.stringify({ seasons: true, 'seasons#1': false }));
+    stub();
+    renderAt('/projections/Parks/v1/change-sets/2');
+    expect((await screen.findByRole('button', { name: 'seasons' })).getAttribute('aria-pressed')).toBe('true');
+    expect(Array.from(document.querySelectorAll('details')).map((details) => details.open)).toEqual([true, false]);
+  });
+
+  it('renders with the nests collapsed when storage is unavailable', async () => {
+    localStorage.setItem('filby-ui/nests/Parks/v1', JSON.stringify({ seasons: true }));
+    vi.stubGlobal('localStorage', {
+      getItem() {
+        throw new Error('SecurityError');
+      },
+      setItem() {
+        throw new Error('QuotaExceededError');
+      },
+    });
+    stub();
+    renderAt('/projections/Parks/v1/change-sets/2');
+    const button = await screen.findByRole('button', { name: 'seasons' });
+    expect(Array.from(document.querySelectorAll('details')).map((details) => details.open)).toEqual([false, false]);
+    fireEvent.click(button);
+    expect(Array.from(document.querySelectorAll('details')).map((details) => details.open)).toEqual([true, true]);
+  });
+
+  it('ignores stored state that is not a record of booleans', async () => {
+    localStorage.setItem('filby-ui/nests/Parks/v1', '[1, 2');
+    stub();
+    renderAt('/projections/Parks/v1/change-sets/2');
+    await screen.findByRole('button', { name: 'seasons' });
+    expect(Array.from(document.querySelectorAll('details')).map((details) => details.open)).toEqual([false, false]);
+  });
+
+  it('renders nested arrays to any depth, expanding a column at any depth', async () => {
     stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': deep() }) }, '/api/projections/Parks/v1': { body: [{ id: 1, a: [{ b: [{ c: 7 }, { c: 8 }] }] }] } });
     renderAt('/projections/Parks/v1/change-sets/2');
-    const tables = await screen.findAllByRole('table');
+    expect((await screen.findAllByRole('button', { pressed: false })).map((button) => button.textContent)).toEqual(['a', 'a.b']);
+    fireEvent.click(screen.getByRole('button', { name: 'a.b' }));
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'a' }));
+    const tables = screen.getAllByRole('table');
     expect(tables).toHaveLength(3);
     expect(Array.from(tables[2]?.querySelectorAll('td') ?? []).map((td) => td.textContent)).toEqual(['7', '8']);
+    expect(JSON.parse(localStorage.getItem('filby-ui/nests/Parks/v1') ?? '')).toEqual({ a: true, 'a.b': true });
   });
 
   it('renders lookups as columns of the parent table under a grouped header', async () => {
     stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': detailed() }) }, '/api/projections/Parks%20(Detailed)/v1': { body: [detailedPark()] } });
     renderAt('/projections/Parks%20(Detailed)/v1/change-sets/2');
-    const tables = await screen.findAllByRole('table');
+    fireEvent.click(await screen.findByRole('button', { name: 'amenities' }));
+    fireEvent.click(screen.getByRole('button', { name: 'beach_routes' }));
+    const tables = screen.getAllByRole('table');
     expect(tables).toHaveLength(3);
     expect(tables[0]?.querySelectorAll(':scope > thead > tr')).toHaveLength(1);
     const amenities = tables[1] as HTMLTableElement;
@@ -102,8 +167,11 @@ describe('Documents', () => {
     const rows = operation({ parameters: [CHANGE_SET_ID, PAGE, parameter('pageSize', { type: 'integer', minimum: 1 })], responses: { 200: { description: 'Rows', content: { 'application/json': { schema: { type: 'array', items: { type: 'object' } } } } } } });
     stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': rows }) }, '/api/projections/Parks/v1': { body: [{ park: 'DC', total: 3, tags: ['a', 'b'], seasons: [{ type: 'Guests' }] }, { park: 'PV', total: 1, tags: [], seasons: [] }] } });
     renderAt('/projections/Parks/v1/change-sets/2');
-    const tables = await screen.findAllByRole('table');
-    expect(within(tables[0] as HTMLElement).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['park', 'total', 'tags', 'type']);
+    fireEvent.click(await screen.findByRole('button', { name: 'seasons' }));
+    const tables = screen.getAllByRole('table');
+    expect(tables).toHaveLength(2);
+    expect(Array.from(tables[0]?.querySelectorAll(':scope > thead th') ?? []).map((th) => th.textContent)).toEqual(['park', 'total', 'tags']);
+    expect(within(tables[1] as HTMLElement).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['type']);
     const cells = Array.from(tables[0]?.querySelectorAll(':scope > tbody > tr:not(.nest) td') ?? []).map((td) => td.textContent);
     expect(cells).toEqual(['DC', '3', 'a, b', 'PV', '1', 'empty']);
     expect(screen.getByText(/2 documents/)).toBeTruthy();

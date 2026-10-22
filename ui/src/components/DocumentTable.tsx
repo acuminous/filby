@@ -1,13 +1,17 @@
 import { ChevronRight } from 'lucide-preact';
 import { Fragment } from 'preact';
+import { useRef } from 'preact/hooks';
 
+import { type NestState, isOpen, withRow } from '../nests';
 import { type Column, inferColumns } from '../schema';
 import type { Document } from '../types';
 import { Value } from './Value';
 
 type Cell = { name: string; kind: Column['kind']; lookup?: string };
 
-export function DocumentTable({ columns, documents }: { columns: Column[]; documents: Document[] }) {
+type Props = { columns: Column[]; documents: Document[]; nests: NestState; onNests: (state: NestState) => void; path?: string; row?: string };
+
+export function DocumentTable({ columns, documents, nests: state, onNests, path = '', row = '' }: Props) {
   const scalars = columns.filter(({ kind }) => kind !== 'table');
   const nests = columns.filter(({ kind }) => kind === 'table');
   const cells = scalars.flatMap(flatten);
@@ -44,7 +48,7 @@ export function DocumentTable({ columns, documents }: { columns: Column[]; docum
               ))}
             </tr>
             {nests.map((nest) => (
-              <Nest key={nest.name} column={nest} rows={document[nest.name]} span={cells.length || 1} />
+              <Nest key={nest.name} column={nest} rows={document[nest.name]} span={cells.length || 1} path={path ? `${path}.${nest.name}` : nest.name} row={row ? `${row}.${index}` : String(index)} nests={state} onNests={onNests} />
             ))}
           </Fragment>
         ))}
@@ -53,17 +57,26 @@ export function DocumentTable({ columns, documents }: { columns: Column[]; docum
   );
 }
 
-function Nest({ column, rows, span }: { column: Column; rows: unknown; span: number }) {
+type NestProps = { column: Column; rows: unknown; span: number; path: string; row: string; nests: NestState; onNests: (state: NestState) => void };
+
+function Nest({ column, rows, span, path, row, nests, onNests }: NestProps) {
   const documents = Array.isArray(rows) ? (rows as Document[]) : [];
+  const open = isOpen(nests, path, row);
+  const current = useRef(open);
+  current.current = open;
+  const toggle = (event: Event) => {
+    const toggled = (event.currentTarget as HTMLDetailsElement).open;
+    if (toggled !== current.current) onNests(withRow(nests, path, row, toggled));
+  };
   return (
     <tr class="nest">
       <td colSpan={span}>
-        <details open>
+        <details open={open} onToggle={toggle}>
           <summary>
             <ChevronRight size={14} aria-hidden="true" />
             {column.name} <span class="badge badge-ghost badge-xs">{documents.length}</span>
           </summary>
-          {documents.length > 0 && <DocumentTable columns={column.columns ?? inferColumns(documents)} documents={documents} />}
+          {open && documents.length > 0 && <DocumentTable columns={column.columns ?? inferColumns(documents)} documents={documents} nests={nests} onNests={onNests} path={path} row={row} />}
         </details>
       </td>
     </tr>

@@ -8,5 +8,6 @@ process.env.TZ = 'UTC';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  localStorage.clear();
   openapi.value = undefined;
 });

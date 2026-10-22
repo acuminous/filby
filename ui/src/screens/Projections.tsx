@@ -5,7 +5,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Empty, ErrorMessage, Loading } from '../components/Status';
 import { useResource } from '../hooks';
 import { changeSetsPath } from '../routes';
-import { type Column, type Filter, describeProjection } from '../schema';
+import { type Filter, describeProjection, lookups, nests } from '../schema';
 import type { OpenApi, Projection } from '../types';
 
 const KINDS: Record<Filter['kind'], string> = { value: '', list: 'in', range: 'range' };
@@ -79,18 +79,6 @@ function chips(names: string[]) {
       {name}
     </span>
   ));
-}
-
-function nests(columns: Column[], prefix = ''): string[] {
-  return columns.filter(({ kind }) => kind === 'table').flatMap((column) => [`${prefix}${column.name}`, ...nests(column.columns ?? [], `${prefix}${column.name}.`)]);
-}
-
-function lookups(columns: Column[], prefix = ''): string[] {
-  return columns.flatMap((column) => {
-    if (column.kind === 'lookup') return [`${prefix}${column.name}`];
-    if (column.kind === 'table') return lookups(column.columns ?? [], `${prefix}${column.name}.`);
-    return [];
-  });
 }
 
 function paging(schema: { size?: number; max?: number } | undefined) {

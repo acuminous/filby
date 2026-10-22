@@ -69,6 +69,18 @@ export function inferColumns(documents: Document[]): Column[] {
   });
 }
 
+export function nests(columns: Column[], prefix = ''): string[] {
+  return columns.filter(({ kind }) => kind === 'table').flatMap((column) => [`${prefix}${column.name}`, ...nests(column.columns ?? [], `${prefix}${column.name}.`)]);
+}
+
+export function lookups(columns: Column[], prefix = ''): string[] {
+  return columns.flatMap((column) => {
+    if (column.kind === 'lookup') return [`${prefix}${column.name}`];
+    if (column.kind === 'table') return lookups(column.columns ?? [], `${prefix}${column.name}.`);
+    return [];
+  });
+}
+
 function isPlainObject(value: unknown): value is Document {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
