@@ -963,7 +963,7 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, the beaches they reach and the routes to them, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources. The ten change sets are:
+The application serves Swagger UI at http://localhost:3000/documentation. The reference data is a holiday park business that sells static caravans: ten parks with their amenities, the beaches they reach and the routes to them, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources, each with the action that applies to the whole file; only the two 2026 catalogue files that both add and delete rows carry an action column instead. The ten change sets are:
 
 | Id | Effective | Description |
 | -- | --------- | ----------- |
@@ -1316,18 +1316,18 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=10&code=VIC
 
 ### How is a park renamed, or sold?
 
-A change set is whatever the data owner sends. Richmond became Skegness in change set 6 with one row in `csv/season-2026/park.csv`, a `SET` of the same park with its new name, so its seasons, amenities and models follow it:
+A change set is whatever the data owner sends. Richmond became Skegness in change set 6 with one row in `csv/season-2026/park.csv`, which its frame loads with `action: SET`, the same park with its new name, so its seasons, amenities and models follow it:
 
 ```
-action,Code,Name,Address,Town,County,Postcode,Region
-SET,RI,Skegness,Richmond Drive,Skegness,Lincolnshire,PE25 2SE,Midlands
+Code,Name,Address,Town,County,Postcode,Region
+RI,Skegness,Richmond Drive,Skegness,Lincolnshire,PE25 2SE,Midlands
 ```
 
-Greenacres was sold in change set 8, which deletes the park and its amenities, seasons, offers and models, each from its own file. `csv/greenacres-sold/park.csv` needs only the key:
+Greenacres was sold in change set 8, which deletes the park and its amenities, beach routes, seasons, offers and models, each from its own file loaded with `action: DELETE`. `csv/greenacres-sold/park.csv` needs only the key:
 
 ```
-action,Code,Name,Address,Town,County,Postcode,Region
-DELETE,GA,,,,,,
+Code
+GA
 ```
 
 `GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?changeSetId=6&code=RI` returns the park as Skegness with everything it had as Richmond, and `GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?changeSetId=8&code=GA` returns an empty list, while both parks are still there at any earlier change set.

@@ -4,10 +4,14 @@
   effective: 2027-01-01T00:00:00Z
   changes:
     - entity: Model@1
+      action: SET
       source: ./csv/catalogue-2027/model.csv
     - entity: Grade Model@1
+      action: SET
       source: ./csv/catalogue-2027/grade-model.csv
     - entity: Price@1
+      action: SET
       source: ./csv/catalogue-2027/price.csv
     - entity: Accessory@1
+      action: SET
       source: ./csv/catalogue-2027/accessory.csv

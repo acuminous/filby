@@ -4,6 +4,8 @@
   effective: 2026-03-01T00:00:00Z
   changes:
     - entity: Park Season@1
+      action: SET
       source: ./csv/season-2026/park-season.csv
     - entity: Park@1
+      action: SET
       source: ./csv/season-2026/park.csv

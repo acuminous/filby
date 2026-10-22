@@ -4,14 +4,20 @@
   effective: 2024-10-01T00:00:00Z
   changes:
     - entity: Park@1
+      action: SET
       source: ./csv/parks/park.csv
     - entity: Amenity@1
+      action: SET
       source: ./csv/parks/amenity.csv
     - entity: Park Amenity@1
+      action: SET
       source: ./csv/parks/park-amenity.csv
     - entity: Beach@1
+      action: SET
       source: ./csv/parks/beach.csv
     - entity: Beach Route@1
+      action: SET
       source: ./csv/parks/beach-route.csv
     - entity: Park Season@1
+      action: SET
       source: ./csv/parks/park-season.csv

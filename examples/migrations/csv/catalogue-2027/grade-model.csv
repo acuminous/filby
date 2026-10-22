@@ -1,13 +1,13 @@
-action,Grade Code,Model Code,Year
-SET,Gold,RIO,2027
-SET,Gold,AVO,2027
-SET,Platinum,CLW,2027
-SET,Silver,BEV,2027
-SET,Silver,LOI,2027
-SET,Saver,CHA,2027
-SET,Bronze,MOO,2027
-SET,Bronze,FES,2027
-SET,Gold,CAS,2027
-SET,Platinum,HEL,2027
-SET,Saver,VER,2027
-SET,Gold,AMB,2027
+Grade Code,Model Code,Year
+Gold,RIO,2027
+Gold,AVO,2027
+Platinum,CLW,2027
+Silver,BEV,2027
+Silver,LOI,2027
+Saver,CHA,2027
+Bronze,MOO,2027
+Bronze,FES,2027
+Gold,CAS,2027
+Platinum,HEL,2027
+Saver,VER,2027
+Gold,AMB,2027
