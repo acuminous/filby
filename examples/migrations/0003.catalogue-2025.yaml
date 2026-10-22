@@ -4,20 +4,29 @@
   effective: 2025-01-01T00:00:00Z
   changes:
     - entity: Manufacturer@1
+      action: SET
       source: ./csv/catalogue-2025/manufacturer.csv
     - entity: Model@1
+      action: SET
       source: ./csv/catalogue-2025/model.csv
     - entity: Accessory@1
+      action: SET
       source: ./csv/catalogue-2025/accessory.csv
     - entity: Grade@1
+      action: SET
       source: ./csv/catalogue-2025/grade.csv
     - entity: Grade Attribute@1
+      action: SET
       source: ./csv/catalogue-2025/grade-attribute.csv
     - entity: Grade Model@1
+      action: SET
       source: ./csv/catalogue-2025/grade-model.csv
     - entity: Price@1
+      action: SET
       source: ./csv/catalogue-2025/price.csv
     - entity: VAT Rate@1
+      action: SET
       source: ./csv/catalogue-2025/vat-rate.csv
     - entity: Park Model@1
+      action: SET
       source: ./csv/catalogue-2025/park-model.csv

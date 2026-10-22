@@ -1,2 +1,2 @@
-action,Code,Manufacturer Code,Name,Berths,Bedrooms,Length,Width,Heating,Double Glazed,VAT Code
-SET,AMB,ABI,ABI Ambleside,6,2,36.0,12.0,Gas,true,Holiday Caravan
+Code,Manufacturer Code,Name,Berths,Bedrooms,Length,Width,Heating,Double Glazed,VAT Code
+AMB,ABI,ABI Ambleside,6,2,36.0,12.0,Gas,true,Holiday Caravan

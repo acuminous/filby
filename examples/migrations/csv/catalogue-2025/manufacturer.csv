@@ -1,7 +1,7 @@
-action,Code,Name
-SET,WIL,Willerby
-SET,ABI,ABI
-SET,SWI,Swift
-SET,ATL,Atlas
-SET,CAR,Carnaby
-SET,VIC,Victory
+Code,Name
+WIL,Willerby
+ABI,ABI
+SWI,Swift
+ATL,Atlas
+CAR,Carnaby
+VIC,Victory

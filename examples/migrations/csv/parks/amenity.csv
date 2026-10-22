@@ -1,13 +1,12 @@
-action,Code,Name,Category,Age Group,Charge,VAT Code
-SET,INDOOR_POOL,Indoor Pool,Pool,All Ages,Free,Family Attraction
-SET,OUTDOOR_POOL,Outdoor Pool,Pool,All Ages,Free,Family Attraction
-SET,SPLASH_ZONE,Splash Zone,Pool,Children,Free,Family Attraction
-SET,SHOWBAR,Showbar,Entertainment,All Ages,Free,Family Attraction
-SET,AMUSEMENT_ARCADE,Amusement Arcade,Entertainment,All Ages,Paid,Family Attraction
-SET,KIDS_CLUB,Kids Club,Entertainment,Children,Free,Family Attraction
-SET,CRAZY_GOLF,Crazy Golf,Sport,All Ages,Paid,Family Attraction
-SET,SPORTS_COURTS,Sports Courts,Sport,All Ages,Free,Family Attraction
-SET,RESTAURANT,Restaurant,Food,All Ages,Paid,Standard
-SET,COFFEE_SHOP,Coffee Shop,Food,All Ages,Paid,Standard
-SET,BEACH_ACCESS,Beach Access,Nature,All Ages,Free,Family Attraction
-SET,NATURE_TRAIL,Nature Trail,Nature,All Ages,Free,Family Attraction
+Code,Name,Category,Age Group,Charge,VAT Code
+INDOOR_POOL,Indoor Pool,Pool,All Ages,Free,Family Attraction
+OUTDOOR_POOL,Outdoor Pool,Pool,All Ages,Free,Family Attraction
+SPLASH_ZONE,Splash Zone,Pool,Children,Free,Family Attraction
+SHOWBAR,Showbar,Entertainment,All Ages,Free,Family Attraction
+AMUSEMENT_ARCADE,Amusement Arcade,Entertainment,All Ages,Paid,Family Attraction
+KIDS_CLUB,Kids Club,Entertainment,Children,Free,Family Attraction
+CRAZY_GOLF,Crazy Golf,Sport,All Ages,Paid,Family Attraction
+SPORTS_COURTS,Sports Courts,Sport,All Ages,Free,Family Attraction
+RESTAURANT,Restaurant,Food,All Ages,Paid,Standard
+COFFEE_SHOP,Coffee Shop,Food,All Ages,Paid,Standard
+NATURE_TRAIL,Nature Trail,Nature,All Ages,Free,Family Attraction

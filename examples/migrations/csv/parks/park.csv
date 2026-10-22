@@ -1,11 +1,11 @@
-action,Code,Name,Address,Town,County,Postcode,Region
-SET,DC,Devon Cliffs,Sandy Bay,Exmouth,Devon,EX8 5BT,South West
-SET,PV,Primrose Valley,Primrose Valley Road,Filey,North Yorkshire,YO14 9RF,Yorkshire
-SET,GA,Greenacres,Black Rock Sands,Porthmadog,Gwynedd,LL49 9YF,Wales
-SET,CT,Craig Tara,Dunure Road,Ayr,South Ayrshire,KA7 4LB,Scotland
-SET,HC,Haggerston Castle,Beal,Berwick-upon-Tweed,Northumberland,TD15 2PA,North East
-SET,KP,Kiln Park,Marsh Road,Tenby,Pembrokeshire,SA70 7RB,Wales
-SET,RP,Rockley Park,Napier Road,Poole,Dorset,BH15 4LZ,South West
-SET,GS,Golden Sands,Quebec Road,Mablethorpe,Lincolnshire,LN12 1QJ,Midlands
-SET,SS,Seashore,North Drive,Great Yarmouth,Norfolk,NR30 4EW,East
-SET,RI,Richmond,Richmond Drive,Skegness,Lincolnshire,PE25 2SE,Midlands
+Code,Name,Address,Town,County,Postcode,Region
+DC,Devon Cliffs,Sandy Bay,Exmouth,Devon,EX8 5BT,South West
+PV,Primrose Valley,Primrose Valley Road,Filey,North Yorkshire,YO14 9RF,Yorkshire
+GA,Greenacres,Black Rock Sands,Porthmadog,Gwynedd,LL49 9YF,Wales
+CT,Craig Tara,Dunure Road,Ayr,South Ayrshire,KA7 4LB,Scotland
+HC,Haggerston Castle,Beal,Berwick-upon-Tweed,Northumberland,TD15 2PA,North East
+KP,Kiln Park,Marsh Road,Tenby,Pembrokeshire,SA70 7RB,Wales
+RP,Rockley Park,Napier Road,Poole,Dorset,BH15 4LZ,South West
+GS,Golden Sands,Quebec Road,Mablethorpe,Lincolnshire,LN12 1QJ,Midlands
+SS,Seashore,North Drive,Great Yarmouth,Norfolk,NR30 4EW,East
+RI,Richmond,Richmond Drive,Skegness,Lincolnshire,PE25 2SE,Midlands

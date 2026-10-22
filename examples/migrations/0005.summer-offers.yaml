@@ -4,4 +4,5 @@
   effective: 2025-06-01T00:00:00Z
   changes:
     - entity: Park Offer@1
+      action: SET
       source: ./csv/summer-offers/park-offer.csv

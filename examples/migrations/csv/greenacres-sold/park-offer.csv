@@ -1,6 +1,6 @@
-action,Park Code,Grade Code,Discount Percent
-DELETE,GA,Platinum,
-DELETE,GA,Gold,
-DELETE,GA,Silver,
-DELETE,GA,Bronze,
-DELETE,GA,Saver,
+Park Code,Grade Code
+GA,Platinum
+GA,Gold
+GA,Silver
+GA,Bronze
+GA,Saver

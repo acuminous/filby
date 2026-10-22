@@ -4,4 +4,5 @@
   effective: 2026-09-02T00:00:00Z
   changes:
     - entity: VAT Rate@1
+      action: SET
       source: ./csv/temporary-reduced-rate-ends/vat-rate.csv

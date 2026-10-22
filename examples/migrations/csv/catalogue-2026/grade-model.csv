@@ -1,13 +1,13 @@
-action,Grade Code,Model Code,Year
-SET,Gold,RIO,2026
-SET,Gold,AVO,2026
-SET,Platinum,CLW,2026
-SET,Silver,BEV,2026
-SET,Silver,LOI,2026
-SET,Saver,CHA,2026
-SET,Bronze,MOO,2026
-SET,Bronze,FES,2026
-SET,Gold,CAS,2026
-SET,Platinum,HEL,2026
-SET,Saver,VER,2026
-SET,Silver,AMB,2026
+Grade Code,Model Code,Year
+Gold,RIO,2026
+Gold,AVO,2026
+Platinum,CLW,2026
+Silver,BEV,2026
+Silver,LOI,2026
+Saver,CHA,2026
+Bronze,MOO,2026
+Bronze,FES,2026
+Gold,CAS,2026
+Platinum,HEL,2026
+Saver,VER,2026
+Silver,AMB,2026

@@ -41,6 +41,21 @@
     - Paid
 
 - operation: ADD_ENUM
+  name: Beach Surface
+  values:
+    - Sandy
+    - Shingle
+    - Pebbles
+    - Rocky
+
+- operation: ADD_ENUM
+  name: Route Accessibility
+  values:
+    - Step Free
+    - Steps
+    - Steep Steps
+
+- operation: ADD_ENUM
   name: Grade Code
   values:
     - Platinum
@@ -132,6 +147,36 @@
   key:
     - Park Code
     - Amenity Code
+
+- operation: ADD_ENTITY
+  name: Beach
+  fields:
+    Code: TEXT
+    Name:
+      type: TEXT
+      nullable: false
+    Surfaces:
+      type: Beach Surface[]
+      nullable: false
+  key:
+    - Code
+
+- operation: ADD_ENTITY
+  name: Beach Route
+  fields:
+    Park Code: TEXT
+    Beach Code: TEXT
+    Name: TEXT
+    Distance Metres:
+      type: INTEGER
+      nullable: false
+    Accessibility:
+      type: Route Accessibility
+      nullable: false
+  key:
+    - Park Code
+    - Beach Code
+    - Name
 
 - operation: ADD_ENTITY
   name: Park Season
@@ -301,8 +346,18 @@
     - field: Name
 
 - operation: ADD_PROJECTION
+  name: Beaches
+  description: The beaches the parks reach, with their surfaces
+  root: Beach@1
+  parameters:
+    code:
+      field: Code
+  order:
+    - field: Name
+
+- operation: ADD_PROJECTION
   name: Parks (Minimal)
-  description: Parks with their amenity codes, seasons, offers and the models they sell
+  description: Parks with their amenity codes, beach routes by beach code, seasons, offers and the models they sell
   root: Park@1
   parameters:
     code:
@@ -325,6 +380,13 @@
         Park Code: Code
       order:
         - field: Amenity Code
+    Beach Routes:
+      entity: Beach Route@1
+      on:
+        Park Code: Code
+      order:
+        - field: Beach Code
+        - field: Name
     Seasons:
       entity: Park Season@1
       on:
@@ -346,7 +408,7 @@
 
 - operation: ADD_PROJECTION
   name: Parks (Detailed)
-  description: Parks with their amenities in full, seasons, offers and the models they sell
+  description: Parks with their amenities and beach routes in full, seasons, offers and the models they sell
   root: Park@1
   parameters:
     code:
@@ -369,13 +431,23 @@
         Park Code: Code
       order:
         - field: Amenity Code
-      nest:
+      lookup:
         Amenity:
           entity: Amenity@1
           on:
             Code: Amenity Code
-          order:
-            - field: Name
+    Beach Routes:
+      entity: Beach Route@1
+      on:
+        Park Code: Code
+      order:
+        - field: Beach Code
+        - field: Name
+      lookup:
+        Beach:
+          entity: Beach@1
+          on:
+            Code: Beach Code
     Seasons:
       entity: Park Season@1
       on:

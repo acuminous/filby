@@ -1,5 +1,5 @@
-action,Code,Name,Rate
-SET,Standard,Standard rate,20.00
-SET,Holiday Caravan,Reduced rate for static holiday caravans,5.00
-SET,Residential Caravan,Zero rate for caravans built to BS 3632,0.00
-SET,Family Attraction,Children's meals and family attractions,20.00
+Code,Name,Rate
+Standard,Standard rate,20.00
+Holiday Caravan,Reduced rate for static holiday caravans,5.00
+Residential Caravan,Zero rate for caravans built to BS 3632,0.00
+Family Attraction,Children's meals and family attractions,20.00
