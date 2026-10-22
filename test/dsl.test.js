@@ -100,6 +100,13 @@ describe('DSL', () => {
 
   describe('Add Enum', () => {
 
+    const ADD_VAT_RATES = `
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  root: VAT Rate@1
+`;
+
     it('should add enum', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM);
 
@@ -199,6 +206,23 @@ describe('DSL', () => {
         eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
         return true;
       });
+    });
+
+    it('should serve an array of an enum as an array', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        transform(ADD_ENUM).set('0.values', ['standard', 'reduced', 'zero rated']),
+        transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate[]'),
+        ADD_VAT_RATES,
+        transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data: [{ type: 'food', rate: '{"reduced","zero rated"}' }, { type: 'books', rate: null }] }]),
+      );
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const expected = [{ type: 'books', rate: null }, { type: 'food', rate: ['reduced', 'zero rated'] }];
+
+      for (const aggregates of await Promise.all([filby.getAggregates(changeSetId, 'VAT Rate', 1), filby.getAggregates(changeSetId, 'VAT Rate', 1)])) deq(aggregates, expected);
+      deq((await filby.getDocuments(projection, changeSetId)).documents, expected);
+      deq(await (await filby.fetch(new Request(`http://localhost/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`))).json(), expected);
     });
   });
 
@@ -867,8 +891,8 @@ describe('DSL', () => {
     it('should accept an enum array field type written as declared', async (t) => {
       await filby.applyYaml(t.name, ADD_AMENITY_CATEGORY, transform(ADD_ENTITY).set('0.fields.1.type', 'Amenity Category[]'), setRate('{"Pool","Entertainment"}'));
 
-      eq(await getRate(), '{Pool,Entertainment}');
-      eq(await getAggregatedRate(), '{Pool,Entertainment}');
+      deq(await getRate(), ['Pool', 'Entertainment']);
+      deq(await getAggregatedRate(), ['Pool', 'Entertainment']);
       eq((await getEntityFields())[1].type, 'amenity_category[]');
     });
 
