@@ -246,7 +246,7 @@ A *Change Set* groups data frames, potentially for different entities, into a si
 An *Aggregate* is the state of an entity at a change set: one row per key, resolved from the entity's data frames by the rule in [The Snapshot Guarantee](#the-snapshot-guarantee), with a record whose latest frame is a `DELETE` omitted. Filby creates an aggregate function for each entity version, with the signature `get_<entity>_v<version>_aggregate(p_change_set_id INTEGER)`. Entity, field, enum and nest names may be written in Title Case with spaces, as `Park Season`; Filby canonicalises them to lower case with underscores for tables, columns, types and functions, and in the documents it serves, so the aggregate of version 1 of the 'Park Season' entity is `get_park_season_v1_aggregate` and its 'Park Code' field is the column `park_code`. Projection names are kept as written, so a projection declared as `Parks` is `Parks` in the API. Projections are built on these functions, and `getAggregates` calls them for you.
 
 ### Projection
-A *Projection* is a versioned view of one or more entities, made available in the example application via a RESTful API. Most projections are declared in the DSL by naming a root entity, and Filby generates a function that returns one row per root record at a given change set, with optional parameters for filtering, a declared order and paging. One-to-many related entities can be nested under the root with a `nest` block, and a nested entity can nest its own children to any depth, each level joining to its parent. `getDocuments` assembles one document per root record with the related records embedded at every level, with paging still counting root records. The projection's dependencies, the entities whose change sets affect it, are derived from the root and the nested entities. When a projection needs a shape the DSL cannot express, write the SQL yourself over the aggregate functions and declare the entities it depends on instead, so Filby still knows which projections a change set affects. A reference to a projection always names the version, as `parks@1` or as `projection: parks` with `version: 1`.
+A *Projection* is a versioned view of one or more entities, made available in the example application via a RESTful API. Most projections are declared in the DSL by naming a root entity, and Filby generates a function that returns one row per root record at a given change set, with optional parameters for filtering, a declared order and paging. One-to-many related entities can be nested under the root with a `nest` block, and a nested entity can nest its own children to any depth, each level joining to its parent. A many-to-one entity, such as the amenity a park amenity refers to, is embedded as a single object rather than a list with a `lookup` block, at the root or under any nest. `getDocuments` assembles one document per root record with the related records embedded at every level, with paging still counting root records. The projection's dependencies, the entities whose change sets affect it, are derived from the root and the nested and looked-up entities. When a projection needs a shape the DSL cannot express, write the SQL yourself over the aggregate functions and declare the entities it depends on instead, so Filby still knows which projections a change set affects. A reference to a projection always names the version, as `parks@1` or as `projection: parks` with `version: 1`.
 
 ### Hook
 A *Hook* pairs a unique name with an *Event*. Your application registers a handler for the hook by name with `filby.subscribe`, and can handle the event how it chooses, e.g. by making an HTTP request, or publishing a message to an SNS topic. Unlike node events, the handlers are asynchronous. It is advised not to share hooks between handlers since if one handler fails but another succeeds the built in retry mechanism will re-notify both handlers.
@@ -374,8 +374,35 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
         - field: Customer Type
 
 # An entry may nest its own children in the same way, to any depth, each level joining
-# to its parent. Here each park holds the amenities it offers and each of those holds
-# the amenity itself, so a document carries the amenity's name rather than its code
+# to its parent. Here each manufacturer holds its models and each model holds its prices
+- operation: ADD_PROJECTION
+  name: Catalogue
+  root: Manufacturer@1
+  nest:
+    Models:
+      entity: Model@1
+      on:
+        Manufacturer Code: Code
+      order:
+        - field: Name
+      nest:
+        Prices:
+          entity: Price@1
+          # Maps the price's field to the model's field
+          on:
+            Model Code: Code
+          order:
+            - field: Year
+
+# A lookup embeds a many-to-one entity as a single object rather than a list. The root
+# and any nest may declare lookups alongside their nests, and each names an entity and
+# a join exactly as a nest does, but the join must cover the whole key of the looked-up
+# entity, so a parent finds at most one record, and gets null when there is none at the
+# change set. A lookup has no order and no nests or lookups of its own; nest the entity
+# instead if it needs children. A nest and a lookup may not share a name at one level,
+# and a looked-up entity is a dependency of the projection too. Here each park amenity
+# carries the amenity it refers to, so a document has the amenity's name, category and
+# charge beside its code, which stays on the park amenity as the join field
 - operation: ADD_PROJECTION
   name: Parks (Detailed)
   root: Park@1
@@ -386,14 +413,12 @@ All of above objects (Projections, Entities, Data Frames, etc) are defined using
         Park Code: Code
       order:
         - field: Amenity Code
-      nest:
+      lookup:
         Amenity:
           entity: Amenity@1
           # Maps the amenity's field to the park amenity's field
           on:
             Code: Amenity Code
-          order:
-            - field: Name
 
 # A projection whose SQL you write yourself (see the custom SQL migration below)
 # declares the entities it depends on instead of a root. Filby still knows which

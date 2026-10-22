@@ -22,6 +22,8 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_season_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_rate_v1_aggregate');
+    await tx.query('DROP TABLE IF EXISTS operator_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_operator_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v2');
@@ -52,6 +54,8 @@ const ADD_NESTED_PROJECTION = loadYaml('ADD_NESTED_PROJECTION');
 const ADD_PARK_CHANGE_SET = loadYaml('ADD_PARK_CHANGE_SET');
 const ADD_SEASON_CHANGE_SET = loadYaml('ADD_SEASON_CHANGE_SET');
 const ADD_RATE_CHANGE_SET = loadYaml('ADD_RATE_CHANGE_SET');
+const ADD_OPERATOR_ENTITY = loadYaml('ADD_OPERATOR_ENTITY');
+const ADD_OPERATOR_CHANGE_SET = loadYaml('ADD_OPERATOR_CHANGE_SET');
 const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
 const ADD_CHANGE_SET_1 = loadYaml('ADD_CHANGE_SET_1');
 const ADD_HOOK_ADD_PROJECTION = loadYaml('ADD_HOOK_ADD_PROJECTION');
@@ -1901,7 +1905,7 @@ describe('DSL', () => {
     it('should reject nests with the same canonical name', async (t) => {
       const nest = { Seasons: { entity: 'season@1', on: { park_code: 'code' } }, seasons: { entity: 'season@1', on: { park_code: 'code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest)), (err) => {
-        eq(err.message, "Projection 'Parks v1' declares nest 'seasons' more than once");
+        eq(err.message, "Projection 'Parks v1' declares 'seasons' more than once");
         return true;
       });
 
@@ -1954,7 +1958,7 @@ describe('DSL', () => {
     it('should reject nested nests with the same canonical name under the same parent', async (t) => {
       const nest = { Rates: { entity: 'rate@1', on: { park_code: 'park_code' } }, rates: { entity: 'rate@1', on: { park_code: 'park_code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', nest)), (err) => {
-        eq(err.message, "Projection 'Parks v1' declares nest 'seasons.rates' more than once");
+        eq(err.message, "Projection 'Parks v1' declares 'seasons.rates' more than once");
         return true;
       });
 
@@ -2036,6 +2040,115 @@ describe('DSL', () => {
       });
     });
 
+    const ADD_OPERATED_PARK_ENTITIES = transform(ADD_PARK_ENTITIES).set('0.fields.operator_code', 'TEXT');
+    const ADD_OPERATED_PARK_CHANGE_SET = transform(ADD_PARK_CHANGE_SET).set('0.changes.0.data', [{ code: 'DC', name: 'Devon Cliffs', operator_code: 'HAV' }, { code: 'PV', name: 'Primrose Valley', operator_code: 'HAV' }, { code: 'GA', name: 'Greenacres', operator_code: 'PKD' }]);
+
+    it('should look up a single document on the root', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 }, '2020 Operators');
+      deq(Object.keys(documents[0]), ['code', 'name', 'operator_code', 'seasons', 'operator']);
+      deq(documents.map(({ code, operator }) => [code, operator]), [['DC', { name: 'Haven' }], ['GA', { name: 'Parkdean' }], ['PV', { name: 'Haven' }]]);
+    });
+
+    it('should look up a single document on a nest', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', { park: { entity: 'park@1', on: { code: 'park_code' } } }), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(Object.keys(park.seasons[0]), ['type', 'start', 'end', 'rates', 'park']);
+      deq(park.seasons.map((season) => season.park), [{ name: 'Devon Cliffs' }, { name: 'Devon Cliffs' }, { name: 'Devon Cliffs' }]);
+      deq(park.seasons.map((season) => season.rates.length), [2, 0, 2]);
+    });
+
+    it('should look up a single document on a nest within a nest', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.lookup', { park: { entity: 'park@1', on: { code: 'park_code' } } }), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons[0].rates, [{ band: 'A', amount: '120.00', park: { name: 'Devon Cliffs' } }, { band: 'B', amount: '80.00', park: { name: 'Devon Cliffs' } }]);
+    });
+
+    it('should look up null when no document exists at the change set', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const before = await getDocuments({ pageSize: 3 }, '2019 Parks');
+      deq(before.documents.map(({ code, operator }) => [code, operator]), [['DC', null], ['GA', null], ['PV', null]]);
+
+      const after = await getDocuments({ pageSize: 3 }, '2020 Operators');
+      deq(after.documents.map(({ code, operator }) => [code, operator]), [['DC', { name: 'Haven' }], ['GA', { name: 'Parkdean' }], ['PV', { name: 'Haven' }]]);
+    });
+
+    it('should canonicalise lookup names and fields', async (t) => {
+      const lookup = { Operator: { entity: 'operator@1', on: { Code: 'Operator Code' } } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } }, '2020 Operators');
+      deq(park.operator, { name: 'Haven' });
+    });
+
+    it('should derive the dependencies of looked up entities', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const projection = await filby.getProjection('Parks', 1);
+      const changeLog = await filby.getChangeLog(projection);
+      deq(changeLog.map((changeSet) => changeSet.description), ['2019 Parks', '2020 Operators']);
+    });
+
+    it('should require a lookup to join on the whole key of the looked up entity', async (t) => {
+      const lookup = { season: { entity: 'season@1', on: { park_code: 'park_code', type: 'season_type' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'seasons.rates.season' does not join on the whole key of entity 'season v1'; missing key fields are 'start'");
+        return true;
+      });
+    });
+
+    it('should reject a lookup join on a field the looked up entity does not have', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { wombat: 'operator_code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'operator' joins on a non existent field 'wombat' of entity 'operator v1'; existing fields are 'code', 'name'");
+        return true;
+      });
+    });
+
+    it('should reject a lookup with the same name as a nest', async (t) => {
+      const lookup = { Seasons: { entity: 'park@1', on: { code: 'code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' declares 'seasons' more than once");
+        return true;
+      });
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
+      eq(projections.length, 0);
+    });
+
+    it('should require root to use lookup', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.lookup', { operator: { entity: 'operator@1', on: { code: 'operator_code' } } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'lookup'");
+        return true;
+      });
+    });
+
+    it('should forbid order nest or lookup in lookup entries', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.lookup', { operator: { ...lookup.operator, order: [{ field: 'name' }] } })), (err) => {
+        eq(err.message, "001.should-forbid-order-nest-or-lookup-in-lookup-entries.yaml: /0/lookup/operator must NOT have additional property 'order'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', { operator: { ...lookup.operator, nest: { rates: { entity: 'rate@1', on: { park_code: 'code' } } } } })), (err) => {
+        eq(err.message, "001.should-forbid-order-nest-or-lookup-in-lookup-entries.yaml: /0/nest/seasons/lookup/operator must NOT have additional property 'nest'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.lookup', { operator: { ...lookup.operator, lookup } })), (err) => {
+        eq(err.message, "001.should-forbid-order-nest-or-lookup-in-lookup-entries.yaml: /0/lookup/operator must NOT have additional property 'lookup'");
+        return true;
+      });
+    });
+
     function setRates(rates) {
       const data = Object.entries(rates).map(([type, rate]) => ({ type, rate }));
       return transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data }]);
@@ -2047,9 +2160,9 @@ describe('DSL', () => {
       return rows;
     }
 
-    async function getDocuments(options) {
+    async function getDocuments(options, description = '2019 Parks') {
       const projection = await filby.getProjection('Parks', 1);
-      const changeSetId = await getChangeSetId('2019 Parks');
+      const changeSetId = await getChangeSetId(description);
       return filby.getDocuments(projection, changeSetId, options);
     }
   });
