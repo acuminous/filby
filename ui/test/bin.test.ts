@@ -126,20 +126,28 @@ describe('proxy', () => {
     }
   });
 
-  it('serves the bundle', async () => {
+  it('serves the bundle, cached for a year because its file names are hashed', async () => {
     const response = await fetch(`${base}/assets/app.js`);
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toMatch(/javascript/);
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
     expect(await response.text()).toBe('console.log(1);\n');
   });
 
-  it('falls back to the page for any other path', async () => {
-    for (const url of [`${base}/`, `${base}/projections/Parks/v1/change-sets/3?code=DC`]) {
+  it('falls back to the page for any other path, revalidated on every load', async () => {
+    for (const url of [`${base}/`, `${base}/index.html`, `${base}/projections/Parks/v1/change-sets/3?code=DC`]) {
       const response = await fetch(url);
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toMatch(/text\/html/);
+      expect(response.headers.get('Cache-Control')).toBe('no-cache');
       expect(await response.text()).toContain('<div id="app">');
     }
+  });
+
+  it('leaves the cache headers of proxied responses to the target', async () => {
+    const response = await fetch(`${base}/api/projections/Parks/v1?changeSetId=3`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBeNull();
   });
 });
 

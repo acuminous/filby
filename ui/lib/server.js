@@ -8,6 +8,7 @@ export function createApp({ target, basePath, dist }) {
   const app = new Hono();
   app.use((c, next) => (c.req.method === 'GET' ? next() : c.json({ error: `Method ${c.req.method} is not allowed` }, 405, { Allow: 'GET' })));
   app.get('/api/*', (c) => proxy(c, target, basePath));
+  app.use(cacheControl);
   app.use(serveStatic({ root: dist }));
   app.get('*', serveStatic({ root: dist, path: 'index.html' }));
   return app;
@@ -15,6 +16,11 @@ export function createApp({ target, basePath, dist }) {
 
 export function rewriteBasePath(value, basePath) {
   return value.replace(new RegExp(`(^|<|://[^/<>]+)${escapeRegExp(basePath)}(?=[/?>]|$)`, 'g'), '$1/api');
+}
+
+async function cacheControl(c, next) {
+  await next();
+  c.header('Cache-Control', c.req.path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache');
 }
 
 async function proxy(c, target, basePath) {
