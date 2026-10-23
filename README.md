@@ -125,6 +125,42 @@ Corrections and backfills do not break the guarantee. Data that should have been
 
 ## How it works
 
+Reference data arrives as change sets in CSV, YAML, JSON or SQL migration files. Filby applies them to PostgreSQL, and your application mounts Filby's HTTP handler. A client reads a projection's change log, picks a change set and asks for the data at it, and a webhook or any other handler hears when something changes.
+
+<pre>
+                         Change
+                      Notification                           Webhook
+                      ┌─────────┐   ┌────────────────────────────────────────────────────────┐
+                      │         │   │                                                        │
+                      │         ▼   │                                                        ▼
+┌────────┐      ┌───────────┬──────────┐    GET /api/changelog?projection=$p&version=$v ┌──────────┐
+│        │      │           │          │◀───────────────────────────────────────────────│          │
+│        │      │           │ Example  │                                                │          │
+│   DB   │◀────▶│   Filby   │   App    │                                                │  Client  │
+│        │      │           │          │    GET /api/projections/$p/v$v?changeSetId=$c  │          │
+│        │      │           │          │◀───────────────────────────────────────────────│          │
+└────────┘      └───────────┴──────────┘                                                └──────────┘
+                      ▲
+                      │
+                      │
+┌─────────────────────────────────────────────┐
+│                                             │
+│               Reference Data                │
+│                 Change Sets                 │
+│                                             │
+└─────────────────────────────────────────────┘
+     ▲           ▲           ▲           ▲
+     │           │           │           │
+     │           │           │           │
+┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│         │ │         │ │         │ │         │
+│   CSV   │ │  YAML   │ │  JSON   │ │   SQL   │
+│         │ │         │ │         │ │         │
+└─────────┘ └─────────┘ └─────────┘ └─────────┘
+</pre>
+
+Inside Filby, the pieces relate like this.
+
 <pre>
 ┌─────────────────┐
 │                 │
