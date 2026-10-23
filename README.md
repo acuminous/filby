@@ -4,9 +4,6 @@
 [![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
 [![Codecov](https://codecov.io/gh/acuminous/filby/graph/badge.svg)](https://codecov.io/gh/acuminous/filby)
 
-*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
-<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
-
 ## Contents
 
 - [Introduction](#introduction)
@@ -16,6 +13,7 @@
 - [Guide](#guide)
 - [Reference](#reference)
 - [Example application](#example-application)
+- [The Time Machine](#the-time-machine)
 
 ## Introduction
 
@@ -1600,3 +1598,10 @@ GA
 ```
 
 `GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?changeSetId=6&code=RI` returns the park as Skegness with everything it had as Richmond, and `GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?changeSetId=8&code=GA` returns an empty list with `X-Total-Count: 0`, while both parks are still there at any earlier change set.
+
+## The Time Machine
+
+*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
+<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
+
+Filby is one of the guests in the opening chapter of H. G. Wells' *The Time Machine*, the argumentative one who doubts the Time Traveller's claim that time is a dimension like any other and then watches a model machine vanish into it. The library moves reference data through time in the same way, so it is named after him.
