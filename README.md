@@ -345,7 +345,7 @@ Each change set is added in one transaction, and adding it schedules notificatio
 
 ### Projections
 
-Most projections are declared with `ADD_PROJECTION` and a `root` entity. Filby generates a function, `get_parks_v1` here, that returns one row per root record at a change set, filtered by the parameters, in the declared order, one page at a time.
+Most projections are declared with `ADD_PROJECTION` and a `root` entity, and serve one document per record of that entity at a change set. Three optional parts shape what a consumer gets: `parameters` to filter, `order` to sort and `paging` to page.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -379,13 +379,23 @@ Most projections are declared with `ADD_PROJECTION` and a `root` entity. Filby g
         - field: Customer Type
 ```
 
-Each parameter becomes a nullable argument of the generated function, `p_code`, `p_name` and `p_region` here, of the field's type, and filters the rows when supplied. `match` defaults to `equals`. `prefix` matches the start of the field literally. `in` takes an array. `range` takes two arguments, `p_<name>_from` and `p_<name>_to`, each optional and inclusive. `gt`, `gte`, `lt` and `lte` compare the field with `p_<name>`, and two parameters may name the same field, so `gt` and `lte` together make a half-open interval. Parameters combine with AND. The canonical names `change_set_id`, `page_offset` and `page_size` are reserved and fail with `Projection 'Parks v1' parameter 'page_size' uses a reserved name`.
+**Parameters** are the filters a consumer may pass, under the names you give them. Each names a field of the root and how a value is matched against it.
 
-`order` lists root fields to sort by, with `direction` `ASC` or `DESC`, the default `ASC`, and `nulls` `FIRST` or `LAST`, otherwise Postgres decides. The entity key is always appended, ascending, as a tie break, and is the whole order when none is declared.
+| `match` | Keeps the records whose field |
+| ------- | ----------------------------- |
+| `equals`, the default | equals the value |
+| `prefix` | starts with the value |
+| `in` | is any of a list of values |
+| `range` | lies between a from value and a to value, each optional and inclusive |
+| `gt`, `gte`, `lt`, `lte` | is greater than, at least, less than or at most the value |
 
-`paging` adds `p_page_offset`, default 0, and `p_page_size`, default `page_size` and never more than `page_max`, to the function, and an `fby_total` column holding the number of rows that matched the parameters whatever the page. The function above is `get_parks_v1(p_change_set_id, p_code, p_name, p_region, p_page_offset, p_page_size)`.
+Over HTTP a parameter is a query parameter: `?code=DC`, `?name=Dev`, `?region=Scotland&region=Wales` for an `in`, and `?berths_from=4&berths_to=6` for a `range`. In code it is a key of `parameters` passed to `getDocuments`. Parameters combine with AND, and one that is not supplied does not filter. Two parameters may name the same field, so `gt` and `lte` together make a half-open interval. The names `change_set_id`, `page_offset` and `page_size` are reserved.
 
-`nest` embeds the records of a related entity under each root record as a list. Each entry names the child entity and an `on` map from the child's field to the parent's field, and may order the children, with the child's key appended as a tie break. The generated function is unchanged; `filby.getDocuments` and `filby.fetch` run one query per nest and attach the children, so the documents above each carry a `seasons` list, empty when a park has none, and a page is ten parks with all their seasons. A nest may nest its own children in the same way, to any depth, each level joining to its parent.
+**Order** lists the fields to sort by, each ascending by default or `DESC`, with `nulls` `FIRST` or `LAST` where it matters. Records that tie fall back to the entity's key, which is also the order when none is declared.
+
+**Paging** sets how many root records a page holds and the most a consumer may ask for. Over HTTP a consumer asks for `?page=2&pageSize=20` and gets the total number of matching records in `X-Total-Count` and the next and previous pages in `Link`. Pages count root records, so a page of parks carries all of their seasons. Without `paging`, every record is returned.
+
+**Nests** embed the records of a related entity under each root record as a list. Each entry names the child entity and an `on` map from the child's field to the parent's field, and may order the children, which fall back to the child's key. Each document above carries a `seasons` list, empty when a park has none. A nest may nest its own children in the same way, to any depth, each level joining to its parent.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
