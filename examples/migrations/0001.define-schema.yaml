@@ -357,7 +357,7 @@
 
 - operation: ADD_PROJECTION
   name: Parks (Minimal)
-  description: Parks with their amenity codes, beach routes by beach code, seasons, offers and the models they sell
+  description: Parks alone, for a list or a picker
   root: Park@1
   parameters:
     code:
@@ -373,38 +373,6 @@
   paging:
     page_size: 10
     page_max: 50
-  nest:
-    Amenities:
-      entity: Park Amenity@1
-      on:
-        Park Code: Code
-      order:
-        - field: Amenity Code
-    Beach Routes:
-      entity: Beach Route@1
-      on:
-        Park Code: Code
-      order:
-        - field: Beach Code
-        - field: Name
-    Seasons:
-      entity: Park Season@1
-      on:
-        Park Code: Code
-      order:
-        - field: Customer Type
-    Offers:
-      entity: Park Offer@1
-      on:
-        Park Code: Code
-      order:
-        - field: Grade Code
-    Models:
-      entity: Park Model@1
-      on:
-        Park Code: Code
-      order:
-        - field: Model Code
 
 - operation: ADD_PROJECTION
   name: Parks (Detailed)

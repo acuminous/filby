@@ -52,22 +52,6 @@ describe('API', () => {
       county: 'Devon',
       postcode: 'EX8 5BT',
       region: 'South West',
-      seasons: [
-        { customer_type: 'Guest', current_season_start: '2026-03-16T00:00:00.000Z', current_season_end: '2026-11-03T00:00:00.000Z', next_season_start: '2027-03-16T00:00:00.000Z', next_season_end: '2027-11-03T00:00:00.000Z' },
-        { customer_type: 'Owner', current_season_start: '2026-03-01T00:00:00.000Z', current_season_end: '2027-01-06T00:00:00.000Z', next_season_start: '2027-03-01T00:00:00.000Z', next_season_end: '2028-01-06T00:00:00.000Z' },
-      ],
-      offers: [
-        { grade_code: 'Platinum', discount_percent: '0.00' },
-        { grade_code: 'Gold', discount_percent: '2.50' },
-        { grade_code: 'Silver', discount_percent: '5.00' },
-        { grade_code: 'Bronze', discount_percent: '7.50' },
-        { grade_code: 'Saver', discount_percent: '10.00' },
-      ],
-      models: ['AMB', 'AVO', 'BEV', 'CAS', 'CLW', 'HEL', 'LOI', 'RIO'].map((model_code) => ({ model_code })),
-      beach_routes: [
-        { beach_code: 'SANDY_BAY', name: 'Along the beach road', distance_metres: 1200, accessibility: 'Step Free' },
-        { beach_code: 'SANDY_BAY', name: 'Via the cliff path', distance_metres: 400, accessibility: 'Steep Steps' },
-      ],
     };
 
     it('should redirect to the current change set', async () => {
@@ -93,7 +77,21 @@ describe('API', () => {
           { amenity: { code: 'SHOWBAR', name: 'Showbar', category: 'Entertainment', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
           { amenity: { code: 'SPLASH_ZONE', name: 'Splash Zone', category: 'Pool', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' } },
         ],
-        beach_routes: devonCliffs.beach_routes.map(({ beach_code, ...route }) => ({ ...route, beach: { code: beach_code, name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] } })),
+        beach_routes: [
+          { name: 'Along the beach road', distance_metres: 1200, accessibility: 'Step Free', beach: { code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] } },
+          { name: 'Via the cliff path', distance_metres: 400, accessibility: 'Steep Steps', beach: { code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] } },
+        ],
+        seasons: [
+          { customer_type: 'Guest', current_season_start: '2026-03-16T00:00:00.000Z', current_season_end: '2026-11-03T00:00:00.000Z', next_season_start: '2027-03-16T00:00:00.000Z', next_season_end: '2027-11-03T00:00:00.000Z' },
+          { customer_type: 'Owner', current_season_start: '2026-03-01T00:00:00.000Z', current_season_end: '2027-01-06T00:00:00.000Z', next_season_start: '2027-03-01T00:00:00.000Z', next_season_end: '2028-01-06T00:00:00.000Z' },
+        ],
+        offers: [
+          { grade_code: 'Platinum', discount_percent: '0.00' },
+          { grade_code: 'Gold', discount_percent: '2.50' },
+          { grade_code: 'Silver', discount_percent: '5.00' },
+          { grade_code: 'Bronze', discount_percent: '7.50' },
+          { grade_code: 'Saver', discount_percent: '10.00' },
+        ],
         models: [
           { model_code: 'AMB', model: { name: 'ABI Ambleside' } },
           { model_code: 'AVO', model: { name: 'Willerby Avonmore' } },
@@ -107,7 +105,7 @@ describe('API', () => {
       });
     });
 
-    it('should respond with the same park and its amenity, beach and model codes from the minimal projection', async () => {
+    it('should respond with the park alone from the minimal projection', async () => {
       const redirect = await get('/api/projections/Parks%20(Minimal)/v1?code=DC');
       eq(redirect.status, 307);
       eq(redirect.headers.get('Location'), '/api/projections/Parks%20(Minimal)/v1?code=DC&changeSetId=8');
@@ -116,10 +114,7 @@ describe('API', () => {
       eq(response.status, 200);
       eq(response.headers.get('X-Total-Count'), '1');
       const [park] = await response.json();
-      deq(park, {
-        ...devonCliffs,
-        amenities: ['AMUSEMENT_ARCADE', 'CRAZY_GOLF', 'INDOOR_POOL', 'KIDS_CLUB', 'OUTDOOR_POOL', 'RESTAURANT', 'SHOWBAR', 'SPLASH_ZONE'].map((amenity_code) => ({ amenity_code })),
-      });
+      deq(park, devonCliffs);
     });
   });
 
@@ -139,10 +134,10 @@ describe('API', () => {
     });
 
     it('should list two beaches for Kiln Park, one route to each', async () => {
-      const [kilnPark] = await (await get('/api/projections/Parks%20(Minimal)/v1?changeSetId=8&code=KP')).json();
+      const [kilnPark] = await (await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=8&code=KP')).json();
       deq(kilnPark.beach_routes, [
-        { beach_code: 'TENBY_CASTLE', name: 'Into town past the harbour', distance_metres: 1800, accessibility: 'Steps' },
-        { beach_code: 'TENBY_SOUTH', name: 'Through the dunes', distance_metres: 300, accessibility: 'Step Free' },
+        { name: 'Into town past the harbour', distance_metres: 1800, accessibility: 'Steps', beach: { code: 'TENBY_CASTLE', name: 'Tenby Castle Beach', surfaces: ['Sandy', 'Rocky'] } },
+        { name: 'Through the dunes', distance_metres: 300, accessibility: 'Step Free', beach: { code: 'TENBY_SOUTH', name: 'Tenby South Beach', surfaces: ['Sandy'] } },
       ]);
     });
 
@@ -153,8 +148,8 @@ describe('API', () => {
     });
 
     it('should keep the beach when the park that reached it is sold', async () => {
-      const [greenacres] = await (await get('/api/projections/Parks%20(Minimal)/v1?changeSetId=7&code=GA')).json();
-      deq(greenacres.beach_routes, [{ beach_code: 'BLACK_ROCK_SANDS', name: 'Across the dunes', distance_metres: 300, accessibility: 'Step Free' }]);
+      const [greenacres] = await (await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=7&code=GA')).json();
+      deq(greenacres.beach_routes, [{ name: 'Across the dunes', distance_metres: 300, accessibility: 'Step Free', beach: { code: 'BLACK_ROCK_SANDS', name: 'Black Rock Sands', surfaces: ['Sandy'] } }]);
       deq(await (await get('/api/projections/Beaches/v1?changeSetId=8&code=BLACK_ROCK_SANDS')).json(), [{ code: 'BLACK_ROCK_SANDS', name: 'Black Rock Sands', surfaces: ['Sandy'] }]);
     });
   });
@@ -284,8 +279,7 @@ describe('API', () => {
       const [richmond] = await (await get('/api/projections/Parks%20(Minimal)/v1?changeSetId=5&code=RI')).json();
       eq(richmond.name, 'Richmond');
       const [skegness] = await (await get('/api/projections/Parks%20(Minimal)/v1?changeSetId=6&code=RI')).json();
-      eq(skegness.name, 'Skegness');
-      deq(skegness.amenities, richmond.amenities);
+      deq(skegness, { ...richmond, name: 'Skegness' });
 
       const before = await get('/api/projections/Parks%20(Minimal)/v1?changeSetId=7');
       eq(before.headers.get('X-Total-Count'), '10');
@@ -354,16 +348,16 @@ describe('API', () => {
       eq(document.info.title, 'Holiday Park Data Service');
       deq(Object.keys(document.paths), ['/projections', '/changelog', '/projections/Amenities/v1', '/projections/Beaches/v1', '/projections/Catalogue/v1', '/projections/Grades/v1', '/projections/Models/v1', '/projections/Parks%20(Detailed)/v1', '/projections/Parks%20(Minimal)/v1', '/projections/VAT%20Rates/v1']);
 
-      const parks = schema(document, 'Parks (Minimal)');
-      deq(parks.properties.region, { type: 'string', enum: ['Scotland', 'North East', 'Yorkshire', 'North West', 'Wales', 'Midlands', 'East', 'South East', 'South West'] });
-      deq(parks.properties.seasons.items.properties.current_season_start, { type: 'string', format: 'date-time' });
-      deq(parks.properties.seasons.items.properties.next_season_start, { type: ['string', 'null'], format: 'date-time' });
-      deq(Object.keys(parks.properties.amenities.items.properties), ['amenity_code']);
-      deq(Object.keys(parks.properties.beach_routes.items.properties), ['beach_code', 'name', 'distance_metres', 'accessibility']);
-      deq(parks.properties.beach_routes.items.properties.accessibility, { type: 'string', enum: ['Step Free', 'Steps', 'Steep Steps'] });
+      const minimal = schema(document, 'Parks (Minimal)');
+      deq(document.paths['/projections/Parks%20(Minimal)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'page', 'pageSize']);
+      deq(Object.keys(minimal.properties), ['code', 'name', 'address', 'town', 'county', 'postcode', 'region']);
+      deq(minimal.required, ['code', 'name', 'address', 'town', 'county', 'postcode', 'region']);
+      deq(minimal.properties.region, { type: 'string', enum: ['Scotland', 'North East', 'Yorkshire', 'North West', 'Wales', 'Midlands', 'East', 'South East', 'South West'] });
 
       const detailed = schema(document, 'Parks (Detailed)');
       deq(document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'page', 'pageSize']);
+      deq(detailed.properties.seasons.items.properties.current_season_start, { type: 'string', format: 'date-time' });
+      deq(detailed.properties.seasons.items.properties.next_season_start, { type: ['string', 'null'], format: 'date-time' });
       deq(Object.keys(detailed.properties.amenities.items.properties), ['amenity']);
       deq(detailed.properties.amenities.items.required, ['amenity']);
       deq(detailed.properties.amenities.items.properties.amenity['x-filby-on'], { code: 'amenity_code' });
@@ -373,6 +367,7 @@ describe('API', () => {
       deq(amenity.required, ['code', 'name', 'category', 'age_group', 'charge', 'vat_code']);
       deq(amenity.properties.age_group, { type: 'string', enum: ['All Ages', 'Children', 'Adults'] });
       deq(Object.keys(detailed.properties.beach_routes.items.properties), ['name', 'distance_metres', 'accessibility', 'beach']);
+      deq(detailed.properties.beach_routes.items.properties.accessibility, { type: 'string', enum: ['Step Free', 'Steps', 'Steep Steps'] });
       deq(detailed.properties.beach_routes.items.properties.beach['x-filby-on'], { code: 'beach_code' });
       const [beach, beachNull] = detailed.properties.beach_routes.items.properties.beach.anyOf;
       deq(beachNull, { type: 'null' });
