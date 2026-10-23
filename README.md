@@ -21,7 +21,7 @@
 
 Filby keeps reference data in PostgreSQL with its whole history, and serves any view of it as it stood at any point in that history.
 
-It works like source control, at runtime. Git has a commit log of commits, each with a hash, each bundling related changes to source code. Filby has a change log of change sets, each with an id, each bundling related changes to reference data. An application asks for a projection of the data at a change set id, as it would check out a commit, and gets the same answer every time it asks.
+Think of it as source control for reference data, at runtime. In git, a commit bundles related changes to source code and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same answer every time.
 
 Reference data is declared and loaded in YAML migrations. This one defines an entity and a projection over it:
 
@@ -99,18 +99,18 @@ The [example application](#example-application) runs a holiday park business on 
 
 ## Why change sets
 
-Most systems have reference data: rates, codes, catalogues, calendars, the slow-moving facts that everything else depends on. It changes rarely, so it gets copied everywhere, into caches, client bundles and other services' databases, and each copy is a chance to be wrong. When it does change, the old values are still needed to explain anything that happened under them. Changes are often known in advance, and the people who own them want them loaded now and live on a date. And the shape of the data itself evolves, which must not break the clients that read it.
+Most systems have reference data: rates, codes, catalogues, calendars, the slow-moving facts that everything else depends on. Because it changes rarely, it gets copied everywhere: into caches, client bundles and other services' databases. Each copy is a chance to be wrong. When it does change, the old values are still needed to explain anything that happened under them. Changes are often known in advance, and the people who own them want them loaded now and live on a date. And the shape of the data itself evolves, which must not break the clients that read it.
 
-The usual answers each solve one piece. A valid-from column on every row pushes the temporal join into every query and every consumer, and any related rows must be joined at the same instant by hand. A cache with a time-to-live trades consistency for staleness. A document with no history answers only one question, what the data is now.
+The usual answers each solve one part of this. A valid-from column on every row pushes the temporal join into every query, and related rows must be joined at the same instant by hand. A cache with a time-to-live trades consistency for staleness. A document with no history can only say what the data is now.
 
-Filby's answer is to make the history the primary thing and give every point in it a key. A change set is a bundle of changes with an effective date, and its id is a snapshot: the data at change set N is everything Filby knew when N was added that was in force on N's effective date, and that never changes. Everything else follows from that one property.
+Filby makes the history the primary thing and gives every point in it a key. A change set is a bundle of changes with an effective date. Its id is a snapshot key: the data at change set N is everything Filby knew when N was added that was in force on N's effective date, and that never changes. Everything else follows from that one property.
 
 - **Consistency.** A request that fixes a change set id at the start reads the same data from every projection it touches, however many services serve them.
-- **Caching.** A response keyed by change set id is correct forever, so it can be cached indefinitely, in a CDN, a proxy, a process or a client, and the id is the cache buster.
+- **Caching.** A response keyed by change set id is correct forever, so it can be cached indefinitely, in a CDN, a proxy, a process or a client. The id is the cache buster.
 - **History.** Any earlier change set still answers exactly as it did, so a price from 2025 can be explained in 2027.
-- **Pre-release.** A change set with a future effective date is loaded, has an id and can be fetched and cached before it takes effect, and it takes effect by the clock, with a notification, not by a deploy.
+- **Pre-release.** A change set with a future effective date has an id from the moment it is loaded, so it can be fetched and cached before it takes effect. It takes effect by the clock, with a notification, not by a deploy.
 - **Evolution.** Entities and projections are versioned, so a breaking change is version 2 alongside version 1, and each client moves when it is ready.
-- **Projections.** Each client gets the view it needs, nested documents or flat rows, and the same change log tells each of them when something they depend on has changed.
+- **Projections.** Each client gets the view it needs, as nested documents or flat rows, and its change log tells it when something it depends on has changed.
 
 Corrections and backfills do not break the guarantee. Data that should have been in an earlier snapshot is loaded as a new change set and the affected change sets are re-issued under new ids, so anything a client cached by id stays right. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
 
