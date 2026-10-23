@@ -345,14 +345,30 @@ Each change set is added in one transaction, and adding it schedules notificatio
 
 ### Projections
 
-Most projections are declared with `ADD_PROJECTION` and a `root` entity, and serve one document per record of that entity at a change set. Three optional parts shape what a consumer gets: `parameters` to filter, `order` to sort and `paging` to page.
+A projection is the view a consumer reads. The simplest names a root entity and nothing else, and serves one document per record of that entity at a change set, in key order.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0004.define-projections.yaml
 - operation: ADD_PROJECTION
   name: Parks
-  description: Parks with their seasons
+  description: Parks alone, for a list or a picker
+  root: Park@1
+```
+
+```json
+[
+  { "code": "DC", "name": "Devon Cliffs", "region": "South West" },
+  { "code": "PV", "name": "Primrose Valley", "region": "Yorkshire" }
+]
+```
+
+Three optional parts shape what a consumer gets: `parameters` to filter, `order` to sort and `paging` to page.
+
+```yaml
+- operation: ADD_PROJECTION
+  name: Parks
+  description: Parks alone, for a list or a picker
   root: Park@1
   parameters:
     code:
@@ -365,18 +381,9 @@ Most projections are declared with `ADD_PROJECTION` and a `root` entity, and ser
       match: in
   order:
     - field: Name
-      direction: DESC
-      nulls: LAST
   paging:
     page_size: 10
     page_max: 50
-  nest:
-    Seasons:
-      entity: Park Season@1
-      on:
-        Park Code: Code
-      order:
-        - field: Customer Type
 ```
 
 **Parameters** are the filters a consumer may pass, under the names you give them. Each names a field of the root and how a value is matched against it.
@@ -393,13 +400,39 @@ Over HTTP a parameter is a query parameter: `?code=DC`, `?name=Dev`, `?region=Sc
 
 **Order** lists the fields to sort by, each ascending by default or `DESC`, with `nulls` `FIRST` or `LAST` where it matters. Records that tie fall back to the entity's key, which is also the order when none is declared.
 
-**Paging** sets how many root records a page holds and the most a consumer may ask for. Over HTTP a consumer asks for `?page=2&pageSize=20` and gets the total number of matching records in `X-Total-Count` and the next and previous pages in `Link`. Pages count root records, so a page of parks carries all of their seasons. Without `paging`, every record is returned.
+**Paging** sets how many root records a page holds and the most a consumer may ask for. Over HTTP a consumer asks for `?page=2&pageSize=20` and gets the total number of matching records in `X-Total-Count` and the next and previous pages in `Link`. Without `paging`, every record is returned.
 
-**Nests** embed the records of a related entity under each root record as a list. Each entry names the child entity and an `on` map from the child's field to the parent's field, and may order the children, which fall back to the child's key. Each document above carries a `seasons` list, empty when a park has none. A nest may nest its own children in the same way, to any depth, each level joining to its parent.
+**Nests** embed the records of a related entity under each document as a list. A nest names the child entity, an `on` map from the child's field to the parent's field, and optionally an order, which falls back to the child's key. The join field is left out of the child, because the parent already carries it.
 
 ```yaml
-# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0005.define-catalogue.yaml
+- operation: ADD_PROJECTION
+  name: Parks (Detailed)
+  description: Parks with their seasons
+  root: Park@1
+  nest:
+    Seasons:
+      entity: Park Season@1
+      on:
+        Park Code: Code
+      order:
+        - field: Customer Type
+```
+
+```json
+[
+  {
+    "code": "DC", "name": "Devon Cliffs", "region": "South West",
+    "seasons": [
+      { "customer_type": "Guest", "current_season_start": "2026-03-16T00:00:00.000Z", "current_season_end": "2026-11-03T00:00:00.000Z", "next_season_start": "2027-03-16T00:00:00.000Z", "next_season_end": "2027-11-03T00:00:00.000Z" },
+      { "customer_type": "Owner", "current_season_start": "2026-03-01T00:00:00.000Z", "current_season_end": "2027-01-06T00:00:00.000Z", "next_season_start": "2027-03-01T00:00:00.000Z", "next_season_end": "2028-01-06T00:00:00.000Z" }
+    ]
+  }
+]
+```
+
+A park with no seasons carries an empty list. Pages count root records, so a page of ten parks carries all of their seasons. A nest may nest its own children in the same way, to any depth, each level joining to its parent: here each manufacturer holds its models and each model its prices.
+
+```yaml
 - operation: ADD_PROJECTION
   name: Catalogue
   root: Manufacturer@1
@@ -419,13 +452,61 @@ Over HTTP a parameter is a query parameter: `?code=DC`, `?name=Dev`, `?region=Sc
             - field: Year
 ```
 
-`lookup` embeds a many-to-one entity as a single object rather than a list, at the root or under any nest, and is declared like a nest with one rule: the join must cover the whole key of the looked-up entity, so a parent finds at most one record, and gets `null` when there is none at the change set. A lookup that joins on less fails with `Projection 'Parks (Detailed) v1' lookup 'Amenities.Amenity' does not join on the whole key of entity 'Amenity v1'; missing key fields are 'code'`. A lookup has no order and no nests or lookups of its own; nest the entity instead if it needs children.
+```json
+[
+  {
+    "code": "VIC", "name": "Victory",
+    "models": [
+      { "code": "VER", "name": "Victory Vermont", "berths": 6, "prices": [ { "year": 2025, "list_price": "15995.00" }, { "year": 2026, "list_price": "16450.00" } ] }
+    ]
+  }
+]
+```
 
-`fields` chooses which of an entity's fields a document carries, in that order, at the root, in a nest or in a lookup. Without `fields` a root document carries every field of its entity and a nested one every field except its join fields. With `fields` it carries exactly those, and a join field only if listed. A nest's list may be empty, for a link row whose only content is its lookups; the root's and a lookup's must name at least one field. Parameters and order may still use a field that is not carried. Here each park amenity is a link row carrying only the amenity it points to, with the fields the consumer needs.
+**Lookups** are for the other direction. A park has many amenities and an amenity belongs to many parks, so the link between them is its own entity, `Park Amenity`, with a park code and an amenity code. Nesting the link under the park gives a list of codes:
 
 ```yaml
-# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0006.define-parks-detailed.yaml
+- operation: ADD_PROJECTION
+  name: Parks (Detailed)
+  root: Park@1
+  nest:
+    Amenities:
+      entity: Park Amenity@1
+      on:
+        Park Code: Code
+```
+
+```json
+{ "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity_code": "INDOOR_POOL" }, { "amenity_code": "SHOWBAR" } ] }
+```
+
+A lookup reaches from each link to the one amenity it points at and embeds it as an object. It is declared like a nest, with one rule: the join must cover the whole key of the looked-up entity, so each row finds at most one record, and gets `null` when there is none at the change set.
+
+```yaml
+- operation: ADD_PROJECTION
+  name: Parks (Detailed)
+  root: Park@1
+  nest:
+    Amenities:
+      entity: Park Amenity@1
+      on:
+        Park Code: Code
+      lookup:
+        Amenity:
+          entity: Amenity@1
+          on:
+            Code: Amenity Code
+```
+
+```json
+{ "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity_code": "INDOOR_POOL", "amenity": { "name": "Indoor Pool", "category": "Pool", "charge": "Free" } } ] }
+```
+
+A lookup may sit on the root or under any nest, has no order, and has no nests or lookups of its own; nest the entity instead if it needs children. A lookup that joins on less than the key fails with `Projection 'Parks (Detailed) v1' lookup 'Amenities.Amenity' does not join on the whole key of entity 'Amenity v1'; missing key fields are 'code'`.
+
+**Fields** choose which of an entity's fields a document carries, in that order, at the root, in a nest or in a lookup. Without `fields`, a document carries every field of its entity except the join fields. With `fields`, it carries exactly those, and a join field only if listed. A nest's list may be empty, for a link row whose only content is its lookup; the root and a lookup must name at least one field. Parameters and order may still use a field that is not carried. Here the park amenity carries nothing of its own, so each row is the amenity, with its code and the two fields a consumer needs.
+
+```yaml
 - operation: ADD_PROJECTION
   name: Parks (Detailed)
   root: Park@1
@@ -438,8 +519,6 @@ Over HTTP a parameter is a query parameter: `?code=DC`, `?name=Dev`, `?region=Sc
       on:
         Park Code: Code
       fields: []
-      order:
-        - field: Amenity Code
       lookup:
         Amenity:
           entity: Amenity@1
@@ -451,9 +530,13 @@ Over HTTP a parameter is a query parameter: `?code=DC`, `?name=Dev`, `?region=Sc
             - Charge
 ```
 
+```json
+{ "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity": { "code": "INDOOR_POOL", "name": "Indoor Pool", "charge": "Free" } } ] }
+```
+
 A nest or lookup name may not repeat a field of its parent entity, may not be `fby_total`, and may not be used twice at one level; the messages are under [ADD_PROJECTION](#add_projection). The root, nested and looked-up entities are all dependencies of the projection, so a change set for any of them appears in the projection's change log and notifies its hooks.
 
-When a projection needs a shape the DSL cannot express, declare its `dependencies` instead of a root and write the function yourself in a SQL migration, named `get_<projection>_v<version>` and taking the change set id. Filby still knows which change sets affect it, and `filby.fetch` serves it by calling the function. The one below joins three aggregates at the same change set, so a price and the VAT rate that applies to it always come from one snapshot.
+**Custom SQL** covers a shape the DSL cannot express. Declare the projection's `dependencies` instead of a root and write the function yourself in a SQL migration, named `get_<projection>_v<version>` and taking the change set id. Filby still knows which change sets affect it, and `filby.fetch` serves it by calling the function. The one below joins three aggregates at the same change set, so a price and the VAT rate that applies to it always come from one snapshot.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
