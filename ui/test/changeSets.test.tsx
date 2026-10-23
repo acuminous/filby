@@ -62,7 +62,7 @@ describe('Change sets', () => {
     fireEvent.input(input, { target: { value: '2020-06-01T00:00' } });
     expect(await screen.findByText('change set 1')).toBeTruthy();
     const items = await history();
-    expect(items.map(({ current }) => current)).toEqual([null, null, 'true']);
+    expect(items.map(({ current }) => current)).toEqual([null, 'true', null]);
     expect(items[2]?.what).toContain('as of');
     expect(items[1]?.what).toContain('live');
     expect(items[1]?.what).not.toContain('as of');
