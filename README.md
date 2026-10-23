@@ -8,6 +8,7 @@
 
 - [Introduction](#introduction)
 - [Why change sets](#why-change-sets)
+- [Use cases](#use-cases)
 - [How it works](#how-it-works)
 - [Getting started](#getting-started)
 - [Guide](#guide)
@@ -122,6 +123,13 @@ Filby makes the history the primary thing and gives every point in it a key. A c
 - **Local testing.** The data lives in migration files in your repository, so a developer runs the same data on a laptop against a local Postgres, and a test can pin a snapshot and get the same answer every run.
 
 Corrections and backfills do not break the guarantee. Data that should have been in an earlier snapshot is loaded as a new change set and the affected change sets are re-issued under new ids, so anything a client cached by id stays right. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
+
+## Use cases
+
+- **A developer-first PIM.** Product catalogues and price lists kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
+- **Rates and rules.** Tax rates, fees, commission tables and thresholds that change on known dates and must be explainable afterwards.
+- **Calendars and seasons.** Opening times, trading seasons and holidays, announced ahead and replaced each year.
+- **Codes and mappings.** Regions, categories, grades and the mappings between them, shared by services that must agree.
 
 ## How it works
 
