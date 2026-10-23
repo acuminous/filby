@@ -201,7 +201,7 @@ An **entity** is a type of reference data: a park, a VAT rate, a caravan model. 
 
 A **data frame** is one record of an entity as it was at one point: a `SET` frame carries the record's values, a `DELETE` frame says the record is gone. Frames are only ever added, so the history of a record is the sequence of its frames.
 
-A **change set** groups data frames, for one entity or many, under one effective date, which is the date from which its frames are in force. The effective date is not a date in the data: a park season's start is a fact about the park, whereas the effective date of the change set that carries it is when the park started saying so. A change set is added in one transaction, so it is either wholly visible or not there at all, and its id is the snapshot key.
+A **change set** groups data frames, for one entity or many, under one effective date, which is the date from which its frames are in force. The effective date is not a date in the data: a park season's start is a fact about the park, whereas the effective date is a fact about the change set. A change set is added in one transaction, so it is either wholly visible or not there at all, and its id is the snapshot key.
 
 An **aggregate** is the state of an entity at a change set: one row per key, built from the frames, with deleted records omitted. Filby creates an aggregate function for every entity version, and everything else reads through it.
 
@@ -1388,7 +1388,7 @@ GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?code=DC&changeSet
 ]
 ```
 
-`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year, each by code, year and name.
+`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date is a fact about change set 6: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year, each by code, year and name.
 
 ### What was in the catalogue on 1 June 2025?
 
