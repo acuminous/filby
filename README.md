@@ -26,6 +26,7 @@ Think of it as source control for reference data, at runtime. In git, a commit b
 **Step 1. Define an entity and a projection**
 
 ```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0001.define-schema.yaml
 - operation: ADD_ENTITY
   name: VAT Rate
@@ -46,6 +47,7 @@ Think of it as source control for reference data, at runtime. In git, a commit b
 **Step 2. Load the data from a CSV file, in force from a date**
 
 ```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0002.rates-2025.yaml
 - operation: ADD_CHANGE_SET
   description: 2025 rates
@@ -230,7 +232,7 @@ const filby = new Filby({
 await filby.init();
 ```
 
-A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, applied once, in level order. Start with a file that declares entities and projections, as in the [Introduction](#introduction), and add a file per change set after it. The JSON schema for YAML and JSON migrations is published at https://acuminous.github.io/filby/lib/schema.json; begin each file with the `# yaml-language-server` comment shown in the examples below and any editor with YAML language server support, such as VS Code with the YAML extension, validates and completes the file as you type. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line). The [Configuration](#configuration) reference lists every option and its default.
+A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, applied once, in level order. Start with a file that declares entities and projections, as in the [Introduction](#introduction), and add a file per change set after it. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line). The [Configuration](#configuration) reference lists every option and its default.
 
 Once `init()` has resolved, mount `filby.fetch` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Call `filby.startNotifications()` after subscribing to hooks, and `filby.stop()` on shutdown.
 
