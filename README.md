@@ -9,7 +9,7 @@
 
 ## Contents
 
-- [Filby in one minute](#filby-in-one-minute)
+- [TL;DR](#tldr)
 - [Why change sets](#why-change-sets)
 - [How it works](#how-it-works)
 - [Getting started](#getting-started)
@@ -17,13 +17,13 @@
 - [Reference](#reference)
 - [Example application](#example-application)
 
-## Filby in one minute
+## TL;DR
 
 Filby keeps reference data in PostgreSQL with its whole history, and serves any view of it as it stood at any point in that history.
 
 Think of it as source control for reference data, at runtime. In git, a commit bundles related changes to source code and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same answer every time.
 
-Reference data is declared and loaded in YAML migrations. This one defines an entity and a projection over it:
+**Step 1. Define an entity and a projection**
 
 ```yaml
 # migrations/0001.define-schema.yaml
@@ -43,7 +43,7 @@ Reference data is declared and loaded in YAML migrations. This one defines an en
     - field: Code
 ```
 
-This one loads the data, in force from a date:
+**Step 2. Load the data from a CSV file, in force from a date**
 
 ```yaml
 # migrations/0002.rates-2025.yaml
@@ -53,16 +53,16 @@ This one loads the data, in force from a date:
   changes:
     - entity: VAT Rate@1
       action: SET
-      data:
-        - Code: Standard
-          Name: Standard rate
-          Rate: 20.00
-        - Code: Reduced
-          Name: Reduced rate
-          Rate: 5.00
+      source: ./csv/rates-2025.csv
 ```
 
-Three lines serve it over HTTP, here with [Hono](https://hono.dev/):
+```
+Code,Name,Rate
+Standard,Standard rate,20.00
+Reduced,Reduced rate,5.00
+```
+
+**Step 3. Serve it over HTTP**, here with [Hono](https://hono.dev/)
 
 ```js
 const filby = new Filby({ database: { user: 'filby', database: 'filby' } });
@@ -70,7 +70,7 @@ await filby.init();
 app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
 ```
 
-A client reads the change log of the projection, picks a change set, and asks for the data at it:
+**Step 4. Read the change log, pick a change set, and ask for the data at it**
 
 ```
 GET /api/changelog?projection=VAT%20Rates&version=1
@@ -193,7 +193,7 @@ const filby = new Filby({
 await filby.init();
 ```
 
-Your migrations live in the directories named by `migrations`, which defaults to `migrations` under the working directory. A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, and the files are applied once each, in level order, by [marv](https://www.npmjs.com/package/marv). Start with a file that declares entities and projections, as in [Filby in one minute](#filby-in-one-minute), and add a file per change set after it. The JSON schema for YAML and JSON migrations is published at https://acuminous.github.io/filby/lib/schema.json; begin each file with the `# yaml-language-server` comment shown in the examples below and any editor with YAML language server support, such as VS Code with the YAML extension, validates and completes the file as you type. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line).
+Your migrations live in the directories named by `migrations`, which defaults to `migrations` under the working directory. A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, and the files are applied once each, in level order, by [marv](https://www.npmjs.com/package/marv). Start with a file that declares entities and projections, as in the [TL;DR](#tldr), and add a file per change set after it. The JSON schema for YAML and JSON migrations is published at https://acuminous.github.io/filby/lib/schema.json; begin each file with the `# yaml-language-server` comment shown in the examples below and any editor with YAML language server support, such as VS Code with the YAML extension, validates and completes the file as you type. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line).
 
 Once `init()` has resolved, mount `filby.fetch` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Call `filby.startNotifications()` after subscribing to hooks, and `filby.stop()` on shutdown.
 
