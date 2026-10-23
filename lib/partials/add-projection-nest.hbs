@@ -25,8 +25,8 @@
     WHERE name = {{literal entity}}
       AND version = {{literal version}};
 
-    INSERT INTO fby_projection_nest (projection_id, parent_nest_id, position, name, entity_id, lookup) VALUES
-    (v_projection_id, v_parent_nest_id, {{ordinal}}, {{literal (canonical name)}}, v_nest_entity_id, {{#if lookup}}TRUE{{else}}FALSE{{/if}})
+    INSERT INTO fby_projection_nest (projection_id, parent_nest_id, position, name, entity_id, lookup, fields) VALUES
+    (v_projection_id, v_parent_nest_id, {{ordinal}}, {{literal (canonical name)}}, v_nest_entity_id, {{#if lookup}}TRUE{{else}}FALSE{{/if}}, {{fieldArray fields}})
     RETURNING id INTO v_nest_id;
 
     {{#each on}}
@@ -54,6 +54,12 @@
     END IF;
 
     {{/if}}
+    {{#each fields}}
+    IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal (canonical this)}}) THEN
+      RAISE EXCEPTION 'Projection ''%'' {{#if ../lookup}}lookup{{else}}nest{{/if}} ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal (canonical this)}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);
+    END IF;
+
+    {{/each}}
     {{#each order}}
     IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal (canonical field)}}) THEN
       RAISE EXCEPTION 'Projection ''%'' nest ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal (canonical field)}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);

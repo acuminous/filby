@@ -816,6 +816,66 @@ describe('HTTP', () => {
       eq(validate([{ code: 'DC', name: 'Devon Cliffs', seasons: [{ type: 'Guests', start: '2019-03-15T00:00:00.000Z', rates: [] }] }]), false);
     });
 
+    it('should describe the documents of a projection with selected fields', async (t) => {
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code', 'name'] } };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name'])).set('0.nest.seasons.fields', ['end', 'type'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection, ADD_PARK_CHANGE_SET);
+      const changeSetId = await getChangeSetId('2019 Parks');
+
+      const { paths } = await getDocument();
+      const { get: operation } = paths['/projections/Parks/v1'];
+      deq(operation.parameters.map(({ name, schema }) => [name, schema.type]), [['changeSetId', 'integer'], ['code', 'string'], ['page', 'integer'], ['pageSize', 'integer']]);
+      const { schema } = operation.responses['200'].content['application/json'];
+      deq(schema, {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: ['string', 'null'] },
+            seasons: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  end: { type: ['string', 'null'], format: 'date-time' },
+                  type: { type: 'string' },
+                  rates: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: { band: { type: 'string' }, amount: { type: ['string', 'null'] } },
+                      required: ['band'],
+                      additionalProperties: false,
+                    },
+                    'x-filby-on': { park_code: 'park_code', season_type: 'type' },
+                  },
+                  park: {
+                    anyOf: [
+                      { type: 'object', properties: { code: { type: 'string' }, name: { type: ['string', 'null'] } }, required: ['code'], additionalProperties: false },
+                      { type: 'null' },
+                    ],
+                    'x-filby-on': { code: 'park_code' },
+                  },
+                },
+                required: ['type', 'rates', 'park'],
+                additionalProperties: false,
+              },
+              'x-filby-on': { park_code: 'code' },
+            },
+          },
+          required: ['seasons'],
+          additionalProperties: false,
+        },
+      });
+
+      const documents = await (await get(`/projections/Parks/v1?changeSetId=${changeSetId}&code=DC`)).json();
+      deq(documents.map((document) => Object.keys(document)), [['name', 'seasons']]);
+      deq(documents[0].seasons.map((season) => Object.keys(season)), [['end', 'type', 'rates', 'park'], ['end', 'type', 'rates', 'park'], ['end', 'type', 'rates', 'park']]);
+      const validate = ajv.compile(schema);
+      eq(validate(documents), true, JSON.stringify(validate.errors));
+      eq(validate([{ code: 'DC', name: 'Devon Cliffs', seasons: [] }]), false);
+    });
+
     it('should map field types to what node-pg emits', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM, ADD_SAMPLE_ENTITY, ADD_SAMPLE_PROJECTION, ADD_SAMPLE_CHANGE_SET);
       const changeSetId = await getChangeSetId('2020 Samples');

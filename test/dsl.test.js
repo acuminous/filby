@@ -2171,6 +2171,130 @@ describe('DSL', () => {
       });
     });
 
+    it('should carry the selected root fields in the selected order', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', ['name', 'code']), ADD_PARK_CHANGE_SET);
+
+      const { documents, total } = await getDocuments({ pageSize: 3 });
+      eq(total, 3);
+      deq(documents.map((document) => Object.keys(document)), [['name', 'code', 'seasons'], ['name', 'code', 'seasons'], ['name', 'code', 'seasons']]);
+      deq(documents.map(({ code, seasons }) => [code, seasons.map((season) => season.rates.length)]), [['DC', [2, 0, 2]], ['GA', []], ['PV', [1]]]);
+    });
+
+    it('should carry the selected nest fields in the selected order', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', ['end', 'type']), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons, [
+        { end: new Date('2019-11-15T00:00:00Z'), type: 'Guests', rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+        { end: new Date('2019-11-30T00:00:00Z'), type: 'Owners', rates: [] },
+        { end: new Date('2019-02-28T00:00:00Z'), type: 'Guests', rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+      ]);
+    });
+
+    it('should carry the selected lookup fields in the selected order', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' }, fields: ['name', 'code'] } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 }, '2020 Operators');
+      deq(documents.map(({ code, operator }) => [code, operator]), [['DC', { name: 'Haven', code: 'HAV' }], ['GA', { name: 'Parkdean', code: 'PKD' }], ['PV', { name: 'Haven', code: 'HAV' }]]);
+    });
+
+    it('should carry a link row whose only content is its lookup', async (t) => {
+      const seasons = { entity: 'season@1', on: { park_code: 'code' }, fields: [], lookup: { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code', 'name'] } } };
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons', seasons), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons, [{ park: { code: 'DC', name: 'Devon Cliffs' } }, { park: { code: 'DC', name: 'Devon Cliffs' } }, { park: { code: 'DC', name: 'Devon Cliffs' } }]);
+    });
+
+    it('should join on a nest field that is not selected without carrying it', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', ['type']), ADD_PARK_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 });
+      deq(documents.map(({ code, seasons }) => [code, seasons.map(({ type, rates }) => [type, rates.length])]), [['DC', [['Guests', 2], ['Owners', 0], ['Guests', 2]]], ['GA', []], ['PV', [['Guests', 1]]]]);
+      deq(Object.keys(documents[0].seasons[0]), ['type', 'rates']);
+    });
+
+    it('should join on a root field that is not selected without carrying it', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name'])).set('0.lookup', lookup), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 }, '2020 Operators');
+      deq(documents.map(({ name, seasons, operator }) => [name, seasons.length, operator]), [['Devon Cliffs', 3, { name: 'Haven' }], ['Greenacres', 0, { name: 'Parkdean' }], ['Primrose Valley', 1, { name: 'Haven' }]]);
+      deq(Object.keys(documents[0]), ['name', 'seasons', 'operator']);
+    });
+
+    it('should filter and order by a root field that is not selected', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name'])).set('0.order', [{ field: 'code', direction: 'DESC' }]), ADD_PARK_CHANGE_SET);
+
+      const unfiltered = await getDocuments({ pageSize: 3 });
+      deq(unfiltered.documents.map(({ name }) => name), ['Primrose Valley', 'Greenacres', 'Devon Cliffs']);
+
+      const { documents, total } = await getDocuments({ parameters: { code: 'DC' } });
+      eq(total, 1);
+      deq(documents, [{ name: 'Devon Cliffs', seasons: documents[0].seasons }]);
+      eq(documents[0].seasons.length, 3);
+    });
+
+    it('should canonicalise selected fields', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['Name'])).set('0.nest.seasons.fields', ['Type']), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(Object.keys(park), ['name', 'seasons']);
+      deq(Object.keys(park.seasons[0]), ['type', 'rates']);
+    });
+
+    it('should reject a root field selection the root entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', ['wombat'])), (err) => {
+        eq(err.message, "Projection 'Parks v1' selects a non existent field 'wombat' of entity 'park v1'; existing fields are 'code', 'name'");
+        return true;
+      });
+    });
+
+    it('should reject a nest field selection the nested entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', ['wombat'])), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' selects a non existent field 'wombat' of entity 'season v1'; existing fields are 'park_code', 'type', 'start', 'end'");
+        return true;
+      });
+    });
+
+    it('should reject a lookup field selection the looked up entity does not have', async (t) => {
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['wombat'] } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'seasons.park' selects a non existent field 'wombat' of entity 'park v1'; existing fields are 'code', 'name'");
+        return true;
+      });
+    });
+
+    it('should require a root field selection to name a field', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.fields', [])), (err) => {
+        eq(err.message, '001.should-require-a-root-field-selection-to-name-a-field.yaml: /0/fields must NOT have fewer than 1 items');
+        return true;
+      });
+    });
+
+    it('should require a lookup field selection to name a field', async (t) => {
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: [] } };
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', lookup)), (err) => {
+        eq(err.message, '001.should-require-a-lookup-field-selection-to-name-a-field.yaml: /0/nest/seasons/lookup/park/fields must NOT have fewer than 1 items');
+        return true;
+      });
+    });
+
+    it('should require field selections to be strings', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [1])), (err) => {
+        eq(err.message, "001.should-require-field-selections-to-be-strings.yaml: /0/nest/seasons/fields/0 must be of type 'string'");
+        return true;
+      });
+    });
+
+    it('should require root to use fields', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.fields', ['type'])), (err) => {
+        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'fields'");
+        return true;
+      });
+    });
+
     function setRates(rates) {
       const data = Object.entries(rates).map(([type, rate]) => ({ type, rate }));
       return transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data }]);

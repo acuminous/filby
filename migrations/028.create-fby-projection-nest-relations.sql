@@ -1,5 +1,7 @@
 START TRANSACTION;
 
+ALTER TABLE fby_projection ADD COLUMN fields TEXT[];
+
 CREATE TABLE fby_projection_nest (
   id SERIAL PRIMARY KEY,
   projection_id INTEGER REFERENCES fby_projection (id) ON DELETE CASCADE NOT NULL,
@@ -8,6 +10,7 @@ CREATE TABLE fby_projection_nest (
   name TEXT NOT NULL,
   entity_id INTEGER REFERENCES fby_entity (id) NOT NULL,
   lookup BOOLEAN NOT NULL DEFAULT FALSE,
+  fields TEXT[],
   CONSTRAINT uniq_fby_projection_nest_projection_id_parent_nest_id_position UNIQUE NULLS NOT DISTINCT (projection_id, parent_nest_id, position),
   CONSTRAINT uniq_fby_projection_nest_projection_id_parent_nest_id_name UNIQUE NULLS NOT DISTINCT (projection_id, parent_nest_id, name)
 );

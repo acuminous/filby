@@ -5,6 +5,7 @@ DECLARE
   v_entity_id INTEGER;
   v_root_id INTEGER;
   v_type TEXT;
+  v_fields TEXT[] := {{projectionColumns fields nest}};
   v_arguments TEXT;
   v_columns TEXT;
   v_outputs TEXT;
@@ -42,6 +43,7 @@ BEGIN
 
   UPDATE fby_projection
   SET root_entity_id = v_root_id,
+      fields = {{fieldArray fields}},
       page_size = {{literal paging.page_size}},
       page_max = {{literal paging.page_max}}
   WHERE id = v_projection_id;
@@ -68,12 +70,19 @@ BEGIN
   (v_projection_id, {{ordinal}}, {{literal (canonical field)}}, {{literal direction}}, {{literal nulls}});
 
   {{/each}}
+  {{#each fields}}
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical this)}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal (canonical this)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+  END IF;
+
+  {{/each}}
   SELECT
-    string_agg(format('%I %s', name, type), ', ' ORDER BY position),
-    string_agg(format('a.%I', name), ', ' ORDER BY position)
+    string_agg(format('%I %s', name, type), ', ' ORDER BY array_position(v_fields, name), position),
+    string_agg(format('a.%I', name), ', ' ORDER BY array_position(v_fields, name), position)
   INTO v_columns, v_outputs
   FROM fby_entity_field
-  WHERE entity_id = v_root_id;
+  WHERE entity_id = v_root_id
+    AND (v_fields IS NULL OR name = ANY (v_fields));
 
   SELECT {{#if order}}{{literal (projectionOrder order)}} || ', ' || {{/if}}string_agg(format('a.%I ASC', name), ', ' ORDER BY position)
   INTO v_order
