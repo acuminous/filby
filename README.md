@@ -217,7 +217,7 @@ Filby needs Node.js 22.12 or later and PostgreSQL 15 or later, and is tested aga
 npm install filby
 ```
 
-Construct Filby with the connection details, which are passed through to [node-pg](https://node-postgres.com/), and call `init()` once at startup. `init()` connects, applies Filby's own migrations and then yours, and holds an advisory lock while it does so.
+Construct Filby with the database connection details and the directory holding your migrations, and call `init()` once at startup. `init()` connects and applies the migrations that have not yet been applied.
 
 ```js
 const { Filby } = require('filby');
@@ -230,7 +230,7 @@ const filby = new Filby({
 await filby.init();
 ```
 
-Your migrations live in the directories named by `migrations`, which defaults to `migrations` under the working directory. A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, and the files are applied once each, in level order, by [marv](https://www.npmjs.com/package/marv). Start with a file that declares entities and projections, as in the [Introduction](#introduction), and add a file per change set after it. The JSON schema for YAML and JSON migrations is published at https://acuminous.github.io/filby/lib/schema.json; begin each file with the `# yaml-language-server` comment shown in the examples below and any editor with YAML language server support, such as VS Code with the YAML extension, validates and completes the file as you type. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line).
+A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, applied once, in level order. Start with a file that declares entities and projections, as in the [Introduction](#introduction), and add a file per change set after it. The JSON schema for YAML and JSON migrations is published at https://acuminous.github.io/filby/lib/schema.json; begin each file with the `# yaml-language-server` comment shown in the examples below and any editor with YAML language server support, such as VS Code with the YAML extension, validates and completes the file as you type. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line). The [Configuration](#configuration) reference lists every option and its default.
 
 Once `init()` has resolved, mount `filby.fetch` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Call `filby.startNotifications()` after subscribing to hooks, and `filby.stop()` on shutdown.
 
