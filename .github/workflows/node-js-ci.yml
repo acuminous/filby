@@ -36,7 +36,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-      - run: pushd examples/typescript && npm ci && npm test
+      - run: pushd examples/holiday-park && npm ci && npm test
       - run: npm run lint
       - run: npm run coverage
       - uses: codecov/codecov-action@v7

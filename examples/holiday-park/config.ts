@@ -36,7 +36,7 @@ const config: ApplicationConfig = {
     'httpbin/add-projection': 'https://httpbin.org/status/200',
     'httpbin/drop-projection': 'https://httpbin.org/status/200',
     'httpbin/add-change-set/parks-minimal-v1': 'https://httpbin.org/status/200',
-    'httpbin/add-change-set/*': 'https://httpbin.org/status/500',
+    'httpbin/add-change-set/*': 'https://httpbin.org/status/200',
   },
 };
 
