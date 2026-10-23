@@ -558,15 +558,11 @@ table.documents > thead th {
   white-space: nowrap;
 }
 
-table.documents > thead tr.groups th {
-  padding: 0.375rem 0.75rem 0;
-  border-bottom: 0;
-  font-weight: 400;
-  color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
-}
-
-table.documents > thead tr.groups th[colspan] {
-  border-bottom: 1px solid color-mix(in oklab, var(--color-base-content) 25%, transparent);
+table.documents > thead th.joined {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+  text-underline-offset: 0.25em;
 }
 
 table.documents > tbody > tr:last-child > td {

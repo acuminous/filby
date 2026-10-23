@@ -4,7 +4,7 @@ const RESERVED = ['changeSetId', 'page', 'pageSize'];
 
 export type Filter = { kind: 'value'; name: string; values?: string[] } | { kind: 'list'; name: string; values?: string[] } | { kind: 'range'; name: string; from: string; to: string };
 
-export type Column = { name: string; kind: 'value' | 'date-time' | 'array' | 'table' | 'lookup'; columns?: Column[] };
+export type Column = { name: string; kind: 'value' | 'date-time' | 'array' | 'table' | 'lookup'; columns?: Column[]; on?: Record<string, string> };
 
 export type Paging = { size?: number; max?: number };
 
@@ -43,7 +43,7 @@ export function columns(schema: Schema): Column[] | undefined {
     if (type === 'array' && property.items?.properties) return { name, kind: 'table', columns: columns(property.items) };
     if (type === 'array') return { name, kind: 'array' };
     const object = objectSchema(property);
-    if (object) return { name, kind: 'lookup', columns: columns(object) };
+    if (object) return { name, kind: 'lookup', columns: columns(object), ...(property['x-filby-on'] && { on: property['x-filby-on'] }) };
     if (property.format === 'date-time') return { name, kind: 'date-time' };
     return { name, kind: 'value' };
   });

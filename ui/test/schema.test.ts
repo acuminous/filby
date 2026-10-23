@@ -59,9 +59,13 @@ describe('columns', () => {
     expect(columns(DETAILED_SCHEMA)).toEqual([
       { name: 'code', kind: 'value' },
       { name: 'name', kind: 'value' },
-      { name: 'amenities', kind: 'table', columns: [{ name: 'amenity_code', kind: 'value' }, { name: 'amenity', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'category', kind: 'value' }] }] },
-      { name: 'beach_routes', kind: 'table', columns: [{ name: 'beach_code', kind: 'value' }, { name: 'distance_metres', kind: 'value' }, { name: 'beach', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'surfaces', kind: 'array' }, { name: 'surveyed', kind: 'date-time' }] }] },
+      { name: 'amenities', kind: 'table', columns: [{ name: 'amenity_code', kind: 'value' }, { name: 'amenity', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'category', kind: 'value' }], on: { code: 'amenity_code' } }] },
+      { name: 'beach_routes', kind: 'table', columns: [{ name: 'name', kind: 'value' }, { name: 'distance_metres', kind: 'value' }, { name: 'beach', kind: 'lookup', columns: [{ name: 'code', kind: 'value' }, { name: 'name', kind: 'value' }, { name: 'surfaces', kind: 'array' }, { name: 'surveyed', kind: 'date-time' }], on: { code: 'beach_code' } }] },
     ]);
+  });
+
+  it('carries no join fields on a lookup without the extension', () => {
+    expect(columns({ type: 'object', properties: { amenity: { anyOf: [{ type: 'object', properties: { name: { type: 'string' } } }, { type: 'null' }] } } })).toStrictEqual([{ name: 'amenity', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }] }]);
   });
 
   it('treats an object at the root as a lookup', () => {
@@ -78,11 +82,11 @@ describe('columns', () => {
 
 describe('inferColumns', () => {
   it('infers nested arrays, value arrays and lookups from the documents', () => {
-    expect(inferColumns([detailedPark(), detailedPark({ code: 'PV', amenities: [], beach_routes: [{ beach_code: 'NONE', distance_metres: 0, beach: null }] })])).toEqual([
+    expect(inferColumns([detailedPark(), detailedPark({ code: 'PV', amenities: [], beach_routes: [{ name: 'None', distance_metres: 0, beach: null }] })])).toStrictEqual([
       { name: 'code', kind: 'value' },
       { name: 'name', kind: 'value' },
       { name: 'amenities', kind: 'table', columns: [{ name: 'amenity_code', kind: 'value' }, { name: 'amenity', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'category', kind: 'value' }] }] },
-      { name: 'beach_routes', kind: 'table', columns: [{ name: 'beach_code', kind: 'value' }, { name: 'distance_metres', kind: 'value' }, { name: 'beach', kind: 'lookup', columns: [{ name: 'name', kind: 'value' }, { name: 'surfaces', kind: 'array' }, { name: 'surveyed', kind: 'value' }] }] },
+      { name: 'beach_routes', kind: 'table', columns: [{ name: 'name', kind: 'value' }, { name: 'distance_metres', kind: 'value' }, { name: 'beach', kind: 'lookup', columns: [{ name: 'code', kind: 'value' }, { name: 'name', kind: 'value' }, { name: 'surfaces', kind: 'array' }, { name: 'surveyed', kind: 'value' }] }] },
     ]);
   });
 
