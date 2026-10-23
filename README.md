@@ -97,7 +97,7 @@ GET /api/projections/VAT%20Rates/v1?changeSetId=1
 
 Omit the change set id and Filby redirects to the one in force now. Load next year's rates today with next year's effective date and they have an id and an answer from the moment they are loaded, and nothing a client already holds changes.
 
-The [example application](#example-application) runs a holiday park business on it: parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets, with a walkthrough that asks it questions.
+The [example application](#example-application) runs a holiday park business on it: parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets. The [walkthrough](#what-does-devon-cliffs-sell) shows what it answers, from what a park sells today to what next year's price list will be.
 
 [filby-ui](https://github.com/acuminous/filby-ui) is a read-only web UI for any application that serves Filby's API. It lists the projections, shows each one's change log with the change set in force at any date, and browses the documents at a change set with their nests and lookups as tables. One command starts it against a running application:
 
