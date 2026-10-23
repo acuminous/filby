@@ -14,6 +14,7 @@ export type Schema = {
   minimum?: number;
   maximum?: number;
   default?: number;
+  'x-filby-on'?: Record<string, string>;
 };
 
 export type Parameter = { name: string; in: string; schema: Schema; required?: boolean; style?: string; explode?: boolean };

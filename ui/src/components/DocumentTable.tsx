@@ -7,33 +7,22 @@ import { type Column, inferColumns } from '../schema';
 import type { Document } from '../types';
 import { Value } from './Value';
 
-type Cell = { name: string; kind: Column['kind']; lookup?: string };
+type Cell = { name: string; kind: Column['kind']; lookup?: string; label: string; joins?: string };
 
 type Props = { columns: Column[]; documents: Document[]; nests: NestState; onNests: (state: NestState) => void; path?: string; row?: string };
 
 export function DocumentTable({ columns, documents, nests: state, onNests, path = '', row = '' }: Props) {
   const scalars = columns.filter(({ kind }) => kind !== 'table');
   const nests = columns.filter(({ kind }) => kind === 'table');
-  const cells = scalars.flatMap(flatten);
+  const cells = flatten(scalars);
   return (
     <table class="documents">
       <thead>
-        {scalars.some(({ kind }) => kind === 'lookup') && (
-          <tr class="groups">
-            {scalars.map((column) =>
-              column.kind === 'lookup' ? (
-                <th key={column.name} colSpan={column.columns?.length}>
-                  {column.name}
-                </th>
-              ) : (
-                <th key={column.name} />
-              ),
-            )}
-          </tr>
-        )}
         <tr>
           {cells.map((cell) => (
-            <th key={key(cell)}>{cell.name}</th>
+            <th key={key(cell)} class={cell.joins && 'joined'} title={cell.joins}>
+              {cell.label}
+            </th>
           ))}
         </tr>
       </thead>
@@ -83,9 +72,23 @@ function Nest({ column, rows, span, path, row, nests, onNests }: NestProps) {
   );
 }
 
-function flatten(column: Column): Cell[] {
-  if (column.kind !== 'lookup') return [column];
-  return (column.columns ?? []).map(({ name, kind }) => ({ name, kind, lookup: column.name }));
+function flatten(scalars: Column[]): Cell[] {
+  const fields = scalars.filter(({ kind }) => kind !== 'lookup').map(({ name }) => name);
+  const names = scalars.flatMap((column) => (column.kind === 'lookup' ? (column.columns ?? []).map(({ name }) => name) : [column.name]));
+  const joins = new Map<string, string>();
+  for (const lookup of scalars.filter(({ kind }) => kind === 'lookup')) {
+    for (const [field, parent] of Object.entries(lookup.on ?? {})) {
+      const joined = fields.includes(parent) ? parent : lookup.columns?.some(({ name }) => name === field) ? `${lookup.name}.${field}` : undefined;
+      if (joined) joins.set(joined, `joins ${lookup.name} on ${field}`);
+    }
+  }
+  return scalars.flatMap((column): Cell[] => {
+    if (column.kind !== 'lookup') return [{ name: column.name, kind: column.kind, label: column.name, joins: joins.get(column.name) }];
+    return (column.columns ?? []).map(({ name, kind }) => {
+      const clashes = names.filter((candidate) => candidate === name).length > 1;
+      return { name, kind, lookup: column.name, label: clashes ? `${column.name}.${name}` : name, joins: joins.get(`${column.name}.${name}`) };
+    });
+  });
 }
 
 function key({ name, lookup }: Cell) {

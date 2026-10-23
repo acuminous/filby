@@ -59,10 +59,11 @@ function Timeline({ name, version, changeSets }: { name: string; version: number
         <ol class="history">
           {ordered.map((changeSet) => {
             const future = Date.parse(changeSet.effective) > now.getTime();
-            const classes = [changeSet === current && 'live', changeSet === resolved && 'resolved', future && 'future'].filter(Boolean).join(' ');
+            const asOf = changeSet === resolved && changeSet !== current;
+            const classes = [changeSet === current && 'live', asOf && 'resolved', future && 'future'].filter(Boolean).join(' ');
             return (
               <li key={changeSet.id} class={classes || undefined}>
-                <a href={documentsPath(name, version, changeSet.id)} aria-current={changeSet === resolved ? 'true' : undefined}>
+                <a href={documentsPath(name, version, changeSet.id)} aria-current={changeSet === current ? 'true' : undefined}>
                   <span class="dot" aria-hidden="true" />
                   <span class="when">
                     <time dateTime={changeSet.effective} title={changeSet.effective}>
@@ -74,7 +75,7 @@ function Timeline({ name, version, changeSets }: { name: string; version: number
                     {changeSet.description}
                     {changeSet === current && <span class="badge badge-sm badge-success badge-soft">live</span>}
                     {future && <span class="badge badge-sm badge-warning badge-soft">not yet live</span>}
-                    {changeSet === resolved && changeSet !== current && <span class="badge badge-sm badge-primary badge-soft">as of</span>}
+                    {asOf && <span class="sr-only">as of</span>}
                   </span>
                   <span class="meta">
                     modified{' '}
