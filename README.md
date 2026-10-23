@@ -335,7 +335,7 @@ set,RP,Rockley Park,South West
 DELETE,TP,,
 ```
 
-The action is read in any case, on the frame or in the file, and `POST` means `SET`. An action in both places, in neither, or missing from a cell fails rendering with a message naming the frame and the file; see [ADD_CHANGE_SET](#add_change_set).
+The action is read in any case, on the frame or in the file. An action in both places, in neither, or missing from a cell fails rendering with a message naming the frame and the file; see [ADD_CHANGE_SET](#add_change_set).
 
 The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Why change sets](#why-change-sets).
 
@@ -816,7 +816,7 @@ Each frame has these keys.
 | --- | ---- | -------- | ----- |
 | `entity` | `Entity@n`, or a name with `version` | yes | |
 | `version` | integer | with an `entity` that has no `@n` | |
-| `action` | `SET`, `POST` or `DELETE`, in any case | without `source`, or with a `source` that has no `action` column | `POST` means `SET` |
+| `action` | `SET` or `DELETE`, in any case | without `source`, or with a `source` that has no `action` column | |
 | `data` | list of objects, at least one | one of `data`, `source` | Keys are field names; a map or list value is stored as JSON |
 | `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names |
 
@@ -833,7 +833,6 @@ The forms in each row mean the same thing, all of them are permanent, and they c
 | `changes` | `frames` |
 | `entity: Park@1` in a frame or a dependency | `entity: Park` with `version: 1` |
 | `projection: Parks@1` in a hook | `projection: Parks` with `version: 1` |
-| `action: SET` | `action: POST` |
 
 `root`, a nest's `entity` and a lookup's `entity` take only the `@n` form. Say the version once: `Park@1` together with `version: 1` fails with `Reference 'Park@1' must not also specify a version`, as `key` with `identified_by`, `changes` with `frames` or `root` with `dependencies` fail with `must specify either ... not both`.
 
@@ -857,7 +856,7 @@ The forms in each row mean the same thing, all of them are permanent, and they c
   frames:
     - entity: Park
       version: 1
-      action: POST
+      action: SET
       data:
         - Code: DC
           Name: Devon Cliffs
