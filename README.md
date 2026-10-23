@@ -263,16 +263,13 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-To run the example application, clone the repository and start the two Postgres containers it uses:
+To run the example application, clone the repository and start it. It needs Docker for its Postgres container.
 
 ```bash
 git clone git@github.com:acuminous/filby.git
 cd filby
 npm i
-npm run docker
-cd examples/typescript
-npm i
-npm start
+npm run example
 ```
 
 ```
@@ -1250,7 +1247,7 @@ Filby's tables, marv's tables, entity tables, enums, generated functions and you
 
 ## Example application
 
-The repository includes a [TypeScript](https://github.com/acuminous/filby/tree/main/examples/typescript) example application for a holiday park business that sells static caravans. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand. The eight projections are `Amenities`, `Beaches`, `Catalogue`, `Grades`, `Models`, `Parks (Detailed)`, `Parks (Minimal)` and `VAT Rates`, each served at `/api/projections/<name>/v1`.
+The repository includes an [example application](https://github.com/acuminous/filby/tree/main/examples/holiday-park) for a holiday park business that sells static caravans. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand. The eight projections are `Amenities`, `Beaches`, `Catalogue`, `Grades`, `Models`, `Parks (Detailed)`, `Parks (Minimal)` and `VAT Rates`, each served at `/api/projections/<name>/v1`.
 
 The reference data is ten parks with their amenities, the beaches they reach and the routes to them, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources, each with the action that applies to the whole file; only the two 2026 catalogue files that both add and delete rows carry an action column instead. The ten change sets are:
 
