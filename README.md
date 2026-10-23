@@ -62,13 +62,15 @@ Standard,Standard rate,20.00
 Reduced,Reduced rate,5.00
 ```
 
-**Step 3. Serve it over HTTP**, here with [Hono](https://hono.dev/)
+**Step 3. Serve it over HTTP**
 
 ```js
 const filby = new Filby({ database: { user: 'filby', database: 'filby' } });
 await filby.init();
 app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
 ```
+
+The example above uses [Hono](https://hono.dev/). `filby.fetch` takes a web standard Request and returns a Response, so it mounts on any server that speaks them, and on Express with a short adapter; see [Serving over HTTP](#serving-over-http).
 
 **Step 4. Read the change log, pick a change set, and ask for the data at it**
 
