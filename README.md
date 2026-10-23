@@ -113,12 +113,13 @@ The usual answers each solve one part of this. A valid-from column on every row 
 
 Filby makes the history the primary thing and gives every point in it a key. A change set is a bundle of changes with an effective date. Its id is a snapshot key: the data at change set N is everything Filby knew when N was added that was in force on N's effective date, and that never changes. Everything else follows from that one property.
 
-- **Consistency.** A request that fixes a change set id at the start reads the same data from every projection it touches, however many services serve them.
-- **Caching.** A response keyed by change set id is correct forever, so it can be cached indefinitely, in a CDN, a proxy, a process or a client. The id is the cache buster.
-- **History.** Any earlier change set still answers exactly as it did, so a price from 2025 can be explained in 2027.
-- **Pre-release.** A change set with a future effective date has an id from the moment it is loaded, so it can be fetched and cached before it takes effect. It takes effect by the clock, with a notification, not by a deploy.
-- **Evolution.** Entities and projections are versioned, so a breaking change is version 2 alongside version 1, and each client moves when it is ready.
-- **Projections.** Each client gets the view it needs, as nested documents or flat rows, and its change log tells it when something it depends on has changed.
+- **Consistency.** Reference data gets copied into caches, services and clients, and the copies drift apart. With Filby every copy names the snapshot it came from. A request that starts on one snapshot reads the same data from every service it touches, and two systems comparing notes can tell at once whether they are looking at the same thing.
+- **Performance.** A snapshot never changes, so anything keyed by it can be cached without expiry, in a CDN, a proxy, a process or a client. The same property makes it safe to export a snapshot and bundle it into an application or a data lake, because the bundle is exactly what its id says it is.
+- **History.** Every snapshot still answers as it did, so a price from 2025 can be explained in 2027, and a report can be re-run against the data as it stood on the day.
+- **Timing.** A change known in advance is loaded today with the date it takes effect. It has its id at once, so it can be fetched and cached early, and it goes live by the clock rather than by a deploy, with a notification when it does.
+- **Evolution.** When the shape of the data has to change, the new shape is published alongside the old one as a new version, and each client moves across when it is ready.
+- **Custom views.** Each client reads a view built for it, a nested document for a web page or flat rows for a report, and each view has its own change log that says when something in it changed.
+- **Local testing.** The data lives in migration files in your repository, so a developer runs the same data on a laptop against a local Postgres, and a test can pin a snapshot and get the same answer every run.
 
 Corrections and backfills do not break the guarantee. Data that should have been in an earlier snapshot is loaded as a new change set and the affected change sets are re-issued under new ids, so anything a client cached by id stays right. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
 
