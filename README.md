@@ -209,14 +209,6 @@ A **projection** is a versioned view over one or more entities, and the unit a c
 
 A **hook** names an event your application wants to hear about: a projection added or dropped, a change set added, or a change set taking effect for a projection. A **notification** is raised for a hook whenever its event happens, and delivered to the handler your application registered, with retries, so downstream copies of the data stay current without polling.
 
-### The snapshot guarantee
-
-> The data at change set N is everything Filby knew when N was added that was in force on N's effective date, and it never changes.
-
-For each key, the aggregate takes the latest frame by effective date and then by change set id, from the change sets with an id no greater than N and an effective date no later than N's. Ids come from a sequence, so anything added later has a higher id and falls outside the snapshot whatever its effective date. Frames and rows are only ever inserted. When something would need to appear under an earlier id, such as backfilled or corrected data, Filby re-issues the affected change sets under new ids and leaves the originals as they were, so a superseded id still returns its original result. The one exception is deleting a change set, the escape hatch for data that was never served, which changes every later snapshot.
-
-This is what makes a change set id safe to build on: consistent reads across a workflow, responses cached without expiry, and future data with a fixed id and fixed contents from the moment it is loaded.
-
 ## Getting started
 
 Filby needs Node.js 22.12 or later and PostgreSQL 15 or later, and is tested against PostgreSQL 16.
