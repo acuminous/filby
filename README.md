@@ -128,8 +128,6 @@ Corrections and backfills do not break the guarantee. Data that should have been
 
 - **A developer-first PIM.** Product catalogues and price lists kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
 - **Rates and rules.** Tax rates, fees, commission tables and thresholds that change on known dates and must be explainable afterwards.
-- **Calendars and seasons.** Opening times, trading seasons and holidays, announced ahead and replaced each year.
-- **Codes and mappings.** Regions, categories, grades and the mappings between them, shared by services that must agree.
 
 ## How it works
 
