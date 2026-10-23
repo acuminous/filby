@@ -31,10 +31,11 @@
   },
   "scripts": {
     "docker": "docker-compose up --detach",
+    "example": "docker compose up --detach --wait fby_example && npm --prefix examples/holiday-park ci && npm --prefix examples/holiday-park start",
     "lint": "biome ci .",
     "pretest": "node scripts/database.js check",
     "test": "node --require ./scripts/load-env.js --test --test-concurrency=1 test/*.test.js",
-    "test:all": "docker compose up --detach --wait && (cd examples/typescript && npm test) && npm test",
+    "test:all": "docker compose up --detach --wait && (cd examples/holiday-park && npm test) && npm test",
     "precoverage": "node scripts/database.js check",
     "coverage": "mkdir -p coverage && node --require ./scripts/load-env.js --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
     "db:create": "node scripts/database.js create",
