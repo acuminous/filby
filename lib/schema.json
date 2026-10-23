@@ -326,6 +326,9 @@
           "type": "string",
           "pattern": "@[0-9]+$"
         },
+        "fields": {
+          "$ref": "#/definitions/StringListType"
+        },
         "dependencies": {
           "type": "array",
           "minItems": 1,
@@ -788,6 +791,12 @@
               "type": "string"
             }
           },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "order": {
             "type": "array",
             "minItems": 1,
@@ -825,6 +834,9 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "fields": {
+            "$ref": "#/definitions/StringListType"
           }
         },
         "additionalProperties": false,
