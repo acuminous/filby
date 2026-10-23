@@ -234,7 +234,34 @@ await filby.init();
 
 A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, applied once, in level order. Start with a file that declares entities and projections, as in the [Introduction](#introduction), and add a file per change set after it. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line). The [Configuration](#configuration) reference lists every option and its default.
 
-Once `init()` has resolved, mount `filby.fetch` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Call `filby.startNotifications()` after subscribing to hooks, and `filby.stop()` on shutdown.
+Once `init()` has resolved, mount `filby.fetch` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Subscribe to any hooks, then call `filby.startNotifications()`, and call `filby.stop()` on shutdown.
+
+```js
+const { Filby } = require('filby');
+const { Hono } = require('hono');
+const { serve } = require('@hono/node-server');
+
+const filby = new Filby({
+  database: { user: 'filby', database: 'filby', password: 'filby' },
+  migrations: ['migrations'],
+});
+
+const app = new Hono();
+app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
+
+filby.subscribe('webhook/vat-rates', async (notification, { signal }) => {
+  await fetch('https://example.com/hooks/vat-rates', { method: 'POST', body: JSON.stringify(notification), signal });
+});
+
+await filby.init();
+await filby.startNotifications();
+const server = serve({ fetch: app.fetch, port: 3000 });
+
+process.on('SIGTERM', async () => {
+  server.close();
+  await filby.stop();
+});
+```
 
 To run the example application, clone the repository and start the two Postgres containers it uses:
 
