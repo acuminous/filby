@@ -99,7 +99,7 @@ Omit the change set id and Filby redirects to the one in force now. Load next ye
 
 The [example application](#example-application) runs a holiday park business on it: parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets. The [walkthrough](#what-does-devon-cliffs-sell) shows what it answers, from what a park sells today to what next year's price list will be.
 
-[filby-ui](https://github.com/acuminous/filby-ui) is a read-only web UI for any application that serves Filby's API. It lists the projections, shows each one's change log with the change set in force at any date, and browses the documents at a change set with their nests and lookups as tables. One command starts it against a running application:
+Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), which provides a read-only web interface to any application that serves Filby's API. It lists the projections, shows each one's change log with the change set in force at any date, and browses the documents at a change set with their nests and lookups as tables. One command starts it against a running application:
 
 ```bash
 FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
@@ -223,7 +223,7 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The [Example application](#example-application) section walks through what it serves, and [filby-ui](https://github.com/acuminous/filby-ui) browses it at http://localhost:4000 once started with the command in the [Introduction](#introduction).
+The [Example application](#example-application) section walks through what it serves, and [Filby UI](https://github.com/acuminous/filby-ui) browses it at http://localhost:4000 once started with the command in the [Introduction](#introduction).
 
 ## Guide
 
