@@ -601,6 +601,7 @@ describe('HTTP', () => {
 
     const ajv = new Ajv();
     ajvFormats(ajv);
+    ajv.addKeyword('x-filby-on');
 
     it('should serve a document that validates against the OpenAPI 3.1 schema', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM, ADD_ENTITY, ADD_ROOT_PROJECTION, transform(ADD_PROJECTION).set('0.version', 2), ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_SAMPLE_ENTITY, ADD_SAMPLE_PROJECTION);
@@ -769,11 +770,13 @@ describe('HTTP', () => {
                       required: ['band'],
                       additionalProperties: false,
                     },
+                    'x-filby-on': { park_code: 'park_code', season_type: 'type' },
                   },
                 },
                 required: ['type', 'start', 'rates'],
                 additionalProperties: false,
               },
+              'x-filby-on': { park_code: 'code' },
             },
           },
           required: ['code', 'seasons'],
@@ -800,6 +803,7 @@ describe('HTTP', () => {
           { type: 'object', properties: { name: { type: ['string', 'null'] } }, required: [], additionalProperties: false },
           { type: 'null' },
         ],
+        'x-filby-on': { code: 'park_code' },
       });
       deq(schema.items.properties.seasons.items.required, ['type', 'start', 'rates', 'park']);
 
