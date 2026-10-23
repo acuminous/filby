@@ -93,7 +93,7 @@ GET /api/projections/VAT%20Rates/v1?changeSetId=1
 ]
 ```
 
-Ask without a change set id and Filby redirects to the one in force now. Load next year's rates today with next year's effective date and they have an id and an answer from the moment they are loaded, and nothing a client already holds changes.
+Omit the change set id and Filby redirects to the one in force now. Load next year's rates today with next year's effective date and they have an id and an answer from the moment they are loaded, and nothing a client already holds changes.
 
 The [example application](#example-application) runs a holiday park business on it: parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets, with a walkthrough that asks it questions.
 
@@ -1113,7 +1113,7 @@ The walkthrough below asks five questions of the running example.
 
 ### What does Devon Cliffs sell?
 
-Ask `Parks (Detailed)` without a change set id and it redirects to the current one, which is change set 8 because change sets 9 and 10 do not touch any park.
+Omit the change set id from a request to `Parks (Detailed)` and it redirects to the current one, which is change set 8 because change sets 9 and 10 do not touch any park.
 
 ```
 GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC
