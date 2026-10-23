@@ -1017,8 +1017,8 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
     "region": "South West",
     "amenities": [
       {
-        "amenity_code": "AMUSEMENT_ARCADE",
         "amenity": {
+          "code": "AMUSEMENT_ARCADE",
           "name": "Amusement Arcade",
           "category": "Entertainment",
           "age_group": "All Ages",
@@ -1027,8 +1027,8 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
         }
       },
       {
-        "amenity_code": "CRAZY_GOLF",
         "amenity": {
+          "code": "CRAZY_GOLF",
           "name": "Crazy Golf",
           "category": "Sport",
           "age_group": "All Ages",
@@ -1037,8 +1037,8 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
         }
       },
       {
-        "amenity_code": "INDOOR_POOL",
         "amenity": {
+          "code": "INDOOR_POOL",
           "name": "Indoor Pool",
           "category": "Pool",
           "age_group": "All Ages",
@@ -1050,21 +1050,21 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
     ],
     "beach_routes": [
       {
-        "beach_code": "SANDY_BAY",
         "name": "Along the beach road",
         "distance_metres": 1200,
         "accessibility": "Step Free",
         "beach": {
+          "code": "SANDY_BAY",
           "name": "Sandy Bay",
           "surfaces": ["Sandy", "Rocky"]
         }
       },
       {
-        "beach_code": "SANDY_BAY",
         "name": "Via the cliff path",
         "distance_metres": 400,
         "accessibility": "Steep Steps",
         "beach": {
+          "code": "SANDY_BAY",
           "name": "Sandy Bay",
           "surfaces": ["Sandy", "Rocky"]
         }
@@ -1110,37 +1110,61 @@ GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSe
     ],
     "models": [
       {
-        "model_code": "AMB"
+        "model_code": "AMB",
+        "model": {
+          "name": "ABI Ambleside"
+        }
       },
       {
-        "model_code": "AVO"
+        "model_code": "AVO",
+        "model": {
+          "name": "Willerby Avonmore"
+        }
       },
       {
-        "model_code": "BEV"
+        "model_code": "BEV",
+        "model": {
+          "name": "ABI Beverley"
+        }
       },
       {
-        "model_code": "CAS"
+        "model_code": "CAS",
+        "model": {
+          "name": "Carnaby Cascade"
+        }
       },
       {
-        "model_code": "CLW"
+        "model_code": "CLW",
+        "model": {
+          "name": "Willerby Clearwater Lodge"
+        }
       },
       {
-        "model_code": "HEL"
+        "model_code": "HEL",
+        "model": {
+          "name": "Carnaby Helmsley"
+        }
       },
       {
-        "model_code": "LOI"
+        "model_code": "LOI",
+        "model": {
+          "name": "Swift Loire"
+        }
       },
       {
-        "model_code": "RIO"
+        "model_code": "RIO",
+        "model": {
+          "name": "Willerby Rio"
+        }
       }
     ]
   }
 ]
 ```
 
-Devon Cliffs has eight amenities; the listing above is cut to three. Each park amenity is a row of `Park Amenity`, and the `Amenity` lookup under it embeds the one `Amenity` record it refers to as an object with the name, category, age group, charge and VAT code. The amenity's code is left out of the object because it is the join field and already on the park amenity. The beach routes have the same shape: each route is a row of `Beach Route` with facts of its own, the distance and how accessible it is, and the `Beach` lookup embeds the beach it leads to. Devon Cliffs reaches Sandy Bay two ways, step free along the beach road or down the steep cliff path, so the same beach appears under both routes. `Parks (Minimal)` is the same projection without the lookups, so its park amenities are codes alone and its routes carry the beach code alone, for a consumer that already holds `Amenities` and `Beaches`.
+Devon Cliffs has eight amenities; the listing above is cut to three. Each park amenity is a row of `Park Amenity` that links a park to an amenity and says nothing else, so the projection declares `fields: []` on the nest and each row is its `Amenity` lookup alone, an object with the amenity's code, name, category, age group, charge and VAT code. Each beach route is a row of `Beach Route` with facts of its own, the distance and how accessible it is, and its `Beach` lookup carries the beach's code, name and surfaces in place of the beach code. Devon Cliffs reaches Sandy Bay two ways, step free along the beach road or down the steep cliff path, so the same beach appears under both routes. Each model the park sells is a code with a `Model` lookup that carries the model's name and nothing more, because a lookup carries only the fields the projection asks for. `Parks (Minimal)` is the same projection without the lookups, so its park amenities are codes alone and its routes and models carry the beach code and the model code alone, for a consumer that already holds `Amenities`, `Beaches` and `Models`.
 
-`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year.
+`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date of change set 6 is when the park started saying so: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year, each by code, year and name.
 
 ### What was in the catalogue on 1 June 2025?
 
@@ -1176,7 +1200,7 @@ GET http://localhost:3000/api/changelog?projection=Catalogue&version=1
 ]
 ```
 
-Change set 2 was in force on 1 June 2025, so `Catalogue` at change set 2 is the whole range as it stood, each manufacturer with its models and each model with the prices and accessories it had then. It has no paging because a product range is read whole; `Models` is the same data one model at a time, with the parameters a search page needs.
+Change set 2 was in force on 1 June 2025, so `Catalogue` at change set 2 is the whole range as it stood, each manufacturer with its models and each model with the prices and accessories it had then. It has no paging because a product range is read whole; `Models` is the same data one model at a time, with the parameters a search page needs and the manufacturer's name beside its code.
 
 ```
 GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC

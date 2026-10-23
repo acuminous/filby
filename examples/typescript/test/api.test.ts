@@ -84,20 +84,30 @@ describe('API', () => {
       deq(park, {
         ...devonCliffs,
         amenities: [
-          { amenity_code: 'AMUSEMENT_ARCADE', amenity: { name: 'Amusement Arcade', category: 'Entertainment', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' } },
-          { amenity_code: 'CRAZY_GOLF', amenity: { name: 'Crazy Golf', category: 'Sport', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' } },
-          { amenity_code: 'INDOOR_POOL', amenity: { name: 'Indoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
-          { amenity_code: 'KIDS_CLUB', amenity: { name: 'Kids Club', category: 'Entertainment', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' } },
-          { amenity_code: 'OUTDOOR_POOL', amenity: { name: 'Outdoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
-          { amenity_code: 'RESTAURANT', amenity: { name: 'Restaurant', category: 'Food', age_group: 'All Ages', charge: 'Paid', vat_code: 'Standard' } },
-          { amenity_code: 'SHOWBAR', amenity: { name: 'Showbar', category: 'Entertainment', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
-          { amenity_code: 'SPLASH_ZONE', amenity: { name: 'Splash Zone', category: 'Pool', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' } },
+          { amenity: { code: 'AMUSEMENT_ARCADE', name: 'Amusement Arcade', category: 'Entertainment', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' } },
+          { amenity: { code: 'CRAZY_GOLF', name: 'Crazy Golf', category: 'Sport', age_group: 'All Ages', charge: 'Paid', vat_code: 'Family Attraction' } },
+          { amenity: { code: 'INDOOR_POOL', name: 'Indoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
+          { amenity: { code: 'KIDS_CLUB', name: 'Kids Club', category: 'Entertainment', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' } },
+          { amenity: { code: 'OUTDOOR_POOL', name: 'Outdoor Pool', category: 'Pool', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
+          { amenity: { code: 'RESTAURANT', name: 'Restaurant', category: 'Food', age_group: 'All Ages', charge: 'Paid', vat_code: 'Standard' } },
+          { amenity: { code: 'SHOWBAR', name: 'Showbar', category: 'Entertainment', age_group: 'All Ages', charge: 'Free', vat_code: 'Family Attraction' } },
+          { amenity: { code: 'SPLASH_ZONE', name: 'Splash Zone', category: 'Pool', age_group: 'Children', charge: 'Free', vat_code: 'Family Attraction' } },
         ],
-        beach_routes: devonCliffs.beach_routes.map((route) => ({ ...route, beach: { name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] } })),
+        beach_routes: devonCliffs.beach_routes.map(({ beach_code, ...route }) => ({ ...route, beach: { code: beach_code, name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] } })),
+        models: [
+          { model_code: 'AMB', model: { name: 'ABI Ambleside' } },
+          { model_code: 'AVO', model: { name: 'Willerby Avonmore' } },
+          { model_code: 'BEV', model: { name: 'ABI Beverley' } },
+          { model_code: 'CAS', model: { name: 'Carnaby Cascade' } },
+          { model_code: 'CLW', model: { name: 'Willerby Clearwater Lodge' } },
+          { model_code: 'HEL', model: { name: 'Carnaby Helmsley' } },
+          { model_code: 'LOI', model: { name: 'Swift Loire' } },
+          { model_code: 'RIO', model: { name: 'Willerby Rio' } },
+        ],
       });
     });
 
-    it('should respond with the same park and its amenity and beach codes from the minimal projection', async () => {
+    it('should respond with the same park and its amenity, beach and model codes from the minimal projection', async () => {
       const redirect = await get('/api/projections/Parks%20(Minimal)/v1?code=DC');
       eq(redirect.status, 307);
       eq(redirect.headers.get('Location'), '/api/projections/Parks%20(Minimal)/v1?code=DC&changeSetId=8');
@@ -139,7 +149,7 @@ describe('API', () => {
     it('should list two routes to Sandy Bay for Devon Cliffs, each with the same beach', async () => {
       const [devonCliffs] = await (await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=8&code=DC')).json();
       deq(devonCliffs.beach_routes.map(({ name, accessibility }: any) => `${name} (${accessibility})`), ['Along the beach road (Step Free)', 'Via the cliff path (Steep Steps)']);
-      deq(devonCliffs.beach_routes.map((route: any) => route.beach), [{ name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] }, { name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] }]);
+      deq(devonCliffs.beach_routes.map((route: any) => route.beach), [{ code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] }, { code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] }]);
     });
 
     it('should keep the beach when the park that reached it is sold', async () => {
@@ -150,7 +160,7 @@ describe('API', () => {
   });
 
   describe('What a Gold van is', () => {
-    it('should respond with the grades in rank order, each with its attributes and the models that hold it', async () => {
+    it('should respond with the grades in rank order, each with its attributes and the models that hold it, by code, year and name', async () => {
       const response = await get('/api/projections/Grades/v1?changeSetId=5');
       eq(response.status, 200);
       const grades = await response.json();
@@ -158,10 +168,24 @@ describe('API', () => {
 
       const [platinum, gold, , , saver] = grades;
       deq(platinum.attributes.map((attribute: any) => attribute.attribute), ['Double Glazing', 'Central Heating', 'Decking', 'Dishwasher', 'En Suite', 'Patio Doors', 'Integrated Appliances']);
-      deq(platinum.models, [{ model_code: 'CLW', year: 2025 }, { model_code: 'CLW', year: 2026 }, { model_code: 'HEL', year: 2025 }, { model_code: 'HEL', year: 2026 }]);
+      deq(platinum.models, [
+        { model_code: 'CLW', year: 2025, model: { name: 'Willerby Clearwater Lodge' } },
+        { model_code: 'CLW', year: 2026, model: { name: 'Willerby Clearwater Lodge' } },
+        { model_code: 'HEL', year: 2025, model: { name: 'Carnaby Helmsley' } },
+        { model_code: 'HEL', year: 2026, model: { name: 'Carnaby Helmsley' } },
+      ]);
       deq(gold.attributes.map((attribute: any) => attribute.attribute), ['Double Glazing', 'Central Heating', 'Decking', 'En Suite', 'Patio Doors']);
-      deq(gold.models.map(({ model_code, year }: any) => `${model_code} ${year}`), ['AVO 2025', 'AVO 2026', 'CAS 2025', 'CAS 2026', 'RIO 2025', 'RIO 2026']);
-      deq(saver, { code: 'Saver', models: [{ model_code: 'CHA', year: 2025 }, { model_code: 'CHA', year: 2026 }, { model_code: 'VER', year: 2025 }, { model_code: 'VER', year: 2026 }], attributes: [] });
+      deq(gold.models.map(({ model_code, year, model }: any) => `${model_code} ${year} ${model.name}`), ['AVO 2025 Willerby Avonmore', 'AVO 2026 Willerby Avonmore', 'CAS 2025 Carnaby Cascade', 'CAS 2026 Carnaby Cascade', 'RIO 2025 Willerby Rio', 'RIO 2026 Willerby Rio']);
+      deq(saver, {
+        code: 'Saver',
+        models: [
+          { model_code: 'CHA', year: 2025, model: { name: 'Swift Challenger 580' } },
+          { model_code: 'CHA', year: 2026, model: { name: 'Swift Challenger 580' } },
+          { model_code: 'VER', year: 2025, model: { name: 'Victory Vermont' } },
+          { model_code: 'VER', year: 2026, model: { name: 'Victory Vermont' } },
+        ],
+        attributes: [],
+      });
     });
 
     it('should filter the grades by code', async () => {
@@ -285,11 +309,12 @@ describe('API', () => {
       deq((await lastPage.json()).map((model: any) => model.code), ['RIO']);
     });
 
-    it('should filter the models by manufacturer', async () => {
+    it('should filter the models by manufacturer and name it', async () => {
       const response = await get('/api/projections/Models/v1?changeSetId=5&manufacturer=SWI');
       eq(response.status, 200);
       const models = await response.json();
       deq(models.map((model: any) => model.name), ['Swift Challenger 580', 'Swift Loire']);
+      deq(models.map((model: any) => model.manufacturer), [{ name: 'Swift' }, { name: 'Swift' }]);
       eq(models[0].berths, 4);
       eq(models[0].length, '24.5');
       eq(models[0].double_glazed, true);
@@ -339,17 +364,23 @@ describe('API', () => {
 
       const detailed = schema(document, 'Parks (Detailed)');
       deq(document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'page', 'pageSize']);
-      deq(Object.keys(detailed.properties.amenities.items.properties), ['amenity_code', 'amenity']);
-      deq(detailed.properties.amenities.items.required, ['amenity_code', 'amenity']);
+      deq(Object.keys(detailed.properties.amenities.items.properties), ['amenity']);
+      deq(detailed.properties.amenities.items.required, ['amenity']);
+      deq(detailed.properties.amenities.items.properties.amenity['x-filby-on'], { code: 'amenity_code' });
       const [amenity, amenityNull] = detailed.properties.amenities.items.properties.amenity.anyOf;
       deq(amenityNull, { type: 'null' });
-      deq(amenity.required, ['name', 'category', 'age_group', 'charge', 'vat_code']);
+      deq(Object.keys(amenity.properties), ['code', 'name', 'category', 'age_group', 'charge', 'vat_code']);
+      deq(amenity.required, ['code', 'name', 'category', 'age_group', 'charge', 'vat_code']);
       deq(amenity.properties.age_group, { type: 'string', enum: ['All Ages', 'Children', 'Adults'] });
-      deq(Object.keys(detailed.properties.beach_routes.items.properties), ['beach_code', 'name', 'distance_metres', 'accessibility', 'beach']);
+      deq(Object.keys(detailed.properties.beach_routes.items.properties), ['name', 'distance_metres', 'accessibility', 'beach']);
+      deq(detailed.properties.beach_routes.items.properties.beach['x-filby-on'], { code: 'beach_code' });
       const [beach, beachNull] = detailed.properties.beach_routes.items.properties.beach.anyOf;
       deq(beachNull, { type: 'null' });
-      deq(Object.keys(beach.properties), ['name', 'surfaces']);
+      deq(Object.keys(beach.properties), ['code', 'name', 'surfaces']);
       deq(beach.properties.surfaces, { type: 'array', items: { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] } });
+      deq(Object.keys(detailed.properties.models.items.properties), ['model_code', 'model']);
+      deq(detailed.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
+      deq(Object.keys(detailed.properties.models.items.properties.model.anyOf[0].properties), ['name']);
 
       const beaches = schema(document, 'Beaches');
       deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code']);
@@ -358,7 +389,9 @@ describe('API', () => {
       const grades = schema(document, 'Grades');
       deq(grades.properties.code, { type: 'string', enum: ['Platinum', 'Gold', 'Silver', 'Bronze', 'Saver'] });
       deq(grades.required, ['code', 'models', 'attributes']);
-      deq(grades.properties.models.items.required, ['model_code', 'year']);
+      deq(grades.properties.models.items.required, ['model_code', 'year', 'model']);
+      deq(grades.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
+      deq(Object.keys(grades.properties.models.items.properties.model.anyOf[0].properties), ['name']);
       deq(grades.properties.attributes.items.properties.attribute, { type: 'string', enum: ['Double Glazing', 'Central Heating', 'Decking', 'Dishwasher', 'En Suite', 'Patio Doors', 'Integrated Appliances'] });
 
       const amenities = schema(document, 'Amenities');
@@ -369,7 +402,9 @@ describe('API', () => {
       deq(models.properties.berths, { type: 'integer' });
       deq(models.properties.length, { type: 'string' });
       deq(models.properties.double_glazed, { type: 'boolean' });
-      deq(models.required, ['code', 'manufacturer_code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories']);
+      deq(models.required, ['code', 'manufacturer_code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories', 'manufacturer']);
+      deq(models.properties.manufacturer['x-filby-on'], { code: 'manufacturer_code' });
+      deq(Object.keys(models.properties.manufacturer.anyOf[0].properties), ['name']);
 
       const catalogue = schema(document, 'Catalogue');
       deq(Object.keys(catalogue.properties.models.items.properties), ['code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories']);

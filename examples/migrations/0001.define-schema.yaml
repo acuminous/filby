@@ -429,6 +429,7 @@
       entity: Park Amenity@1
       on:
         Park Code: Code
+      fields: []
       order:
         - field: Amenity Code
       lookup:
@@ -436,10 +437,21 @@
           entity: Amenity@1
           on:
             Code: Amenity Code
+          fields:
+            - Code
+            - Name
+            - Category
+            - Age Group
+            - Charge
+            - VAT Code
     Beach Routes:
       entity: Beach Route@1
       on:
         Park Code: Code
+      fields:
+        - Name
+        - Distance Metres
+        - Accessibility
       order:
         - field: Beach Code
         - field: Name
@@ -448,6 +460,10 @@
           entity: Beach@1
           on:
             Code: Beach Code
+          fields:
+            - Code
+            - Name
+            - Surfaces
     Seasons:
       entity: Park Season@1
       on:
@@ -466,6 +482,13 @@
         Park Code: Code
       order:
         - field: Model Code
+      lookup:
+        Model:
+          entity: Model@1
+          on:
+            Code: Model Code
+          fields:
+            - Name
 
 - operation: ADD_PROJECTION
   name: Catalogue
@@ -536,6 +559,13 @@
         Model Code: Code
       order:
         - field: Name
+  lookup:
+    Manufacturer:
+      entity: Manufacturer@1
+      on:
+        Code: Manufacturer Code
+      fields:
+        - Name
 
 - operation: ADD_PROJECTION
   name: Grades
@@ -554,6 +584,13 @@
       order:
         - field: Model Code
         - field: Year
+      lookup:
+        Model:
+          entity: Model@1
+          on:
+            Code: Model Code
+          fields:
+            - Name
     Attributes:
       entity: Grade Attribute@1
       on:
