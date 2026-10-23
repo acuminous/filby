@@ -97,6 +97,12 @@ Omit the change set id and Filby redirects to the one in force now. Load next ye
 
 The [example application](#example-application) runs a holiday park business on it: parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets, with a walkthrough that asks it questions.
 
+[filby-ui](https://github.com/acuminous/filby-ui) is a read-only web UI for any application that serves Filby's API. It lists the projections, shows each one's change log with the change set in force at any date, and browses the documents at a change set with their nests and lookups as tables. One command starts it against a running application:
+
+```bash
+FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
+```
+
 ## Why change sets
 
 Most systems have reference data: rates, codes, catalogues, calendars, the slow-moving facts that everything else depends on. Because it changes rarely, it gets copied everywhere: into caches, client bundles and other services' databases. Each copy is a chance to be wrong. When it does change, the old values are still needed to explain anything that happened under them. Changes are often known in advance, and the people who own them want them loaded now and live on a date. And the shape of the data itself evolves, which must not break the clients that read it.
@@ -215,7 +221,7 @@ See http://localhost:3000/documentation
 Use CTRL+C or kill -TERM 18964 to stop
 ```
 
-The [Example application](#example-application) section walks through what it serves.
+The [Example application](#example-application) section walks through what it serves, and [filby-ui](https://github.com/acuminous/filby-ui) browses it at http://localhost:4000 once started with the command in the [TL;DR](#tldr).
 
 ## Guide
 
