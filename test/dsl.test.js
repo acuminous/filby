@@ -1132,14 +1132,12 @@ describe('DSL', () => {
       const checkpoint = await getDatabaseTime();
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_HOOK_ADD_PROJECTION, ADD_PROJECTION);
 
-      const { rows: notifications } = await filby.withTransaction((tx) => {
-        return tx.query('SELECT * FROM fby_notification ORDER BY id');
-      });
+      const notifications = await getNotifications();
 
       eq(notifications.length, 1);
       assertNotification(notifications[0], {
         hook_name: 'sns/add-projection',
-        hook_event: 'ADD_PROJECTION',
+        event: 'ADD_PROJECTION',
         projection_name: 'VAT Rates',
         projection_version: 1,
         scheduled_for: checkpoint,
@@ -2229,14 +2227,12 @@ describe('DSL', () => {
       const checkpoint = await getDatabaseTime();
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_DROP_PROJECTION, DROP_PROJECTION);
 
-      const { rows: notifications } = await filby.withTransaction((tx) => {
-        return tx.query('SELECT * FROM fby_notification ORDER BY id');
-      });
+      const notifications = await getNotifications();
 
       eq(notifications.length, 1);
       assertNotification(notifications[0], {
         hook_name: 'sns/drop-projection',
-        hook_event: 'DROP',
+        event: 'DROP_PROJECTION',
         projection_name: 'VAT Rates',
         projection_version: 1,
         scheduled_for: checkpoint,
@@ -2374,14 +2370,12 @@ describe('DSL', () => {
       const checkpoint = await getDatabaseTime();
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, ADD_CHANGE_SET_1);
 
-      const { rows: notifications } = await filby.withTransaction((tx) => {
-        return tx.query('SELECT * FROM fby_notification ORDER BY id');
-      });
+      const notifications = await getNotifications();
 
       eq(notifications.length, 2);
       assertNotification(notifications[0], {
         hook_name: 'sns/add-change-set/vat-rates-v1',
-        hook_event: 'ADD_CHANGE_SET',
+        event: 'ADD_CHANGE_SET',
         projection_name: 'VAT Rates',
         projection_version: 1,
         scheduled_for: checkpoint,
@@ -2393,7 +2387,7 @@ describe('DSL', () => {
 
       assertNotification(notifications[1], {
         hook_name: 'sns/add-change-set/*',
-        hook_event: 'ADD_CHANGE_SET',
+        event: 'ADD_CHANGE_SET',
         projection_name: 'VAT Rates',
         projection_version: 1,
         scheduled_for: checkpoint,
@@ -4267,6 +4261,15 @@ describe('DSL', () => {
     return rows[0].now;
   }
 
+  async function getNotifications() {
+    const { rows } = await filby.withTransaction((tx) => tx.query(`
+      SELECT n.*, h.name AS hook_name
+      FROM fby_notification n
+      INNER JOIN fby_hook h ON h.id = n.hook_id
+      ORDER BY n.id`));
+    return rows;
+  }
+
   async function countNotifications() {
     const { rows } = await filby.withTransaction((tx) => {
       return tx.query('SELECT count(*) AS count FROM fby_notification');
@@ -4291,13 +4294,13 @@ function loadYaml(filename) {
 }
 
 function assertNotification(actual, expected) {
-  eq(actual.hook_name, actual.hook_name);
-  eq(actual.hook_event, actual.hook_event);
-  eq(actual.projection_name, actual.projection_name);
-  eq(actual.projection_version, actual.projection_version);
+  eq(actual.hook_name, expected.hook_name);
+  eq(actual.event, expected.event);
+  eq(actual.projection_name, expected.projection_name);
+  eq(actual.projection_version, expected.projection_version);
   ok(actual.scheduled_for >= expected.scheduled_for);
-  eq(actual.attempts, actual.attempts);
-  eq(actual.status, actual.status);
-  eq(actual.last_attempted, actual.last_attempted);
-  eq(actual.last_error, actual.last_error);
+  eq(actual.attempts, expected.attempts);
+  eq(actual.status, expected.status);
+  eq(actual.last_attempted, expected.last_attempted);
+  eq(actual.last_error, expected.last_error);
 }
