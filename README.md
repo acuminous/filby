@@ -127,7 +127,7 @@ Corrections and backfills do not break the guarantee. Data that should have been
 ## Use cases
 
 - **A developer-first PIM.** Product catalogues and price lists kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
-- **Rates and rules.** Tax rates, fees, commission tables and thresholds that change on known dates and must be explainable afterwards.
+- **Published data without a feed.** Data that someone outside the organisation decides and publishes, such as tax rates, regulatory limits, bank holidays or a supplier's price list, but only as a web page, a PDF or an announcement. Load each change when it is announced, with the date it takes effect, and every service reads the same values and can explain what applied on any past date.
 
 ## How it works
 
