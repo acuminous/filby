@@ -26,8 +26,6 @@ Two typical uses are:
 - **A developer-first PIM.** Product catalogues and price lists are kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
 - **External reference data.** Some data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Every service then reads the same values, and can look up what applied on any past date.
 
-Another way to think of Filby is as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same data every time.
-
 An application can read the data as it stood at any point in the past. It can also read the data as it will be when a change set that is already loaded takes effect in the future.
 
 You describe your data and how it is served in YAML migration files, using a small Domain Specific Language (DSL). The data itself can be loaded from CSV.
@@ -119,6 +117,8 @@ FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
 ```
 
 ## How it works
+
+The best way to understand Filby is to think of it as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same data every time.
 
 Reference data arrives as change sets in CSV, YAML, JSON or SQL migration files. Filby applies them to PostgreSQL, and your application mounts Filby's HTTP handler. A client reads a projection's change log, picks a change set and asks for the data at it, and a webhook or any other handler hears when something changes.
 
