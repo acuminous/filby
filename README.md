@@ -10,6 +10,7 @@
 ## Contents
 
 - [Introduction](#introduction)
+- [User interfaces](#user-interfaces)
 - [How it works](#how-it-works)
 - [Why Filby](#why-filby)
 - [Getting started](#getting-started)
@@ -108,11 +109,23 @@ You can load next year's rates today, with an effective date of 1 January. They 
 
 The [example application](#example-application) runs a holiday park business on Filby. It has parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets. Its [example queries](#example-queries) range from what a park sells today to what next year's price list will be.
 
+## User interfaces
+
 Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), which provides a read-only web interface to any application that serves Filby's API. It lists the projections, shows each one's change log with the change set in force at any date, and browses the documents at a change set with their nests and lookups as tables. One command starts it against a running application:
 
 ```bash
 FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
 ```
+
+Filby UI is read-only on purpose. Filby has no screens for editing reference data.
+
+One reason is that reference data often comes from non-technical departments, and it needs modelling before it can be loaded. Imagine the marketing team asks for each park's distance to the beach. That sounds like one number on the park. In practice a park may reach more than one beach. A beach may be reached by more than one route, such as a step-free road and a shorter path with steep steps. Each route has its own distance and accessibility, and each beach has its own surfaces, such as sand or shingle. A follow-up request for "dogs allowed" turns out to be a calendar, because many beaches ban dogs in the summer. A form with a "distance to beach" box would capture the wrong shape. Someone has to model the data first, here as beaches and beach routes.
+
+Another reason is that an editing UI adds a lot of complexity. It needs identity, authentication and authorisation. It also needs a way to promote data between environments, such as from staging to production.
+
+Instead, Filby manages its data through source control. Your source control platform already provides identity, authentication and authorisation. Pull requests provide review, and branches provide promotion between environments.
+
+Source control is also becoming more accessible to non-technical users through AI. A product owner can describe a change in plain English, and an AI assistant can turn it into a change set and open a pull request for review.
 
 ## How it works
 
