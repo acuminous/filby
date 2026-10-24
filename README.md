@@ -1,8 +1,8 @@
-# Filby - A framework for managing slow-moving temporal data
-
 [![NPM version](https://img.shields.io/npm/v/filby.svg?style=flat-square)](https://www.npmjs.com/package/filby)
 [![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
 [![Codecov](https://codecov.io/gh/acuminous/filby/graph/badge.svg)](https://codecov.io/gh/acuminous/filby)
+
+# Filby - A framework for managing slow-moving temporal data
 
 *There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
 <p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
