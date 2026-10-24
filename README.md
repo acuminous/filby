@@ -20,14 +20,14 @@
 
 ## Introduction
 
-Filby is a framework for managing slow-moving temporal data. This is the reference data that most systems depend on but that rarely changes, such as product catalogues, price lists, tax rates and calendars. Each change is planned in advance and takes effect on a date. The old values are kept after they are replaced. The concepts are those of a time series, but Filby is not a time series database. A time series database stores large volumes of measurements, such as sensor readings. Filby stores a modest amount of reference data that changes a few times a year. An application can read the data as it stood at any point in the past. It can also read the data as it will be when a change set that is already loaded takes effect in the future.
+Filby is a framework for managing slow-moving temporal data, such as product catalogues, price lists, tax rates and calendars. Like a time series database, it stores successive values over time and lets applications query them by date. However, rather than storing high volumes of measurements such as sensor readings, Filby focuses on reference data that changes infrequently. Each change takes effect on a specified date and can be scheduled in advance. Previous values are retained after they are replaced, so an application can read the data as it stood, stands or will stand at any point in time, past, present or future.
 
 Two typical uses are:
 
-- **A developer-first PIM.** Product catalogues and price lists are kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
-- **External reference data.** Some data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Every service then reads the same values, and can look up what applied on any past date.
+- **A developer-first product information management (PIM) system.** Product catalogues and price lists are kept in your repository, published on a date and served to every channel. A hook sends each change to a CMS as soon as it is loaded into Filby, and schedules it for publication on its effective date.
+- **External reference data.** Some data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Applications can then retrieve the values that apply on any given date.
 
-You describe your data and how it is served in YAML migration files, using a small Domain Specific Language (DSL). The data itself can be loaded from CSV.
+In both cases, you describe your data and how it is served in migration files, using a small domain-specific language (DSL). The example below walks through this process step by step, using YAML migrations and data imported from CSV.
 
 **Step 1. Define an entity and a projection**
 
@@ -50,7 +50,7 @@ You describe your data and how it is served in YAML migration files, using a sma
     - field: Code
 ```
 
-**Step 2. Load the data from a CSV file, in force from a date**
+**Step 2. Load CSV data with an effective date**
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -70,7 +70,7 @@ Standard,Standard rate,20.00
 Reduced,Reduced rate,5.00
 ```
 
-**Step 3. Serve it over HTTP**
+**Step 3. Serve the data over HTTP**
 
 ```js
 const filby = new Filby({ database: { user: 'filby', database: 'filby' } });
@@ -80,7 +80,7 @@ app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
 
 The example above uses [Hono](https://hono.dev/). `filby.fetch` takes a web standard Request and returns a Response, so it works with most popular HTTP servers. Express needs a short adapter; see [Serving over HTTP](#serving-over-http).
 
-**Step 4. Read the change log, pick a change set, and ask for the data at it**
+**Step 4. Read the change log and query the data at a chosen change set**
 
 ```
 GET /api/changelog?projection=VAT%20Rates&version=1
@@ -103,11 +103,11 @@ GET /api/projections/VAT%20Rates/v1?changeSetId=1
 ]
 ```
 
-Omit the change set id and Filby redirects to the one in force now.
+If you omit the change set id, Filby redirects the request to the change set currently in force.
 
-You can load next year's rates today, with an effective date of 1 January. They get a change set id straight away, so clients can fetch them in advance. The data a client already holds does not change.
+You can load next year's rates today with an effective date of 1 January. Filby assigns a change set id immediately, so clients can fetch the rates before they take effect. Data a client has already retrieved remains unchanged.
 
-The [example application](#example-application) runs a holiday park business on Filby. It has parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets. Its [example queries](#example-queries) range from what a park sells today to what next year's price list will be.
+The [example application](#example-application) uses Filby to manage data for a holiday park business. It includes parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV through ten change sets. Its [example queries](#example-queries) show how to retrieve everything from a park's current product range to next year's price list.
 
 ## User interfaces
 
