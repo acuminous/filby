@@ -1,4 +1,4 @@
-# Filby - A framework for temporal reference data
+# Filby - A framework for managing slow-moving temporal data
 
 [![NPM version](https://img.shields.io/npm/v/filby.svg?style=flat-square)](https://www.npmjs.com/package/filby)
 [![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
@@ -7,20 +7,29 @@
 ## Contents
 
 - [Introduction](#introduction)
-- [Why change sets](#why-change-sets)
-- [Use cases](#use-cases)
 - [How it works](#how-it-works)
+- [Why Filby](#why-filby)
 - [Getting started](#getting-started)
 - [Guide](#guide)
 - [Reference](#reference)
 - [Example application](#example-application)
-- [The Time Machine](#the-time-machine)
 
 ## Introduction
 
-Filby keeps reference data in PostgreSQL with its whole history, and serves any view of it as it stood at any point in that history.
+Filby is a framework for managing slow-moving temporal data. This is the reference data that most systems depend on but that rarely changes, such as product catalogues, price lists, tax rates and calendars. Each change is planned in advance and takes effect on a date. The old values are kept after they are replaced.
 
-Think of it as source control for reference data, at runtime. In git, a commit bundles related changes to source code and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same answer every time.
+Two typical uses are:
+
+- **A developer-first PIM.** Product catalogues and price lists are kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
+- **External reference data.** Some data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Every service then reads the same values, and can look up what applied on any past date.
+
+Think of Filby as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same data every time.
+
+The concepts are those of a time series, because every value is recorded against the time it applies from. Filby is not a time series database, though. A time series database stores large volumes of measurements, such as sensor readings. Filby stores a modest amount of reference data that changes a few times a year.
+
+Filby keeps every change set in PostgreSQL. An application can read the data as it stood at any point in the past. It can also read the data as it will be when a change set that is already loaded takes effect in the future.
+
+You describe your data and how it is served in YAML migration files, using a small Domain Specific Language (DSL). The data itself can be loaded from CSV.
 
 **Step 1. Define an entity and a projection**
 
@@ -71,7 +80,7 @@ await filby.init();
 app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
 ```
 
-The example above uses [Hono](https://hono.dev/). `filby.fetch` takes a web standard Request and returns a Response, so it mounts on any server that speaks them, and on Express with a short adapter; see [Serving over HTTP](#serving-over-http).
+The example above uses [Hono](https://hono.dev/). `filby.fetch` takes a web standard Request and returns a Response, so it works with most popular HTTP servers. Express needs a short adapter; see [Serving over HTTP](#serving-over-http).
 
 **Step 4. Read the change log, pick a change set, and ask for the data at it**
 
@@ -96,9 +105,11 @@ GET /api/projections/VAT%20Rates/v1?changeSetId=1
 ]
 ```
 
-Omit the change set id and Filby redirects to the one in force now. Load next year's rates today with next year's effective date and they have an id and an answer from the moment they are loaded, and nothing a client already holds changes.
+Omit the change set id and Filby redirects to the one in force now.
 
-The [example application](#example-application) runs a holiday park business on it: parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets. The [walkthrough](#what-does-devon-cliffs-sell) shows what it answers, from what a park sells today to what next year's price list will be.
+You can load next year's rates today, with an effective date of 1 January. They get a change set id straight away, so clients can fetch them in advance. The data a client already holds does not change.
+
+The [example application](#example-application) runs a holiday park business on Filby. It has parks, beaches, amenities, a caravan catalogue, prices and VAT rates, loaded from CSV by ten change sets. Its [example queries](#example-queries) range from what a park sells today to what next year's price list will be.
 
 Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), which provides a read-only web interface to any application that serves Filby's API. It lists the projections, shows each one's change log with the change set in force at any date, and browses the documents at a change set with their nests and lookups as tables. One command starts it against a running application:
 
@@ -106,28 +117,10 @@ Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), w
 FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
 ```
 
-## Why change sets
+Filby is named after one of the guests in the opening chapter of H. G. Wells' *The Time Machine*. He is the argumentative one who doubts the Time Traveller's claim that time is a dimension like any other. He then watches a model machine vanish into it.
 
-Most systems have reference data: rates, codes, catalogues, calendars, the slow-moving facts that everything else depends on. Because it changes rarely, it gets copied everywhere: into caches, client bundles and other services' databases. Each copy is a chance to be wrong. When it does change, the old values are still needed to explain anything that happened under them. Changes are often known in advance, and the people who own them want them loaded now and live on a date. And the shape of the data itself evolves, which must not break the clients that read it.
-
-The usual answers each solve one part of this. A valid-from column on every row pushes the temporal join into every query, and related rows must be joined at the same instant by hand. A cache with a time-to-live trades consistency for staleness. A document with no history can only say what the data is now.
-
-Filby makes the history the primary thing and gives every point in it a key. A change set is a bundle of changes with an effective date. Its id is a snapshot key: the data at change set N is everything Filby knew when N was added that was in force on N's effective date, and that never changes. Everything else follows from that one property.
-
-- **Consistency.** Reference data gets copied into caches, services and clients, and the copies drift apart. With Filby every copy names the snapshot it came from. A request that starts on one snapshot reads the same data from every service it touches, and two systems comparing notes can tell at once whether they are looking at the same thing.
-- **Performance.** A snapshot never changes, so anything keyed by it can be cached without expiry, in a CDN, a proxy, a process or a client. The same property makes it safe to export a snapshot and bundle it into an application or a data lake, because the bundle is exactly what its id says it is.
-- **History.** Every snapshot still answers as it did, so a price from 2025 can be explained in 2027, and a report can be re-run against the data as it stood on the day.
-- **Timing.** A change known in advance is loaded today with the date it takes effect. It has its id at once, so it can be fetched and cached early, and it goes live by the clock rather than by a deploy, with a notification when it does.
-- **Evolution.** When the shape of the data has to change, the new shape is published alongside the old one as a new version, and each client moves across when it is ready.
-- **Custom views.** Each client reads a view built for it, a nested document for a web page or flat rows for a report, and each view has its own change log that says when something in it changed.
-- **Local testing.** The data lives in migration files in your repository, so a developer runs the same data on a laptop against a local Postgres, and a test can pin a snapshot and get the same answer every run.
-
-Corrections and backfills do not break the guarantee. Data that should have been in an earlier snapshot is loaded as a new change set and the affected change sets are re-issued under new ids, so anything a client cached by id stays right. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
-
-## Use cases
-
-- **A developer-first PIM.** Product catalogues and price lists kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
-- **External reference data.** Data that someone outside the organisation decides and publishes, such as tax rates, regulatory limits, bank holidays or a supplier's price list, but only as a web page, a PDF or an announcement. Load each change when it is announced, with the date it takes effect, and every service reads the same values and can explain what applied on any past date.
+*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
+<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
 
 ## How it works
 
@@ -207,13 +200,39 @@ An **entity** is a type of reference data: a park, a VAT rate, a caravan model. 
 
 A **data frame** is one record of an entity as it was at one point: a `SET` frame carries the record's values, a `DELETE` frame says the record is gone. Frames are only ever added, so the history of a record is the sequence of its frames.
 
-A **change set** groups data frames, for one entity or many, under one effective date, which is the date from which its frames are in force. The effective date is not a date in the data: a park season's start is a fact about the park, whereas the effective date is a fact about the change set. A change set is added in one transaction, so it is either wholly visible or not there at all, and its id is the snapshot key.
+A **change set** groups data frames, for one entity or many, under one effective date, which is the date from which its frames are in force.
 
-An **aggregate** is the state of an entity at a change set: one row per key, built from the frames, with deleted records omitted. Filby creates an aggregate function for every entity version, and everything else reads through it.
+An **aggregate** is the state of an entity at a change set: one row per record, built from the frames, with deleted records omitted. Filby creates an aggregate function for every entity version, and everything else reads through it.
 
-A **projection** is a versioned view over one or more entities, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities are nested under the root as lists, embedded as single objects, and the fields each level carries can be chosen. A projection the DSL cannot express is a SQL function you write over the aggregates. Either way Filby knows which entities the projection depends on, so it knows which change sets affect it, which is what its change log lists.
+A **projection** is a versioned view over one or more entities, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities are nested under the root as lists, embedded as single objects, and the fields each level carries can be chosen. A projection the DSL cannot express is a SQL function you write over the aggregates. Either way Filby knows which entities the projection depends on, so it knows which change sets affect it.
 
 A **hook** names an event your application wants to hear about: a projection added or dropped, a change set added, or a change set taking effect for a projection. A **notification** is raised for a hook whenever its event happens, and delivered to the handler your application registered, with retries, so downstream copies of the data stay current without polling.
+
+## Why Filby
+
+Most systems have reference data: rates, codes, catalogues, calendars, the slow-moving facts that everything else depends on. Because it changes rarely, it gets duplicated everywhere: into caches, client bundles, application databases and data lakes. The copies are unlikely to be wrong when they are made, but they go stale.
+
+When the data changes, the old values may still need to be kept. An analytics system needs them for reference. A transaction that started before the change needs them until it finishes, for consistency.
+
+Changes are often known in advance. Their owners want them to go live at a future time, often midnight, coordinated across several systems.
+
+The shape of the data also evolves, and that must not break the clients that read it.
+
+Filby solves these problems by organising change sets into a timeline. A change set is a bundle of related changes, such as a new price list, with an effective date from which the changes apply. Filby gives each change set an id. Asking for the data at a change set id returns the data as it stood at that point in the timeline. It returns the same data every time. Everything else follows from this one property.
+
+- **Consistency.** Reference data gets copied into databases and into clients' memory, where copies drift apart and go stale. Filby keeps the copies fresh. A client can check the change log for updates, subscribe to change notifications, or load future change sets before they take effect.
+- **Performance.** The data at a change set id never changes, so Filby sends caching headers that let a response be cached indefinitely. Some data sets are too large to request on demand over the network. These can be exported and bundled into the application, or refreshed by a regular check for updates. Because changes can be pre-released, a client never has to wait for an update while its data is stale.
+- **History.** Every earlier change set still returns the same data. A report can be re-run against the data as it stood on the day, and a price from 2025 can still be looked up in 2027.
+- **Timing.** A change known in advance is loaded today with the date it takes effect. It can be fetched and cached early. It goes live automatically at a point in time, rather than with a deploy, and Filby sends a notification when it does.
+- **Evolution.** When the shape of the data has to change, the new shape is published alongside the old one as a new version, and each client moves across when it is ready.
+- **Right-sized responses.** Each client reads a view shaped for its needs. A product list page does not need full product details, but a product details page does. GraphQL[^1][^2][^3] and OData try to solve the same problem. The difference is that Filby's views are defined on the server, so they can be governed.
+- **Local testing.** The data lives in migration files in your repository, so a developer runs the same data on a laptop against a local Postgres. A test can pin a change set id and get the same data every run.
+
+A change set can be inserted anywhere in the timeline without breaking it, for example to correct or backfill data. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
+
+[^1]: [Why GraphQL is probably wrong for your project](https://medium.com/@LoschCode/why-graphql-is-probably-wrong-for-your-project-daee1a1f54b0)
+[^2]: [Why I no longer use GraphQL for new projects](https://dev.to/andyrewlee/why-i-no-longer-use-graphql-for-new-projects-1oig)
+[^3]: [Drawbacks of GraphQL](https://l-lin.github.io/web/drawbacks-of-GraphQL)
 
 ## Getting started
 
@@ -396,11 +415,11 @@ set,RP,Rockley Park,South West
 DELETE,TP,,
 ```
 
-The action is read in any case, on the frame or in the file. An action in both places, in neither, or missing from a cell fails rendering with a message naming the frame and the file; see [ADD_CHANGE_SET](#add_change_set).
+The action may be written in upper or lower case, on the frame or in the file. Give the action in exactly one place, and fill every cell of an `action` column; see [ADD_CHANGE_SET](#add_change_set).
 
-The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Why change sets](#why-change-sets).
+The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Why Filby](#why-filby).
 
-Field names in data and CSV headers are canonicalised like everything else, so `Model Code` and `model_code` both reach the `model_code` column. A field or column the entity does not declare fails with `Change set '2025 catalogue and price list' references a non existent field 'wombat' of entity 'Price v1'`. A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. CSV cells are read as text and cast by Postgres to the column type, so `007` keeps its leading zeros in a `TEXT` column and `1.50` keeps its scale in a `NUMERIC` column. A value Postgres rejects, for any reason from a bad cast to a check violation, fails the migration with the file, the row and Postgres's message, such as `0003.catalogue-2025.yaml: ./csv/catalogue-2025/price.csv:3 - invalid input syntax for type numeric: "abc"`, and nothing from the migration is applied. A change set may hold one frame per key for each entity; a second fails with `Entity 'Park v1' has more than one frame with key (code=DC) in change set 'Parks'`.
+Field names in data and CSV headers are canonicalised like everything else, so `Model Code` and `model_code` both reach the `model_code` column. A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. CSV cells are read as text and cast by Postgres to the column type, so `007` keeps its leading zeros in a `TEXT` column and `1.50` keeps its scale in a `NUMERIC` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
 
 Each change set is added in one transaction, and adding it schedules notifications and may re-issue later change sets; see [Correcting and re-issuing data](#correcting-and-re-issuing-data).
 
@@ -447,17 +466,17 @@ Three optional parts shape what a consumer gets: `parameters` to filter, `order`
     page_max: 50
 ```
 
-**Parameters** are the filters a consumer may pass, under the names you give them. Each names a field of the root and how a value is matched against it.
+**Parameters** are the filters a consumer may pass. Each names a field of the root entity and how a value is matched against it. Over HTTP, a parameter is a query parameter.
 
-| `match` | Keeps the records whose field |
-| ------- | ----------------------------- |
-| `equals`, the default | equals the value |
-| `prefix` | starts with the value |
-| `in` | is any of a list of values |
-| `range` | lies between a from value and a to value, each optional and inclusive |
-| `gt`, `gte`, `lt`, `lte` | is greater than, at least, less than or at most the value |
+| Match | Example usage | Notes |
+| ----- | ------------- | ----- |
+| `equals` | `?code=DC` | The default |
+| `prefix` | `?name=Dev` | |
+| `in` | `?region=Scotland&region=Wales` | Repeat the parameter for each value |
+| `range` | `?berths_from=4&berths_to=6` | Both ends are optional and inclusive |
+| `gt`, `gte`, `lt`, `lte` | `?berths=4` | Greater than, at least, less than or at most the value |
 
-Over HTTP a parameter is a query parameter: `?code=DC`, `?name=Dev`, `?region=Scotland&region=Wales` for an `in`, and `?berths_from=4&berths_to=6` for a `range`. In code it is a key of `parameters` passed to `getDocuments`. Parameters combine with AND, and one that is not supplied does not filter. Two parameters may name the same field, so `gt` and `lte` together make a half-open interval. The names `change_set_id`, `page_offset` and `page_size` are reserved.
+In code, a parameter is a key of `parameters` passed to `getDocuments`. Parameters combine with AND. A parameter that is not supplied does not filter. Two parameters may name the same field, so `gt` and `lte` together make a half-open interval. The names `change_set_id`, `page_offset` and `page_size` are reserved.
 
 **Order** lists the fields to sort by, each ascending by default or `DESC`, with `nulls` `FIRST` or `LAST` where it matters. Records that tie fall back to the entity's key, which is also the order when none is declared.
 
@@ -563,7 +582,7 @@ A lookup reaches from each link to the one amenity it points at and embeds it as
 { "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity_code": "INDOOR_POOL", "amenity": { "name": "Indoor Pool", "category": "Pool", "charge": "Free" } } ] }
 ```
 
-A lookup may sit on the root or under any nest, has no order, and has no nests or lookups of its own; nest the entity instead if it needs children. A lookup that joins on less than the key fails with `Projection 'Parks (Detailed) v1' lookup 'Amenities.Amenity' does not join on the whole key of entity 'Amenity v1'; missing key fields are 'code'`.
+A lookup may sit on the root or under any nest, has no order, and has no nests or lookups of its own; nest the entity instead if it needs children. A lookup must join on every key field of the entity it looks up.
 
 **Fields** choose which of an entity's fields a document carries, in that order, at the root, in a nest or in a lookup. Without `fields`, a document carries every field of its entity except the join fields. With `fields`, it carries exactly those, and a join field only if listed. A nest's list may be empty, for a link row whose only content is its lookup; the root and a lookup must name at least one field. Parameters and order may still use a field that is not carried. Here the park amenity carries nothing of its own, so each row is the amenity, with its code and the two fields a consumer needs.
 
@@ -595,9 +614,9 @@ A lookup may sit on the root or under any nest, has no order, and has no nests o
 { "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity": { "code": "INDOOR_POOL", "name": "Indoor Pool", "charge": "Free" } } ] }
 ```
 
-A nest or lookup name may not repeat a field of its parent entity, may not be `fby_total`, and may not be used twice at one level; the messages are under [ADD_PROJECTION](#add_projection). The root, nested and looked-up entities are all dependencies of the projection, so a change set for any of them appears in the projection's change log and notifies its hooks.
+A nest or lookup name may not repeat a field of its parent entity, and may not be used twice at one level. Names beginning with `fby_` are reserved for Filby, so do not use them anywhere. The root, nested and looked-up entities are all dependencies of the projection, so a change set for any of them appears in the projection's change log and notifies its hooks.
 
-**Custom SQL** covers a shape the DSL cannot express. Declare the projection's `dependencies` instead of a root and write the function yourself in a SQL migration, named `get_<projection>_v<version>` and taking the change set id. Filby still knows which change sets affect it, and `filby.fetch` serves it by calling the function. The one below joins three aggregates at the same change set, so a price and the VAT rate that applies to it always come from one snapshot.
+**Custom SQL** covers a shape the DSL cannot express. Declare the projection's `dependencies` instead of a root and write the function yourself in a SQL migration, named `get_<projection>_v<version>` and taking the change set id. Filby still knows which change sets affect it, and `filby.fetch` serves it by calling the function. The one below joins three aggregates at the same change set, so a price and the VAT rate that applies to it always come from the same change set.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -623,7 +642,7 @@ AS $$
 $$ LANGUAGE sql STABLE;
 ```
 
-`parameters`, `order`, `paging`, `fields`, `nest` and `lookup` need a root; using one with `dependencies` fails with `Projection 'Price List' must specify 'root' to use 'parameters'`.
+`parameters`, `order`, `paging`, `fields`, `nest` and `lookup` need a root, so they cannot be used with `dependencies`.
 
 ### Hooks and notifications
 
@@ -693,7 +712,7 @@ When you add a change set, Filby re-issues every live change set with a later ef
 
 So adding one change set can add more than one entry to the change log. Given change set 1 effective 2026-01-01 and a pre-released change set 2 effective 2027-01-01, adding change set 3 effective 2026-06-01 re-issues change set 2 as change set 4. The change log becomes 1, 3, 4, and the aggregates for change set 4 include the data from change set 3.
 
-Adding a change set with the same effective date as an existing one re-issues nothing. The new change set wins because it has the higher id, which is how data is corrected: add a change set with the same effective date and the corrected frames. The correction overrides the original from that date onwards, clients following the current change set see it at once, and the original snapshot is unchanged for anyone who cached it. Any pre-released change set with a later effective date is re-issued as usual.
+Adding a change set with the same effective date as an existing one re-issues nothing. The new change set wins because it has the higher id, which is how data is corrected: add a change set with the same effective date and the corrected frames. The correction overrides the original from that date onwards, clients following the current change set see it at once, and the data at the original change set id is unchanged for anyone who cached it. Any pre-released change set with a later effective date is re-issued as usual.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -758,7 +777,7 @@ A change to the shape of an entity is a new version alongside the old one, and a
     - field: Name
 ```
 
-An enum grows with `ALTER_ENUM`, which adds the values after the existing ones in the order listed. A change set that uses a new value belongs in a later migration file, because Postgres cannot use a new enum value in the transaction that added it, and using it in the same file fails with Postgres's `unsafe use of new value` error. Adding a value the enum already has fails with `Enum 'customer_type' already has value 'Staff'`.
+An enum grows with `ALTER_ENUM`, which adds the values after the existing ones in the order listed. A change set that uses a new value belongs in a later migration file, because Postgres cannot use a new enum value in the transaction that added it. An enum value cannot be added twice.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -769,7 +788,7 @@ An enum grows with `ALTER_ENUM`, which adds the values after the existing ones i
     - Staff
 ```
 
-What is no longer needed is dropped. `DROP_HOOK` deletes the hook and its notifications. `DROP_PROJECTION` deletes the projection, the hooks that name it and its notifications, drops its generated function, and schedules `DROP_PROJECTION` notifications. `DROP_ENTITY` deletes the entity's metadata, its table and its aggregate function, and is blocked by Postgres while a projection depends on the entity or a change set holds frames for it. `DROP_ENUM` drops the type and its values, and is blocked by Postgres while a column uses it. Each fails with `... does not exist` when there is nothing to drop.
+What is no longer needed is dropped. `DROP_HOOK` deletes the hook and its notifications. `DROP_PROJECTION` deletes the projection, the hooks that name it and its notifications, drops its generated function, and schedules `DROP_PROJECTION` notifications. `DROP_ENTITY` deletes the entity's metadata, its table and its aggregate function, and is blocked by Postgres while a projection depends on the entity or a change set holds frames for it. `DROP_ENUM` drops the type and its values, and is blocked by Postgres while a column uses it. Each requires the object it drops to exist.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -849,7 +868,7 @@ A migration is a YAML or JSON list of operations, each with an `operation` and t
 | `values` | list of strings, at least one | yes | Kept as written, in order |
 | `description` | string | no | Accepted but not stored |
 
-Fails at install with `Enum 'customer_type' already exists`.
+The enum must not already exist.
 
 #### ALTER_ENUM
 
@@ -859,7 +878,7 @@ Fails at install with `Enum 'customer_type' already exists`.
 | `add` | list of strings, at least one | yes | Appended after the existing values, in order |
 | `description` | string | no | Accepted but not stored |
 
-Fails at install with `Enum 'customer_type' does not exist` or `Enum 'customer_type' already has value 'Staff'`. A change set in the same file that uses an added value fails with Postgres's `unsafe use of new value` error.
+The enum must exist, and must not already have the value. A change set that uses an added value must be in a later migration file.
 
 #### DROP_ENUM
 
@@ -868,7 +887,7 @@ Fails at install with `Enum 'customer_type' does not exist` or `Enum 'customer_t
 | `name` | string | yes | |
 | `description` | string | no | Accepted but not stored |
 
-Fails at install with `Enum 'customer_type' does not exist`, or with Postgres's dependency error while a column uses the type.
+The enum must exist, and no column may still use the type.
 
 #### ADD_ENTITY
 
@@ -882,7 +901,7 @@ Fails at install with `Enum 'customer_type' does not exist`, or with Postgres's 
 | `identified_by` | list of field names, at least one | one of `key`, `identified_by` | | Equivalent to `key` |
 | `checks` | map of name to expression, at least one | no | | Each becomes `CONSTRAINT chk_<name> CHECK <expression>` |
 
-Fails at validation with `Identifier 'wombat' does not match one of the 'Park' entity field names`, `Entity 'Park' must specify either 'key' or 'identified_by', not both` or `Invalid PostgreSQL TYPE 'x' for field 'Rate' of entity 'VAT Rate v1'`, and at install with `Entity 'Park v1' already exists`.
+The key fields must be fields of the entity, each field type must be a valid PostgreSQL type, and the entity version must not already exist.
 
 #### DROP_ENTITY
 
@@ -892,7 +911,7 @@ Fails at validation with `Identifier 'wombat' does not match one of the 'Park' e
 | `version` | integer | yes | |
 | `description` | string | no | Accepted but not stored |
 
-Drops the metadata, the table and the aggregate function. Fails at install with `Entity 'Park v1' does not exist`, or with Postgres's foreign key error while a projection depends on the entity or a change set holds frames for it.
+Drops the metadata, the table and the aggregate function. The entity must exist, no projection may depend on it, and no change set may hold frames for it.
 
 #### ADD_PROJECTION
 
@@ -923,7 +942,7 @@ A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `f
 | `nest` | map of name to nest | no | To any depth |
 | `lookup` | map of name to lookup | no | |
 
-Fails at validation with `Projection 'Parks' must specify either 'root' or 'dependencies', not both`, `Projection 'Price List' must specify 'root' to use 'parameters'` or `Reference 'Park@1' must not also specify a version`. Fails at install with `Projection 'Parks v1' already exists`; `Projection 'Parks v1' references a non existent entity 'Park v1'; existing entities are 'Amenity v1', 'Park Season v1'`, or `; did you mean 'Park v1'?` when only the case differs, or `; no entities exist`; `Projection 'Parks v1' parameter 'code' references a non existent field 'wombat' of entity 'Park v1'; existing fields are 'code', 'name'`, and likewise for `orders by` and `selects`; `Projection 'Parks v1' parameter 'page_size' uses a reserved name`; `Projection 'Parks v1' nest 'seasons' joins on a non existent field 'wombat' of entity 'Park Season v1'; existing fields are ...`, and likewise for a nest's `orders by` and `selects`; `Projection 'Parks v1' nest 'Name' has the same name as a field of entity 'Park v1'`; `Projection 'Parks v1' nest 'fby_total' uses a reserved name`; `Projection 'Parks v1' declares 'seasons' more than once`; and `Projection 'Parks (Detailed) v1' lookup 'Amenities.Amenity' does not join on the whole key of entity 'Amenity v1'; missing key fields are 'code'`. A nest below the root is named by its path, as `nest 'Seasons.Rates'`.
+A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, and may not be used twice at one level. A lookup must join on the whole key of its entity.
 
 #### DROP_PROJECTION
 
@@ -933,7 +952,7 @@ Fails at validation with `Projection 'Parks' must specify either 'root' or 'depe
 | `version` | integer | yes | |
 | `description` | string | no | Accepted but not stored |
 
-Deletes the projection, the hooks that name it, its notifications and its generated function, and schedules `DROP_PROJECTION` notifications. Fails at install with `Projection 'Parks v1' does not exist`.
+Deletes the projection, the hooks that name it, its notifications and its generated function, and schedules `DROP_PROJECTION` notifications. The projection must exist.
 
 #### ADD_HOOK
 
@@ -945,7 +964,7 @@ Deletes the projection, the hooks that name it, its notifications and its genera
 | `version` | integer | with a `projection` that has no `@n` | |
 | `description` | string | no | Stored in `fby_hook` |
 
-Fails at install with `Hook 'sns/add-change-set/parks-v1' already exists` or `Hook 'sns/add-change-set/parks-v1' references a non existent projection 'Parks v1'; existing projections are ...`.
+The hook must not already exist, and a projection it names must exist.
 
 #### DROP_HOOK
 
@@ -954,7 +973,7 @@ Fails at install with `Hook 'sns/add-change-set/parks-v1' already exists` or `Ho
 | `name` | string | yes | |
 | `description` | string | no | Accepted but not stored |
 
-Deletes the hook and its notifications. Fails at install with `Hook 'sns/add-change-set/parks-v1' does not exist`.
+Deletes the hook and its notifications. The hook must exist.
 
 #### ADD_CHANGE_SET
 
@@ -976,7 +995,7 @@ Each frame has these keys.
 | `data` | list of objects, at least one | one of `data`, `source` | Keys are field names; a map or list value is stored as JSON |
 | `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names |
 
-Fails at validation with `Change set 'Parks' must specify either 'changes' or 'frames', not both`, `Reference 'Park@1' must not also specify a version`, or `<file>: /0/effective '2024-10-01' is a calendar date in the change set's timezone, but the change set has no timezone...`. Fails at rendering with `Error parsing <file>:<line> - <message>` for a CSV that does not parse or a row with an empty action cell, `Frame for entity 'Park v1' specifies action 'SET' but <file> also has an action column` and `Frame for entity 'Park v1' does not specify an action and <file> has no action column`. Fails at install with `Change set 'Parks' references a non existent entity 'Park v1'; existing entities are ...`, `Change set 'Parks' references a non existent field 'wombat' of entity 'Park v1'`, `Entity 'Park v1' has more than one frame with key (code=DC) in change set 'Parks'`, and `<file>: <location> - <Postgres message>` for a row Postgres rejects, where the location is `/0/changes/1/data/2` for inline data, using the key as written, or `./csv/parks/park.csv:18` for a CSV row with the header as line 1. The error keeps Postgres's SQLSTATE.
+A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row with the header as line 1, and keeps Postgres's SQLSTATE.
 
 #### Equivalent forms
 
@@ -990,7 +1009,7 @@ The forms in each row mean the same thing, all of them are permanent, and they c
 | `entity: Park@1` in a frame or a dependency | `entity: Park` with `version: 1` |
 | `projection: Parks@1` in a hook | `projection: Parks` with `version: 1` |
 
-`root`, a nest's `entity` and a lookup's `entity` take only the `@n` form. Say the version once: `Park@1` together with `version: 1` fails with `Reference 'Park@1' must not also specify a version`, as `key` with `identified_by`, `changes` with `frames` or `root` with `dependencies` fail with `must specify either ... not both`.
+`root`, a nest's `entity` and a lookup's `entity` take only the `@n` form. Say the version once, so `Park@1` cannot be combined with `version: 1`. Likewise give only one of `key` and `identified_by`, `changes` and `frames`, or `root` and `dependencies`.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -1054,7 +1073,7 @@ Every method that reads the database runs in its own transaction. `Projection`, 
 | `filby.getChangeLog(projection, { since })` | Resolves the change sets that touch the projection's entities, ordered by id, oldest first, superseded ones omitted, and only those with an id greater than `since`, which defaults to 0 |
 | `filby.getCurrentChangeSet(projection)` | Resolves the live change set with the latest effective date that is not after the database's current time, or `undefined` |
 | `filby.getChangeSet(id)` | Resolves the change set, superseded or not, or `undefined` |
-| `filby.getAggregates(changeSetId, name, version)` | Resolves the rows of the entity's aggregate function. Rejects with `Function 'get_park_v2_aggregate' does not exist` or `Change set 42 does not exist` |
+| `filby.getAggregates(changeSetId, name, version)` | Resolves the rows of the entity's aggregate function. Rejects if the entity version or the change set does not exist |
 | `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Resolves `{ documents, total }` for a projection declared with a root. See below |
 | `filby.fetch(request, options)` | Serves HTTP. See [HTTP](#http) |
 | `filby.withTransaction(callback)` | Passes a [node-pg](https://node-postgres.com/) client to the callback inside a transaction, committed when the callback resolves and rolled back when it rejects |
@@ -1072,7 +1091,7 @@ async function catchUp(projection, lastChangeSetId) {
 }
 ```
 
-`getDocuments` calls the generated function and returns its rows as documents, each with one array property per nest and one object property per lookup, `null` when the lookup finds no record at the change set, and each nested document likewise carrying what is nested under and looked up from it. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `berths_from`, `berths_to` or `heating`, with values of the type the function expects, an array for `in`; a parameter that is not supplied does not filter, and an unknown one rejects with `Projection 'Parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Values pass through node-pg at every level, so a timestamp is a `Date` and an array of an enum is an array of strings. A projection declared with `dependencies` rejects with `Projection 'Price List v1' is not declared with a root`; call its function with `withTransaction` instead.
+`getDocuments` calls the generated function and returns its rows as documents, each with one array property per nest and one object property per lookup, `null` when the lookup finds no record at the change set, and each nested document likewise carrying what is nested under and looked up from it. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `berths_from`, `berths_to` or `heating`, with values of the type the function expects, an array for `in`; a parameter that is not supplied does not filter, and an unknown one rejects. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Values pass through node-pg at every level, so a timestamp is a `Date` and an array of an enum is an array of strings. A projection declared with `dependencies` rejects; call its function with `withTransaction` instead.
 
 ```js
 async function getParks(changeSetId, code) {
@@ -1104,9 +1123,9 @@ The static properties are `Filby.NOTIFICATION_ERROR`, the event emitted for ever
 | `/projections/<name>/v<n>` with `changeSetId` | `changeSetId`; the declared parameters; `page` and `pageSize`, positive integers | 200; 400 for a `changeSetId` that is not an integer or does not exist, an undeclared parameter, a repeated parameter that is not an `in`, a value Postgres cannot convert, `page` or `pageSize` that is not a positive integer, or either on a projection without `paging`; 404 for an unknown projection |
 | `/openapi.json` | | 200 |
 
-A projection declared with `dependencies` is served by calling `get_<name>_v<n>(changeSetId)` and returning its rows as they are, all of them unless `pageSize` is given, in which case they are paged by row. `changeSetId`, `page` and `pageSize` are its only query parameters; `page` without `pageSize` is a 400 with `Query parameter 'page' requires 'pageSize'`, and a function that does not exist is a 500 with `Function 'get_price_list_v1' does not exist`. A declared parameter named `page`, `pageSize` or `changeSetId` is unreachable, because the handler reads those names first.
+A projection declared with `dependencies` is served by calling `get_<name>_v<n>(changeSetId)` and returning its rows as they are, all of them unless `pageSize` is given, in which case they are paged by row. `changeSetId`, `page` and `pageSize` are its only query parameters; `page` without `pageSize` is a 400, and a function that does not exist is a 500. A declared parameter named `page`, `pageSize` or `changeSetId` is unreachable, because the handler reads those names first.
 
-A path that does not match a route is a 404, and a method other than `GET` on a path that does is a 405 with `Allow: GET`. A projection name that cannot be URL-decoded is a 400 with `Malformed projection name '...'`. A Postgres data error, with an SQLSTATE in class 22, is a 400 with Postgres's message; any other error is thrown to the host application. Error bodies are `{ "error": "<message>" }`, for example `Projection 'Parks v1' has no parameter 'wombat'; existing parameters are 'code', 'name'`, or `; it has no parameters`.
+A path that does not match a route is a 404, and a method other than `GET` on a path that does is a 405 with `Allow: GET`. A projection name that cannot be URL-decoded is a 400. A Postgres data error, with an SQLSTATE in class 22, is a 400 with Postgres's message; any other error is thrown to the host application. Error bodies are `{ "error": "<message>" }`.
 
 | Header | Sent on | Value |
 | ------ | ------- | ----- |
@@ -1153,7 +1172,7 @@ A nullable field also allows `null`.
 | `notifications.handlerTimeout` | duration | `30s` | How long a handler may run before its signal is aborted and the attempt fails |
 | `notifications.listen` | boolean | `false` | Whether to hold a connection that listens for scheduled notifications and polls at once |
 
-Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax; zero is allowed and a negative or unparseable value is rejected. The config is validated when Filby is constructed: an unknown key fails with `Invalid config: / must NOT have additional property 'wombat'`, or `/notifications must NOT have additional property 'wombat'`, and a bad duration with `Invalid config: /notifications/handlerTimeout must be a duration such as '30s'`. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
+Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax; zero is allowed and a negative or unparseable value is rejected. The config is validated when Filby is constructed, and an unknown key or a bad duration is rejected. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
 
 ```js
 const filby = new Filby({
@@ -1212,7 +1231,7 @@ data/
   |- 004.initial-season-data.yaml
 ```
 
-If two directories in the same namespace contain migrations with the same level, `filby.init()` fails with marv's duplicate level error, such as `Migration 1 from namespace: default is duplicated by 001.define-park-schema.yaml, 001.initial-park-data.yaml`. Alternatively, give each directory its own numbering sequence by adding a `.marvrc` with a distinct namespace.
+If two directories in the same namespace contain migrations with the same level, `filby.init()` fails. Alternatively, give each directory its own numbering sequence by adding a `.marvrc` with a distinct namespace.
 
 ```json
 {
@@ -1270,9 +1289,11 @@ The reference data is ten parks with their amenities, the beaches they reach and
 | 9 | 2026-09-02 | Temporary reduced rate ends |
 | 10 | 2027-01-01 | 2027 catalogue and price list |
 
-The walkthrough below asks five questions of the running example.
+### Example queries
 
-### What does Devon Cliffs sell?
+The queries below interrogate the running example in five ways.
+
+#### What does Devon Cliffs sell?
 
 Omit the change set id from a request to `Parks (Detailed)` and it redirects to the current one, which is change set 8 because change sets 9 and 10 do not touch any park.
 
@@ -1414,7 +1435,7 @@ GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?code=DC&changeSet
 
 `code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date is a fact about change set 6: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year, each by code, year and name.
 
-### What was in the catalogue on 1 June 2025?
+#### What was in the catalogue on 1 June 2025?
 
 The change log of `Catalogue` says which change set was in force on that date. It lists only the change sets that touch the catalogue's entities, so the parks, seasons and offers are absent, and it includes change set 10, which is dated in the future.
 
@@ -1494,7 +1515,7 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC
 ]
 ```
 
-### Which VAT rate applied in August 2026?
+#### Which VAT rate applied in August 2026?
 
 From 25 June to 1 September 2026 the rate for children's meals and family attractions was temporarily cut to 5%. Change sets 7 and 9 were entered together when the measure was announced: a rate that is true for ten weeks, loaded once, in advance. A consumer that prices a caravan or an amenity reads `Models` or `Parks (Detailed)` and `VAT Rates` at the same change set and gets one consistent answer.
 
@@ -1529,7 +1550,7 @@ GET http://localhost:3000/api/projections/VAT%20Rates/v1?changeSetId=7
 
 At change set 9 the same request returns `Family Attraction` at `20.00` and nothing else changes.
 
-### What will the 2027 price list be?
+#### What will the 2027 price list be?
 
 Change set 10 exists today and is not yet live. The change log lists it, `Catalogue` at change set 10 returns the 2027 prices, and a request without a change set id still redirects to change set 5, because the current change set is the latest one whose effective date has passed.
 
@@ -1587,7 +1608,7 @@ GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=10&code=VIC
 
 The accessories are there too, at their 2027 prices.
 
-### How is a park renamed, or sold?
+#### How is a park renamed, or sold?
 
 A change set is whatever the data owner sends. Richmond became Skegness in change set 6 with one row in `csv/season-2026/park.csv`, which its frame loads with `action: SET`, the same park with its new name, so its seasons, amenities and models follow it:
 
@@ -1604,10 +1625,3 @@ GA
 ```
 
 `GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?changeSetId=6&code=RI` returns the park as Skegness with everything it had as Richmond, and `GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?changeSetId=8&code=GA` returns an empty list with `X-Total-Count: 0`, while both parks are still there at any earlier change set.
-
-## The Time Machine
-
-*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
-<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
-
-Filby is one of the guests in the opening chapter of H. G. Wells' *The Time Machine*, the argumentative one who doubts the Time Traveller's claim that time is a dimension like any other and then watches a model machine vanish into it. The library moves reference data through time in the same way, so it is named after him.
