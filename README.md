@@ -4,6 +4,9 @@
 [![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
 [![Codecov](https://codecov.io/gh/acuminous/filby/graph/badge.svg)](https://codecov.io/gh/acuminous/filby)
 
+*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
+<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
+
 ## Contents
 
 - [Introduction](#introduction)
@@ -16,18 +19,16 @@
 
 ## Introduction
 
-Filby is a framework for managing slow-moving temporal data. This is the reference data that most systems depend on but that rarely changes, such as product catalogues, price lists, tax rates and calendars. Each change is planned in advance and takes effect on a date. The old values are kept after they are replaced.
+Filby is a framework for managing slow-moving temporal data. This is the reference data that most systems depend on but that rarely changes, such as product catalogues, price lists, tax rates and calendars. Each change is planned in advance and takes effect on a date. The old values are kept after they are replaced. The concepts are those of a time series, but Filby is not a time series database. A time series database stores large volumes of measurements, such as sensor readings. Filby stores a modest amount of reference data that changes a few times a year.
 
 Two typical uses are:
 
 - **A developer-first PIM.** Product catalogues and price lists are kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
 - **External reference data.** Some data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Every service then reads the same values, and can look up what applied on any past date.
 
-Think of Filby as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same data every time.
+Another way to think of Filby is as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same data every time.
 
-The concepts are those of a time series, because every value is recorded against the time it applies from. Filby is not a time series database, though. A time series database stores large volumes of measurements, such as sensor readings. Filby stores a modest amount of reference data that changes a few times a year.
-
-Filby keeps every change set in PostgreSQL. An application can read the data as it stood at any point in the past. It can also read the data as it will be when a change set that is already loaded takes effect in the future.
+An application can read the data as it stood at any point in the past. It can also read the data as it will be when a change set that is already loaded takes effect in the future.
 
 You describe your data and how it is served in YAML migration files, using a small Domain Specific Language (DSL). The data itself can be loaded from CSV.
 
@@ -116,11 +117,6 @@ Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), w
 ```bash
 FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
 ```
-
-Filby is named after one of the guests in the opening chapter of H. G. Wells' *The Time Machine*. He is the argumentative one who doubts the Time Traveller's claim that time is a dimension like any other. He then watches a model machine vanish into it.
-
-*There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
-<p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
 
 ## How it works
 
