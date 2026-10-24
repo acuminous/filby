@@ -19,14 +19,12 @@
 
 ## Introduction
 
-Filby is a framework for managing slow-moving temporal data. This is the reference data that most systems depend on but that rarely changes, such as product catalogues, price lists, tax rates and calendars. Each change is planned in advance and takes effect on a date. The old values are kept after they are replaced. The concepts are those of a time series, but Filby is not a time series database. A time series database stores large volumes of measurements, such as sensor readings. Filby stores a modest amount of reference data that changes a few times a year.
+Filby is a framework for managing slow-moving temporal data. This is the reference data that most systems depend on but that rarely changes, such as product catalogues, price lists, tax rates and calendars. Each change is planned in advance and takes effect on a date. The old values are kept after they are replaced. The concepts are those of a time series, but Filby is not a time series database. A time series database stores large volumes of measurements, such as sensor readings. Filby stores a modest amount of reference data that changes a few times a year. An application can read the data as it stood at any point in the past. It can also read the data as it will be when a change set that is already loaded takes effect in the future.
 
 Two typical uses are:
 
 - **A developer-first PIM.** Product catalogues and price lists are kept in your repository, published on a date and served to every channel. A hook posts each change to a CMS such as Contentful as soon as it is loaded, scheduled to publish on its effective date.
 - **External reference data.** Some data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Every service then reads the same values, and can look up what applied on any past date.
-
-An application can read the data as it stood at any point in the past. It can also read the data as it will be when a change set that is already loaded takes effect in the future.
 
 You describe your data and how it is served in YAML migration files, using a small Domain Specific Language (DSL). The data itself can be loaded from CSV.
 
