@@ -129,19 +129,19 @@ Most systems depend on reference data: rates, codes, catalogues, calendars and o
 
 When values change, the old ones may still be needed. Analytics needs historical data, and a transaction that started before a change may need the original values until it finishes. Future changes need to be prepared and checked before they take effect, sometimes at midnight across several systems. The shape of the data also evolves, and clients need time to adapt.
 
-Filby organises change sets into a timeline. A change set is a bundle of related changes, such as a new price list, with an effective date from which the changes apply. Each change set has an id. Requesting data at that id returns the data as it stood at that point in the timeline, and returns the same data every time.
+Filby groups related changes, such as a new price list, and gives each group an effective date and an id. Applications can request the data that applies on a particular date, or use an id to keep requesting exactly the same version. Loading new changes does not alter the data returned by existing ids.
 
-This provides a foundation for several capabilities:
+This supports several common needs:
 
-- **Consistency.** Clients can check the change log for updates, subscribe to change notifications or fetch future change sets before they take effect. A transaction can pin a change set id and continue using the same values even when newer data becomes current.
-- **Performance.** Data requested at a change set id never changes, so Filby sends caching headers that allow responses to be cached indefinitely. Larger data sets can be exported and bundled with an application, or held locally and refreshed when updates are available. Future change sets can be fetched before they are needed.
-- **History.** Earlier change sets remain available. A report can be re-run against the same change set it originally used, and a price from 2025 can still be looked up in 2027.
-- **Timing.** A change known in advance can be loaded, checked and cached before its effective date. Filby makes it current automatically at the specified time and sends a notification, without requiring a deployment at that moment.
-- **Schema versioning.** When the shape of the data changes, a new projection version can be published alongside the old one. Each client moves across when it is ready.
-- **Right-sized responses.** Projections provide views shaped for different clients. A product list page can request a summary, while a product details page requests the full details. The views are defined on the server, where their structure and cost can be reviewed.
-- **Local testing.** Migration files and CSV data live in your repository, so developers can load the same data into a local Postgres database. A test can pin a change set id and receive the same data every run.
+- **Consistency.** Clients can check for updates, receive change notifications or fetch future data before it takes effect. A transaction can keep using the same id throughout, even when newer data becomes current.
+- **Performance.** Data requested using a particular id never changes, so Filby sends caching headers that allow responses to be cached indefinitely. Larger data sets can be exported and bundled with an application, or held locally and refreshed when updates are available.
+- **History.** Earlier versions of the data remain available. A report can be re-run using the same id it originally used, and a price from 2025 can still be looked up in 2027.
+- **Timing.** Future changes can be loaded, checked and cached in advance. Filby makes them current automatically at the specified time and sends a notification, without requiring a deployment at that moment.
+- **Schema versioning.** When the shape of the data changes, the new shape can be published alongside the old one. Each client moves across when it is ready.
+- **Right-sized responses.** You define views of the data for different clients. A product list page can request a summary, while a product details page requests the full details. These views are defined on the server, where their structure and cost can be reviewed.
+- **Local testing.** The files that define and populate the data live in your repository, so developers can load the same data into a local Postgres database. A test can request a particular id and receive the same data every run.
 
-A change set can be inserted anywhere in the timeline, for example to correct or backfill data, without changing the data returned by existing change set ids. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
+Changes can also be inserted earlier in the timeline, for example to correct or backfill data, without altering the data returned by existing ids. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
 
 ## How it works
 
@@ -281,19 +281,19 @@ process.on('SIGTERM', async () => {
 
 ## Guide
 
-### Entities and enums
+#### ADD_ENTITY
 
-An entity is declared with `ADD_ENTITY`: a name, its fields, the key fields that identify one record, and optionally a version, a description and some checks. An enum is declared with `ADD_ENUM` and used as a field type by its declared name.
+An entity describes a type of record, such as a park or a price. Declare one with `ADD_ENTITY`, specifying:
+
+- `name`: the entity's name.
+- `fields`: the field names and their types.
+- `key`: one or more fields that identify a record. When there are multiple key fields, their combined values identify the record.
+
+You can also provide a `version`, a `description` and named validation `checks`. The version defaults to 1.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0001.define-schema.yaml
-- operation: ADD_ENUM
-  name: Customer Type
-  values:
-    - Guest
-    - Owner
-
 - operation: ADD_ENTITY
   name: Park
   fields:
@@ -306,6 +306,28 @@ An entity is declared with `ADD_ENTITY`: a name, its fields, the key fields that
     - Code
   checks:
     park_code_len: (LENGTH(code) = 2)
+```
+
+Fields use PostgreSQL types, including `TEXT`, `DATE`, `NUMERIC(5,2)`, `TIMESTAMP WITH TIME ZONE` and arrays such as `TEXT[]`. A field can use the shorthand form `Code: TEXT`, or specify its type and other properties explicitly, as shown for `Name`.
+
+Key fields cannot be null. Other fields are nullable by default. For non-key fields, `nullable: false` describes the field as required for tooling such as generated OpenAPI documentation; it does not by itself enforce non-null values.
+
+Checks are SQL expressions that validate field values. Keep the surrounding parentheses and use canonical field names: lowercase with spaces replaced by underscores. The example checks that `code` contains exactly two characters.
+
+Entity and field names can use Title Case with spaces. Filby canonicalises these names, so a field declared as `Park Code` appears as `park_code` in served documents. See [Names](#names).
+
+An entity's definition is never altered in place. To change its shape, declare a new version. See [Evolving the schema](#evolving-the-schema).
+
+#### ADD_ENUM
+
+An enum defines a set of permitted values for a field. Declare it with `ADD_ENUM`, providing a `name` and a list of `values`. Declare the enum before an entity that uses it, then use its declared name as the field type.
+
+```yaml
+- operation: ADD_ENUM
+  name: Customer Type
+  values:
+    - Guest
+    - Owner
 
 - operation: ADD_ENTITY
   name: Park Season
@@ -325,15 +347,13 @@ An entity is declared with `ADD_ENTITY`: a name, its fields, the key fields that
     - Customer Type
 ```
 
-Adding an entity records it in `fby_entity`, its fields in `fby_entity_field` and its checks in `fby_entity_check`, creates a table `park_v1` to hold its data frames, and creates the aggregate function `get_park_v1_aggregate(p_change_set_id)` that projections read through. `version` defaults to 1. An entity is never altered in place; see [Evolving the schema](#evolving-the-schema).
+Here, each park season is identified by the combination of `Park Code` and `Customer Type`. The customer type must be either `Guest` or `Owner`.
 
-A field may be of any PostgreSQL type, written as it would be in `CREATE TABLE`, so `NUMERIC(5,2)`, `TIMESTAMP WITH TIME ZONE` and `TEXT[]` all work. An enum declared with `ADD_ENUM` is named by its declared name, as `Customer Type` above, and an array of one as `Beach Surface[]`. A type that is not made of letters, digits, spaces, underscores, brackets, commas and dots fails rendering with `Invalid PostgreSQL TYPE 'x' for field 'Rate' of entity 'VAT Rate v1'`.
+Enum values retain their spelling and case, and their listed order determines their sort order. Values outside the declared list are rejected.
 
-Names may be written in Title Case with spaces. Filby canonicalises entity, field, enum, parameter and nest names to lower case with spaces replaced by underscores, so `Park Season` is the table `park_season_v1` and its `Park Code` field is the column `park_code`, in the database and in the documents Filby serves. Projection and hook names and enum values are kept as written. The rules are under [Names](#names).
+An enum can also be used as an array type by adding `[]` to its declared name, for example `Customer Type[]`.
 
-A key field is `NOT NULL` on the entity table. Every other field is nullable unless declared `nullable: false`, which is recorded in `fby_entity_field` for tooling such as the OpenAPI document to read but is not enforced on the table, because a `DELETE` frame carries only the key fields. Each check becomes a check constraint named `chk_<name>` on the table; the expression is used as written after `CHECK`, so keep the parentheses and use the canonical column names.
-
-An enum creates a PostgreSQL type with the values in the order listed and records them in `fby_enum`, so the database rejects any other value. Values are added later with `ALTER_ENUM`; see [Evolving the schema](#evolving-the-schema).
+To add values to an existing enum, use `ALTER_ENUM`. See [Evolving the schema](#evolving-the-schema).
 
 ### Loading data
 
@@ -391,17 +411,13 @@ set,RP,Rockley Park,South West
 DELETE,TP,,
 ```
 
-The action may be written in upper or lower case, on the frame or in the file. Give the action in exactly one place, and fill every cell of an `action` column; see [ADD_CHANGE_SET](#add_change_set).
-
 The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Why Filby](#why-filby).
 
-Field names in data and CSV headers are canonicalised like everything else, so `Model Code` and `model_code` both reach the `model_code` column. A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. CSV cells are read as text and cast by Postgres to the column type, so `007` keeps its leading zeros in a `TEXT` column and `1.50` keeps its scale in a `NUMERIC` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
-
-Each change set is added in one transaction, and adding it schedules notifications and may re-issue later change sets; see [Correcting and re-issuing data](#correcting-and-re-issuing-data).
+A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. CSV cells are read as text and cast by Postgres to the column type, so `007` keeps its leading zeros in a `TEXT` column and `1.50` keeps its scale in a `NUMERIC` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
 
 ### Projections
 
-A projection is the view a consumer reads. The simplest names a root entity and nothing else, and serves one document per record of that entity at a change set, in key order.
+A projection defines the view of the data a consumer reads. It can select fields, combine related entities, and control filtering, sorting and paging. The simplest projection names a root entity and returns one document per record of that entity at the requested change set.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -412,6 +428,8 @@ A projection is the view a consumer reads. The simplest names a root entity and 
   root: Park@1
 ```
 
+`Park@1` selects version 1 of the `Park` entity. By default, documents contain all of the entity's fields and are sorted by its key.
+
 ```json
 [
   { "code": "DC", "name": "Devon Cliffs", "region": "South West" },
@@ -419,7 +437,13 @@ A projection is the view a consumer reads. The simplest names a root entity and 
 ]
 ```
 
-Three optional parts shape what a consumer gets: `parameters` to filter, `order` to sort and `paging` to page.
+##### Filtering, sorting and paging
+
+Three optional properties control how records are selected and returned:
+
+- `parameters` defines the filters consumers can supply.
+- `order` defines the sort order.
+- `paging` defines the default and maximum page sizes.
 
 ```yaml
 - operation: ADD_PROJECTION
@@ -442,23 +466,34 @@ Three optional parts shape what a consumer gets: `parameters` to filter, `order`
     page_max: 50
 ```
 
-**Parameters** are the filters a consumer may pass. Each names a field of the root entity and how a value is matched against it. Over HTTP, a parameter is a query parameter.
+Each parameter names a field of the root entity and a matching rule:
 
-| Match | Example usage | Notes |
-| ----- | ------------- | ----- |
-| `equals` | `?code=DC` | The default |
-| `prefix` | `?name=Dev` | |
-| `in` | `?region=Scotland&region=Wales` | Repeat the parameter for each value |
-| `range` | `?berths_from=4&berths_to=6` | Both ends are optional and inclusive |
-| `gt`, `gte`, `lt`, `lte` | `?berths=4` | Greater than, at least, less than or at most the value |
+| Match | Behaviour |
+| ----- | --------- |
+| `equals` | Matches the supplied value exactly. This is the default. |
+| `prefix` | Matches values beginning with the supplied text. |
+| `in` | Matches any of the supplied values. |
+| `range` | Matches values between optional, inclusive lower and upper bounds. |
+| `gt` | Matches values greater than the supplied value. |
+| `gte` | Matches values greater than or equal to the supplied value. |
+| `lt` | Matches values less than the supplied value. |
+| `lte` | Matches values less than or equal to the supplied value. |
 
-In code, a parameter is a key of `parameters` passed to `getDocuments`. Parameters combine with AND. A parameter that is not supplied does not filter. Two parameters may name the same field, so `gt` and `lte` together make a half-open interval. The names `change_set_id`, `page_offset` and `page_size` are reserved.
+The parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
-**Order** lists the fields to sort by, each ascending by default or `DESC`, with `nulls` `FIRST` or `LAST` where it matters. Records that tie fall back to the entity's key, which is also the order when none is declared.
+`order` lists the fields to sort by. Each is ascending by default, or can use `DESC` for descending order. `nulls` can specify `FIRST` or `LAST`. Records with equal sort values are ordered by the entity's key. When no order is declared, the key determines the entire order.
 
-**Paging** sets how many root records a page holds and the most a consumer may ask for. Over HTTP a consumer asks for `?page=2&pageSize=20` and gets the total number of matching records in `X-Total-Count` and the next and previous pages in `Link`. Without `paging`, every record is returned.
+`paging.page_size` sets the default page size, and `paging.page_max` sets the maximum. Without `paging`, all matching records are returned.
 
-**Nests** embed the records of a related entity under each document as a list. A nest names the child entity, an `on` map from the child's field to the parent's field, and optionally an order, which falls back to the child's key. The join field is left out of the child, because the parent already carries it.
+See [Serving projections over HTTP](#serving-projections-over-http) for the corresponding query parameters and response headers.
+
+##### Nests
+
+A nest embeds related records under each parent document as a list. It specifies:
+
+- `entity`: the child entity and version.
+- `on`: a map from fields on the child to fields on the parent.
+- `order`: an optional sort order, which defaults to the child's key.
 
 ```yaml
 - operation: ADD_PROJECTION
@@ -474,19 +509,37 @@ In code, a parameter is a key of `parameters` passed to `getDocuments`. Paramete
         - field: Customer Type
 ```
 
+Each park contains its matching seasons. By default, the child's join fields are omitted because their values are already present on the parent.
+
 ```json
 [
   {
-    "code": "DC", "name": "Devon Cliffs", "region": "South West",
+    "code": "DC",
+    "name": "Devon Cliffs",
+    "region": "South West",
     "seasons": [
-      { "customer_type": "Guest", "current_season_start": "2026-03-16T00:00:00.000Z", "current_season_end": "2026-11-03T00:00:00.000Z", "next_season_start": "2027-03-16T00:00:00.000Z", "next_season_end": "2027-11-03T00:00:00.000Z" },
-      { "customer_type": "Owner", "current_season_start": "2026-03-01T00:00:00.000Z", "current_season_end": "2027-01-06T00:00:00.000Z", "next_season_start": "2027-03-01T00:00:00.000Z", "next_season_end": "2028-01-06T00:00:00.000Z" }
+      {
+        "customer_type": "Guest",
+        "current_season_start": "2026-03-16T00:00:00.000Z",
+        "current_season_end": "2026-11-03T00:00:00.000Z",
+        "next_season_start": "2027-03-16T00:00:00.000Z",
+        "next_season_end": "2027-11-03T00:00:00.000Z"
+      },
+      {
+        "customer_type": "Owner",
+        "current_season_start": "2026-03-01T00:00:00.000Z",
+        "current_season_end": "2027-01-06T00:00:00.000Z",
+        "next_season_start": "2027-03-01T00:00:00.000Z",
+        "next_season_end": "2028-01-06T00:00:00.000Z"
+      }
     ]
   }
 ]
 ```
 
-A park with no seasons carries an empty list. Pages count root records, so a page of ten parks carries all of their seasons. A nest may nest its own children in the same way, to any depth, each level joining to its parent: here each manufacturer holds its models and each model its prices.
+A park with no seasons has an empty `seasons` list.
+
+Nests can contain further nests to any depth. Each level joins to its immediate parent. Here, each manufacturer contains its models, and each model contains its prices:
 
 ```yaml
 - operation: ADD_PROJECTION
@@ -511,15 +564,28 @@ A park with no seasons carries an empty list. Pages count root records, so a pag
 ```json
 [
   {
-    "code": "VIC", "name": "Victory",
+    "code": "VIC",
+    "name": "Victory",
     "models": [
-      { "code": "VER", "name": "Victory Vermont", "berths": 6, "prices": [ { "year": 2025, "list_price": "15995.00" }, { "year": 2026, "list_price": "16450.00" } ] }
+      {
+        "code": "VER",
+        "name": "Victory Vermont",
+        "berths": 6,
+        "prices": [
+          { "year": 2025, "list_price": "15995.00" },
+          { "year": 2026, "list_price": "16450.00" }
+        ]
+      }
     ]
   }
 ]
 ```
 
-**Lookups** are for the other direction. A park has many amenities and an amenity belongs to many parks, so the link between them is its own entity, `Park Amenity`, with a park code and an amenity code. Nesting the link under the park gives a list of codes:
+##### Lookups
+
+A lookup embeds a single related record as an object.
+
+For example, parks and amenities have a many-to-many relationship. A `Park Amenity` entity links them using a park code and an amenity code. Nesting these links under a park produces a list of amenity codes:
 
 ```yaml
 - operation: ADD_PROJECTION
@@ -532,11 +598,20 @@ A park with no seasons carries an empty list. Pages count root records, so a pag
         Park Code: Code
 ```
 
+An individual park document looks like this:
+
 ```json
-{ "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity_code": "INDOOR_POOL" }, { "amenity_code": "SHOWBAR" } ] }
+{
+  "code": "DC",
+  "name": "Devon Cliffs",
+  "amenities": [
+    { "amenity_code": "INDOOR_POOL" },
+    { "amenity_code": "SHOWBAR" }
+  ]
+}
 ```
 
-A lookup reaches from each link to the one amenity it points at and embeds it as an object. It is declared like a nest, with one rule: the join must cover the whole key of the looked-up entity, so each row finds at most one record, and gets `null` when there is none at the change set.
+Add a lookup to include the amenity each link refers to:
 
 ```yaml
 - operation: ADD_PROJECTION
@@ -554,13 +629,38 @@ A lookup reaches from each link to the one amenity it points at and embeds it as
             Code: Amenity Code
 ```
 
+The lookup's `on` map relates fields on the looked-up entity to fields on the current record. Here, the amenity's `Code` matches the link's `Amenity Code`.
+
 ```json
-{ "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity_code": "INDOOR_POOL", "amenity": { "name": "Indoor Pool", "category": "Pool", "charge": "Free" } } ] }
+{
+  "code": "DC",
+  "name": "Devon Cliffs",
+  "amenities": [
+    {
+      "amenity_code": "INDOOR_POOL",
+      "amenity": {
+        "name": "Indoor Pool",
+        "category": "Pool",
+        "charge": "Free"
+      }
+    }
+  ]
+}
 ```
 
-A lookup may sit on the root or under any nest, has no order, and has no nests or lookups of its own; nest the entity instead if it needs children. A lookup must join on every key field of the entity it looks up.
+A lookup must join on every key field of the entity it looks up. This ensures that it finds at most one record. If no matching record exists at the requested change set, the lookup returns `null`.
 
-**Fields** choose which of an entity's fields a document carries, in that order, at the root, in a nest or in a lookup. Without `fields`, a document carries every field of its entity except the join fields. With `fields`, it carries exactly those, and a join field only if listed. A nest's list may be empty, for a link row whose only content is its lookup; the root and a lookup must name at least one field. Parameters and order may still use a field that is not carried. Here the park amenity carries nothing of its own, so each row is the amenity, with its code and the two fields a consumer needs.
+Lookups can appear on the root or under any nest. They have no sort order and cannot contain further nests or lookups. If the related entity needs children of its own, use a nest instead.
+
+##### Selecting fields
+
+Use `fields` to choose which fields appear in a document and their order. It can be specified on the root, a nest or a lookup.
+
+Without `fields`, a document includes every field of its entity, except fields used to join it to its parent. With `fields`, it includes exactly the listed fields. A join field is included only if explicitly listed.
+
+A nest may use `fields: []` to omit all of its own fields while retaining its nests or lookups. The root and a lookup must select at least one field.
+
+Here, each park amenity link contributes only its `amenity` lookup:
 
 ```yaml
 - operation: ADD_PROJECTION
@@ -587,12 +687,34 @@ A lookup may sit on the root or under any nest, has no order, and has no nests o
 ```
 
 ```json
-{ "code": "DC", "name": "Devon Cliffs", "amenities": [ { "amenity": { "code": "INDOOR_POOL", "name": "Indoor Pool", "charge": "Free" } } ] }
+{
+  "code": "DC",
+  "name": "Devon Cliffs",
+  "amenities": [
+    {
+      "amenity": {
+        "code": "INDOOR_POOL",
+        "name": "Indoor Pool",
+        "charge": "Free"
+      }
+    }
+  ]
+}
 ```
 
-A nest or lookup name may not repeat a field of its parent entity, and may not be used twice at one level. Names beginning with `fby_` are reserved for Filby, so do not use them anywhere. The root, nested and looked-up entities are all dependencies of the projection, so a change set for any of them appears in the projection's change log and notifies its hooks.
+Parameters and sorting can still use fields that are omitted from the output.
 
-**Custom SQL** covers a shape the DSL cannot express. Declare the projection's `dependencies` instead of a root and write the function yourself in a SQL migration, named `get_<projection>_v<version>` and taking the change set id. Filby still knows which change sets affect it, and `filby.fetch` serves it by calling the function. The one below joins three aggregates at the same change set, so a price and the VAT rate that applies to it always come from the same change set.
+##### Names and dependencies
+
+A nest or lookup name must not duplicate a field of its parent entity, or another nest or lookup name at the same level. Names beginning with `fby_` are reserved for Filby.
+
+The root, nested and looked-up entities are all dependencies of the projection. A change set affecting any of them appears in the projection's change log and notifies its hooks.
+
+##### Custom SQL
+
+For a shape the DSL cannot express, declare the projection's `dependencies` instead of a `root`, then implement its query function in a SQL migration.
+
+Name the function `get_<projection>_v<version>` and give it a change set id parameter. Filby uses the declared dependencies to track relevant change sets, and `filby.fetch` serves the projection by calling the function.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -605,24 +727,85 @@ A nest or lookup name may not repeat a field of its parent entity, and may not b
     - entity: VAT Rate@1
 ```
 
+This function reads models, prices and VAT rates at the same change set, keeping their values consistent:
+
 ```sql
 -- migrations/0008.create-get-price-list-v1-function.sql
 CREATE FUNCTION get_price_list_v1(p_change_set_id INTEGER)
-RETURNS TABLE (code TEXT, name TEXT, year INTEGER, list_price NUMERIC(10,2), vat_code vat_code, vat_rate NUMERIC(5,2))
+RETURNS TABLE (
+  code TEXT,
+  name TEXT,
+  year INTEGER,
+  list_price NUMERIC(10,2),
+  vat_code vat_code,
+  vat_rate NUMERIC(5,2)
+)
 AS $$
-  SELECT m.code, m.name, p.year, p.list_price, m.vat_code, r.rate AS vat_rate
+  SELECT
+    m.code,
+    m.name,
+    p.year,
+    p.list_price,
+    m.vat_code,
+    r.rate AS vat_rate
   FROM get_model_v1_aggregate(p_change_set_id) m
-  INNER JOIN get_price_v1_aggregate(p_change_set_id) p ON p.model_code = m.code
-  INNER JOIN get_vat_rate_v1_aggregate(p_change_set_id) r ON r.code = m.vat_code
+  INNER JOIN get_price_v1_aggregate(p_change_set_id) p
+    ON p.model_code = m.code
+  INNER JOIN get_vat_rate_v1_aggregate(p_change_set_id) r
+    ON r.code = m.vat_code
   ORDER BY m.manufacturer_code, m.name, p.year
 $$ LANGUAGE sql STABLE;
 ```
 
-`parameters`, `order`, `paging`, `fields`, `nest` and `lookup` need a root, so they cannot be used with `dependencies`.
+`parameters`, `order`, `paging`, `fields`, `nest` and `lookup` require a root entity and cannot be combined with `dependencies`.
+
+#### Serving projections over HTTP
+
+When a projection is served through `filby.fetch`, consumers supply filters and paging controls as query parameters. The projection's configuration determines which filters are available, how results are sorted and whether they are paged.
+
+##### Filtering
+
+The parameter names declared in the projection become HTTP query parameter names. For the `Parks` example above:
+
+| Query string | Result |
+| ------------ | ------ |
+| `?code=DC` | Parks whose code is `DC`. |
+| `?name=Dev` | Parks whose name begins with `Dev`. |
+| `?region=Scotland&region=Wales` | Parks in either Scotland or Wales. |
+
+For an `in` match, repeat the parameter for each permitted value.
+
+A parameter configured with `range` uses `_from` and `_to` suffixes. For example, a numeric range parameter named `berths` accepts `?berths_from=4&berths_to=6`. Either bound can be omitted, and both bounds are inclusive.
+
+The comparison modes `gt`, `gte`, `lt` and `lte` use the parameter name directly. For example, `?berths=4` means “greater than 4” when the parameter is configured with `gt`, or “at least 4” when configured with `gte`.
+
+##### Paging
+
+For a projection with `paging` configured, consumers use:
+
+| Query parameter | Purpose |
+| --------------- | ------- |
+| `page` | Selects the page to return. |
+| `pageSize` | Requests a page size, subject to the configured maximum. |
+
+For example, `?page=2&pageSize=20` requests page 2 with 20 root records per page.
+
+The HTTP names `page` and `pageSize` are separate from the YAML configuration properties `page_size` and `page_max`.
+
+Pages count root records. A page of ten parks includes all of their nested seasons; those seasons do not count towards the page size.
+
+The response includes:
+
+| Header | Contents |
+| ------ | -------- |
+| `X-Total-Count` | The total number of matching root records. |
+| `Link` | Links to the next and previous pages, where available. |
+
+Without `paging` configured, the projection returns all matching records.
 
 ### Hooks and notifications
 
-A hook pairs a name with one of four events. `ADD_PROJECTION` and `DROP_PROJECTION` fire when a projection is added or dropped. `ADD_CHANGE_SET` fires when a change set that touches a projection's entities is added, whatever its effective date. `COMMENCE_CHANGE_SET` fires when a projection's current change set changes, which is whenever `getCurrentChangeSet` would start returning something different: at once for a change set whose effective date has passed, and on the effective date for one loaded ahead of time. A projection's current change set is the one with the latest effective date that is not in the future, so earlier change sets lapse silently. An `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET` hook may name the one projection it is interested in or fire for every projection; `ADD_PROJECTION` and `DROP_PROJECTION` hooks are always general.
+A hook pairs a name with one of four events. `ADD_PROJECTION` and `DROP_PROJECTION` fire when a projection is added or dropped. `ADD_CHANGE_SET` fires when a change set that touches a projection's entities is added, whatever its effective date. `COMMENCE_CHANGE_SET` fires when a projection's current change set changes. An `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET` hook may name the one projection it is interested in or fire for every projection; `ADD_PROJECTION` and `DROP_PROJECTION` hooks are always general.
 
 Which event to use depends on what the subscriber does with the data. A mirror such as a data lake subscribes to `ADD_PROJECTION` to learn about new data sets, `ADD_CHANGE_SET` to refresh them and `DROP_PROJECTION` to retire them. A consumer that caches current data subscribes to `COMMENCE_CHANGE_SET`, so it hears about next year's rates when they take effect rather than when they are loaded. A content system can use both: an `ADD_CHANGE_SET` hook posts the new prices to the CMS as soon as they are loaded, with the change set's effective date as the publish date, and a `COMMENCE_CHANGE_SET` hook publishes the page the moment they are in force.
 
