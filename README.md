@@ -25,7 +25,7 @@ Filby is a framework for managing slow-moving temporal data, such as product cat
 Two typical uses are:
 
 - **A developer-first product information management (PIM) system.** Product catalogues and price lists are kept in your repository, published on a date and served to every channel. A hook sends each change to a CMS as soon as it is loaded into Filby, and schedules it for publication on its effective date.
-- **External reference data.** Some data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Applications can then retrieve the values that apply on any given date.
+- **External reference data.** Data is decided and published by someone outside the organisation, such as tax rates, regulatory limits, bank holidays or a supplier's price list. It is often published only as a web page, a PDF or an announcement, with no feed to subscribe to. Load each change when it is announced, with the date it takes effect. Applications can then retrieve the values that apply on any given date.
 
 In both cases, you describe your data and how it is served in migration files, using a small domain-specific language (DSL). The example below walks through this process step by step, using YAML migrations and data imported from CSV.
 
@@ -111,27 +111,23 @@ The [example application](#example-application) uses Filby to manage data for a 
 
 ## User interfaces
 
-Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), which provides a read-only web interface to any application that serves Filby's API. It lists the projections, shows each one's change log with the change set in force at any date, and browses the documents at a change set with their nests and lookups as tables. One command starts it against a running application:
+Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), which provides a read-only web interface to any application that serves Filby's API. You can list projections, inspect their change logs, see which change set is in force at a given date, and browse documents with their nests and lookups displayed as tables. One command starts it against a running application:
 
 ```bash
 FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
 ```
 
-Filby UI is read-only on purpose. Filby has no screens for editing reference data.
+Filby UI is read-only by design. Filby focuses on modelling reference data, managing changes over time and serving it to applications.
 
-One reason is that reference data often comes from non-technical departments, and it needs modelling before it can be loaded. Imagine the marketing team asks for each park's distance to the beach. That sounds like one number on the park. In practice a park may reach more than one beach. A beach may be reached by more than one route, such as a step-free road and a shorter path with steep steps. Each route has its own distance and accessibility, and each beach has its own surfaces, such as sand or shingle. A follow-up request for "dogs allowed" turns out to be a calendar, because many beaches ban dogs in the summer. A form with a "distance to beach" box would capture the wrong shape. Someone has to model the data first, here as beaches and beach routes.
+Consider the beaches in the holiday park example application. The marketing team wants to add each park's distance to the beach. That sounds like a single field, but a park might have a short route down steep steps and a longer, step-free route. Each route has its own distance and accessibility. Capturing this accurately means modelling beach routes, rather than adding a "distance to beach" field. An editing interface would still need to reflect that model.
 
-Another reason is that an editing UI adds a lot of complexity. It needs identity, authentication and authorisation. It also needs a way to promote data between environments, such as from staging to production.
-
-Instead, Filby manages its data through source control. Your source control platform already provides identity, authentication and authorisation. Pull requests provide review, and branches provide promotion between environments.
-
-Source control is also becoming more accessible to non-technical users through AI. A product owner can describe a change in plain English, and an AI assistant can turn it into a change set and open a pull request for review.
+Once the data is modelled, changes need to be reviewed, approved and released. Filby uses source control for this, so reference data can follow the same workflow as application code. Your source control platform provides identity, authentication and authorisation. Pull requests provide review, and your existing deployment process can promote changes between environments.
 
 ## How it works
 
-The best way to understand Filby is to think of it as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application asks for the data at a change set id, much as it would check out a commit, and gets the same data every time.
+The best way to understand Filby is to think of it as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application requests for the data at a change set id, much as you would check out a commit, and gets the same data every time.
 
-Reference data arrives as change sets in CSV, YAML, JSON or SQL migration files. Filby applies them to PostgreSQL, and your application mounts Filby's HTTP handler. A client reads a projection's change log, picks a change set and asks for the data at it, and a webhook or any other handler hears when something changes.
+Reference data is added as change sets in CSV, YAML, JSON or SQL migration files. Filby applies them to a PostgreSQL database, and your application mounts Filby's HTTP handler. A client reads a projection's change log, picks a change set and asks for the data at it, and a webhook or any other handler hears when something changes.
 
 <pre>
                          Change
@@ -178,8 +174,6 @@ Inside Filby, the pieces relate like this.
          │ depends on                         │
          │                                    │
          │                                    │
-         │                                    │
-         │                                    │
         ╱│╲                                  ╱│╲
 ┌─────────────────┐                  ┌─────────────────┐                   ┌─────────────────┐
 │                 │                  │                 │                   │                 │
@@ -189,8 +183,6 @@ Inside Filby, the pieces relate like this.
 │                 │                  │                 │                   │                 │
 └─────────────────┘                  └─────────────────┘                   └─────────────────┘
          │ aggregates                        ╲│╱ is raised by
-         │                                    │
-         │                                    │
          │                                    │
          │                                    │
         ╱│╲                                   │
@@ -203,17 +195,17 @@ Inside Filby, the pieces relate like this.
 └─────────────────┘                  └─────────────────┘
 </pre>
 
-An **entity** is a type of reference data: a park, a VAT rate, a caravan model. It is declared with a name, a version, its fields, the key fields that identify one record, and optionally some checks, which become PostgreSQL check constraints. A field may be of any PostgreSQL type, including an enum declared in the same DSL, so the database enforces the permitted values. An entity is never altered in place; a change to its shape is a new version alongside the old one.
+An **entity** is a type of reference data: a park, a VAT rate, a caravan model. It is declared with a name, a version, the key fields that determine a unique record, the regular data fields, and optionally some checks, which become PostgreSQL check constraints. A field may be of any PostgreSQL type, including an enum declared in the same DSL. An entity is never altered in place; a change to its shape is a new version alongside the old one.
 
-A **data frame** is one record of an entity as it was at one point: a `SET` frame carries the record's values, a `DELETE` frame says the record is gone. Frames are only ever added, so the history of a record is the sequence of its frames.
+A **data frame** is a record of an entity as it was at a specific point in time: a `SET` frame carries the record's values, a `DELETE` frame says the record is gone. Frames are only ever added, so the history of a record is the sequence of its frames.
 
 A **change set** groups data frames, for one entity or many, under one effective date, which is the date from which its frames are in force.
 
-An **aggregate** is the state of an entity at a change set: one row per record, built from the frames, with deleted records omitted. Filby creates an aggregate function for every entity version, and everything else reads through it.
+An **aggregate** is the collapsed state of an entity at a change set, built from the frames, with deleted records omitted. Filby creates an aggregate function for every entity version, and everything else reads through it.
 
-A **projection** is a versioned view over one or more entities, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities are nested under the root as lists, embedded as single objects, and the fields each level carries can be chosen. A projection the DSL cannot express is a SQL function you write over the aggregates. Either way Filby knows which entities the projection depends on, so it knows which change sets affect it.
+A **projection** is a versioned view over one or more aggregates, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities can be nested under the root, and the fields each level carries can be chosen. A projection the DSL cannot express maybe written as a SQL function. Either way Filby knows which entities the projection depends on, so it can notify clients when the data behind the projection changes.
 
-A **hook** names an event your application wants to hear about: a projection added or dropped, a change set added, or a change set taking effect for a projection. A **notification** is raised for a hook whenever its event happens, and delivered to the handler your application registered, with retries, so downstream copies of the data stay current without polling.
+A **hook** names an event your application wants to hear about: a projection added or dropped, a change set added or change set taking effect. A **notification** is raised for a hook whenever its event happens, and delivered to the handler your application registered, with retries, so downstream copies of the data can stay current without polling.
 
 ## Why Filby
 
