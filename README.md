@@ -11,8 +11,8 @@
 
 - [Introduction](#introduction)
 - [User interfaces](#user-interfaces)
-- [How it works](#how-it-works)
 - [Why Filby](#why-filby)
+- [How it works](#how-it-works)
 - [Getting started](#getting-started)
 - [Guide](#guide)
 - [Reference](#reference)
@@ -123,6 +123,26 @@ Consider the beaches in the holiday park example application. The marketing team
 
 Once the data is modelled, changes need to be reviewed, approved and released. Filby uses source control for this, so reference data can follow the same workflow as application code. Your source control platform provides identity, authentication and authorisation. Pull requests provide review, and your existing deployment process can promote changes between environments.
 
+## Why Filby
+
+Most systems depend on reference data: rates, codes, catalogues, calendars and other slow-moving facts. These values get copied into caches, client bundles, application databases and data lakes. The copies may be correct when they are made, but they can go stale.
+
+When values change, the old ones may still be needed. Analytics needs historical data, and a transaction that started before a change may need the original values until it finishes. Future changes need to be prepared and checked before they take effect, sometimes at midnight across several systems. The shape of the data also evolves, and clients need time to adapt.
+
+Filby organises change sets into a timeline. A change set is a bundle of related changes, such as a new price list, with an effective date from which the changes apply. Each change set has an id. Requesting data at that id returns the data as it stood at that point in the timeline, and returns the same data every time.
+
+This provides a foundation for several capabilities:
+
+- **Consistency.** Clients can check the change log for updates, subscribe to change notifications or fetch future change sets before they take effect. A transaction can pin a change set id and continue using the same values even when newer data becomes current.
+- **Performance.** Data requested at a change set id never changes, so Filby sends caching headers that allow responses to be cached indefinitely. Larger data sets can be exported and bundled with an application, or held locally and refreshed when updates are available. Future change sets can be fetched before they are needed.
+- **History.** Earlier change sets remain available. A report can be re-run against the same change set it originally used, and a price from 2025 can still be looked up in 2027.
+- **Timing.** A change known in advance can be loaded, checked and cached before its effective date. Filby makes it current automatically at the specified time and sends a notification, without requiring a deployment at that moment.
+- **Schema versioning.** When the shape of the data changes, a new projection version can be published alongside the old one. Each client moves across when it is ready.
+- **Right-sized responses.** Projections provide views shaped for different clients. A product list page can request a summary, while a product details page requests the full details. The views are defined on the server, where their structure and cost can be reviewed.
+- **Local testing.** Migration files and CSV data live in your repository, so developers can load the same data into a local Postgres database. A test can pin a change set id and receive the same data every run.
+
+A change set can be inserted anywhere in the timeline, for example to correct or backfill data, without changing the data returned by existing change set ids. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
+
 ## How it works
 
 The best way to understand Filby is to think of it as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application requests for the data at a change set id, much as you would check out a commit, and gets the same data every time.
@@ -207,32 +227,6 @@ A **projection** is a versioned view over one or more aggregates, and the unit a
 
 A **hook** names an event your application wants to hear about: a projection added or dropped, a change set added or change set taking effect. A **notification** is raised for a hook whenever its event happens, and delivered to the handler your application registered, with retries, so downstream copies of the data can stay current without polling.
 
-## Why Filby
-
-Most systems have reference data: rates, codes, catalogues, calendars, the slow-moving facts that everything else depends on. Because it changes rarely, it gets duplicated everywhere: into caches, client bundles, application databases and data lakes. The copies are unlikely to be wrong when they are made, but they go stale.
-
-When the data changes, the old values may still need to be kept. An analytics system needs them for reference. A transaction that started before the change needs them until it finishes, for consistency.
-
-Changes are often known in advance. Their owners want them to go live at a future time, often midnight, coordinated across several systems.
-
-The shape of the data also evolves, and that must not break the clients that read it.
-
-Filby solves these problems by organising change sets into a timeline. A change set is a bundle of related changes, such as a new price list, with an effective date from which the changes apply. Filby gives each change set an id. Asking for the data at a change set id returns the data as it stood at that point in the timeline. It returns the same data every time. Everything else follows from this one property.
-
-- **Consistency.** Reference data gets copied into databases and into clients' memory, where copies drift apart and go stale. Filby keeps the copies fresh. A client can check the change log for updates, subscribe to change notifications, or load future change sets before they take effect.
-- **Performance.** The data at a change set id never changes, so Filby sends caching headers that let a response be cached indefinitely. Some data sets are too large to request on demand over the network. These can be exported and bundled into the application, or refreshed by a regular check for updates. Because changes can be pre-released, a client never has to wait for an update while its data is stale.
-- **History.** Every earlier change set still returns the same data. A report can be re-run against the data as it stood on the day, and a price from 2025 can still be looked up in 2027.
-- **Timing.** A change known in advance is loaded today with the date it takes effect. It can be fetched and cached early. It goes live automatically at a point in time, rather than with a deploy, and Filby sends a notification when it does.
-- **Evolution.** When the shape of the data has to change, the new shape is published alongside the old one as a new version, and each client moves across when it is ready.
-- **Right-sized responses.** Each client reads a view shaped for its needs. A product list page does not need full product details, but a product details page does. GraphQL[^1][^2][^3] and OData try to solve the same problem. The difference is that Filby's views are defined on the server, so they can be governed.
-- **Local testing.** The data lives in migration files in your repository, so a developer runs the same data on a laptop against a local Postgres. A test can pin a change set id and get the same data every run.
-
-A change set can be inserted anywhere in the timeline without breaking it, for example to correct or backfill data. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
-
-[^1]: [Why GraphQL is probably wrong for your project](https://medium.com/@LoschCode/why-graphql-is-probably-wrong-for-your-project-daee1a1f54b0)
-[^2]: [Why I no longer use GraphQL for new projects](https://dev.to/andyrewlee/why-i-no-longer-use-graphql-for-new-projects-1oig)
-[^3]: [Drawbacks of GraphQL](https://l-lin.github.io/web/drawbacks-of-GraphQL)
-
 ## Getting started
 
 Filby needs Node.js 22.12 or later and PostgreSQL 15 or later, and is tested against PostgreSQL 16.
@@ -264,7 +258,7 @@ const { Hono } = require('hono');
 const { serve } = require('@hono/node-server');
 
 const filby = new Filby({
-  database: { user: 'filby', database: 'filby', password: 'filby' },
+  database: { user: 'filby', database: 'refdata', password: 'secret' },
   migrations: ['migrations'],
 });
 
@@ -284,23 +278,6 @@ process.on('SIGTERM', async () => {
   await filby.stop();
 });
 ```
-
-To run the example application, clone the repository and start it. It needs Docker for its Postgres container.
-
-```bash
-git clone git@github.com:acuminous/filby.git
-cd filby
-npm i
-npm run example
-```
-
-```
-Server is listening on port 3000
-See http://localhost:3000/documentation
-Use CTRL+C or kill -TERM 18964 to stop
-```
-
-The [Example application](#example-application) section walks through what it serves, and [Filby UI](https://github.com/acuminous/filby-ui) browses it at http://localhost:4000 once started with the command in the [Introduction](#introduction).
 
 ## Guide
 
@@ -1272,6 +1249,21 @@ Filby's tables, marv's tables, entity tables, enums, generated functions and you
 ## Example application
 
 The repository includes an [example application](https://github.com/acuminous/filby/tree/main/examples/holiday-park) for a holiday park business that sells static caravans. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand. The eight projections are `Amenities`, `Beaches`, `Catalogue`, `Grades`, `Models`, `Parks (Detailed)`, `Parks (Minimal)` and `VAT Rates`, each served at `/api/projections/<name>/v1`.
+
+To run the example application, clone the repository and start it. It needs Docker for its Postgres container.
+
+```bash
+git clone git@github.com:acuminous/filby.git
+cd filby
+npm i
+npm run example
+```
+
+```
+Server is listening on port 3000
+See http://localhost:3000/documentation
+Use CTRL+C or kill -TERM 18964 to stop
+```
 
 The reference data is ten parks with their amenities, the beaches they reach and the routes to them, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources, each with the action that applies to the whole file; only the two 2026 catalogue files that both add and delete rows carry an action column instead. The ten change sets are:
 
