@@ -1044,25 +1044,93 @@ Each operation requires the object to exist. The following example shows the syn
 
 ### Serving over HTTP
 
-`filby.fetch(request, options)` serves the projection list, the change logs, the projections and an OpenAPI document using the web standard [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), so it has no framework dependency. Routes are relative to `options.basePath`, which defaults to `''`. `GET /projections` lists the projections as `{ name, version, description }` in name and version order, `GET /changelog?projection=<name>&version=<n>[&since=<id>]` returns a projection's change log as `getChangeLog` does, `GET /projections/<name>/v<n>?changeSetId=<id>` returns the documents at a change set as a JSON array, and `GET /openapi.json` describes them all. The projection name is URL-encoded, so `/projections/VAT%20Rates/v1`. A declared parameter is passed by name, an `in` parameter is repeated, as `?region=Scotland&region=Wales`, and a `range` parameter takes `<name>_from` and `<name>_to`. `page` is 1-based and `pageSize` defaults to the declared `page_size` and is clamped to `page_max`. A request without `changeSetId` is redirected with a 307 to the current change set, keeping every other query parameter, so a client that asks for `/projections/Parks/v1?code=DC` lands on `/projections/Parks/v1?code=DC&changeSetId=8` and can cache what comes back.
+Use `filby.fetch(request, options)` to serve projections, change logs and API documentation over HTTP. It accepts a standard [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and returns a standard [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), with no dependency on a particular web framework.
 
-A projection response can be cached for ever: it carries `Cache-Control: max-age=31536000, immutable`, `ETag` and `Last-Modified` from the change set, `X-Total-Count` with the number of documents that matched, and `Link` headers to the next and previous pages. A change log carries `ETag` and `Last-Modified` from its latest entry. The projection list and the OpenAPI document change when a projection is added or dropped, so they are served without cache headers. Every error is JSON `{ "error": "..." }`; the status codes and headers are under [HTTP](#http). Errors the handler does not expect, such as a lost database connection, are thrown for the host application to log and turn into a 500.
+#### Routes
 
-[Hono](https://hono.dev/) mounts the handler in one line:
+All routes are relative to `options.basePath`, which defaults to an empty string.
 
-```js
-app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
+| Method | Route | Returns |
+| ------ | ----- | ------- |
+| `GET` | `/projections` | A list of projections as `{ name, version, description }`, sorted by name and version. |
+| `GET` | `/changelog?projection=<name>&version=<n>` | A projection's change log, as returned by `getChangeLog`. Accepts an optional `since=<id>`. |
+| `GET` | `/projections/<name>/v<n>?changeSetId=<id>` | The projection's documents at the specified change set, as a JSON array. |
+| `GET` | `/openapi.json` | The generated OpenAPI document. |
+
+URL-encode projection names in paths. For example, `VAT Rates` becomes `/projections/VAT%20Rates/v1`.
+
+If you omit `changeSetId`, Filby returns a `307` redirect to the current change set, preserving the other query parameters. For example, `/projections/Parks/v1?code=DC` might redirect to `/projections/Parks/v1?code=DC&changeSetId=8`.
+
+#### Filtering and paging
+
+Pass a projection's declared parameters in the query string:
+
+- For a single value, use the parameter name: `?code=DC`.
+- For an `in` match, repeat the parameter: `?region=Scotland&region=Wales`.
+- For a `range` match, append `_from` and `_to` to the parameter name: `?berths_from=4&berths_to=6`. Either bound can be omitted.
+
+For projections with paging configured, use `page` and `pageSize`. Page numbers start at 1. `pageSize` defaults to the projection's declared `page_size`; values above `page_max` are reduced to that maximum.
+
+#### Caching and response headers
+
+Data requested at a specific change set id never changes. Projection responses include:
+
+| Header | Purpose |
+| ------ | ------- |
+| `Cache-Control: max-age=31536000, immutable` | Allows the response to remain fresh in a cache for one year without revalidation. |
+| `ETag` | Identifies the response using the change set. |
+| `Last-Modified` | Provides the modification date from the change set. |
+| `X-Total-Count` | Gives the total number of matching root records. |
+| `Link` | Links to the next and previous pages, where available. |
+
+Change log responses include `ETag` and `Last-Modified` headers based on their latest entry.
+
+The projection list and OpenAPI document can change when projections are added or dropped. Filby serves them without caching headers.
+
+#### Error handling
+
+Expected errors return a JSON body in the form:
+
+```json
+{ "error": "..." }
 ```
 
-Express needs a short adapter:
+See [HTTP](#http) for the status codes and response headers.
+
+Unexpected errors, such as a lost database connection, are thrown. Handle these in your host application to log the failure and return an appropriate `500` response.
+
+#### Framework integration
+
+With [Hono](https://hono.dev/), pass the incoming request directly to Filby:
+
+```js
+app.all('/api/*', (c) =>
+  filby.fetch(c.req.raw, { basePath: '/api' })
+);
+```
+
+With Express, adapt the incoming request and copy Filby's response back to Express:
 
 ```js
 app.use('/api', async (req, res, next) => {
   try {
-    const request = new Request(`${req.protocol}://${req.get('host')}${req.originalUrl}`, { method: req.method });
-    const response = await filby.fetch(request, { basePath: '/api' });
+    const url =
+      `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+
+    const request = new Request(url, {
+      method: req.method
+    });
+
+    const response = await filby.fetch(request, {
+      basePath: '/api'
+    });
+
     res.status(response.status);
-    response.headers.forEach((value, name) => res.set(name, value));
+
+    response.headers.forEach((value, name) => {
+      res.set(name, value);
+    });
+
     res.send(Buffer.from(await response.arrayBuffer()));
   } catch (err) {
     next(err);
@@ -1070,27 +1138,53 @@ app.use('/api', async (req, res, next) => {
 });
 ```
 
-`GET /openapi.json` is generated from Filby's metadata tables, so a new projection is documented, its clients generated and its requests validated without anyone writing a schema. Each root projection has a path with its declared parameters, its paging parameters and a response schema built from the entity fields, the nests and the lookups. Pass `options.info` to set the document's title, version and description; the example application serves Swagger UI from it. The contents are under [OpenAPI document](#openapi-document).
+#### OpenAPI documentation
 
-### Caching in process
+Filby generates `/openapi.json` from your projection definitions, so you do not need to maintain a separate API schema.
 
-The aggregate functions and generated projection functions are declared `STABLE`, and a function you write over them should be too, since its results depend on the change sets in the database. Do any caching in the application: the data at a change set never changes, so a cache keyed by projection, version and change set id needs no invalidation, but every new change set is a new key, so bound it with an LRU or TTL cache rather than an unbounded map. This is the in-process complement to the change set id as an HTTP cache buster.
+For each projection with a root entity, the document describes its path, declared filters, paging parameters and response structure, including selected fields, nests and lookups. You can use OpenAPI tooling to generate clients, validate requests and provide interactive documentation.
 
-```js
-const cache = new LRUCache({ max: 500 });
+Set `options.info` to customise the document's title, version and description. The example application uses the generated document to serve Swagger UI.
 
-async function getParks(changeSetId, parameters) {
-  const key = JSON.stringify(['Parks', 1, changeSetId, parameters]);
-  if (!cache.has(key)) cache.set(key, await filby.getDocuments(projection, changeSetId, { parameters }));
-  return cache.get(key);
-}
-```
+See [OpenAPI document](#openapi-document) for details of the generated contents.
 
 ## Reference
 
+### Configuration
+
+| Key | Type | Default | Notes |
+| --- | ---- | ------- | ----- |
+| `database` | object | | Passed through to node-pg's `Pool`, so any `PoolConfig` key works, and node-pg reads `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` and `PGDATABASE` from the environment for anything not given. A `types` entry is wrapped so Filby can add its own parsers |
+| `migrations` | list of paths | `['migrations']` | Relative to the working directory. |
+| `notifications.interval` | duration | `1m` | How often Filby polls for notifications |
+| `notifications.initialDelay` | duration | `10s` | The delay before the first poll after `startNotifications` |
+| `notifications.maxAttempts` | integer | `10` | Attempts before a notification is exhausted |
+| `notifications.maxRescheduleDelay` | duration | `1h` | The longest delay before a retry |
+| `notifications.handlerTimeout` | duration | `30s` | How long a handler may run before its signal is aborted and the attempt fails |
+| `notifications.listen` | boolean | `false` | Whether to hold a connection that listens for scheduled notifications and polls at once |
+
+Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax; zero is allowed and a negative or unparseable value is rejected. The config is validated when Filby is constructed, and an unknown key or a bad duration is rejected. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
+
+```js
+const filby = new Filby({
+  database: { user: 'filby', database: 'filby', password: 'filby' },
+  migrations: ['path/to/schema/migrations', 'path/to/data/migrations'],
+  notifications: {
+    interval: '5s',
+    initialDelay: '1s',
+    maxAttempts: 20,
+    maxRescheduleDelay: '30s',
+    handlerTimeout: '10s',
+    listen: true,
+  },
+});
+```
+
+Run the process that reads data with `TZ=UTC`. node-pg converts `DATE` and `TIMESTAMP` values using the process time zone, so the same row renders differently on machines with different time zones. Filby never uses the process time zone for migrations, so this only affects the values your application reads.
+
 ### DSL
 
-A migration is a YAML or JSON list of operations, each with an `operation` and the keys below. The list must have at least one entry, and unknown keys fail validation with `<file>: /0 must NOT have additional property 'wombat'`. Validation failures name the file and the JSON path of the offending value. Installation failures are raised by Postgres when the migration runs, and nothing from the migration is applied.
+A migration is a YAML or JSON list of operations, each with an `operation` and the keys below. The list must have at least one entry. 
 
 #### ADD_ENUM
 
@@ -1241,634 +1335,429 @@ The forms in each row mean the same thing, all of them are permanent, and they c
 | `entity: Park@1` in a frame or a dependency | `entity: Park` with `version: 1` |
 | `projection: Parks@1` in a hook | `projection: Parks` with `version: 1` |
 
-`root`, a nest's `entity` and a lookup's `entity` take only the `@n` form. Say the version once, so `Park@1` cannot be combined with `version: 1`. Likewise give only one of `key` and `identified_by`, `changes` and `frames`, or `root` and `dependencies`.
-
-```yaml
-# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-- operation: ADD_ENTITY
-  name: Park
-  version: 1
-  fields:
-    - name: Code
-      type: TEXT
-    - name: Name
-      type: TEXT
-      nullable: false
-  identified_by:
-    - Code
-
-- operation: ADD_CHANGE_SET
-  description: Parks
-  effective: 2024-10-01T00:00:00Z
-  frames:
-    - entity: Park
-      version: 1
-      action: SET
-      data:
-        - Code: DC
-          Name: Devon Cliffs
-```
-
-### Names
-
-A canonical name is the name as written, in lower case, with each whitespace character replaced by an underscore. Hook names, enum values and the names of projections are kept as written.
-
-| Name | Canonicalised | Generated name |
-| ---- | ------------- | -------------- |
-| Entity `Park Season` version 1 | `park_season` | Table `park_season_v1`, function `get_park_season_v1_aggregate(p_change_set_id INTEGER)` |
-| Field `Park Code` | `park_code` | Column `park_code`, and the property `park_code` in a document |
-| Enum `Customer Type` | `customer_type` | Type `customer_type` |
-| Check `park_code_len` | as written | Constraint `chk_park_code_len` |
-| Projection `Parks (Detailed)` version 1 | kept as written in the API | Function `get_parks_(detailed)_v1`, quoted where SQL needs it |
-| Parameter `code` | `code` | Argument `p_code`, or `p_code_from` and `p_code_to` for `range` |
-| Nest `Beach Routes` | `beach_routes` | The property `beach_routes` in a document |
-
-A projection is referred to by its name as written and its version, as `Parks (Detailed)` and `1`, in the API, the HTTP routes and the hooks. The `key` of a projection object is `<name> v<version>`.
-
 ### API
 
-Every method that reads the database runs in its own transaction. `Projection`, `ChangeSet`, `Notification` and the other types are declared in `index.d.ts`.
+Methods that read the database return promises and run in their own transactions.
+
+#### Lifecycle
 
 | Method | Behaviour |
 | ------ | --------- |
-| `new Filby(config)` | Validates the config and creates the connection pool. See [Configuration](#configuration) |
-| `filby.init()` | Connects and applies Filby's migrations and then yours, holding the advisory lock `Filby.MIGRATION_LOCK_KEY` throughout, so notifications pause on every instance and the call waits, up to the handler timeout, for any delivery in flight. Rejects if a migration fails or a Filby migration's checksum has changed |
-| `filby.startNotifications()` | Starts polling for notifications, and listening when `notifications.listen` is set. Does nothing when already polling |
-| `filby.stopNotifications()` | Aborts the signal of every handler in flight, stops listening and polling, and waits for the current delivery to be recorded |
-| `filby.stop()` | Stops notifications and ends the pool |
-| `filby.subscribe(name, handler)` | Registers `handler(notification, { signal })` for the hook, or for `Filby.NOTIFICATION_ERROR` or `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`, which receive `{ error, notification }` |
-| `filby.unsubscribe(name, handler?)` | Removes the handler, or every handler when none is given |
-| `filby.unsubscribeAll()` | Removes every handler from every event |
-| `filby.getNotificationStatus()` | Resolves `{ started, poller, lastSuccessfulPollAt, failuresSinceLastSuccess, lastError, pending, overdue, exhausted }`. Rejects when the counts cannot be read |
-| `filby.getProjections()` | Resolves every projection as `{ id, name, version, key }`, in no particular order |
-| `filby.getProjection(name, version)` | Resolves the projection, or `undefined` |
-| `filby.getChangeLog(projection, { since })` | Resolves the change sets that touch the projection's entities, ordered by id, oldest first, superseded ones omitted, and only those with an id greater than `since`, which defaults to 0 |
-| `filby.getCurrentChangeSet(projection)` | Resolves the live change set with the latest effective date that is not after the database's current time, or `undefined` |
-| `filby.getChangeSet(id)` | Resolves the change set, superseded or not, or `undefined` |
-| `filby.getAggregates(changeSetId, name, version)` | Resolves the rows of the entity's aggregate function. Rejects if the entity version or the change set does not exist |
-| `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Resolves `{ documents, total }` for a projection declared with a root. See below |
-| `filby.fetch(request, options)` | Serves HTTP. See [HTTP](#http) |
-| `filby.withTransaction(callback)` | Passes a [node-pg](https://node-postgres.com/) client to the callback inside a transaction, committed when the callback resolves and rolled back when it rejects |
+| `new Filby(config)` | Validates the configuration and creates the connection pool. See [Configuration](#configuration). |
+| `filby.init()` | Connects to the database and applies Filby's migrations, followed by your application's migrations. |
+| `filby.startNotifications()` | Starts notification polling and, if `notifications.listen` is enabled, database listening. Does nothing if polling has already started. |
+| `filby.stopNotifications()` | Signals active handlers to stop, stops listening and polling, and waits for the current delivery attempt to be recorded. |
+| `filby.stop()` | Stops notifications and closes the connection pool. |
 
-`getNotificationStatus` reports `started`, whether Filby is polling; `poller`, which is `idle` between polls, `running` during one, `stopped` only transiently during `stopNotifications`, and `undefined` when not polling; `lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError`, as `{ at, message }`, tracked in memory, so they survive `stopNotifications` but not a restart, with the failure count returning to 0 when a poll succeeds and `lastError` keeping the most recent error; and `pending`, the notifications not yet delivered, `overdue`, those whose scheduled time has passed, and `exhausted`, those that have reached `maxAttempts` and will not be retried. An exhausted notification is also overdue.
+During `init()`, Filby holds the advisory lock identified by `Filby.MIGRATION_LOCK_KEY`. This pauses notification delivery across all instances. Before applying migrations, it waits for delivery attempts already in progress, up to the configured handler timeout.
 
-`getChangeLog` lets a consumer that remembers the last change set id it processed resume from there, and the change sets it returns carry `id`, `effective`, `description`, `lastModified`, `entityTag` and, on a re-issued change set, `reissuedFrom`.
+`init()` rejects if a migration fails or the checksum of one of Filby's own migrations has changed.
+
+#### Notification handlers
+
+| Method | Behaviour |
+| ------ | --------- |
+| `filby.subscribe(name, handler)` | Registers a handler for a named hook or a notification monitoring event. |
+| `filby.unsubscribe(name, handler?)` | Removes the specified handler. Omit `handler` to remove every handler registered for that name. |
+| `filby.unsubscribeAll()` | Removes all handlers from all hooks and events. |
+
+Hook handlers receive two arguments:
+
+```js
+filby.subscribe('hook-name', async (notification, { signal }) => {
+  // Handle the notification, using signal to respond to cancellation.
+});
+```
+
+Monitoring listeners receive an object containing `error` and, for delivery failures, `notification`:
+
+```js
+filby.subscribe(
+  Filby.NOTIFICATION_ERROR,
+  ({ error, notification }) => {
+    // Report the error.
+  }
+);
+```
+
+The monitoring events are `Filby.NOTIFICATION_ERROR` and `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`.
+
+See [Hooks and notifications](#hooks-and-notifications) for delivery, cancellation and retry behaviour.
+
+#### Notification status
+
+Call `filby.getNotificationStatus()` to inspect polling activity and notification counts.
+
+| Field | Meaning |
+| ----- | ------- |
+| `started` | Whether notification polling has started. |
+| `poller` | `idle` between polls, `running` during a poll, briefly `stopped` during shutdown, or `undefined` when polling is not active. |
+| `lastSuccessfulPollAt` | When the last successful poll completed. |
+| `failuresSinceLastSuccess` | The number of failed polls since the last successful one. |
+| `lastError` | The most recent recorded error, as `{ at, message }`. |
+| `pending` | Notifications that have not yet been delivered. |
+| `overdue` | Undelivered notifications whose scheduled time has passed. |
+| `exhausted` | Notifications that have reached `maxAttempts` and will not be retried. |
+
+The polling history fields—`lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError`—are held in memory. They survive `stopNotifications()` but reset when the application restarts. A successful poll resets the failure count to zero but retains `lastError`.
+
+The notification counts overlap: an exhausted notification is also overdue. The method rejects if the counts cannot be read from the database.
+
+#### Projections and change sets
+
+| Method | Behaviour |
+| ------ | --------- |
+| `filby.getProjections()` | Returns all projections as `{ id, name, version, key }`, with no guaranteed order. |
+| `filby.getProjection(name, version)` | Returns the matching projection, or `undefined` if it does not exist. |
+| `filby.getChangeLog(projection, { since })` | Returns change sets affecting the projection, in ascending id order. Superseded change sets are omitted. Only ids greater than `since` are returned; `since` defaults to 0. |
+| `filby.getCurrentChangeSet(projection)` | Returns the live change set with the latest effective date that is not after the database's current time, or `undefined` if none exists. |
+| `filby.getChangeSet(id)` | Returns a change set by id, including a superseded one, or `undefined` if it does not exist. |
+
+Pass the projection object returned by `getProjection()` or `getProjections()` to methods that accept a `projection`.
+
+##### Reading the change log
+
+Each entry returned by `getChangeLog()` contains:
+
+| Field | Meaning |
+| ----- | ------- |
+| `id` | The change set id. |
+| `effective` | When the change set takes effect. |
+| `description` | The change set's description. |
+| `lastModified` | When the change set was last modified. |
+| `entityTag` | The change set's entity tag. |
+| `reissuedFrom` | The original change set id, when this is a re-issued change set. |
+
+Remember the last change set id you successfully processed and pass it as `since` to resume from that point:
 
 ```js
 async function catchUp(projection, lastChangeSetId) {
-  const changeSets = await filby.getChangeLog(projection, { since: lastChangeSetId });
+  const changeSets = await filby.getChangeLog(projection, {
+    since: lastChangeSetId
+  });
+
   for (const changeSet of changeSets) {
     await mirror(projection, changeSet);
+    lastChangeSetId = changeSet.id;
   }
+
+  return lastChangeSetId;
 }
 ```
 
-`getDocuments` calls the generated function and returns its rows as documents, each with one array property per nest and one object property per lookup, `null` when the lookup finds no record at the change set, and each nested document likewise carrying what is nested under and looked up from it. `parameters` is keyed by the generated argument names without the `p_` prefix, so `code`, `berths_from`, `berths_to` or `heating`, with values of the type the function expects, an array for `in`; a parameter that is not supplied does not filter, and an unknown one rejects. `pageOffset` and `pageSize` map to `p_page_offset` and `p_page_size` and are ignored when the projection has no `paging`. `total` is the number of root rows that matched the parameters, whatever the page. Values pass through node-pg at every level, so a timestamp is a `Date` and an array of an enum is an array of strings. A projection declared with `dependencies` rejects; call its function with `withTransaction` instead.
+#### Reading data
+
+| Method | Behaviour |
+| ------ | --------- |
+| `filby.getAggregates(changeSetId, name, version)` | Returns the entity's aggregate rows at the specified change set. Rejects if the entity version or change set does not exist. |
+| `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Returns `{ documents, total }` for a projection declared with a root entity. |
+
+##### Reading projection documents
+
+Use `getDocuments()` to read the same document structure defined by a projection:
+
+- Nests appear as arrays.
+- Lookups appear as objects, or `null` when no matching record exists at the change set.
+- Nested documents include their own nests and lookups.
+
+Pass filters in `parameters`. Use parameter names without the SQL function's `p_` prefix, such as `code`, `berths_from`, `berths_to` or `heating`.
+
+Values must have the types expected by the projection. Supply an array for an `in` parameter. Omitted parameters do not filter the results; unknown parameters cause the method to reject.
+
+Use `pageOffset` and `pageSize` to request a page. These are ignored if the projection has no `paging` configuration. `total` always counts all matching root records, regardless of the requested page.
 
 ```js
 async function getParks(changeSetId, code) {
-  const { documents, total } = await filby.getDocuments(projection, changeSetId, { parameters: { code }, pageOffset: 0, pageSize: 50 });
+  const projection = await filby.getProjection('Parks', 1);
+
+  if (!projection) {
+    throw new Error('Projection Parks@1 does not exist');
+  }
+
+  const { documents, total } = await filby.getDocuments(
+    projection,
+    changeSetId,
+    {
+      parameters: { code },
+      pageOffset: 0,
+      pageSize: 50
+    }
+  );
+
   return { parks: documents, total };
 }
 ```
 
+Values use node-pg's type conversions at every level. For example, timestamps are `Date` objects and enum arrays are arrays of strings.
+
+`getDocuments()` does not support projections declared with `dependencies` instead of a root entity. For those projections, call the custom SQL function through `withTransaction()`.
+
+#### Serving HTTP requests
+
+Use `filby.fetch(request, options)` to serve projection discovery, change logs, documents and the generated OpenAPI document.
+
+See [Serving over HTTP](#serving-over-http) for routes, options and framework integration, and [HTTP](#http) for status codes and response headers.
+
+#### Running SQL in a transaction
+
+Use `filby.withTransaction(callback)` when you need to run SQL directly. The callback receives a [node-pg](https://node-postgres.com/) client. Filby commits the transaction when the callback resolves and rolls it back if the callback rejects.
+
+For example, to read a projection implemented with a custom SQL function:
+
 ```js
 async function getPriceList(changeSetId) {
   return filby.withTransaction(async (client) => {
-    const { rows } = await client.query('SELECT * FROM get_price_list_v1($1)', [changeSetId]);
+    const { rows } = await client.query(
+      'SELECT * FROM get_price_list_v1($1)',
+      [changeSetId]
+    );
+
     return rows;
   });
 }
 ```
-
-The static properties are `Filby.NOTIFICATION_ERROR`, the event emitted for every failed poll and delivery attempt; `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED`, the event emitted when the last attempt fails; and `Filby.MIGRATION_LOCK_KEY`, the advisory lock key `102105108098121`, which is distinct from the key marv uses, so other tools can respect it.
-
 ### HTTP
 
-`filby.fetch(request, { basePath, info })` serves only `GET`, on these routes relative to `basePath`.
+`filby.fetch(request, { basePath, info })` handles `GET` requests on the routes below. Paths are relative to `basePath`.
 
-| Route | Query parameters | Status |
-| ----- | ---------------- | ------ |
-| `/projections` | | 200 |
-| `/changelog` | `projection` and `version`, required; `since`, optional | 200; 400 for a missing `projection` or `version`, or a `version` or `since` that is not an integer; 404 for an unknown projection |
-| `/projections/<name>/v<n>` without `changeSetId` | Any; they are kept in the redirect | 307 with `Location`; 404 for an unknown projection or one with no current change set |
-| `/projections/<name>/v<n>` with `changeSetId` | `changeSetId`; the declared parameters; `page` and `pageSize`, positive integers | 200; 400 for a `changeSetId` that is not an integer or does not exist, an undeclared parameter, a repeated parameter that is not an `in`, a value Postgres cannot convert, `page` or `pageSize` that is not a positive integer, or either on a projection without `paging`; 404 for an unknown projection |
-| `/openapi.json` | | 200 |
+See [Serving over HTTP](#serving-over-http) for framework integration and usage examples.
 
-A projection declared with `dependencies` is served by calling `get_<name>_v<n>(changeSetId)` and returning its rows as they are, all of them unless `pageSize` is given, in which case they are paged by row. `changeSetId`, `page` and `pageSize` are its only query parameters; `page` without `pageSize` is a 400, and a function that does not exist is a 500. A declared parameter named `page`, `pageSize` or `changeSetId` is unreachable, because the handler reads those names first.
+#### Routes
 
-A path that does not match a route is a 404, and a method other than `GET` on a path that does is a 405 with `Allow: GET`. A projection name that cannot be URL-decoded is a 400. A Postgres data error, with an SQLSTATE in class 22, is a 400 with Postgres's message; any other error is thrown to the host application. Error bodies are `{ "error": "<message>" }`.
+| Route | Successful response |
+| ----- | ------------------- |
+| `/projections` | `200` with the projection list. |
+| `/changelog?projection=<name>&version=<n>` | `200` with the projection's change log. |
+| `/projections/<name>/v<n>` | `307` redirect to the current change set. |
+| `/projections/<name>/v<n>?changeSetId=<id>` | `200` with the projection's documents. |
+| `/openapi.json` | `200` with the generated OpenAPI document. |
+
+URL-encode projection names in paths. A name that cannot be URL-decoded produces a `400` response.
+
+#### Change logs
+
+`GET /changelog` accepts:
+
+| Parameter | Required | Validation |
+| --------- | -------- | ---------- |
+| `projection` | Yes | Must identify an existing projection together with `version`. |
+| `version` | Yes | Must be an integer. |
+| `since` | No | Must be an integer when supplied. |
+
+Missing required parameters or invalid integers produce a `400` response. An unknown projection produces a `404`.
+
+#### Projection data
+
+Without `changeSetId`, Filby redirects to the projection's current change set. The response is `307`, with the destination in `Location`. All other query parameters are preserved.
+
+An unknown projection, or one with no current change set, produces a `404`.
+
+With `changeSetId`, Filby returns the documents at that change set. Requests can include the projection's declared filters and, where supported, `page` and `pageSize`.
+
+The following produce a `400` response:
+
+- `changeSetId` is not an integer or does not identify an existing change set.
+- A parameter is not declared or recognised.
+- A parameter is repeated without being configured as an `in` match.
+- A supplied value cannot be converted to the expected PostgreSQL type.
+- `page` or `pageSize` is not a positive integer.
+- `page` or `pageSize` is supplied for a root-based projection without `paging` configured.
+
+An unknown projection produces a `404`.
+
+The HTTP handler reserves `page`, `pageSize` and `changeSetId`. Do not use these names for declared filters: the handler reads them as HTTP controls, so they cannot reach the projection as filter values.
+
+##### Custom SQL projections
+
+For a projection declared with `dependencies`, Filby calls `get_<name>_v<n>(changeSetId)` and returns its rows without reshaping them.
+
+These projections accept only `changeSetId`, `page` and `pageSize`:
+
+- Without `pageSize`, all rows are returned.
+- With `pageSize`, results are paged by row.
+- Supplying `page` without `pageSize` produces a `400`.
+- Both paging parameters must be positive integers.
+
+If the projection's SQL function does not exist, Filby returns a `500`.
+
+#### Error responses
+
+Expected errors have a JSON body:
+
+{
+  "error": "<message>"
+}
+
+Unmatched paths return `404`. A method other than `GET` on a recognised route returns `405` with `Allow: GET`.
+
+PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with PostgreSQL's error message. Other unexpected errors are thrown to the host application rather than converted into an HTTP response.
+
+#### Response headers
 
 | Header | Sent on | Value |
 | ------ | ------- | ----- |
 | `Content-Type` | Every response with a body | `application/json` |
-| `ETag` | A projection response; a change log with entries | The change set's entity tag; the latest entry's. It is the same for every page and parameter combination at a change set, which is correct because the URL carries the page and parameters and the content at a change set never changes, so it is not derived from the content |
-| `Last-Modified` | The same | The change set's `lastModified` in RFC 1123 form |
-| `Cache-Control` | A projection response | `max-age=31536000, immutable` |
-| `X-Total-Count` | A projection response | The number of documents that matched the parameters, whatever the page |
-| `Link` | A paged projection response | `<url>; rel="next"` and `<url>; rel="prev"` where those pages exist, preserving every other query parameter |
-| `Location` | The redirect | The path and query with `changeSetId` set to the current change set |
+| `ETag` | Projection responses and non-empty change logs | The change set's entity tag, or the latest change log entry's entity tag. |
+| `Last-Modified` | Projection responses and non-empty change logs | The corresponding change set's `lastModified`, formatted as an RFC 1123 date. |
+| `Cache-Control` | Projection responses | `max-age=31536000, immutable` |
+| `X-Total-Count` | Projection responses | The total number of matching records, regardless of the requested page. |
+| `Link` | Paged projection responses | Links to the next and previous pages, where available. |
+| `Location` | Redirect responses | The path and query with `changeSetId` set to the current change set. |
+| `Allow` | `405` responses | `GET` |
+
+A projection's `ETag` identifies the change set rather than being calculated from the response body. It is shared across pages and filter combinations at that change set; the request URL distinguishes those responses.
+
+Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all other query parameters.
 
 ### OpenAPI document
 
-`GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document. Its `info` is `options.info`, as `{ title, version, description? }`, defaulting to `{ title: 'Filby', version: '1.0.0' }`, and `options.basePath` becomes its single `servers` entry when it is not empty. The paths are `/projections`, `/changelog` and one per projection, with the projection's description where it has one, the operation id `get_<canonical name>_v<n>`, a `changeSetId` parameter, each declared parameter typed from its field, with an `in` parameter as an exploded array and a `range` parameter as its `_from` and `_to` pair, and the paging parameters `page` and `pageSize`, with `page_size` as the default and `page_max` as the maximum, where the projection has paging. The responses document the 200 with its headers, the 307, the 400 and the 404. The components are `Projection`, `ChangeSet` and `Error`.
+`GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from your projection definitions. It describes the API routes, filters, paging controls, response schemas and headers.
 
-A root projection's response schema is an array of objects built from the fields it carries, with `additionalProperties: false` and every non-nullable field required; each nest is an array property and each lookup an `anyOf` of its object schema and `null`, both required and both carrying an `x-filby-on` extension mapping the child's join fields to the parent's in canonical names. A projection declared with `dependencies` has only `changeSetId`, `page` and `pageSize` and a response of unconstrained objects, because Filby does not know the shape of its function. Generators ignore specification extensions, but a consumer that compiles the response schemas with Ajv in strict mode must register the keyword with `ajv.addKeyword('x-filby-on')`.
+#### Configuration
 
-Field types describe what node-pg emits in JSON rather than the Postgres type. The type is matched in lower case with any `(...)` modifier removed, and `[]` makes an array of the element type.
+- `options.info` sets the document's `title`, `version` and optional `description`. It defaults to `{ title: 'Filby', version: '1.0.0' }`.
+- A non-empty `options.basePath` is included as the document's server URL.
 
-| Postgres type | Schema |
-| ------------- | ------ |
-| `INTEGER`, `INT`, `INT2`, `INT4`, `SMALLINT`, `SERIAL` | `integer` |
-| `BIGINT`, `INT8`, `NUMERIC`, `DECIMAL` | `string`, because node-pg returns them as strings |
-| `REAL`, `FLOAT4`, `FLOAT8`, `DOUBLE PRECISION` | `number` |
-| `BOOLEAN`, `BOOL` | `boolean` |
-| `DATE`, `TIMESTAMP`, `TIMESTAMPTZ`, `TIMESTAMP WITH TIME ZONE`, `TIMESTAMP WITHOUT TIME ZONE` | `string` with format `date-time` |
-| `TEXT`, `VARCHAR`, `CHARACTER VARYING`, `CHAR`, `CHARACTER` | `string` |
-| `UUID` | `string` with format `uuid` |
-| An enum declared with `ADD_ENUM` | `string` with its values as `enum` |
-| `JSON`, `JSONB` and any other type | unconstrained |
+#### Response schemas
 
-A nullable field also allows `null`.
+For projections with a root entity, Filby generates response schemas from the selected fields, nests and lookups. The schemas include enum values and field nullability. Non-nullable fields are required, nests are arrays, and lookups are objects that may be `null`.
 
-### Configuration
+For custom SQL projections declared with `dependencies`, response records have an unconstrained schema because Filby cannot infer the function's output structure.
 
-| Key | Type | Default | Notes |
-| --- | ---- | ------- | ----- |
-| `database` | object | | Passed through to node-pg's `Pool`, so any `PoolConfig` key works, and node-pg reads `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` and `PGDATABASE` from the environment for anything not given. A `types` entry is wrapped so Filby can add its own parsers |
-| `migrations` | list of paths | `['migrations']` | Relative to the working directory |
-| `notifications.interval` | duration | `1m` | How often Filby polls for notifications |
-| `notifications.initialDelay` | duration | `10s` | The delay before the first poll after `startNotifications` |
-| `notifications.maxAttempts` | integer | `10` | Attempts before a notification is exhausted |
-| `notifications.maxRescheduleDelay` | duration | `1h` | The longest delay before a retry |
-| `notifications.handlerTimeout` | duration | `30s` | How long a handler may run before its signal is aborted and the attempt fails |
-| `notifications.listen` | boolean | `false` | Whether to hold a connection that listens for scheduled notifications and polls at once |
+Schemas also include an `x-filby-on` extension describing joins. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`.
 
-Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax; zero is allowed and a negative or unparseable value is rejected. The config is validated when Filby is constructed, and an unknown key or a bad duration is rejected. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
+#### JSON types
 
-```js
-const filby = new Filby({
-  database: { user: 'filby', database: 'filby', password: 'filby' },
-  migrations: ['path/to/schema/migrations', 'path/to/data/migrations'],
-  notifications: {
-    interval: '5s',
-    initialDelay: '1s',
-    maxAttempts: 20,
-    maxRescheduleDelay: '30s',
-    handlerTimeout: '10s',
-    listen: true,
-  },
-});
-```
+Schemas describe the values returned over HTTP, which may differ from their PostgreSQL types:
 
-Run the process that reads data with `TZ=UTC`. node-pg converts `DATE` and `TIMESTAMP` values using the process time zone, so the same row renders differently on machines with different time zones. Filby never uses the process time zone for migrations, so this only affects the values your application reads.
+| PostgreSQL type | JSON representation |
+| --------------- | ------------------- |
+| `BIGINT`, `INT8`, `NUMERIC`, `DECIMAL` | Strings, matching node-pg's default conversions. |
+| `DATE` and timestamp types | Strings with the `date-time` format. |
+| `JSON`, `JSONB` and unrecognised types | Unconstrained values. |
+
+Array fields use the corresponding element schema. Nullable fields also allow `null`.
 
 ### Command line
 
+Use Filby's command line tool to validate migration files or preview their SQL without applying them to a database. Both commands accept one or more directories. If you omit the directories, they use `migrations`. SQL migration files are not validated.
+
+Neither command validates SQL migrations.
+
+#### Validate migrations
+
+Use `validate` to check migration files before applying them:
+
 ```bash
 npx filby validate migrations
+```
+
+The command checks every file and reports any problems to stderr. It exits with code 0 if all checks pass, or 1 if any fail, making it suitable for CI.
+
+#### Preview SQL
+
+Use `preview` to inspect the SQL your migrations will produce:
+
+```bash
 npx filby preview migrations
 ```
 
-Both commands scan the directories you name, or `migrations` when you name none. Every YAML and JSON migration is parsed, validated against Filby's schema and rendered to SQL, which reads the CSV files that `source` frames refer to, so a syntax error, a schema violation, a key that names no field, a reference that specifies its version twice, or a missing or malformed CSV file is reported. SQL migrations are not checked. Every file is checked, and each problem is written to stderr as `<file>: <message>`, with the JSON path of the offending value where there is one.
+It performs the same checks as `validate`, then writes the SQL to stdout:
 
-```
-migrations/0004.season-2020.yaml: /0 must have required property 'effective'
-```
+- Directories are processed in the order supplied.
+- Within each directory, migrations are written in level order.
+- Each migration is preceded by a `-- <file>` comment.
+- SQL migration files are copied verbatim.
 
-`filby validate` exits with code 1 if any migration failed and 0 otherwise, so it can run in CI. `filby preview` performs the same checks and then writes the SQL to stdout, each directory's migrations in level order and the directories in the order named, each migration preceded by a `-- <file>` comment and SQL migrations copied verbatim, so you can read what a change set will do or diff it in review. If any migration fails, `filby preview` writes the errors, no SQL, and exits with code 1. A command other than `validate` or `preview`, or none, prints `Usage: filby <validate|preview> [directory ...]` and exits with code 1.
+Use the output to inspect a change before applying it or to review a SQL diff.
 
-The command line tool only reports what can be known from the files. Checks that need a database, such as whether a change set refers to an entity that exists, still happen when `filby.init()` applies the migration.
+If any migration fails validation, the command reports the errors to stderr, writes no SQL and exits with code 1.
 
 ### Database objects
 
-Filby's own tables are prefixed `fby_`. `fby_entity`, `fby_entity_field`, `fby_entity_check` and `fby_enum` record the entities, their fields with `type`, `identity` and `nullable`, their checks and the enum values. `fby_projection` records the projections with `root_entity_id`, `fields`, `page_size` and `page_max`, `fby_projection_entity` their dependencies, `fby_projection_parameter` and `fby_projection_order` their parameters and order, and `fby_projection_nest`, with `parent_nest_id`, `lookup` and `fields`, `fby_projection_nest_on` and `fby_projection_nest_order` their nests and lookups. `fby_hook` records the hooks and `fby_notification` the notifications with their `status`, `scheduled_for`, `attempts` and `last_error`. `fby_change_set` records the change sets with `effective`, `description`, `last_modified`, `entity_tag`, `superseded_by` and `reissued_from`, `fby_data_frame` the frames with their `action`, and `fby_change_set_entity` which entities each change set touches, which is what the view `fby_projection_change_log_vw` joins to list a projection's change log. Each entity version has its own table, `<entity>_v<n>`, with `fby_frame_id`, `fby_change_set_id` and a column per field, and its aggregate function. A successful notification is kept until the next one for the same hook and projection succeeds.
+Filby creates and manages:
 
-The functions `fby_schedule_notification`, `fby_notify_add_change_set`, `fby_get_next_notification`, `fby_pass_notification`, `fby_fail_notification` and `fby_reissue_change_sets` implement notifications and re-issuing, and `fby_entity_hint`, `fby_projection_hint` and `fby_entity_field_hint` build the suggestions in error messages. Scheduling a notification sends `NOTIFY fby_notification`, which is what `notifications.listen` listens for. Marv keeps its records in `migrations` and `migrations_lock`.
+- Internal tables prefixed `fby_`, holding definitions, change history and notification state.
+- A data table and aggregate function for each entity version.
+- A query function for each projection.
 
-`filby.init()` holds the advisory lock `Filby.MIGRATION_LOCK_KEY`, `102105108098121`, while migrations run, and each poll takes it in shared mode, so other tools can respect it.
+Entity tables are named `<entity>_v<n>`, and projection functions are named `get_<projection>_v<n>`.
+
+The migration runner uses `migrations` and `migrations_lock` for its bookkeeping. Manage Filby's definitions and data through migrations and the API.
 
 ### Migrations
 
-Filby scans every directory in the `migrations` list and applies the combined set of migrations with [marv](https://github.com/guidesmiths/marv) in a single run, so you can split a large set of migrations across several directories, for example one for schema and one for data. YAML, JSON and SQL files are applied; other files are ignored.
-
-Marv groups migrations by namespace. Filby's own migrations use the `filby` namespace and always run first. Your migrations use marv's `default` namespace unless their directory contains a `.marvrc` file declaring another. Within a namespace, marv applies migrations in level order regardless of which directory they came from, so directories sharing a namespace must share one numbering sequence.
-
-```
-schema/
-  |- 001.define-park-schema.yaml
-  |- 003.define-season-schema.yaml
-data/
-  |- 002.initial-park-data.yaml
-  |- 004.initial-season-data.yaml
-```
-
-If two directories in the same namespace contain migrations with the same level, `filby.init()` fails. Alternatively, give each directory its own numbering sequence by adding a `.marvrc` with a distinct namespace.
-
-```json
-{
-  "namespace": "schema"
-}
-```
-
-Namespaces run one after another in the order they first appear in the `migrations` list, so list a directory before any directory whose migrations depend on it. Directives in a `.marvrc` apply only to the migrations in that directory. For example, the following makes marv re-run every migration in the directory on each `filby.init()`, so they must be idempotent.
-
-```json
-{
-  "namespace": "views",
-  "directives": {
-    "audit": false
-  }
-}
-```
-
-Filby verifies the checksums of its own migrations on every `filby.init()`, and fails if one has changed since it was applied. Filby supports upgrading from version 0.14.0 or later; databases created by earlier versions will fail this check. The checksums of your own migrations are not verified.
+Filby applies its own migrations first, followed by your YAML, JSON and SQL migrations. By default, migrations across all configured directories share one numbering sequence and run in level order. Levels must be unique across those directories; duplicates cause `filby.init()` to fail. 
 
 ### Schema and search path
 
-Filby references every object unqualified, so everything lands in the first schema on the connection's search path, which for a new role is `"$user", public`: the role's own schema if one exists, otherwise `public`. To use another schema, create it and grant the Filby role `USAGE` and `CREATE` on it, then point the search path at it, either on the role
+Filby uses the connection's PostgreSQL search path to locate and create database objects. With the default search path, objects are created in the role's own schema if it exists, otherwise in `public`.
+
+To use a different schema, create it and grant the Filby role `USAGE` and `CREATE` permissions. Then set the search path either on the role:
 
 ```sql
 ALTER ROLE filby SET search_path = reference_data;
 ```
 
-or with the node-pg connection option in the config, which Filby passes to every connection it opens, including marv's.
+or in Filby's connection configuration:
 
 ```js
 const filby = new Filby({
-  database: { user: 'filby', options: '-c search_path=reference_data' },
+  database: {
+    user: 'filby',
+    options: '-c search_path=reference_data',
+  },
 });
 ```
 
-Filby's tables, marv's tables, entity tables, enums, generated functions and your own migration SQL then land in that schema with no other change. Extensions, types and functions that live in `public` must be qualified in projection SQL and entity field types, and connections Filby did not open, such as your application's own pool, must set the same search path or qualify names.
+The configuration applies to every connection Filby opens, including those used for migrations.
+
+Qualify references to types and functions in other schemas, such as `public`. Other connections, including your application's own pool, must use the same search path or schema-qualified names.
 
 ## Example application
 
-The repository includes an [example application](https://github.com/acuminous/filby/tree/main/examples/holiday-park) for a holiday park business that sells static caravans. It is a [Hono](https://hono.dev/) application that mounts `filby.fetch` in one line to serve the change log, the projections and the generated OpenAPI document under `/api`, exposes `filby.getNotificationStatus()` at `/health`, and posts notifications to the webhooks listed in its config. Swagger UI is served at `/documentation` from the generated `/api/openapi.json`, so nobody writes a schema by hand. The eight projections are `Amenities`, `Beaches`, `Catalogue`, `Grades`, `Models`, `Parks (Detailed)`, `Parks (Minimal)` and `VAT Rates`, each served at `/api/projections/<name>/v1`.
+The [holiday park example](https://github.com/acuminous/filby/tree/main/examples/holiday-park) demonstrates CSV imports, scheduled changes, projections and webhook notifications in a [Hono](https://hono.dev/) application.
 
-To run the example application, clone the repository and start it. It needs Docker for its Postgres container.
+### Running the example
+
+Docker is required for the PostgreSQL container.
 
 ```bash
-git clone git@github.com:acuminous/filby.git
+git clone https://github.com/acuminous/filby.git
 cd filby
-npm i
+npm install
 npm run example
 ```
 
-```
-Server is listening on port 3000
-See http://localhost:3000/documentation
-Use CTRL+C or kill -TERM 18964 to stop
+The API is served under `/api`. Open [Swagger UI](http://localhost:3000/documentation) to try requests, or access the generated OpenAPI document at `/api/openapi.json`. The `/health` endpoint reports notification status.
+
+### Exploring the data
+
+[Filby UI](https://github.com/acuminous/filby-ui) is the best way to explore the example application's data. With the application running, start it in another terminal:
+
+```bash
+FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
 ```
 
-The reference data is ten parks with their amenities, the beaches they reach and the routes to them, seasons, offers and the models they sell, a catalogue of manufacturers, models, accessories, prices and VAT rates, and the grades the business maps onto that catalogue. A grade is a set of required attributes, Platinum requiring the most and Saver nothing, and every model holds one grade each year. The catalogue is the manufacturers' data and the grades are the business's own, so `Catalogue` and `Models` carry no grades; a model's grade is found through `Grades`. Every data frame is loaded from a CSV file under `examples/migrations/csv/<change set>/`, one file per entity, so a change set's YAML is its description, its effective date and its sources, each with the action that applies to the whole file; only the two 2026 catalogue files that both add and delete rows carry an action column instead. The ten change sets are:
+Use it to browse projections, inspect their change logs and view the data at different change sets.
 
-| Id | Effective | Description |
-| -- | --------- | ----------- |
-| 1 | 2024-10-01 | Parks |
-| 2 | 2025-01-01 | 2025 catalogue and price list |
-| 3 | 2025-03-01 | 2025 season |
-| 4 | 2025-06-01 | Summer offers |
-| 5 | 2026-01-01 | 2026 catalogue and price list |
-| 6 | 2026-03-01 | 2026 season and Richmond becomes Skegness |
-| 7 | 2026-06-25 | Temporary reduced rate for children's meals and family attractions |
-| 8 | 2026-07-01 | Greenacres sold |
-| 9 | 2026-09-02 | Temporary reduced rate ends |
-| 10 | 2027-01-01 | 2027 catalogue and price list |
+See the [example migrations](https://github.com/acuminous/filby/tree/main/examples/migrations) for the schema and scheduled changes, and the [CSV files](https://github.com/acuminous/filby/tree/main/examples/migrations/csv) for the data they load.
 
 ### Example queries
 
-The queries below interrogate the running example in five ways.
+All requests below use `GET`, with `http://localhost:3000/api` as the base URL.
 
-#### What does Devon Cliffs sell?
+Omit `changeSetId` to receive a `307` redirect to the current change set, preserving your filters. Supply an id to read a fixed version, including future data. Use the projection's change log to find the id for a particular date.
 
-Omit the change set id from a request to `Parks (Detailed)` and it redirects to the current one, which is change set 8 because change sets 9 and 10 do not touch any park.
+| Example | Request |
+| ------- | ------- |
+| Current details for Devon Cliffs | `/projections/Parks%20(Detailed)/v1?code=DC` |
+| Current summary for Devon Cliffs | `/projections/Parks%20(Minimal)/v1?code=DC` |
+| Catalogue change history | `/changelog?projection=Catalogue&version=1` |
+| Catalogue on 1 June 2025 | `/projections/Catalogue/v1?changeSetId=2&code=VIC` |
+| VAT rates in August 2026 | `/projections/VAT%20Rates/v1?changeSetId=7` |
+| Preview the 2027 catalogue and prices | `/projections/Catalogue/v1?changeSetId=10&code=VIC` |
+| A park after its rename | `/projections/Parks%20(Detailed)/v1?changeSetId=6&code=RI` |
+| A park after its deletion | `/projections/Parks%20(Minimal)/v1?changeSetId=8&code=GA` |
 
-```
-GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC
-```
-
-```
-HTTP/1.1 307 Temporary Redirect
-location: /api/projections/Parks%20(Detailed)/v1?code=DC&changeSetId=8
-```
-
-```
-GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?code=DC&changeSetId=8
-```
-
-```json
-[
-  {
-    "code": "DC",
-    "name": "Devon Cliffs",
-    "address": "Sandy Bay",
-    "town": "Exmouth",
-    "county": "Devon",
-    "postcode": "EX8 5BT",
-    "region": "South West",
-    "amenities": [
-      {
-        "amenity": {
-          "code": "AMUSEMENT_ARCADE",
-          "name": "Amusement Arcade",
-          "category": "Entertainment",
-          "age_group": "All Ages",
-          "charge": "Paid",
-          "vat_code": "Family Attraction"
-        }
-      },
-      {
-        "amenity": {
-          "code": "CRAZY_GOLF",
-          "name": "Crazy Golf",
-          "category": "Sport",
-          "age_group": "All Ages",
-          "charge": "Paid",
-          "vat_code": "Family Attraction"
-        }
-      },
-      ...
-    ],
-    "beach_routes": [
-      {
-        "name": "Along the beach road",
-        "distance_metres": 1200,
-        "accessibility": "Step Free",
-        "beach": {
-          "code": "SANDY_BAY",
-          "name": "Sandy Bay",
-          "surfaces": ["Sandy", "Rocky"]
-        }
-      },
-      {
-        "name": "Via the cliff path",
-        "distance_metres": 400,
-        "accessibility": "Steep Steps",
-        "beach": {
-          "code": "SANDY_BAY",
-          "name": "Sandy Bay",
-          "surfaces": ["Sandy", "Rocky"]
-        }
-      }
-    ],
-    "seasons": [
-      {
-        "customer_type": "Guest",
-        "current_season_start": "2026-03-16T00:00:00.000Z",
-        "current_season_end": "2026-11-03T00:00:00.000Z",
-        "next_season_start": "2027-03-16T00:00:00.000Z",
-        "next_season_end": "2027-11-03T00:00:00.000Z"
-      },
-      {
-        "customer_type": "Owner",
-        "current_season_start": "2026-03-01T00:00:00.000Z",
-        "current_season_end": "2027-01-06T00:00:00.000Z",
-        "next_season_start": "2027-03-01T00:00:00.000Z",
-        "next_season_end": "2028-01-06T00:00:00.000Z"
-      }
-    ],
-    "offers": [
-      {
-        "grade_code": "Platinum",
-        "discount_percent": "0.00"
-      },
-      {
-        "grade_code": "Gold",
-        "discount_percent": "2.50"
-      },
-      ...
-    ],
-    "models": [
-      {
-        "model_code": "AMB",
-        "model": {
-          "name": "ABI Ambleside"
-        }
-      },
-      {
-        "model_code": "AVO",
-        "model": {
-          "name": "Willerby Avonmore"
-        }
-      },
-      ...
-    ]
-  }
-]
-```
-
-Devon Cliffs has eight amenities, five offers and eight models; the listing above is cut to two of each. Each park amenity is a row of `Park Amenity` that links a park to an amenity and says nothing else, so the projection declares `fields: []` on the nest and each row is its `Amenity` lookup alone, an object with the amenity's code, name, category, age group, charge and VAT code. Each beach route is a row of `Beach Route` with facts of its own, the distance and how accessible it is, and its `Beach` lookup carries the beach's code, name and surfaces in place of the beach code. Devon Cliffs reaches Sandy Bay two ways, step free along the beach road or down the steep cliff path, so the same beach appears under both routes. Each model the park sells is a code with a `Model` lookup that carries the model's name and nothing more, because a lookup carries only the fields the projection asks for.
-
-`Parks (Minimal)` is the park alone, with the same parameters, order and paging, for a list page or a picker.
-
-```
-GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?code=DC&changeSetId=8
-```
-
-```json
-[
-  {
-    "code": "DC",
-    "name": "Devon Cliffs",
-    "address": "Sandy Bay",
-    "town": "Exmouth",
-    "county": "Devon",
-    "postcode": "EX8 5BT",
-    "region": "South West"
-  }
-]
-```
-
-`code` is one of the projection's declared parameters; `name` matches the start of a name and `region` takes a list, as `?region=Scotland&region=Wales`. Both park projections page ten parks at a time, with the total in `X-Total-Count` and the neighbouring pages in `Link`. The season dates are facts about the park, whereas the effective date is a fact about change set 6: it took effect on 1 March 2026, the first day of the 2026 season, and replaced each park's current and next season in one step. Haggerston Castle had not announced its 2027 season, so its `next_season_start` and `next_season_end` are null. The offers are by grade, which `Grades` describes: `GET http://localhost:3000/api/projections/Grades/v1?changeSetId=5&code=Gold` returns the attributes a Gold model must have and the models that held Gold each year, each by code, year and name.
-
-#### What was in the catalogue on 1 June 2025?
-
-The change log of `Catalogue` says which change set was in force on that date. It lists only the change sets that touch the catalogue's entities, so the parks, seasons and offers are absent, and it includes change set 10, which is dated in the future.
-
-```
-GET http://localhost:3000/api/changelog?projection=Catalogue&version=1
-```
-
-```json
-[
-  {
-    "id": 2,
-    "effective": "2025-01-01T00:00:00.000Z",
-    "description": "2025 catalogue and price list",
-    "lastModified": "2026-10-23T08:41:25.132Z",
-    "entityTag": "754352607d4147f28dff"
-  },
-  {
-    "id": 5,
-    "effective": "2026-01-01T00:00:00.000Z",
-    "description": "2026 catalogue and price list",
-    "lastModified": "2026-10-23T08:41:25.150Z",
-    "entityTag": "4c633b39a5e740799a77"
-  },
-  {
-    "id": 10,
-    "effective": "2027-01-01T00:00:00.000Z",
-    "description": "2027 catalogue and price list",
-    "lastModified": "2026-10-23T08:41:25.164Z",
-    "entityTag": "fcf3285be59f4f5ea130"
-  }
-]
-```
-
-Change set 2 was in force on 1 June 2025, so `Catalogue` at change set 2 is the whole range as it stood, each manufacturer with its models and each model with the prices and accessories it had then. It has no paging because a product range is read whole; `Models` is the same data one model at a time, with the parameters a search page needs and the manufacturer's name beside its code.
-
-```
-GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=2&code=VIC
-```
-
-```json
-[
-  {
-    "code": "VIC",
-    "name": "Victory",
-    "models": [
-      {
-        "code": "VER",
-        "name": "Victory Vermont",
-        "berths": 6,
-        "bedrooms": 2,
-        "length": "35.0",
-        "width": "12.0",
-        "heating": "None",
-        "double_glazed": false,
-        "vat_code": "Holiday Caravan",
-        "prices": [
-          {
-            "year": 2025,
-            "list_price": "15995.00"
-          }
-        ],
-        "accessories": [
-          {
-            "code": "VER-DEC",
-            "name": "Decking",
-            "price": "3995.00"
-          },
-          {
-            "code": "VER-VER",
-            "name": "Veranda",
-            "price": "2495.00"
-          }
-        ]
-      }
-    ]
-  }
-]
-```
-
-#### Which VAT rate applied in August 2026?
-
-From 25 June to 1 September 2026 the rate for children's meals and family attractions was temporarily cut to 5%. Change sets 7 and 9 were entered together when the measure was announced: a rate that is true for ten weeks, loaded once, in advance. A consumer that prices a caravan or an amenity reads `Models` or `Parks (Detailed)` and `VAT Rates` at the same change set and gets one consistent answer.
-
-```
-GET http://localhost:3000/api/projections/VAT%20Rates/v1?changeSetId=7
-```
-
-```json
-[
-  {
-    "code": "Standard",
-    "name": "Standard rate",
-    "rate": "20.00"
-  },
-  {
-    "code": "Holiday Caravan",
-    "name": "Reduced rate for static holiday caravans",
-    "rate": "5.00"
-  },
-  {
-    "code": "Residential Caravan",
-    "name": "Zero rate for caravans built to BS 3632",
-    "rate": "0.00"
-  },
-  {
-    "code": "Family Attraction",
-    "name": "Children's meals and family attractions",
-    "rate": "5.00"
-  }
-]
-```
-
-At change set 9 the same request returns `Family Attraction` at `20.00` and nothing else changes.
-
-#### What will the 2027 price list be?
-
-Change set 10 exists today and is not yet live. The change log lists it, `Catalogue` at change set 10 returns the 2027 prices, and a request without a change set id still redirects to change set 5, because the current change set is the latest one whose effective date has passed.
-
-```
-GET http://localhost:3000/api/projections/Catalogue/v1
-```
-
-```
-HTTP/1.1 307 Temporary Redirect
-location: /api/projections/Catalogue/v1?changeSetId=5
-```
-
-```
-GET http://localhost:3000/api/projections/Catalogue/v1?changeSetId=10&code=VIC
-```
-
-```json
-[
-  {
-    "code": "VIC",
-    "name": "Victory",
-    "models": [
-      {
-        "code": "VER",
-        "name": "Victory Vermont Classic",
-        "berths": 6,
-        "bedrooms": 2,
-        "length": "35.0",
-        "width": "12.0",
-        "heating": "None",
-        "double_glazed": false,
-        "vat_code": "Holiday Caravan",
-        "prices": [
-          {
-            "year": 2025,
-            "list_price": "15995.00"
-          },
-          {
-            "year": 2026,
-            "list_price": "16450.00"
-          },
-          {
-            "year": 2027,
-            "list_price": "16950.00"
-          }
-        ],
-        "accessories": [
-          ...
-        ]
-      }
-    ]
-  }
-]
-```
-
-The accessories are there too, at their 2027 prices.
-
-#### How is a park renamed, or sold?
-
-A change set is whatever the data owner sends. Richmond became Skegness in change set 6 with one row in `csv/season-2026/park.csv`, which its frame loads with `action: SET`, the same park with its new name, so its seasons, amenities and models follow it:
-
-```
-Code,Name,Address,Town,County,Postcode,Region
-RI,Skegness,Richmond Drive,Skegness,Lincolnshire,PE25 2SE,Midlands
-```
-
-Greenacres was sold in change set 8, which deletes the park and its amenities, beach routes, seasons, offers and models, each from its own file loaded with `action: DELETE`. `csv/greenacres-sold/park.csv` needs only the key:
-
-```
-Code
-GA
-```
-
-`GET http://localhost:3000/api/projections/Parks%20(Detailed)/v1?changeSetId=6&code=RI` returns the park as Skegness with everything it had as Richmond, and `GET http://localhost:3000/api/projections/Parks%20(Minimal)/v1?changeSetId=8&code=GA` returns an empty list with `X-Total-Count: 0`, while both parks are still there at any earlier change set.
+The deletion example returns an empty array. Query an earlier change set to retrieve the park before it was removed.
