@@ -1,12 +1,13 @@
 {
   "name": "filby",
   "version": "0.14.0",
-  "description": "A framework for temporal reference data",
+  "description": "A framework for managing slow-moving temporal data",
   "keywords": [
     "temporal",
     "time",
     "travelling",
     "series",
+    "time-series",
     "reference",
     "data",
     "database",
