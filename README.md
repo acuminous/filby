@@ -11,7 +11,7 @@
 
 - [Introduction](#introduction)
 - [User interfaces](#user-interfaces)
-- [Why Filby](#why-filby)
+- [Benefits](#benefits)
 - [How it works](#how-it-works)
 - [Getting started](#getting-started)
 - [Guide](#guide)
@@ -117,13 +117,13 @@ Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), w
 FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
 ```
 
-Filby UI is read-only by design. Filby focuses on modelling reference data, managing changes over time and serving it to applications.
+Filby UI is read-only. This may sound like a significant limitation, but it is a deliberate design choice. Supporting edits would require authentication, authorisation, review and promotion workflows. Your existing source control management (SCM) system and deployment tooling can provide these capabilities without Filby having to implement and maintain them.
 
-Consider the beaches in the holiday park example application. The marketing team wants to add each park's distance to the beach. That sounds like a single field, but a park might have a short route down steep steps and a longer, step-free route. Each route has its own distance and accessibility. Capturing this accurately means modelling beach routes, rather than adding a "distance to beach" field. An editing interface would still need to reflect that model.
+Schema design also requires more modelling expertise than may initially be apparent. Consider the beaches in the holiday park example application. Suppose marketing asks for each park's distance to the beach. That sounds like a single field, but a park might have a short route down steep steps and a longer, step-free route. Each route has its own distance and accessibility. Capturing this accurately means modelling beach routes, rather than adding a "distance to beach" field.
 
-Once the data is modelled, changes need to be reviewed, approved and released. Filby uses source control for this, so reference data can follow the same workflow as application code. Your source control platform provides identity, authentication and authorisation. Pull requests provide review, and your existing deployment process can promote changes between environments.
+Software engineers are well placed to make these modelling decisions. Defining the model in migration files lets them use familiar source control tools to review and release changes to both the model and its data.
 
-## Why Filby
+## Benefits
 
 Most systems depend on reference data: rates, codes, catalogues, calendars and other slow-moving facts. These values get copied into caches, client bundles, application databases and data lakes. The copies may be correct when they are made, but they can go stale.
 
@@ -131,7 +131,7 @@ When values change, the old ones may still be needed. Analytics needs historical
 
 Filby groups related changes, such as a new price list, and gives each group an effective date and an id. Applications can request the data that applies on a particular date, or use an id to keep requesting exactly the same version. Loading new changes does not alter the data returned by existing ids.
 
-This supports several common needs:
+This provides several benefits:
 
 - **Consistency.** Clients can check for updates, receive change notifications or fetch future data before it takes effect. A transaction can keep using the same id throughout, even when newer data becomes current.
 - **Performance.** Data requested using a particular id never changes, so Filby sends caching headers that allow responses to be cached indefinitely. Larger data sets can be exported and bundled with an application, or held locally and refreshed when updates are available.
@@ -805,9 +805,20 @@ Without `paging` configured, the projection returns all matching records.
 
 ### Hooks and notifications
 
-A hook pairs a name with one of four events. `ADD_PROJECTION` and `DROP_PROJECTION` fire when a projection is added or dropped. `ADD_CHANGE_SET` fires when a change set that touches a projection's entities is added, whatever its effective date. `COMMENCE_CHANGE_SET` fires when a projection's current change set changes. An `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET` hook may name the one projection it is interested in or fire for every projection; `ADD_PROJECTION` and `DROP_PROJECTION` hooks are always general.
+Use hooks to run application code when projections are added or removed, new data is loaded, or a different change set becomes current.
 
-Which event to use depends on what the subscriber does with the data. A mirror such as a data lake subscribes to `ADD_PROJECTION` to learn about new data sets, `ADD_CHANGE_SET` to refresh them and `DROP_PROJECTION` to retire them. A consumer that caches current data subscribes to `COMMENCE_CHANGE_SET`, so it hears about next year's rates when they take effect rather than when they are loaded. A content system can use both: an `ADD_CHANGE_SET` hook posts the new prices to the CMS as soon as they are loaded, with the change set's effective date as the publish date, and a `COMMENCE_CHANGE_SET` hook publishes the page the moment they are in force.
+#### Defining hooks
+
+Declare a hook with `ADD_HOOK`, giving it a name and one of these events:
+
+| Event | When it fires |
+| ----- | ------------- |
+| `ADD_PROJECTION` | A projection is added. |
+| `DROP_PROJECTION` | A projection is dropped. |
+| `ADD_CHANGE_SET` | A change set affecting a projection is added, regardless of its effective date. |
+| `COMMENCE_CHANGE_SET` | A projection's current change set changes. |
+
+For `ADD_CHANGE_SET` and `COMMENCE_CHANGE_SET`, set `projection` to restrict the hook to one projection, or omit it to receive notifications for every projection. `ADD_PROJECTION` and `DROP_PROJECTION` hooks always cover all projections.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -822,54 +833,110 @@ Which event to use depends on what the subscriber does with the data. A mirror s
   event: ADD_CHANGE_SET
 ```
 
-A notification is raised for a hook and a projection whenever the hook's event happens for that projection, and delivered by calling the handler your application registered for the hook's name with `filby.subscribe`. The notification says which hook fired and which projection changed; call `getChangeLog` or `getCurrentChangeSet` for the detail. Handlers are asynchronous, which Filby gets from [eventemitter2](https://www.npmjs.com/package/eventemitter2) rather than Node's EventEmitter. Subscribe before calling `startNotifications`, and give each handler its own hook, because when one of two handlers on a hook fails the retry re-notifies both.
+#### Handling notifications
+
+Register an asynchronous handler with `filby.subscribe`, using the hook's name exactly as declared. Subscribe before calling `startNotifications`. The following publishes a notification to SNS whenever the current change set for `Parks@1` changes:
 
 ```js
-filby.subscribe('sns/commence-change-set/parks-v1', async (notification, { signal }) => {
-  await fetch('https://httpbin.org/status/200', { method: 'POST', body: JSON.stringify(notification), signal });
-});
+filby.subscribe(
+  'sns/commence-change-set/parks-v1',
+  async (notification, { signal }) => {
+    await publishToSns(notification, { signal });
+  }
+);
 
 await filby.startNotifications();
 ```
 
-Filby polls the database for due notifications on `notifications.interval`, after `notifications.initialDelay`, and claims each one in a transaction that holds a row lock for the duration of the handler, so several instances may poll at once and each notification is delivered by one of them. The second handler argument carries an [AbortSignal](https://nodejs.org/api/globals.html#class-abortsignal), aborted when the handler exceeds `notifications.handlerTimeout` or when `filby.stopNotifications()` or `filby.stop()` is called. Pass it to anything that accepts one and check `signal.aborted` between steps of a longer handler. A handler that times out is treated as having failed. A promise cannot be cancelled, so a handler that ignores the signal may still complete after the failure has been recorded, and handlers must be idempotent in any case, because at-least-once delivery means a handler can complete just before its process is killed.
+Give handlers separate hooks if they need independent retries. When multiple handlers subscribe to the same hook, a failure in one causes the retry to invoke all of them, including those that already succeeded. If your handler needs change set details, call `getChangeLog` or `getCurrentChangeSet` to retrieve them.
 
-A handler that throws, or times out, fails the attempt, and the notification is retried with a delay that doubles from two seconds up to `notifications.maxRescheduleDelay`, until `notifications.maxAttempts` is reached. A hook with no subscriber fails the same way, with `No subscribers for hook 'sns/commence-change-set/parks-v1'`, so check that the event name matches the hook name exactly. Every failed attempt emits `Filby.NOTIFICATION_ERROR` with the error and the notification once the failure is recorded, and the last one also emits `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` with the same payload. Both are emitted synchronously and an error thrown by a listener is discarded, so catch errors inside the listener. The error may carry secrets from the handler, so take care what you log.
+#### Delivery and retries
+
+Filby polls for due notifications at `notifications.interval`, starting after `notifications.initialDelay`. You can run several application instances: Filby coordinates delivery through the database so that each notification is claimed by one instance per attempt.
+
+If a handler throws or times out, Filby retries the notification. The retry delay starts at two seconds and doubles up to `notifications.maxRescheduleDelay`. Attempts stop when `notifications.maxAttempts` is reached. A hook with no subscriber also fails and is retried. If you see an error such as `No subscribers for hook 'sns/commence-change-set/parks-v1'`, check that the name passed to `filby.subscribe` matches the declared hook name.
+
+Make handlers idempotent. Delivery is at least once, so a handler may receive the same notification again, for example if it completes just before its process is killed and success has not yet been recorded.
+
+#### Timeouts and shutdown
+
+The handler's second argument contains an [AbortSignal](https://nodejs.org/api/globals.html#class-abortsignal). Filby aborts it when:
+
+- The handler exceeds `notifications.handlerTimeout`.
+- Your application calls `filby.stopNotifications()` or `filby.stop()`.
+
+When a handler times out, Filby marks the attempt as failed and signals the handler to stop. If your handler ignores the signal, it may still be running when Filby retries the notification, causing both attempts to do the same work.
+
+#### Monitoring failures
+
+Subscribe to these events to monitor notification failures:
+
+| Event | When it fires |
+| ----- | ------------- |
+| `Filby.NOTIFICATION_ERROR` | After a failed delivery attempt is recorded, or when polling or a database connection fails. |
+| `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` | After the final permitted delivery attempt fails. |
+
+For delivery failures, the payload contains `error` and `notification`. The final failed attempt emits both events.
 
 ```js
-filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, ({ error, notification }) => {
-  console.error('Hook failed', notification, error.stack);
-});
+filby.subscribe(
+  Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED,
+  ({ error, notification }) => {
+    console.error('Hook attempts exhausted', notification, error.stack);
+  }
+);
 ```
 
-A poll that fails, for example because the database is briefly unavailable, emits `Filby.NOTIFICATION_ERROR` with the error and no notification, and the next poll happens at the next interval. Errors raised by the connection pool, such as the server closing an idle connection, are reported through the same event.
+Polling and connection errors have an `error` but no `notification`. A failed poll is followed by another attempt at the next polling interval.
 
 ```js
-filby.subscribe(Filby.NOTIFICATION_ERROR, ({ error }) => {
-  console.error('Notification polling failed', error.stack);
-});
+filby.subscribe(
+  Filby.NOTIFICATION_ERROR,
+  ({ error, notification }) => {
+    const message = notification
+      ? 'Notification delivery failed'
+      : 'Notification polling or connection failed';
+
+    console.error(message, notification, error.stack);
+  }
+);
 ```
 
-`filby.getNotificationStatus()` reports whether polling has started, the last successful poll and the failures since it, and how many notifications are pending, overdue and exhausted, for a health check; the fields are under [API](#api). A growing `overdue` count while polls succeed means handlers are failing. The method rejects when the database is unavailable, which is what a health check should do.
+These monitoring events are emitted synchronously. Catch errors inside their listeners; errors thrown by a listener are discarded. Handler errors may contain secrets, so sanitise them before logging where necessary.
+
+#### Health checks
+
+Use `filby.getNotificationStatus()` to check whether polling has started, when the last successful poll occurred, how many failures have occurred since then, and how many notifications are pending, overdue or exhausted. The returned fields are described under [API](#api).
+
+Investigate a growing overdue count even when polling is succeeding. Successful polling does not guarantee successful delivery.
 
 ```js
 app.get('/health', async (c) => {
-  const status = await filby.getNotificationStatus();
-  return c.json(status, status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
+  try {
+    const status = await filby.getNotificationStatus();
+    const healthy = status.started && status.failuresSinceLastSuccess === 0;
+    return c.json(status, healthy ? 200 : 503);
+  } catch {
+    return c.json({ error: 'Notification status unavailable' }, 503);
+  }
 });
 ```
 
-Notifications pause while migrations run. `filby.init()` holds an exclusive advisory lock for the duration of the migrations and each poll takes the same lock in shared mode, so no delivery starts on any instance until the migrations have finished, and a migration waits for deliveries already in flight, up to the handler timeout, so keep `handlerTimeout` short.
+#### Migrations
 
-With `notifications.listen` set, Filby also holds a dedicated connection that listens for the `NOTIFY` sent whenever a notification is scheduled, and polls at once, so `ADD_CHANGE_SET`, `ADD_PROJECTION` and `DROP_PROJECTION` are delivered without waiting for the next interval. Polling remains the safety net, because a `NOTIFY` sent while that connection is down is lost, and `COMMENCE_CHANGE_SET` is always delivered by the poll, since a change set reaching its effective date is not a database write. A dropped listening connection is reported through `Filby.NOTIFICATION_ERROR` and reconnected with a delay that doubles from one second up to a minute.
+Filby coordinates migrations and notification delivery across application instances. No new delivery starts while migrations are running, and migrations wait for deliveries already in progress, up to the handler timeout.
+
+Keep `notifications.handlerTimeout` short enough that a slow handler does not delay migrations excessively.
+
+#### Reducing notification latency
+
+Set `notifications.listen` to wake the notification poller when a notification is scheduled. Regular polling remains the safety net because database notifications sent while the listening connection is unavailable are lost. If the listening connection drops, Filby emits `Filby.NOTIFICATION_ERROR` and reconnects with an exponential backoff from one second up to a minute.
 
 ### Correcting and re-issuing data
 
 The aggregates for a change set include the frames from every change set with a lower or equal id and an earlier or equal effective date. This only works while change set ids follow effective dates, which pre-releasing or backfilling data would break. Filby keeps them in order by re-issuing change sets.
 
 When you add a change set, Filby re-issues every live change set with a later effective date. A re-issued change set has a new id, the same description, effective date and data frames as the original, and `reissuedFrom` set to the original's id. The original is superseded: `getChangeLog` and `getCurrentChangeSet` no longer return it, but `getChangeSet` and `getAggregates` still do, with their original results, so anything cached by its id stays correct. A re-issued change set schedules `ADD_CHANGE_SET` and `COMMENCE_CHANGE_SET` notifications like any other.
-
-So adding one change set can add more than one entry to the change log. Given change set 1 effective 2026-01-01 and a pre-released change set 2 effective 2027-01-01, adding change set 3 effective 2026-06-01 re-issues change set 2 as change set 4. The change log becomes 1, 3, 4, and the aggregates for change set 4 include the data from change set 3.
 
 Adding a change set with the same effective date as an existing one re-issues nothing. The new change set wins because it has the higher id, which is how data is corrected: add a change set with the same effective date and the corrected frames. The correction overrides the original from that date onwards, clients following the current change set see it at once, and the data at the original change set id is unchanged for anyone who cached it. Any pre-released change set with a later effective date is re-issued as usual.
 
@@ -889,7 +956,7 @@ Adding a change set with the same effective date as an existing one re-issues no
           Region: Yorkshire
 ```
 
-The DSL has no operation for dropping change sets or data frames, because they are meant to be immutable. Deleting a change set is the escape hatch for one that was never served, and is done in a SQL migration. The aggregates of every later change set change, so anything cached by id is wrong afterwards. The delete cascades to the change set's data frames and to their rows in the entity tables, so delete the change set rather than its frames. If you delete every data frame for an entity in a change set, the change set still appears in the change log of projections that use that entity, with correct but redundant aggregates.
+The DSL has no operation for dropping change sets or data frames, because they are meant to be immutable, but is possibly via a SQL migration. The aggregates of every later change set change, so anything cached by id is wrong afterwards. The delete cascades to the change set's data frames and to their rows in the entity tables, so delete the change set rather than its frames.
 
 ```sql
 -- migrations/0011.delete-a-change-set.sql
@@ -901,16 +968,11 @@ DELETE FROM fby_change_set
 END TRANSACTION;
 ```
 
-A superseded change set and its re-issue reference each other, so neither can be deleted on its own. Delete them in the same statement.
-
-```sql
-DELETE FROM fby_change_set
- WHERE id IN (2, 4);
-```
-
 ### Evolving the schema
 
-A change to the shape of an entity is a new version alongside the old one, and a projection over it is a new version too, so each client moves when it is ready. A reference to an entity or a projection always names the version, as `Park@2`, and `version` defaults to 1 only on `ADD_ENTITY` and `ADD_PROJECTION`, because a defaulted reference would silently write to the wrong version once version 2 exists.
+To change an entity's structure, create a new version alongside the existing one. Publish a new projection version to expose it, so existing clients can continue using the old version until they are ready to move.
+
+References to entities and projections must include a version, such as `Park@2`. The `version` property defaults to 1 when declaring an entity with `ADD_ENTITY` or a projection with `ADD_PROJECTION`, but references never default. This keeps each reference explicit as new versions are introduced.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -936,7 +998,9 @@ A change to the shape of an entity is a new version alongside the old one, and a
     - field: Name
 ```
 
-An enum grows with `ALTER_ENUM`, which adds the values after the existing ones in the order listed. A change set that uses a new value belongs in a later migration file, because Postgres cannot use a new enum value in the transaction that added it. An enum value cannot be added twice.
+#### Adding enum values
+
+Use `ALTER_ENUM` to add values to an existing enum. New values are appended after the existing ones, in the order listed. You cannot add a value that already exists.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -947,7 +1011,18 @@ An enum grows with `ALTER_ENUM`, which adds the values after the existing ones i
     - Staff
 ```
 
-What is no longer needed is dropped. `DROP_HOOK` deletes the hook and its notifications. `DROP_PROJECTION` deletes the projection, the hooks that name it and its notifications, drops its generated function, and schedules `DROP_PROJECTION` notifications. `DROP_ENTITY` deletes the entity's metadata, its table and its aggregate function, and is blocked by Postgres while a projection depends on the entity or a change set holds frames for it. `DROP_ENUM` drops the type and its values, and is blocked by Postgres while a column uses it. Each requires the object it drops to exist.
+Put any change set that uses a new enum value in a later migration file. Postgres cannot use the value within the transaction that adds it.
+
+#### Removing unused definitions
+
+Use the corresponding `DROP_*` operation when a definition is no longer needed:
+
+- `DROP_HOOK` removes a hook and its notifications.
+- `DROP_PROJECTION` removes a projection version, any hooks scoped to it and its notifications. It also raises notifications for hooks subscribed to `DROP_PROJECTION`.
+- `DROP_ENTITY` removes an entity version. You cannot remove it while a projection depends on it or a change set contains data for it.
+- `DROP_ENUM` removes an enum and its values. You cannot remove it while a field uses it.
+
+Each operation requires the object to exist. The following example shows the syntax; entity and enum removal will fail if their dependencies have not been removed.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -966,8 +1041,6 @@ What is no longer needed is dropped. `DROP_HOOK` deletes the hook and its notifi
 - operation: DROP_ENUM
   name: Customer Type
 ```
-
-Some parts of the DSL can be written in more than one way, so migrations written for earlier versions of Filby keep working unchanged; see [Equivalent forms](#equivalent-forms).
 
 ### Serving over HTTP
 
