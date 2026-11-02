@@ -5,6 +5,8 @@ DECLARE
   v_entity_id INTEGER;
   v_root_id INTEGER;
   v_type TEXT;
+  v_array BOOLEAN;
+  v_arrays BOOLEAN[] := '{}';
   v_fields TEXT[] := {{projectionColumns fields nest}};
   v_arguments TEXT;
   v_columns TEXT;
@@ -57,6 +59,22 @@ BEGIN
     RAISE EXCEPTION 'Projection ''%'' parameter ''%'' references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{literal (canonical field)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
   END IF;
 
+  SELECT COALESCE(t.typcategory = 'A', FALSE) INTO v_array
+  FROM fby_entity_field f
+  LEFT JOIN pg_type t ON t.oid = to_regtype(f.type)
+  WHERE f.entity_id = v_root_id
+    AND f.name = {{literal (canonical field)}};
+
+  IF {{literal match}} = 'contains' AND NOT v_array THEN
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal (canonical field)}};
+  END IF;
+
+  IF {{literal match}} NOT IN ('in', 'contains') AND v_array THEN
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal (canonical field)}};
+  END IF;
+
+  v_arrays := v_arrays || v_array;
+
   INSERT INTO fby_projection_parameter (projection_id, position, name, field, match) VALUES
   (v_projection_id, {{ordinal}}, {{literal name}}, {{literal (canonical field)}}, {{literal match}});
 
@@ -93,10 +111,11 @@ BEGIN
   v_arguments := 'p_change_set_id INTEGER';
   {{#each parameters}}
 
-  SELECT type INTO v_type
-  FROM fby_entity_field
-  WHERE entity_id = v_root_id
-    AND name = {{literal (canonical field)}};
+  SELECT CASE WHEN t.typcategory = 'A' THEN format_type(t.typelem, NULL) ELSE f.type END INTO v_type
+  FROM fby_entity_field f
+  LEFT JOIN pg_type t ON t.oid = to_regtype(f.type)
+  WHERE f.entity_id = v_root_id
+    AND f.name = {{literal (canonical field)}};
   {{#each (projectionArguments this)}}
 
   v_arguments := v_arguments || format(', %I %s DEFAULT NULL', {{literal name}}, v_type{{#if array}} || '[]'{{/if}});
@@ -116,7 +135,7 @@ BEGIN
     'SELECT %s FROM %I($1) a WHERE %s ORDER BY %s%s',
     v_outputs,
     {{literal (aggregate root.entity root.version)}},
-    {{literal (projectionPredicates parameters)}},
+    {{projectionPredicates parameters}},
     v_order,
     {{#if paging}}{{literal (projectionLimit parameters paging)}}{{else}}''{{/if}}
   );
