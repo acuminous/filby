@@ -2014,6 +2014,21 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject a nest whose canonical name begins with fby_', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', { 'FBY Seasons': { entity: 'season@1', on: { park_code: 'code' } } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'FBY Seasons' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject a lookup whose canonical name begins with fby_', async (t) => {
+      const lookup = { 'Fby Operator': { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'Fby Operator' uses a reserved name");
+        return true;
+      });
+    });
+
     it('should reject nests with the same canonical name', async (t) => {
       const nest = { Seasons: { entity: 'season@1', on: { park_code: 'code' } }, seasons: { entity: 'season@1', on: { park_code: 'code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest)), (err) => {
@@ -2063,6 +2078,21 @@ describe('DSL', () => {
     it('should reject a nested nest with a reserved name', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', { fby_total: { entity: 'rate@1', on: { park_code: 'park_code' } } })), (err) => {
         eq(err.message, "Projection 'Parks v1' nest 'seasons.fby_total' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest whose canonical name begins with fby_', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', { fby_rates: { entity: 'rate@1', on: { park_code: 'park_code' } } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.fby_rates' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject a nested lookup whose canonical name begins with fby_', async (t) => {
+      const lookup = { 'Fby Park': { entity: 'park@1', on: { code: 'park_code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'seasons.Fby Park' uses a reserved name");
         return true;
       });
     });
