@@ -1,6 +1,6 @@
 .DS_Store
 coverage
 node_modules
-examples/typescript/dist
+examples/holiday-park/dist
 .env
 .claude/worktrees
