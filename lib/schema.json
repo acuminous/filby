@@ -327,7 +327,7 @@
           "pattern": "@[0-9]+$"
         },
         "fields": {
-          "$ref": "#/definitions/StringListType"
+          "$ref": "#/definitions/ProjectionFieldListType"
         },
         "dependencies": {
           "type": "array",
@@ -795,7 +795,7 @@
           "fields": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/definitions/ProjectionFieldType"
             }
           },
           "order": {
@@ -837,7 +837,7 @@
             }
           },
           "fields": {
-            "$ref": "#/definitions/StringListType"
+            "$ref": "#/definitions/ProjectionFieldListType"
           }
         },
         "additionalProperties": false,
@@ -846,6 +846,32 @@
           "on"
         ]
       }
+    },
+    "ProjectionFieldListType": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/ProjectionFieldType"
+      }
+    },
+    "ProjectionFieldType": {
+      "type": [
+        "string",
+        "object"
+      ],
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "as": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "as"
+      ]
     },
     "OrderItemType": {
       "type": "object",

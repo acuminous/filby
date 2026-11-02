@@ -2371,9 +2371,9 @@ describe('DSL', () => {
       });
     });
 
-    it('should require field selections to be strings', async (t) => {
+    it('should require field selections to be names or aliases', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [1])), (err) => {
-        eq(err.message, "001.should-require-field-selections-to-be-strings.yaml: /0/nest/seasons/fields/0 must be of type 'string'");
+        eq(err.message, "001.should-require-field-selections-to-be-names-or-aliases.yaml: /0/nest/seasons/fields/0 must be of type 'string' or 'object'");
         return true;
       });
     });
@@ -2383,6 +2383,227 @@ describe('DSL', () => {
         eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'fields'");
         return true;
       });
+    });
+
+    it('should carry a root field under an alias', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'Code', as: 'Park Code' }, 'name']), ADD_PARK_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 });
+      deq(documents.map(({ seasons, ...document }) => document), [{ park_code: 'DC', name: 'Devon Cliffs' }, { park_code: 'GA', name: 'Greenacres' }, { park_code: 'PV', name: 'Primrose Valley' }]);
+      deq(Object.keys(documents[0]), ['park_code', 'name', 'seasons']);
+    });
+
+    it('should carry a nest field under an alias', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'type', as: 'Season Type' }, 'end']), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons.map(({ rates, ...season }) => season), [
+        { season_type: 'Guests', end: new Date('2019-11-15T00:00:00Z') },
+        { season_type: 'Owners', end: new Date('2019-11-30T00:00:00Z') },
+        { season_type: 'Guests', end: new Date('2019-02-28T00:00:00Z') },
+      ]);
+      deq(Object.keys(park.seasons[0]), ['season_type', 'end', 'rates']);
+    });
+
+    it('should carry a lookup field under an alias', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' }, fields: [{ field: 'name', as: 'Operator Name' }] } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 }, '2020 Operators');
+      deq(documents.map(({ code, operator }) => [code, operator]), [['DC', { operator_name: 'Haven' }], ['GA', { operator_name: 'Parkdean' }], ['PV', { operator_name: 'Haven' }]]);
+    });
+
+    it('should carry a root field listed twice under both names', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', ['code', { field: 'code', as: 'Park Code' }, 'name']), ADD_PARK_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 });
+      deq(documents.map(({ seasons, ...document }) => document), [
+        { code: 'DC', park_code: 'DC', name: 'Devon Cliffs' },
+        { code: 'GA', park_code: 'GA', name: 'Greenacres' },
+        { code: 'PV', park_code: 'PV', name: 'Primrose Valley' },
+      ]);
+    });
+
+    it('should carry a nest field listed twice under both names', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', ['type', { field: 'type', as: 'Season Type' }]), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons.map(({ rates, ...season }) => season), [{ type: 'Guests', season_type: 'Guests' }, { type: 'Owners', season_type: 'Owners' }, { type: 'Guests', season_type: 'Guests' }]);
+    });
+
+    it('should join on root fields carried under an alias', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' }, fields: ['name'] } };
+      const projection = transform(transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'code', as: 'Park Code' }, 'name', { field: 'operator_code', as: 'Operator Ref' }])).set('0.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, projection, ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents } = await getDocuments({ pageSize: 3 }, '2020 Operators');
+      deq(documents.map(({ park_code, operator_ref, operator, seasons }) => [park_code, operator_ref, operator, seasons.map(({ rates }) => rates.length)]), [['DC', 'HAV', { name: 'Haven' }, [2, 0, 2]], ['GA', 'PKD', { name: 'Parkdean' }, []], ['PV', 'HAV', { name: 'Haven' }, [1]]]);
+      deq(Object.keys(documents[0]), ['park_code', 'name', 'operator_ref', 'seasons', 'operator']);
+    });
+
+    it('should join on a nest field carried under an alias', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'type', as: 'Season Type' }]), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons, [
+        { season_type: 'Guests', rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+        { season_type: 'Owners', rates: [] },
+        { season_type: 'Guests', rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+      ]);
+    });
+
+    it('should filter and order by a root field carried under an alias', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'code', as: 'Park Code' }])).set('0.order', [{ field: 'code', direction: 'DESC' }]), ADD_PARK_CHANGE_SET);
+
+      const unfiltered = await getDocuments({ pageSize: 3 });
+      deq(unfiltered.documents.map(({ park_code }) => park_code), ['PV', 'GA', 'DC']);
+
+      const { documents, total } = await getDocuments({ parameters: { code: 'DC' } });
+      eq(total, 1);
+      deq(documents.map(({ park_code, seasons }) => [park_code, seasons.length]), [['DC', 3]]);
+    });
+
+    it('should order a nest by a field carried under an alias', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'start', as: 'From' }])).set('0.nest.seasons.order', [{ field: 'start' }]), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons.map(({ from }) => from), [new Date('2019-02-01T00:00:00Z'), new Date('2019-03-01T00:00:00Z'), new Date('2019-03-15T00:00:00Z')]);
+    });
+
+    it('should reject a root property carried more than once', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', ['code', { field: 'name', as: 'Code' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' carries more than one property named 'code'");
+        return true;
+      });
+    });
+
+    it('should reject a nest field listed twice under the same name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', ['type', 'Type'])), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' carries more than one property named 'type'");
+        return true;
+      });
+    });
+
+    it('should reject a root alias with the same name as a nest', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'name', as: 'Seasons' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' carries more than one property named 'seasons'");
+        return true;
+      });
+    });
+
+    it('should reject a nest alias with the same name as a nested nest', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'type', as: 'rates' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' carries more than one property named 'rates'");
+        return true;
+      });
+    });
+
+    it('should reject a nest alias with the same name as a lookup', async (t) => {
+      const seasons = { entity: 'season@1', on: { park_code: 'code' }, fields: [{ field: 'type', as: 'park' }], lookup: { park: { entity: 'park@1', on: { code: 'park_code' } } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons', seasons)), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' carries more than one property named 'park'");
+        return true;
+      });
+    });
+
+    it('should reject a lookup property carried more than once', async (t) => {
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code', { field: 'name', as: 'code' }] } };
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'seasons.park' carries more than one property named 'code'");
+        return true;
+      });
+    });
+
+    it('should reject an alias with a reserved prefix', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'code', as: 'fby_total' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' property 'fby_total' uses a reserved name");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'type', as: 'FBY Type' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' property 'fby_type' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject a root alias with the same name as a root field a nest joins on', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'name', as: 'code' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' property 'code' has the same name as the field 'code' that nest 'seasons' joins on");
+        return true;
+      });
+    });
+
+    it('should reject an alias of a field the entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'wombat', as: 'Wombat Code' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' selects a non existent field 'wombat' of entity 'park v1'; existing fields are 'code', 'name'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'wombat', as: 'Wombat Type' }])), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' selects a non existent field 'wombat' of entity 'season v1'; existing fields are 'park_code', 'type', 'start', 'end'");
+        return true;
+      });
+    });
+
+    it('should require an alias to name a field and a property', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'code' }])), (err) => {
+        eq(err.message, "001.should-require-an-alias-to-name-a-field-and-a-property.yaml: /0/fields/0 must have required property 'as'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.lookup', { park: { entity: 'park@1', on: { code: 'code' }, fields: [{ as: 'code' }] } })), (err) => {
+        eq(err.message, "001.should-require-an-alias-to-name-a-field-and-a-property.yaml: /0/lookup/park/fields/0 must have required property 'field'");
+        return true;
+      });
+    });
+
+    it('should forbid additional properties in an alias', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'type', as: 'kind', wombat: 1 }])), (err) => {
+        eq(err.message, "001.should-forbid-additional-properties-in-an-alias.yaml: /0/nest/seasons/fields/0 must NOT have additional property 'wombat'");
+        return true;
+      });
+    });
+
+    it('should describe aliased fields in the OpenAPI document', async (t) => {
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name', { field: 'code', as: 'Park Code' }])).set('0.nest.seasons.fields', [{ field: 'type', as: 'Season Type' }, 'start'])).set('0.nest.seasons.nest.rates.fields', [{ field: 'season_type', as: 'Season' }, 'band', { field: 'band', as: 'Rate Band' }]);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection, ADD_PARK_CHANGE_SET);
+
+      const { paths } = await (await filby.fetch(new Request('http://localhost/openapi.json'))).json();
+      deq(paths['/projections/Parks/v1'].get.responses['200'].content['application/json'].schema.items, {
+        type: 'object',
+        properties: {
+          name: { type: ['string', 'null'] },
+          park_code: { type: 'string' },
+          seasons: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                season_type: { type: 'string' },
+                start: { type: 'string', format: 'date-time' },
+                rates: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: { season: { type: 'string' }, band: { type: 'string' }, rate_band: { type: 'string' } },
+                    required: ['season', 'band', 'rate_band'],
+                    additionalProperties: false,
+                  },
+                  'x-filby-on': { park_code: 'park_code', season: 'season_type' },
+                },
+              },
+              required: ['season_type', 'start', 'rates'],
+              additionalProperties: false,
+            },
+            'x-filby-on': { park_code: 'park_code' },
+          },
+        },
+        required: ['park_code', 'seasons'],
+        additionalProperties: false,
+      });
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons[0], { season_type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), rates: [{ season: 'Guests', band: 'A', rate_band: 'A' }, { season: 'Guests', band: 'B', rate_band: 'B' }] });
     });
 
     function setRates(rates) {

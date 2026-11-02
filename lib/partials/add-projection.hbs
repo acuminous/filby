@@ -7,7 +7,7 @@ DECLARE
   v_type TEXT;
   v_array BOOLEAN;
   v_arrays BOOLEAN[] := '{}';
-  v_fields TEXT[] := {{projectionColumns fields nest}};
+  v_selection JSONB := {{literal columns}};
   v_arguments TEXT;
   v_columns TEXT;
   v_outputs TEXT;
@@ -45,7 +45,8 @@ BEGIN
 
   UPDATE fby_projection
   SET root_entity_id = v_root_id,
-      fields = {{fieldArray fields}},
+      fields = {{fieldArray fields 'field'}},
+      aliases = {{fieldArray fields 'as'}},
       page_size = {{literal paging.page_size}},
       page_max = {{literal paging.page_max}}
   WHERE id = v_projection_id;
@@ -89,18 +90,19 @@ BEGIN
 
   {{/each}}
   {{#each fields}}
-  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical this)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal (canonical this)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal field}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal field}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
   END IF;
 
   {{/each}}
   SELECT
-    string_agg(format('%I %s', name, type), ', ' ORDER BY array_position(v_fields, name), position),
-    string_agg(format('a.%I', name), ', ' ORDER BY array_position(v_fields, name), position)
+    string_agg(format('%I %s', COALESCE(s.item->>'as', f.name), f.type), ', ' ORDER BY s.ordinality, f.position),
+    string_agg(format('a.%I', f.name), ', ' ORDER BY s.ordinality, f.position)
   INTO v_columns, v_outputs
-  FROM fby_entity_field
-  WHERE entity_id = v_root_id
-    AND (v_fields IS NULL OR name = ANY (v_fields));
+  FROM fby_entity_field f
+  LEFT JOIN jsonb_array_elements(v_selection) WITH ORDINALITY s(item, ordinality) ON s.item->>'field' = f.name
+  WHERE f.entity_id = v_root_id
+    AND (v_selection IS NULL OR s.item IS NOT NULL);
 
   SELECT {{#if order}}{{literal (projectionOrder order)}} || ', ' || {{/if}}string_agg(format('a.%I ASC', name), ', ' ORDER BY position)
   INTO v_order
