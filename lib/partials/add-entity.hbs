@@ -54,6 +54,7 @@ BEGIN
   EXECUTE $table$CREATE TABLE {{identifier (table name version)}} (
     fby_frame_id INTEGER PRIMARY KEY,
     fby_change_set_id INTEGER NOT NULL,
+    fby_action fby_action_type NOT NULL,
     $table$ || v_columns || $table$,
     {{frameReference this}},
     {{unique this}}{{#if checks}},{{/if}}
