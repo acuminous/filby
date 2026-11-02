@@ -25,8 +25,8 @@
     WHERE name = {{literal entity}}
       AND version = {{literal version}};
 
-    INSERT INTO fby_projection_nest (projection_id, parent_nest_id, position, name, entity_id, lookup, fields) VALUES
-    (v_projection_id, v_parent_nest_id, {{ordinal}}, {{literal (canonical name)}}, v_nest_entity_id, {{#if lookup}}TRUE{{else}}FALSE{{/if}}, {{literal fields}})
+    INSERT INTO fby_projection_nest (projection_id, parent_nest_id, position, name, entity_id, lookup, fields, aliases) VALUES
+    (v_projection_id, v_parent_nest_id, {{ordinal}}, {{literal (canonical name)}}, v_nest_entity_id, {{#if lookup}}TRUE{{else}}FALSE{{/if}}, {{fieldArray fields 'field'}}, {{fieldArray fields 'as'}})
     RETURNING id INTO v_nest_id;
 
     {{#each on}}

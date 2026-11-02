@@ -43,7 +43,8 @@ BEGIN
 
   UPDATE fby_projection
   SET root_entity_id = v_root_id,
-      fields = {{literal fields}},
+      fields = {{fieldArray fields 'field'}},
+      aliases = {{fieldArray fields 'as'}},
       page_size = {{literal paging.page_size}},
       page_max = {{literal paging.page_max}}
   WHERE id = v_projection_id;
