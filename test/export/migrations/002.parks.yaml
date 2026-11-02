@@ -1,0 +1,75 @@
+- operation: ADD_CHANGE_SET
+  description: 2020 Parks
+  effective: 2020-01-01T00:00:00.000Z
+  changes:
+    - entity: operator@1
+      action: SET
+      data:
+        - code: HV
+          name: Haven
+    - entity: park@1
+      action: SET
+      data:
+        - code: DC
+          name: Devon Cliffs
+          berths: 100
+          price: 99.50
+          status: OPEN
+          opened: 2001-05-01T00:00:00Z
+          operator_code: HV
+        - code: PV
+          name: Primrose Valley
+          berths: 250
+          price: 120.00
+          status: OPEN
+          opened: 1999-03-01T00:00:00Z
+          operator_code: HV
+        - code: GA
+          name: Greenacres
+          berths: 9
+          price: 1000.00
+          status: CLOSED
+          opened: null
+          operator_code: null
+    - entity: season@1
+      action: SET
+      data:
+        - park_code: DC
+          type: Owners
+          start: 2020-03-01T00:00:00Z
+        - park_code: DC
+          type: Guests
+          start: 2020-03-15T00:00:00Z
+        - park_code: PV
+          type: Guests
+          start: 2020-03-15T00:00:00Z
+
+- operation: ADD_CHANGE_SET
+  description: 2021 Parks
+  effective: 2021-01-01T00:00:00.000Z
+  changes:
+    - entity: park@1
+      action: SET
+      data:
+        - code: PV
+          name: Primrose Valley Holiday Park
+          berths: 260
+          price: 125.00
+          status: OPEN
+          opened: 1999-03-01T00:00:00Z
+          operator_code: HV
+
+- operation: ADD_CHANGE_SET
+  description: 2099 Parks
+  effective: 2099-01-01T00:00:00.000Z
+  changes:
+    - entity: park@1
+      action: SET
+      data:
+        - code: BB
+          name: Burnham Beach
+          berths: 50
+          price: 80.00
+          status: OPEN
+          opened: 2098-06-01T00:00:00Z
+          operator_code: HV

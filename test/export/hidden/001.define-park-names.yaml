@@ -1,0 +1,16 @@
+- operation: ADD_ENTITY
+  name: park
+  fields:
+    code: TEXT
+    name: TEXT
+  key:
+    - code
+
+- operation: ADD_PROJECTION
+  name: Park Names
+  root: park@1
+  fields:
+    - name
+  parameters:
+    code:
+      field: code

@@ -1148,6 +1148,95 @@ Set `options.info` to customise the document's title, version and description. T
 
 See [OpenAPI document](#openapi-document) for details of the generated contents.
 
+### Distributing projections as modules
+
+An application can depend on a projection as an npm module instead of calling the API. The module holds every change set and the documents at each, so it does not go stale. An application deployed in November already holds a change set that takes effect in January. It switches to that change set at midnight without a redeploy.
+
+The reference data repository's CI builds and publishes the modules. Each run applies the migrations to an empty database. It then exports a [bundle](#projection-bundle) for each projection, packs it and publishes it. No running service is involved.
+
+The package version comes from the data, so a push that changes one projection publishes one module. A consumer's lockfile records exactly which reference data a deployment was built with.
+
+Change set ids are assigned in migration order. CI gets the same ids as production, provided both apply the same migrations.
+
+This GitHub Actions workflow publishes two projections with [trusted publishing](https://docs.npmjs.com/trusted-publishers). It skips a package whose version is already on the registry, so it is safe to run on every push.
+
+```yaml
+name: Publish projections
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    services:
+      postgres:
+        image: postgres:16-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: filby
+          POSTGRES_PASSWORD: filby
+          POSTGRES_DB: filby
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - name: Publish
+        run: |
+          publish() {
+            npx filby export --config filby.json --projection "$1" --out "dist/$2.json"
+            package=$(npx filby pack --bundle "dist/$2.json" --name "@example/$2" --out "dist/$2")
+            if npm view "$package" version > /dev/null 2>&1; then
+              echo "$package is already published"
+            else
+              npm publish "dist/$2" --access public
+            fi
+          }
+          publish 'Parks@1' parks-v1
+          publish 'VAT Rates@1' vat-rates-v1
+```
+
+`filby.json` points Filby at the service container and the repository's migrations:
+
+```json
+{
+  "database": {
+    "host": "localhost",
+    "user": "filby",
+    "password": "filby",
+    "database": "filby"
+  },
+  "migrations": ["migrations"]
+}
+```
+
+The application then reads the projection without a database or a network call:
+
+```js
+const parks = require('@example/parks-v1');
+
+const current = parks.getCurrentDocuments({ code: 'DC' });
+
+const changeSet = parks.asOf(new Date('2027-01-01T00:00:00Z'));
+const nextYear = parks.getDocuments(changeSet.id, { code: 'DC' });
+```
+
+The module is CommonJS. It ships TypeScript declarations, so its documents are typed.
+
+See [Export a projection](#export-a-projection), [Pack a module](#pack-a-module) and [Projection bundle](#projection-bundle) for the details.
+
 ## Reference
 
 ### Configuration
@@ -1640,9 +1729,11 @@ Array fields use the corresponding element schema. Nullable fields also allow `n
 
 ### Command line
 
-Use Filby's command line tool to validate migration files or preview their SQL without applying them to a database. Both commands accept one or more directories. If you omit the directories, they use `migrations`. SQL migration files are not validated.
+Use Filby's command line tool to check migrations and to package projections as modules.
 
-Neither command validates SQL migrations.
+`validate` and `preview` work without a database. They accept one or more directories. If you omit the directories, they use `migrations`. Neither command validates SQL migration files.
+
+`export` and `pack` turn a projection into an npm module. See [Distributing projections as modules](#distributing-projections-as-modules).
 
 #### Validate migrations
 
@@ -1672,6 +1763,107 @@ It performs the same checks as `validate`, then writes the SQL to stdout:
 Use the output to inspect a change before applying it or to review a SQL diff.
 
 If any migration fails validation, the command reports the errors to stderr, writes no SQL and exits with code 1.
+
+#### Export a projection
+
+Use `export` to write a projection's [bundle](#projection-bundle):
+
+```bash
+TZ=UTC npx filby export --config filby.json --projection 'Parks@1' --out parks-v1.json
+```
+
+- `--config` names a JSON file holding a Filby [configuration](#configuration).
+- `--projection` names the projection as `<name>@<version>`.
+- `--out` names the bundle file to write.
+
+The command applies the migrations to the configured database, as `filby.init()` does. Use a database it may migrate, such as a service container in CI. The command never starts notifications.
+
+The bundle holds every change set in the projection's change log and every document at each one. Run the command with `TZ=UTC`, for the reason given under [Configuration](#configuration).
+
+The command reports the problem to stderr and exits with code 1 if:
+
+- An option is missing.
+- The config cannot be read.
+- The projection does not exist.
+- The projection is declared with `dependencies` instead of a root.
+- A parameter filters on a field the documents do not carry.
+
+#### Pack a module
+
+Use `pack` to turn a bundle into an npm package directory:
+
+```bash
+npx filby pack --bundle parks-v1.json --name @example/parks-v1 --out dist/parks-v1
+```
+
+The command reads only the bundle. It does not need a database. It writes:
+
+- `package.json`, with the given name.
+- `bundle.json`, a copy of the bundle.
+- `index.js` and `runtime.js`, a CommonJS runtime with no dependencies.
+- `index.d.ts`, TypeScript declarations generated from the bundle's document schema.
+
+The package version is `<projection version>.<latest change set id>.0`. A change to the projection's shape needs a new projection version, so it is a major release. New data adds a change set, so it is a minor release. The command writes `<name>@<version>` to stdout.
+
+The command reports the problem to stderr and exits with code 1 if an option is missing, the bundle cannot be read, the bundle's `format` is not supported or the bundle does not match its format.
+
+### Projection bundle
+
+A bundle is a JSON document holding one projection's change sets and the documents at each. Any tool can read it, so packages for other languages can be built from the same export.
+
+The bundle format has its own version, independent of Filby's. This section describes format 1. Its JSON Schema is published at https://acuminous.github.io/filby/lib/bundle-schema.json.
+
+| Key | Contents |
+| --- | -------- |
+| `format` | The bundle format version, `1`. |
+| `filby` | The version of Filby that wrote the bundle. |
+| `name` | The projection's name. |
+| `version` | The projection's version. |
+| `description` | The projection's description, or `null`. |
+| `parameters` | The declared parameters, in order. Each has a `name`, the root `field` it filters, its `match` operator and the field's PostgreSQL `type`. |
+| `schema` | The JSON Schema of one document, as the [OpenAPI document](#openapi-document) describes it. Nests and lookups are nested schemas. |
+| `changeSets` | The change log, as `getChangeLog` returns it. |
+| `documents` | An object keyed by change set id. Each value is the array of documents at that change set, as `GET /projections/<name>/v<n>` serves them. |
+
+Values follow [JSON types](#json-types). Dates and timestamps are ISO 8601 strings. The schema marks them with `"format": "date-time"`, so a runtime can turn them back into dates.
+
+#### Resolving a change set
+
+The change set in force at an instant has the latest `effective` that is not after the instant. When two change sets share that `effective`, the one with the highest `id` wins. Filby uses the same rule for the current change set.
+
+#### Filtering documents
+
+A parameter's `name` is the name `getDocuments` accepts. A `range` parameter named `berths` is supplied as `berths_from` and `berths_to`.
+
+| Match | A document matches when its field |
+| ----- | --------------------------------- |
+| `equals` | Equals the value. |
+| `prefix` | Starts with the value. The comparison is case sensitive and has no wildcards. |
+| `in` | Equals any value in the array. An empty array matches nothing. |
+| `range` | Is at least `_from` and at most `_to`. Either bound may be omitted. |
+| `gt`, `gte`, `lt`, `lte` | Is greater than, at least, less than or at most the value. |
+
+An omitted or `null` parameter does not filter. A document whose field is `null` never matches a supplied parameter. Parameters combine with AND. They filter root documents only, and each document keeps its nests and lookups unchanged.
+
+Compare dates as instants. Compare `BIGINT`, `NUMERIC` and `DECIMAL` values as numbers, although they are strings in the bundle.
+
+#### Generated module
+
+A module built by `filby pack` exports:
+
+| Export | Description |
+| ------ | ----------- |
+| `name`, `version`, `description` | The projection's name, version and description. |
+| `changeSets` | The change sets, with `effective` and `lastModified` as `Date` objects. |
+| `asOf(instant)` | The change set in force at the instant, or `undefined` if there is none. |
+| `getDocuments(changeSetId, parameters)` | The documents at the change set that match the parameters. |
+| `getCurrentDocuments(parameters, instant)` | The documents at the change set in force at the instant, which defaults to now. |
+
+Date and timestamp values are `Date` objects at every level of a document. Each call returns new objects, so changing a document does not affect later calls. There is no paging.
+
+`getDocuments` throws for an unknown change set or parameter. `getCurrentDocuments` throws if no change set is in force.
+
+The module compares text by UTF-16 code unit. PostgreSQL compares text using the database collation. A `range`, `gt`, `gte`, `lt` or `lte` parameter on a text field can therefore match differently for mixed-case or non-ASCII values.
 
 ### Database objects
 
