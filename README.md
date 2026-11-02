@@ -704,6 +704,30 @@ Here, each park amenity link contributes only its `amenity` lookup:
 
 Parameters and sorting can still use fields that are omitted from the output.
 
+An entry in `fields` can also be a map with `field` and `as`. It carries the field under the name given by `as`. The alias belongs to this projection only. The entity, its data and its CSV files keep the original name. A field may be listed more than once to carry it under several names:
+
+```yaml
+- operation: ADD_PROJECTION
+  name: Parks (Detailed)
+  version: 2
+  root: Park@1
+  fields:
+    - Code
+    - field: Code
+      as: Park Code
+    - Name
+```
+
+```json
+{
+  "code": "DC",
+  "park_code": "DC",
+  "name": "Devon Cliffs"
+}
+```
+
+Parameters, `order` and `on` still use the entity's field names, not the aliases. Each property of a document must have a different name. An alias must not repeat another property or a nest or lookup name at the same level. It must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
+
 ##### Names and dependencies
 
 A nest or lookup name must not duplicate a field of its parent entity, or another nest or lookup name at the same level. Names beginning with `fby_` are reserved for Filby.
@@ -971,6 +995,8 @@ END TRANSACTION;
 ### Evolving the schema
 
 To change an entity's structure, create a new version alongside the existing one. Publish a new projection version to expose it, so existing clients can continue using the old version until they are ready to move.
+
+To rename a field without a new entity version, publish a new projection version that carries the field under an alias. See [Selecting fields](#selecting-fields).
 
 References to entities and projections must include a version, such as `Park@2`. The `version` property defaults to 1 when declaring an entity with `ADD_ENTITY` or a projection with `ADD_PROJECTION`, but references never default. This keeps each reference explicit as new versions are introduced.
 
@@ -1248,7 +1274,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `description` | string | no | | Served by `GET /projections` and the OpenAPI document |
 | `root` | `Entity@n` | one of `root`, `dependencies` | | Must name the version with `@n` |
 | `dependencies` | list of `{ entity, version }`, at least one | one of `root`, `dependencies` | | For a projection whose function you write |
-| `fields` | list of field names, at least one | no | every field | Root only |
+| `fields` | list of field names or `{ field, as }`, at least one | no | every field | Root only |
 | `parameters` | map of name to `{ field, match }`, at least one | no | | Root only; `match` defaults to `equals` |
 | `order` | list of `{ field, direction, nulls }`, at least one | no | the key | Root only; `direction` `ASC` or `DESC`, default `ASC`; `nulls` `FIRST` or `LAST` |
 | `paging` | `{ page_size, page_max }`, both integers of at least 1 | no | | Root only; both required |
@@ -1263,12 +1289,12 @@ A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `f
 | --- | ---- | -------- | ----- |
 | `entity` | `Entity@n` | yes | Must name the version with `@n` |
 | `on` | map of child field to parent field, at least one | yes | A lookup's `on` must cover the whole key of its entity |
-| `fields` | list of field names | no | May be empty on a nest |
+| `fields` | list of field names or `{ field, as }` | no | May be empty on a nest |
 | `order` | list of `{ field, direction, nulls }`, at least one | no | The child's key is appended |
 | `nest` | map of name to nest | no | To any depth |
 | `lookup` | map of name to lookup | no | |
 
-A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, and may not be used twice at one level. A lookup must join on the whole key of its entity.
+A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
 #### DROP_PROJECTION
 
