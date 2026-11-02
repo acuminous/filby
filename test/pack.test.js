@@ -58,9 +58,9 @@ describe('Pack', () => {
     eq(parks.asOf(new Date('2020-06-01T00:00:00Z')).id, 3);
     eq(parks.asOf(new Date('2099-06-01T00:00:00Z')).id, 7);
     eq(parks.asOf(new Date('2019-06-01T00:00:00Z')), undefined);
-    deq(parks.getCurrentDocuments({}, '2020-06-01T00:00:00Z').map(({ code }) => code), ['DC', 'GA']);
+    deq(parks.getCurrentDocuments('2020-06-01T00:00:00Z').map(({ code }) => code), ['DC', 'GA']);
     deq(parks.getCurrentDocuments().map(({ code }) => code), ['DC']);
-    ok(parks.getDocuments(3, { code: 'DC' })[0].opened instanceof Date);
+    ok(parks.getDocuments(3)[0].opened instanceof Date);
   });
 
   it('generates type declarations that compile and type documents', async () => {
@@ -71,7 +71,7 @@ describe('Pack', () => {
     }));
     fs.writeFileSync(path.join(consumer, 'consumer.ts'), [
       "import { asOf, getDocuments, getCurrentDocuments, changeSets, name, ProjectionDocument } from '@example/parks-v1';",
-      "const documents: ProjectionDocument[] = getDocuments(3, { code: 'DC', codes: ['DC'], name: 'D', price_from: '10', price_to: 200, opened_after: new Date(), status: 'OPEN' });",
+      'const documents: ProjectionDocument[] = getDocuments(3);',
       'const opened: Date | null = documents[0].opened;',
       'const start: Date = documents[0].seasons[0].start;',
       'const operator: string | undefined = documents[0].operator?.name;',
@@ -82,10 +82,8 @@ describe('Pack', () => {
       '// @ts-expect-error',
       'documents[0].wombat;',
       '// @ts-expect-error',
-      'getDocuments(3, { wombat: 1 });',
-      '// @ts-expect-error',
-      "getDocuments(3, { codes: 'DC' });",
-      "getCurrentDocuments({}, '2020-06-01');",
+      "getDocuments('3');",
+      "getCurrentDocuments('2020-06-01');",
       'export { opened, start, operator, status, facts, effective, projection, changeSets };',
       '',
     ].join('\n'));
@@ -142,27 +140,6 @@ describe('Pack', () => {
       eq(parks.asOf(Date.parse('2021-01-01T00:00:00.000Z')).id, 5);
     });
 
-    it('filters by every declared parameter', () => {
-      const parks = runtime(loadBundle());
-      const codes = (parameters) => parks.getDocuments(3, parameters).map(({ code }) => code);
-
-      deq(codes({ code: 'GA' }), ['GA']);
-      deq(codes({ code: null }), ['DC', 'GA']);
-      deq(codes({ codes: ['GA', 'XX'] }), ['GA']);
-      deq(codes({ codes: [] }), []);
-      deq(codes({ name: 'Dev' }), ['DC']);
-      deq(codes({ name: 'dev' }), []);
-      deq(codes({ price_from: '100' }), ['GA']);
-      deq(codes({ price_to: 99.5 }), ['DC']);
-      deq(codes({ opened_after: new Date('2000-01-01T00:00:00Z') }), ['DC']);
-      deq(codes({ status: 'OPEN' }), ['DC']);
-    });
-
-    it('rejects an unknown parameter', () => {
-      const parks = runtime(loadBundle());
-      throws(() => parks.getDocuments(3, { wombat: 1 }), { message: "Projection 'Parks v1' has no parameter 'wombat'; existing parameters are 'code', 'codes', 'name', 'price_from', 'price_to', 'opened_after', 'status'" });
-    });
-
     it('rejects an unknown change set', () => {
       const parks = runtime(loadBundle());
       throws(() => parks.getDocuments(4), { message: 'Change set 4 does not exist' });
@@ -175,7 +152,7 @@ describe('Pack', () => {
 
     it('rejects current documents when no change set is in force', () => {
       const parks = runtime(loadBundle());
-      throws(() => parks.getCurrentDocuments({}, new Date('2019-01-01T00:00:00Z')), { message: "Projection 'Parks v1' has no change set in force at 2019-01-01T00:00:00.000Z" });
+      throws(() => parks.getCurrentDocuments(new Date('2019-01-01T00:00:00Z')), { message: "Projection 'Parks v1' has no change set in force at 2019-01-01T00:00:00.000Z" });
     });
 
     it('returns documents that callers may change without affecting later reads', () => {

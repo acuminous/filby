@@ -22,41 +22,14 @@
     "description": {
       "type": ["string", "null"]
     },
-    "parameters": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "field": {
-            "type": "string",
-            "minLength": 1
-          },
-          "match": {
-            "enum": ["equals", "prefix", "in", "range", "gt", "gte", "lt", "lte"]
-          },
-          "type": {
-            "type": "string"
-          }
-        },
-        "required": ["name", "field", "match", "type"],
-        "additionalProperties": false
-      }
-    },
     "schema": {
       "type": "object",
       "properties": {
         "type": {
           "const": "object"
-        },
-        "properties": {
-          "type": "object"
         }
       },
-      "required": ["type", "properties"]
+      "required": ["type"]
     },
     "changeSets": {
       "type": "array",
@@ -102,6 +75,6 @@
       }
     }
   },
-  "required": ["format", "filby", "name", "version", "description", "parameters", "schema", "changeSets", "documents"],
+  "required": ["format", "filby", "name", "version", "description", "schema", "changeSets", "documents"],
   "additionalProperties": false
 }

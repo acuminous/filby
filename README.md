@@ -1227,10 +1227,10 @@ The application then reads the projection without a database or a network call:
 ```js
 const parks = require('@example/parks-v1');
 
-const current = parks.getCurrentDocuments({ code: 'DC' });
+const devonCliffs = parks.getCurrentDocuments().find(({ code }) => code === 'DC');
 
 const changeSet = parks.asOf(new Date('2027-01-01T00:00:00Z'));
-const nextYear = parks.getDocuments(changeSet.id, { code: 'DC' });
+const nextYear = parks.getDocuments(changeSet.id);
 ```
 
 The module is CommonJS. It ships TypeScript declarations, so its documents are typed.
@@ -1778,15 +1778,13 @@ TZ=UTC npx filby export --config filby.json --projection 'Parks@1' --out parks-v
 
 The command applies the migrations to the configured database, as `filby.init()` does. Use a database it may migrate, such as a service container in CI. The command never starts notifications.
 
-The bundle holds every change set in the projection's change log and every document at each one. Run the command with `TZ=UTC`, for the reason given under [Configuration](#configuration).
+The bundle holds every change set in the projection's change log and every document at each one. Projections declared with `dependencies` export like any other. Run the command with `TZ=UTC`, for the reason given under [Configuration](#configuration).
 
 The command reports the problem to stderr and exits with code 1 if:
 
 - An option is missing.
 - The config cannot be read.
 - The projection does not exist.
-- The projection is declared with `dependencies` instead of a root.
-- A parameter filters on a field the documents do not carry.
 
 #### Pack a module
 
@@ -1820,32 +1818,15 @@ The bundle format has its own version, independent of Filby's. This section desc
 | `name` | The projection's name. |
 | `version` | The projection's version. |
 | `description` | The projection's description, or `null`. |
-| `parameters` | The declared parameters, in order. Each has a `name`, the root `field` it filters, its `match` operator and the field's PostgreSQL `type`. |
-| `schema` | The JSON Schema of one document, as the [OpenAPI document](#openapi-document) describes it. Nests and lookups are nested schemas. |
+| `schema` | The JSON Schema of one document, as the [OpenAPI document](#openapi-document) describes it. Nests and lookups are nested schemas. A projection declared with `dependencies` has an unconstrained schema. |
 | `changeSets` | The change log, as `getChangeLog` returns it. |
-| `documents` | An object keyed by change set id. Each value is the array of documents at that change set, as `GET /projections/<name>/v<n>` serves them. |
+| `documents` | An object keyed by change set id. Each value is the array of every document at that change set, as `GET /projections/<name>/v<n>` serves them with no parameters. |
 
 Values follow [JSON types](#json-types). Dates and timestamps are ISO 8601 strings. The schema marks them with `"format": "date-time"`, so a runtime can turn them back into dates.
 
 #### Resolving a change set
 
 The change set in force at an instant has the latest `effective` that is not after the instant. When two change sets share that `effective`, the one with the highest `id` wins. Filby uses the same rule for the current change set.
-
-#### Filtering documents
-
-A parameter's `name` is the name `getDocuments` accepts. A `range` parameter named `berths` is supplied as `berths_from` and `berths_to`.
-
-| Match | A document matches when its field |
-| ----- | --------------------------------- |
-| `equals` | Equals the value. |
-| `prefix` | Starts with the value. The comparison is case sensitive and has no wildcards. |
-| `in` | Equals any value in the array. An empty array matches nothing. |
-| `range` | Is at least `_from` and at most `_to`. Either bound may be omitted. |
-| `gt`, `gte`, `lt`, `lte` | Is greater than, at least, less than or at most the value. |
-
-An omitted or `null` parameter does not filter. A document whose field is `null` never matches a supplied parameter. Parameters combine with AND. They filter root documents only, and each document keeps its nests and lookups unchanged.
-
-Compare dates as instants. Compare `BIGINT`, `NUMERIC` and `DECIMAL` values as numbers, although they are strings in the bundle.
 
 #### Generated module
 
@@ -1856,14 +1837,14 @@ A module built by `filby pack` exports:
 | `name`, `version`, `description` | The projection's name, version and description. |
 | `changeSets` | The change sets, with `effective` and `lastModified` as `Date` objects. |
 | `asOf(instant)` | The change set in force at the instant, or `undefined` if there is none. |
-| `getDocuments(changeSetId, parameters)` | The documents at the change set that match the parameters. |
-| `getCurrentDocuments(parameters, instant)` | The documents at the change set in force at the instant, which defaults to now. |
+| `getDocuments(changeSetId)` | Every document at the change set. |
+| `getCurrentDocuments(instant)` | Every document at the change set in force at the instant, which defaults to now. |
 
-Date and timestamp values are `Date` objects at every level of a document. Each call returns new objects, so changing a document does not affect later calls. There is no paging.
+Date and timestamp values are `Date` objects at every level of a document. Each call returns new objects, so changing a document does not affect later calls.
 
-`getDocuments` throws for an unknown change set or parameter. `getCurrentDocuments` throws if no change set is in force.
+The module does no filtering and no paging. Filter and page the documents in your application.
 
-The module compares text by UTF-16 code unit. PostgreSQL compares text using the database collation. A `range`, `gt`, `gte`, `lt` or `lte` parameter on a text field can therefore match differently for mixed-case or non-ASCII values.
+`getDocuments` throws for an unknown change set. `getCurrentDocuments` throws if no change set is in force.
 
 ### Database objects
 

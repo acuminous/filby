@@ -57,23 +57,6 @@ describe('Export', () => {
     eq(bundle.changeSets[0].effective, '2020-01-01T00:00:00.000Z');
   });
 
-  it('describes the declared parameters with their field, match and type', async () => {
-    const bundle = await exportWithCli('Parks@1');
-
-    deq(bundle.parameters, [
-      { name: 'code', field: 'code', match: 'equals', type: 'TEXT' },
-      { name: 'name', field: 'name', match: 'prefix', type: 'TEXT' },
-      { name: 'codes', field: 'code', match: 'in', type: 'TEXT' },
-      { name: 'berths', field: 'berths', match: 'range', type: 'INTEGER' },
-      { name: 'price', field: 'price', match: 'range', type: 'NUMERIC(10,2)' },
-      { name: 'opened_after', field: 'opened', match: 'gt', type: 'TIMESTAMP WITH TIME ZONE' },
-      { name: 'opened_since', field: 'opened', match: 'gte', type: 'TIMESTAMP WITH TIME ZONE' },
-      { name: 'opened_before', field: 'opened', match: 'lt', type: 'TIMESTAMP WITH TIME ZONE' },
-      { name: 'opened_until', field: 'opened', match: 'lte', type: 'TIMESTAMP WITH TIME ZONE' },
-      { name: 'status', field: 'status', match: 'equals', type: 'park_status' },
-    ]);
-  });
-
   it('includes the document schema the OpenAPI document derives, with nesting', async () => {
     const bundle = await exportWithCli('Parks@1');
 
@@ -91,7 +74,7 @@ describe('Export', () => {
       const projection = await filby.getProjection('Parks', 1);
       const bundle = await exportBundle(filby, 'Parks', 1);
       for (const changeSet of bundle.changeSets) {
-        deq(bundle.documents[changeSet.id], await fetchAll(filby, '/projections/Parks/v1', changeSet.id, {}));
+        deq(bundle.documents[changeSet.id], await fetchAll(filby, '/projections/Parks/v1', changeSet.id));
       }
       deq(bundle.documents[bundle.changeSets[0].id].map(({ code }) => code), ['DC', 'GA', 'PV']);
       eq((await filby.getDocuments(projection, bundle.changeSets[0].id)).documents.length, 2);
@@ -100,37 +83,16 @@ describe('Export', () => {
     }
   });
 
-  it('filters documents as the API does for the same parameters, including nested documents', async () => {
-    const bundle = await exportWithCli('Parks@1');
-    const parks = runtime(bundle);
+  it('returns the documents the API returns for a change set with no parameters, including nested documents', async () => {
+    const parks = runtime(await exportWithCli('Parks@1'));
     const filby = new Filby({ database, migrations });
-    const cases = [
-      {},
-      { code: 'DC' },
-      { code: 'XX' },
-      { name: 'Pr' },
-      { name: 'pr' },
-      { codes: ['DC', 'GA'] },
-      { berths_from: 100 },
-      { berths_to: 100 },
-      { berths_from: 9, berths_to: 250 },
-      { price_from: '100' },
-      { price_to: '200.00' },
-      { opened_after: new Date('2001-05-01T00:00:00Z') },
-      { opened_since: new Date('2001-05-01T00:00:00Z') },
-      { opened_before: '2001-05-01T00:00:00Z' },
-      { opened_until: new Date('2001-05-01T00:00:00Z') },
-      { status: 'CLOSED' },
-      { name: 'D', codes: ['DC', 'PV'], status: 'OPEN' },
-    ];
     try {
-      for (const changeSet of bundle.changeSets) {
-        for (const parameters of cases) {
-          const expected = await fetchAll(filby, '/projections/Parks/v1', changeSet.id, parameters);
-          deq(JSON.parse(JSON.stringify(parks.getDocuments(changeSet.id, parameters))), expected, `${changeSet.description} ${JSON.stringify(parameters)}`);
-        }
+      for (const changeSet of parks.changeSets) {
+        deq(JSON.parse(JSON.stringify(parks.getDocuments(changeSet.id))), await fetchAll(filby, '/projections/Parks/v1', changeSet.id));
       }
-      ok(parks.getDocuments(bundle.changeSets[0].id, { code: 'DC' })[0].seasons.length > 0);
+      const [devonCliffs] = parks.getDocuments(parks.changeSets[0].id);
+      eq(devonCliffs.seasons.length, 2);
+      eq(devonCliffs.operator.name, 'Haven');
     } finally {
       await filby.stop();
     }
@@ -142,11 +104,30 @@ describe('Export', () => {
     const [changeSet] = parks.changeSets;
     ok(changeSet.effective instanceof Date);
     ok(changeSet.lastModified instanceof Date);
-    const [devonCliffs] = parks.getDocuments(changeSet.id, { code: 'DC' });
+    const [devonCliffs, greenacres] = parks.getDocuments(changeSet.id);
     ok(devonCliffs.opened instanceof Date);
     eq(devonCliffs.opened.toISOString(), '2001-05-01T00:00:00.000Z');
     ok(devonCliffs.seasons.every(({ start }) => start instanceof Date));
-    eq(parks.getDocuments(changeSet.id, { code: 'GA' })[0].opened, null);
+    eq(greenacres.opened, null);
+  });
+
+  it('exports a projection declared with dependencies', async () => {
+    const bundle = await exportWithCli('Park Codes@1');
+    const filby = new Filby({ database, migrations });
+    try {
+      validateBundle(bundle);
+      deq(bundle.schema, { type: 'object' });
+      for (const changeSet of bundle.changeSets) {
+        deq(bundle.documents[changeSet.id], await fetchAll(filby, '/projections/Park%20Codes/v1', changeSet.id));
+      }
+      deq(bundle.documents[bundle.changeSets[0].id], [
+        { code: 'DC', opened: '2001-05-01T00:00:00.000Z' },
+        { code: 'GA', opened: null },
+        { code: 'PV', opened: '1999-03-01T00:00:00.000Z' },
+      ]);
+    } finally {
+      await filby.stop();
+    }
   });
 
   it('exports a bundle from the example migrations', async () => {
@@ -176,18 +157,6 @@ describe('Export', () => {
     const { code, stderr } = await exportFails('Wombats@1');
     eq(code, 1);
     match(stderr, /^Projection 'Wombats v1' does not exist$/m);
-  });
-
-  it('rejects a projection declared with dependencies', async () => {
-    const { code, stderr } = await exportFails('Park Codes@1');
-    eq(code, 1);
-    match(stderr, /^Projection 'Park Codes v1' is not declared with a root$/m);
-  });
-
-  it('rejects a projection with a parameter on a field its documents do not carry', async () => {
-    const { code, stderr } = await exportFails('Park Names@1', { migrations: ['test/export/hidden'] });
-    eq(code, 1);
-    match(stderr, /^Projection 'Park Names v1' parameter 'code' filters on field 'code', which its documents do not carry$/m);
   });
 
   it('rejects a projection reference without a version', async () => {
@@ -255,16 +224,10 @@ function validateBundle(bundle) {
   ok(validate(bundle), JSON.stringify(validate.errors));
 }
 
-async function fetchAll(filby, pathname, changeSetId, parameters) {
+async function fetchAll(filby, pathname, changeSetId) {
   const documents = [];
   for (let page = 1; ; page++) {
-    const url = new URL(`http://localhost${pathname}`);
-    url.searchParams.set('changeSetId', changeSetId);
-    url.searchParams.set('page', page);
-    for (const [name, value] of Object.entries(parameters)) {
-      for (const item of [].concat(value)) url.searchParams.append(name, item instanceof Date ? item.toISOString() : item);
-    }
-    const response = await filby.fetch(new Request(url));
+    const response = await filby.fetch(new Request(`http://localhost${pathname}?changeSetId=${changeSetId}&page=${page}&pageSize=2`));
     eq(response.status, 200, await response.clone().text());
     documents.push(...(await response.json()));
     if (documents.length >= Number(response.headers.get('X-Total-Count'))) return documents;

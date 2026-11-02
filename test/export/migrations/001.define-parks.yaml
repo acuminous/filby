@@ -44,35 +44,6 @@
   name: Parks
   description: Parks with their seasons and operator
   root: park@1
-  parameters:
-    code:
-      field: code
-    name:
-      field: name
-      match: prefix
-    codes:
-      field: code
-      match: in
-    berths:
-      field: berths
-      match: range
-    price:
-      field: price
-      match: range
-    opened after:
-      field: opened
-      match: gt
-    opened since:
-      field: opened
-      match: gte
-    opened before:
-      field: opened
-      match: lt
-    opened until:
-      field: opened
-      match: lte
-    status:
-      field: status
   paging:
     page_size: 2
     page_max: 2

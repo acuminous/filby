@@ -4,14 +4,6 @@
   "name": "Parks",
   "version": 1,
   "description": "Parks with their seasons and operator",
-  "parameters": [
-    { "name": "code", "field": "code", "match": "equals", "type": "TEXT" },
-    { "name": "codes", "field": "code", "match": "in", "type": "TEXT" },
-    { "name": "name", "field": "name", "match": "prefix", "type": "TEXT" },
-    { "name": "price", "field": "price", "match": "range", "type": "NUMERIC(10,2)" },
-    { "name": "opened_after", "field": "opened", "match": "gt", "type": "TIMESTAMP WITH TIME ZONE" },
-    { "name": "status", "field": "status", "match": "equals", "type": "park_status" }
-  ],
   "schema": {
     "type": "object",
     "properties": {
