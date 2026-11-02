@@ -448,6 +448,7 @@
       entity: Park Model@1
       on:
         Park Code: Code
+      fields: []
       order:
         - field: Model Code
       lookup:
@@ -456,6 +457,7 @@
           on:
             Code: Model Code
           fields:
+            - Code
             - Name
 
 - operation: ADD_PROJECTION
@@ -508,6 +510,16 @@
     heating:
       field: Heating
       match: in
+  fields:
+    - Code
+    - Name
+    - Berths
+    - Bedrooms
+    - Length
+    - Width
+    - Heating
+    - Double Glazed
+    - VAT Code
   order:
     - field: Manufacturer Code
     - field: Name
@@ -533,6 +545,7 @@
       on:
         Code: Manufacturer Code
       fields:
+        - Code
         - Name
 
 - operation: ADD_PROJECTION
@@ -549,6 +562,8 @@
       entity: Grade Model@1
       on:
         Grade Code: Code
+      fields:
+        - Year
       order:
         - field: Model Code
         - field: Year
@@ -558,6 +573,7 @@
           on:
             Code: Model Code
           fields:
+            - Code
             - Name
     Attributes:
       entity: Grade Attribute@1

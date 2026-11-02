@@ -93,14 +93,14 @@ describe('API', () => {
           { grade_code: 'Saver', discount_percent: '10.00' },
         ],
         models: [
-          { model_code: 'AMB', model: { name: 'ABI Ambleside' } },
-          { model_code: 'AVO', model: { name: 'Willerby Avonmore' } },
-          { model_code: 'BEV', model: { name: 'ABI Beverley' } },
-          { model_code: 'CAS', model: { name: 'Carnaby Cascade' } },
-          { model_code: 'CLW', model: { name: 'Willerby Clearwater Lodge' } },
-          { model_code: 'HEL', model: { name: 'Carnaby Helmsley' } },
-          { model_code: 'LOI', model: { name: 'Swift Loire' } },
-          { model_code: 'RIO', model: { name: 'Willerby Rio' } },
+          { model: { code: 'AMB', name: 'ABI Ambleside' } },
+          { model: { code: 'AVO', name: 'Willerby Avonmore' } },
+          { model: { code: 'BEV', name: 'ABI Beverley' } },
+          { model: { code: 'CAS', name: 'Carnaby Cascade' } },
+          { model: { code: 'CLW', name: 'Willerby Clearwater Lodge' } },
+          { model: { code: 'HEL', name: 'Carnaby Helmsley' } },
+          { model: { code: 'LOI', name: 'Swift Loire' } },
+          { model: { code: 'RIO', name: 'Willerby Rio' } },
         ],
       });
     });
@@ -164,20 +164,20 @@ describe('API', () => {
       const [platinum, gold, , , saver] = grades;
       deq(platinum.attributes.map((attribute: any) => attribute.attribute), ['Double Glazing', 'Central Heating', 'Decking', 'Dishwasher', 'En Suite', 'Patio Doors', 'Integrated Appliances']);
       deq(platinum.models, [
-        { model_code: 'CLW', year: 2025, model: { name: 'Willerby Clearwater Lodge' } },
-        { model_code: 'CLW', year: 2026, model: { name: 'Willerby Clearwater Lodge' } },
-        { model_code: 'HEL', year: 2025, model: { name: 'Carnaby Helmsley' } },
-        { model_code: 'HEL', year: 2026, model: { name: 'Carnaby Helmsley' } },
+        { year: 2025, model: { code: 'CLW', name: 'Willerby Clearwater Lodge' } },
+        { year: 2026, model: { code: 'CLW', name: 'Willerby Clearwater Lodge' } },
+        { year: 2025, model: { code: 'HEL', name: 'Carnaby Helmsley' } },
+        { year: 2026, model: { code: 'HEL', name: 'Carnaby Helmsley' } },
       ]);
       deq(gold.attributes.map((attribute: any) => attribute.attribute), ['Double Glazing', 'Central Heating', 'Decking', 'En Suite', 'Patio Doors']);
-      deq(gold.models.map(({ model_code, year, model }: any) => `${model_code} ${year} ${model.name}`), ['AVO 2025 Willerby Avonmore', 'AVO 2026 Willerby Avonmore', 'CAS 2025 Carnaby Cascade', 'CAS 2026 Carnaby Cascade', 'RIO 2025 Willerby Rio', 'RIO 2026 Willerby Rio']);
+      deq(gold.models.map(({ year, model }: any) => `${model.code} ${year} ${model.name}`), ['AVO 2025 Willerby Avonmore', 'AVO 2026 Willerby Avonmore', 'CAS 2025 Carnaby Cascade', 'CAS 2026 Carnaby Cascade', 'RIO 2025 Willerby Rio', 'RIO 2026 Willerby Rio']);
       deq(saver, {
         code: 'Saver',
         models: [
-          { model_code: 'CHA', year: 2025, model: { name: 'Swift Challenger 580' } },
-          { model_code: 'CHA', year: 2026, model: { name: 'Swift Challenger 580' } },
-          { model_code: 'VER', year: 2025, model: { name: 'Victory Vermont' } },
-          { model_code: 'VER', year: 2026, model: { name: 'Victory Vermont' } },
+          { year: 2025, model: { code: 'CHA', name: 'Swift Challenger 580' } },
+          { year: 2026, model: { code: 'CHA', name: 'Swift Challenger 580' } },
+          { year: 2025, model: { code: 'VER', name: 'Victory Vermont' } },
+          { year: 2026, model: { code: 'VER', name: 'Victory Vermont' } },
         ],
         attributes: [],
       });
@@ -188,7 +188,7 @@ describe('API', () => {
       eq(response.status, 200);
       eq(response.headers.get('X-Total-Count'), '1');
       const [silver] = await response.json();
-      deq(silver.models.map(({ model_code, year }: any) => `${model_code} ${year}`), ['AMB 2026', 'BEV 2025', 'BEV 2026', 'BEV 2027', 'LOI 2025', 'LOI 2026', 'LOI 2027']);
+      deq(silver.models.map(({ year, model }: any) => `${model.code} ${year}`), ['AMB 2026', 'BEV 2025', 'BEV 2026', 'BEV 2027', 'LOI 2025', 'LOI 2026', 'LOI 2027']);
     });
   });
 
@@ -308,7 +308,7 @@ describe('API', () => {
       eq(response.status, 200);
       const models = await response.json();
       deq(models.map((model: any) => model.name), ['Swift Challenger 580', 'Swift Loire']);
-      deq(models.map((model: any) => model.manufacturer), [{ name: 'Swift' }, { name: 'Swift' }]);
+      deq(models.map((model: any) => model.manufacturer), [{ code: 'SWI', name: 'Swift' }, { code: 'SWI', name: 'Swift' }]);
       eq(models[0].berths, 4);
       eq(models[0].length, '24.5');
       eq(models[0].double_glazed, true);
@@ -373,9 +373,9 @@ describe('API', () => {
       deq(beachNull, { type: 'null' });
       deq(Object.keys(beach.properties), ['code', 'name', 'surfaces']);
       deq(beach.properties.surfaces, { type: 'array', items: { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] } });
-      deq(Object.keys(detailed.properties.models.items.properties), ['model_code', 'model']);
+      deq(Object.keys(detailed.properties.models.items.properties), ['model']);
       deq(detailed.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
-      deq(Object.keys(detailed.properties.models.items.properties.model.anyOf[0].properties), ['name']);
+      deq(Object.keys(detailed.properties.models.items.properties.model.anyOf[0].properties), ['code', 'name']);
 
       const beaches = schema(document, 'Beaches');
       deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code']);
@@ -384,9 +384,9 @@ describe('API', () => {
       const grades = schema(document, 'Grades');
       deq(grades.properties.code, { type: 'string', enum: ['Platinum', 'Gold', 'Silver', 'Bronze', 'Saver'] });
       deq(grades.required, ['code', 'models', 'attributes']);
-      deq(grades.properties.models.items.required, ['model_code', 'year', 'model']);
+      deq(grades.properties.models.items.required, ['year', 'model']);
       deq(grades.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
-      deq(Object.keys(grades.properties.models.items.properties.model.anyOf[0].properties), ['name']);
+      deq(Object.keys(grades.properties.models.items.properties.model.anyOf[0].properties), ['code', 'name']);
       deq(grades.properties.attributes.items.properties.attribute, { type: 'string', enum: ['Double Glazing', 'Central Heating', 'Decking', 'Dishwasher', 'En Suite', 'Patio Doors', 'Integrated Appliances'] });
 
       const amenities = schema(document, 'Amenities');
@@ -397,9 +397,9 @@ describe('API', () => {
       deq(models.properties.berths, { type: 'integer' });
       deq(models.properties.length, { type: 'string' });
       deq(models.properties.double_glazed, { type: 'boolean' });
-      deq(models.required, ['code', 'manufacturer_code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories', 'manufacturer']);
+      deq(models.required, ['code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories', 'manufacturer']);
       deq(models.properties.manufacturer['x-filby-on'], { code: 'manufacturer_code' });
-      deq(Object.keys(models.properties.manufacturer.anyOf[0].properties), ['name']);
+      deq(Object.keys(models.properties.manufacturer.anyOf[0].properties), ['code', 'name']);
 
       const catalogue = schema(document, 'Catalogue');
       deq(Object.keys(catalogue.properties.models.items.properties), ['code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories']);
