@@ -1,6 +1,10 @@
-import { ok, strictEqual as eq, deepStrictEqual as deq, match } from 'node:assert';
+import { ok, strictEqual as eq, deepStrictEqual as deq, match, rejects } from 'node:assert';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, it, before, after } from 'node:test';
 
+import { Filby } from '../../..';
 import config from '../config';
 import Application from '../lib/Application';
 
@@ -60,7 +64,7 @@ describe('API', () => {
       eq(response.headers.get('Location'), '/api/projections/Parks%20(Detailed)/v1?code=DC&changeSetId=8');
     });
 
-    it('should respond with the park, its amenities and beach routes in full, seasons, offers and models', async () => {
+    it('should respond with the park, its amenities and beach routes in full, seasons, and models with their offers', async () => {
       const response = await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=8&code=DC');
       eq(response.status, 200);
       eq(response.headers.get('X-Total-Count'), '1');
@@ -85,22 +89,21 @@ describe('API', () => {
           { customer_type: 'Guest', current_season_start: '2026-03-16T00:00:00.000Z', current_season_end: '2026-11-03T00:00:00.000Z', next_season_start: '2027-03-16T00:00:00.000Z', next_season_end: '2027-11-03T00:00:00.000Z' },
           { customer_type: 'Owner', current_season_start: '2026-03-01T00:00:00.000Z', current_season_end: '2027-01-06T00:00:00.000Z', next_season_start: '2027-03-01T00:00:00.000Z', next_season_end: '2028-01-06T00:00:00.000Z' },
         ],
-        offers: [
-          { grade_code: 'Platinum', discount_percent: '0.00' },
-          { grade_code: 'Gold', discount_percent: '2.50' },
-          { grade_code: 'Silver', discount_percent: '5.00' },
-          { grade_code: 'Bronze', discount_percent: '7.50' },
-          { grade_code: 'Saver', discount_percent: '10.00' },
-        ],
         models: [
-          { model_code: 'AMB', model: { name: 'ABI Ambleside' } },
-          { model_code: 'AVO', model: { name: 'Willerby Avonmore' } },
-          { model_code: 'BEV', model: { name: 'ABI Beverley' } },
-          { model_code: 'CAS', model: { name: 'Carnaby Cascade' } },
-          { model_code: 'CLW', model: { name: 'Willerby Clearwater Lodge' } },
-          { model_code: 'HEL', model: { name: 'Carnaby Helmsley' } },
-          { model_code: 'LOI', model: { name: 'Swift Loire' } },
-          { model_code: 'RIO', model: { name: 'Willerby Rio' } },
+          { model: { code: 'AMB', name: 'ABI Ambleside' }, offers: [{ year: 2026, offer_type: 'Offer Price', offer_price: '21495.00', discount_percent: null, discount_amount: null }] },
+          { model: { code: 'AVO', name: 'Willerby Avonmore' }, offers: [] },
+          { model: { code: 'BEV', name: 'ABI Beverley' }, offers: [] },
+          { model: { code: 'CAS', name: 'Carnaby Cascade' }, offers: [] },
+          { model: { code: 'CLW', name: 'Willerby Clearwater Lodge' }, offers: [{ year: 2025, offer_type: 'Offer Price', offer_price: '64995.00', discount_percent: null, discount_amount: null }] },
+          { model: { code: 'HEL', name: 'Carnaby Helmsley' }, offers: [] },
+          { model: { code: 'LOI', name: 'Swift Loire' }, offers: [] },
+          {
+            model: { code: 'RIO', name: 'Willerby Rio' },
+            offers: [
+              { year: 2025, offer_type: 'Percent Off', offer_price: null, discount_percent: '15.00', discount_amount: null },
+              { year: 2026, offer_type: 'Amount Off', offer_price: null, discount_percent: null, discount_amount: '1000.00' },
+            ],
+          },
         ],
       });
     });
@@ -115,6 +118,48 @@ describe('API', () => {
       eq(response.headers.get('X-Total-Count'), '1');
       const [park] = await response.json();
       deq(park, devonCliffs);
+    });
+  });
+
+  describe('What a park offers on each model year', () => {
+    it('should deepen the offer on a 2025 Rio and add one on the 2026 Rio for the 2026 season', async () => {
+      const [summer2025] = await (await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=4&code=DC')).json();
+      const [season2026] = await (await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=6&code=DC')).json();
+      deq(summer2025.models.find((model: any) => model.model.code === 'RIO').offers, [
+        { year: 2025, offer_type: 'Percent Off', offer_price: null, discount_percent: '10.00', discount_amount: null },
+      ]);
+      deq(season2026.models.find((model: any) => model.model.code === 'RIO').offers, [
+        { year: 2025, offer_type: 'Percent Off', offer_price: null, discount_percent: '15.00', discount_amount: null },
+        { year: 2026, offer_type: 'Amount Off', offer_price: null, discount_percent: null, discount_amount: '1000.00' },
+      ]);
+    });
+
+    it('should refuse an offer whose value does not match its type', async () => {
+      const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'holiday-park-'));
+      const filby = new Filby({ ...config.filby, migrations: [...(config.filby.migrations ?? []), directory] });
+      try {
+        await fs.writeFile(path.join(directory, '0012.percent-off-with-an-amount.yaml'), [
+          '- operation: ADD_CHANGE_SET',
+          '  description: Percent off with an amount',
+          '  effective: 2027-02-01T00:00:00Z',
+          '  changes:',
+          '    - entity: Park Offer@1',
+          '      action: SET',
+          '      data:',
+          '        - Park Code: DC',
+          '          Model Code: AVO',
+          '          Year: 2026',
+          '          Offer Type: Percent Off',
+          '          Discount Amount: 500.00',
+        ].join('\n'));
+        await rejects(() => filby.init(), (err: Error) => {
+          eq(err.message, '0012.percent-off-with-an-amount.yaml: /0/changes/0/data/0 - new row for relation "park_offer_v1" violates check constraint "chk_park_offer_value"');
+          return true;
+        });
+      } finally {
+        await filby.stop();
+        await fs.rm(directory, { recursive: true, force: true });
+      }
     });
   });
 
@@ -164,20 +209,20 @@ describe('API', () => {
       const [platinum, gold, , , saver] = grades;
       deq(platinum.attributes.map((attribute: any) => attribute.attribute), ['Double Glazing', 'Central Heating', 'Decking', 'Dishwasher', 'En Suite', 'Patio Doors', 'Integrated Appliances']);
       deq(platinum.models, [
-        { model_code: 'CLW', year: 2025, model: { name: 'Willerby Clearwater Lodge' } },
-        { model_code: 'CLW', year: 2026, model: { name: 'Willerby Clearwater Lodge' } },
-        { model_code: 'HEL', year: 2025, model: { name: 'Carnaby Helmsley' } },
-        { model_code: 'HEL', year: 2026, model: { name: 'Carnaby Helmsley' } },
+        { year: 2025, model: { code: 'CLW', name: 'Willerby Clearwater Lodge' } },
+        { year: 2026, model: { code: 'CLW', name: 'Willerby Clearwater Lodge' } },
+        { year: 2025, model: { code: 'HEL', name: 'Carnaby Helmsley' } },
+        { year: 2026, model: { code: 'HEL', name: 'Carnaby Helmsley' } },
       ]);
       deq(gold.attributes.map((attribute: any) => attribute.attribute), ['Double Glazing', 'Central Heating', 'Decking', 'En Suite', 'Patio Doors']);
-      deq(gold.models.map(({ model_code, year, model }: any) => `${model_code} ${year} ${model.name}`), ['AVO 2025 Willerby Avonmore', 'AVO 2026 Willerby Avonmore', 'CAS 2025 Carnaby Cascade', 'CAS 2026 Carnaby Cascade', 'RIO 2025 Willerby Rio', 'RIO 2026 Willerby Rio']);
+      deq(gold.models.map(({ year, model }: any) => `${model.code} ${year} ${model.name}`), ['AVO 2025 Willerby Avonmore', 'AVO 2026 Willerby Avonmore', 'CAS 2025 Carnaby Cascade', 'CAS 2026 Carnaby Cascade', 'RIO 2025 Willerby Rio', 'RIO 2026 Willerby Rio']);
       deq(saver, {
         code: 'Saver',
         models: [
-          { model_code: 'CHA', year: 2025, model: { name: 'Swift Challenger 580' } },
-          { model_code: 'CHA', year: 2026, model: { name: 'Swift Challenger 580' } },
-          { model_code: 'VER', year: 2025, model: { name: 'Victory Vermont' } },
-          { model_code: 'VER', year: 2026, model: { name: 'Victory Vermont' } },
+          { year: 2025, model: { code: 'CHA', name: 'Swift Challenger 580' } },
+          { year: 2026, model: { code: 'CHA', name: 'Swift Challenger 580' } },
+          { year: 2025, model: { code: 'VER', name: 'Victory Vermont' } },
+          { year: 2026, model: { code: 'VER', name: 'Victory Vermont' } },
         ],
         attributes: [],
       });
@@ -188,7 +233,7 @@ describe('API', () => {
       eq(response.status, 200);
       eq(response.headers.get('X-Total-Count'), '1');
       const [silver] = await response.json();
-      deq(silver.models.map(({ model_code, year }: any) => `${model_code} ${year}`), ['AMB 2026', 'BEV 2025', 'BEV 2026', 'BEV 2027', 'LOI 2025', 'LOI 2026', 'LOI 2027']);
+      deq(silver.models.map(({ year, model }: any) => `${model.code} ${year}`), ['AMB 2026', 'BEV 2025', 'BEV 2026', 'BEV 2027', 'LOI 2025', 'LOI 2026', 'LOI 2027']);
     });
   });
 
@@ -308,7 +353,7 @@ describe('API', () => {
       eq(response.status, 200);
       const models = await response.json();
       deq(models.map((model: any) => model.name), ['Swift Challenger 580', 'Swift Loire']);
-      deq(models.map((model: any) => model.manufacturer), [{ name: 'Swift' }, { name: 'Swift' }]);
+      deq(models.map((model: any) => model.manufacturer), [{ code: 'SWI', name: 'Swift' }, { code: 'SWI', name: 'Swift' }]);
       eq(models[0].berths, 4);
       eq(models[0].length, '24.5');
       eq(models[0].double_glazed, true);
@@ -373,9 +418,15 @@ describe('API', () => {
       deq(beachNull, { type: 'null' });
       deq(Object.keys(beach.properties), ['code', 'name', 'surfaces']);
       deq(beach.properties.surfaces, { type: 'array', items: { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] } });
-      deq(Object.keys(detailed.properties.models.items.properties), ['model_code', 'model']);
+      deq(Object.keys(detailed.properties.models.items.properties), ['offers', 'model']);
       deq(detailed.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
-      deq(Object.keys(detailed.properties.models.items.properties.model.anyOf[0].properties), ['name']);
+      deq(Object.keys(detailed.properties.models.items.properties.model.anyOf[0].properties), ['code', 'name']);
+      const offers = detailed.properties.models.items.properties.offers;
+      deq(offers['x-filby-on'], { park_code: 'park_code', model_code: 'model_code' });
+      deq(Object.keys(offers.items.properties), ['year', 'offer_type', 'offer_price', 'discount_percent', 'discount_amount']);
+      deq(offers.items.required, ['year', 'offer_type']);
+      deq(offers.items.properties.offer_type, { type: 'string', enum: ['Offer Price', 'Percent Off', 'Amount Off'] });
+      deq(offers.items.properties.discount_percent, { type: ['string', 'null'] });
 
       const beaches = schema(document, 'Beaches');
       deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code']);
@@ -384,9 +435,9 @@ describe('API', () => {
       const grades = schema(document, 'Grades');
       deq(grades.properties.code, { type: 'string', enum: ['Platinum', 'Gold', 'Silver', 'Bronze', 'Saver'] });
       deq(grades.required, ['code', 'models', 'attributes']);
-      deq(grades.properties.models.items.required, ['model_code', 'year', 'model']);
+      deq(grades.properties.models.items.required, ['year', 'model']);
       deq(grades.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
-      deq(Object.keys(grades.properties.models.items.properties.model.anyOf[0].properties), ['name']);
+      deq(Object.keys(grades.properties.models.items.properties.model.anyOf[0].properties), ['code', 'name']);
       deq(grades.properties.attributes.items.properties.attribute, { type: 'string', enum: ['Double Glazing', 'Central Heating', 'Decking', 'Dishwasher', 'En Suite', 'Patio Doors', 'Integrated Appliances'] });
 
       const amenities = schema(document, 'Amenities');
@@ -397,9 +448,9 @@ describe('API', () => {
       deq(models.properties.berths, { type: 'integer' });
       deq(models.properties.length, { type: 'string' });
       deq(models.properties.double_glazed, { type: 'boolean' });
-      deq(models.required, ['code', 'manufacturer_code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories', 'manufacturer']);
+      deq(models.required, ['code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories', 'manufacturer']);
       deq(models.properties.manufacturer['x-filby-on'], { code: 'manufacturer_code' });
-      deq(Object.keys(models.properties.manufacturer.anyOf[0].properties), ['name']);
+      deq(Object.keys(models.properties.manufacturer.anyOf[0].properties), ['code', 'name']);
 
       const catalogue = schema(document, 'Catalogue');
       deq(Object.keys(catalogue.properties.models.items.properties), ['code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories']);

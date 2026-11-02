@@ -90,6 +90,13 @@
     - Residential Caravan
     - Family Attraction
 
+- operation: ADD_ENUM
+  name: Offer Type
+  values:
+    - Offer Price
+    - Percent Off
+    - Amount Off
+
 - operation: ADD_ENTITY
   name: Park
   fields:
@@ -202,13 +209,24 @@
   name: Park Offer
   fields:
     Park Code: TEXT
-    Grade Code: Grade Code
-    Discount Percent:
-      type: NUMERIC(5,2)
+    Model Code: TEXT
+    Year: INTEGER
+    Offer Type:
+      type: Offer Type
       nullable: false
+    Offer Price: NUMERIC(10,2)
+    Discount Percent: NUMERIC(5,2)
+    Discount Amount: NUMERIC(10,2)
   key:
     - Park Code
-    - Grade Code
+    - Model Code
+    - Year
+  checks:
+    park_offer_value: >-
+      ((offer_type IS NULL AND offer_price IS NULL AND discount_percent IS NULL AND discount_amount IS NULL)
+      OR (offer_type = 'Offer Price' AND offer_price IS NOT NULL AND discount_percent IS NULL AND discount_amount IS NULL)
+      OR (offer_type = 'Percent Off' AND discount_percent IS NOT NULL AND offer_price IS NULL AND discount_amount IS NULL)
+      OR (offer_type = 'Amount Off' AND discount_amount IS NOT NULL AND offer_price IS NULL AND discount_percent IS NULL))
 
 - operation: ADD_ENTITY
   name: Park Model
@@ -376,7 +394,7 @@
 
 - operation: ADD_PROJECTION
   name: Parks (Detailed)
-  description: Parks with their amenities and beach routes in full, seasons, offers and the models they sell
+  description: Parks with their amenities and beach routes in full, seasons, and the models they sell with each model's offers
   root: Park@1
   parameters:
     code:
@@ -438,16 +456,11 @@
         Park Code: Code
       order:
         - field: Customer Type
-    Offers:
-      entity: Park Offer@1
-      on:
-        Park Code: Code
-      order:
-        - field: Grade Code
     Models:
       entity: Park Model@1
       on:
         Park Code: Code
+      fields: []
       order:
         - field: Model Code
       lookup:
@@ -456,7 +469,22 @@
           on:
             Code: Model Code
           fields:
+            - Code
             - Name
+      nest:
+        Offers:
+          entity: Park Offer@1
+          on:
+            Park Code: Park Code
+            Model Code: Model Code
+          fields:
+            - Year
+            - Offer Type
+            - Offer Price
+            - Discount Percent
+            - Discount Amount
+          order:
+            - field: Year
 
 - operation: ADD_PROJECTION
   name: Catalogue
@@ -508,6 +536,16 @@
     heating:
       field: Heating
       match: in
+  fields:
+    - Code
+    - Name
+    - Berths
+    - Bedrooms
+    - Length
+    - Width
+    - Heating
+    - Double Glazed
+    - VAT Code
   order:
     - field: Manufacturer Code
     - field: Name
@@ -533,6 +571,7 @@
       on:
         Code: Manufacturer Code
       fields:
+        - Code
         - Name
 
 - operation: ADD_PROJECTION
@@ -549,6 +588,8 @@
       entity: Grade Model@1
       on:
         Grade Code: Code
+      fields:
+        - Year
       order:
         - field: Model Code
         - field: Year
@@ -558,6 +599,7 @@
           on:
             Code: Model Code
           fields:
+            - Code
             - Name
     Attributes:
       entity: Grade Attribute@1

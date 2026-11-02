@@ -63,8 +63,19 @@ describe('Export', () => {
     deq(Object.keys(bundle.schema.properties), ['code', 'name', 'berths', 'price', 'status', 'opened', 'operator_code', 'seasons', 'operator']);
     deq(bundle.schema.properties.opened, { type: ['string', 'null'], format: 'date-time' });
     eq(bundle.schema.properties.seasons.type, 'array');
-    deq(bundle.schema.properties.seasons.items.properties.start, { type: 'string', format: 'date-time' });
+    deq(bundle.schema.properties.seasons.items.properties.starts_at, { type: 'string', format: 'date-time' });
     eq(bundle.schema.properties.operator.anyOf[0].type, 'object');
+  });
+
+  it('carries aliased fields under their property names in the schema and the documents', async () => {
+    const bundle = await exportWithCli('Parks@1');
+    const [devonCliffs] = bundle.documents[bundle.changeSets[0].id];
+
+    deq(Object.keys(bundle.schema.properties.seasons.items.properties), ['type', 'starts_at']);
+    deq(Object.keys(bundle.schema.properties.operator.anyOf[0].properties), ['operator_name']);
+    deq(devonCliffs.seasons, [{ type: 'Guests', starts_at: '2020-03-15T00:00:00.000Z' }, { type: 'Owners', starts_at: '2020-03-01T00:00:00.000Z' }]);
+    deq(devonCliffs.operator, { operator_name: 'Haven' });
+    ok(runtime(bundle).getDocuments(bundle.changeSets[0].id)[0].seasons[0].starts_at instanceof Date);
   });
 
   it('includes every document of a paged projection at every change set, as the API serves them', async () => {
@@ -92,7 +103,7 @@ describe('Export', () => {
       }
       const [devonCliffs] = parks.getDocuments(parks.changeSets[0].id);
       eq(devonCliffs.seasons.length, 2);
-      eq(devonCliffs.operator.name, 'Haven');
+      eq(devonCliffs.operator.operator_name, 'Haven');
     } finally {
       await filby.stop();
     }
@@ -107,7 +118,7 @@ describe('Export', () => {
     const [devonCliffs, greenacres] = parks.getDocuments(changeSet.id);
     ok(devonCliffs.opened instanceof Date);
     eq(devonCliffs.opened.toISOString(), '2001-05-01T00:00:00.000Z');
-    ok(devonCliffs.seasons.every(({ start }) => start instanceof Date));
+    ok(devonCliffs.seasons.every(({ starts_at }) => starts_at instanceof Date));
     eq(greenacres.opened, null);
   });
 

@@ -9,3 +9,6 @@
     - entity: Park@1
       action: SET
       source: ./csv/season-2026/park.csv
+    - entity: Park Offer@1
+      action: SET
+      source: ./csv/season-2026/park-offer.csv

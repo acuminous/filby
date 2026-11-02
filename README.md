@@ -382,7 +382,7 @@ A change set is added with `ADD_CHANGE_SET`: a description, an effective date an
         - Code: HF
 ```
 
-YAML gets long, so a frame may take its rows from a CSV file instead, with `source`, a path relative to the migration file. The CSV needs a header row of the entity's field names. Put the action on the frame to apply it to every row, in which case the file must not have an `action` column, or leave it off the frame and give the file an `action` column with every cell filled.
+YAML gets long, so a frame may take its rows from a CSV file instead, with `source`, a path relative to the migration file. The CSV needs a header row of the entity's field names. Put the action on the frame to apply it to every row, in which case the file must not have an `action` column, or leave it off the frame and give the file an `action` column with every cell filled. A file whose name ends in `.tsv`, in any case, is read as tab-separated.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -472,12 +472,15 @@ Each parameter names a field of the root entity and a matching rule:
 | ----- | --------- |
 | `equals` | Matches the supplied value exactly. This is the default. |
 | `prefix` | Matches values beginning with the supplied text. |
-| `in` | Matches any of the supplied values. |
+| `in` | Matches any of the supplied values. On an array field, matches arrays that share at least one value with the supplied values. |
+| `contains` | Matches arrays that include the supplied value. Applies only to an array field. |
 | `range` | Matches values between optional, inclusive lower and upper bounds. |
 | `gt` | Matches values greater than the supplied value. |
 | `gte` | Matches values greater than or equal to the supplied value. |
 | `lt` | Matches values less than the supplied value. |
 | `lte` | Matches values less than or equal to the supplied value. |
+
+An array field accepts only `in` and `contains`. An empty or null array never matches.
 
 The parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
@@ -703,6 +706,30 @@ Here, each park amenity link contributes only its `amenity` lookup:
 ```
 
 Parameters and sorting can still use fields that are omitted from the output.
+
+An entry in `fields` can also be a map with `field` and `as`. It carries the field under the name given by `as`. The alias belongs to this projection only. The entity, its data and its CSV files keep the original name. A field may be listed more than once to carry it under several names:
+
+```yaml
+- operation: ADD_PROJECTION
+  name: Parks (Detailed)
+  version: 2
+  root: Park@1
+  fields:
+    - Code
+    - field: Code
+      as: Park Code
+    - Name
+```
+
+```json
+{
+  "code": "DC",
+  "park_code": "DC",
+  "name": "Devon Cliffs"
+}
+```
+
+Parameters, `order` and `on` still use the entity's field names, not the aliases. Each property of a document must have a different name. An alias must not repeat another property or a nest or lookup name at the same level. It must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
 ##### Names and dependencies
 
@@ -971,6 +998,8 @@ END TRANSACTION;
 ### Evolving the schema
 
 To change an entity's structure, create a new version alongside the existing one. Publish a new projection version to expose it, so existing clients can continue using the old version until they are ready to move.
+
+To rename a field without a new entity version, publish a new projection version that carries the field under an alias. See [Selecting fields](#selecting-fields).
 
 References to entities and projections must include a version, such as `Park@2`. The `version` property defaults to 1 when declaring an entity with `ADD_ENTITY` or a projection with `ADD_PROJECTION`, but references never default. This keeps each reference explicit as new versions are introduced.
 
@@ -1337,14 +1366,14 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `description` | string | no | | Served by `GET /projections` and the OpenAPI document |
 | `root` | `Entity@n` | one of `root`, `dependencies` | | Must name the version with `@n` |
 | `dependencies` | list of `{ entity, version }`, at least one | one of `root`, `dependencies` | | For a projection whose function you write |
-| `fields` | list of field names, at least one | no | every field | Root only |
+| `fields` | list of field names or `{ field, as }`, at least one | no | every field | Root only |
 | `parameters` | map of name to `{ field, match }`, at least one | no | | Root only; `match` defaults to `equals` |
 | `order` | list of `{ field, direction, nulls }`, at least one | no | the key | Root only; `direction` `ASC` or `DESC`, default `ASC`; `nulls` `FIRST` or `LAST` |
 | `paging` | `{ page_size, page_max }`, both integers of at least 1 | no | | Root only; both required |
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root. On an array field, `match` must be `in` or `contains`. On any other field, it must not be `contains`. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
@@ -1352,12 +1381,12 @@ A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `f
 | --- | ---- | -------- | ----- |
 | `entity` | `Entity@n` | yes | Must name the version with `@n` |
 | `on` | map of child field to parent field, at least one | yes | A lookup's `on` must cover the whole key of its entity |
-| `fields` | list of field names | no | May be empty on a nest |
+| `fields` | list of field names or `{ field, as }` | no | May be empty on a nest |
 | `order` | list of `{ field, direction, nulls }`, at least one | no | The child's key is appended |
 | `nest` | map of name to nest | no | To any depth |
 | `lookup` | map of name to lookup | no | |
 
-A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, and may not be used twice at one level. A lookup must join on the whole key of its entity.
+A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
 #### DROP_PROJECTION
 
@@ -1408,7 +1437,7 @@ Each frame has these keys.
 | `version` | integer | with an `entity` that has no `@n` | |
 | `action` | `SET` or `DELETE`, in any case | without `source`, or with a `source` that has no `action` column | |
 | `data` | list of objects, at least one | one of `data`, `source` | Keys are field names; a map or list value is stored as JSON |
-| `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names |
+| `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names. A `.tsv` extension, in any case, means tab-separated |
 
 A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row with the header as line 1, and keeps Postgres's SQLSTATE.
 

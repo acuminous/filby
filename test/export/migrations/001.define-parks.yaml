@@ -52,11 +52,18 @@
       entity: season@1
       on:
         park_code: code
+      fields:
+        - type
+        - field: start
+          as: starts at
   lookup:
     operator:
       entity: operator@1
       on:
         code: operator_code
+      fields:
+        - field: name
+          as: operator name
 
 - operation: ADD_PROJECTION
   name: Park Codes
