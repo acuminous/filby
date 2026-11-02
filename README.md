@@ -472,12 +472,15 @@ Each parameter names a field of the root entity and a matching rule:
 | ----- | --------- |
 | `equals` | Matches the supplied value exactly. This is the default. |
 | `prefix` | Matches values beginning with the supplied text. |
-| `in` | Matches any of the supplied values. |
+| `in` | Matches any of the supplied values. On an array field, matches arrays that share at least one value with the supplied values. |
+| `contains` | Matches arrays that include the supplied value. Applies only to an array field. |
 | `range` | Matches values between optional, inclusive lower and upper bounds. |
 | `gt` | Matches values greater than the supplied value. |
 | `gte` | Matches values greater than or equal to the supplied value. |
 | `lt` | Matches values less than the supplied value. |
 | `lte` | Matches values less than or equal to the supplied value. |
+
+An array field accepts only `in` and `contains`. An empty or null array never matches.
 
 The parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
@@ -1255,7 +1258,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root. On an array field, `match` must be `in` or `contains`. On any other field, it must not be `contains`. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
