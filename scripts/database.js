@@ -33,6 +33,7 @@ async function drop() {
   await forEachServer(async (client, database) => {
     await client.query(`DROP DATABASE IF EXISTS ${database} WITH (FORCE)`);
     await client.query(`DROP DATABASE IF EXISTS ${database}_upgrade WITH (FORCE)`);
+    await client.query(`DROP DATABASE IF EXISTS ${database}_export WITH (FORCE)`);
   });
 }
 
