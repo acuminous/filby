@@ -56,28 +56,33 @@ BEGIN
     RAISE EXCEPTION 'Projection ''%'' parameter ''%'' uses a reserved name', {{literal ../name (v ../version)}}, {{literal name}};
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical field)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{literal (canonical field)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+  SELECT id INTO v_entity_id
+  FROM fby_entity
+  WHERE name = {{literal entity}}
+    AND version = {{literal version}};
+
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_entity_id AND name = {{literal field}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%''{{#if nests}} path ''%''{{/if}} references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{#if nests}}{{literal path}}, {{/if}}{{literal field}}, {{literal entity (v version)}}, fby_entity_field_hint(v_entity_id);
   END IF;
 
   SELECT COALESCE(t.typcategory = 'A', FALSE) INTO v_array
   FROM fby_entity_field f
   LEFT JOIN pg_type t ON t.oid = to_regtype(f.type)
-  WHERE f.entity_id = v_root_id
-    AND f.name = {{literal (canonical field)}};
+  WHERE f.entity_id = v_entity_id
+    AND f.name = {{literal field}};
 
   IF {{literal match}} = 'contains' AND NOT v_array THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal (canonical field)}};
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal path}};
   END IF;
 
   IF {{literal match}} NOT IN ('in', 'contains') AND v_array THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal (canonical field)}};
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal path}};
   END IF;
 
   v_arrays := v_arrays || v_array;
 
   INSERT INTO fby_projection_parameter (projection_id, position, name, field, match) VALUES
-  (v_projection_id, {{ordinal}}, {{literal name}}, {{literal (canonical field)}}, {{literal match}});
+  (v_projection_id, {{ordinal}}, {{literal name}}, {{literal path}}, {{literal match}});
 
   {{/each}}
   {{#each order}}
@@ -115,9 +120,11 @@ BEGIN
 
   SELECT CASE WHEN t.typcategory = 'A' THEN format_type(t.typelem, NULL) ELSE f.type END INTO v_type
   FROM fby_entity_field f
+  INNER JOIN fby_entity e ON e.id = f.entity_id
   LEFT JOIN pg_type t ON t.oid = to_regtype(f.type)
-  WHERE f.entity_id = v_root_id
-    AND f.name = {{literal (canonical field)}};
+  WHERE e.name = {{literal entity}}
+    AND e.version = {{literal version}}
+    AND f.name = {{literal field}};
   {{#each (projectionArguments this)}}
 
   v_arguments := v_arguments || format(', %I %s DEFAULT NULL', {{literal name}}, v_type{{#if array}} || '[]'{{/if}});

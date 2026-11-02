@@ -466,7 +466,7 @@ Three optional properties control how records are selected and returned:
     page_max: 50
 ```
 
-Each parameter names a field of the root entity and a matching rule:
+Each parameter names a field of the root entity and a matching rule. A parameter can also filter on a field of a nested or looked-up entity; see [Filtering by nested fields](#filtering-by-nested-fields).
 
 | Match | Behaviour |
 | ----- | --------- |
@@ -655,6 +655,38 @@ A lookup must join on every key field of the entity it looks up. This ensures th
 
 Lookups can appear on the root or under any nest. They have no sort order and cannot contain further nests or lookups. If the related entity needs children of its own, use a nest instead.
 
+##### Filtering by nested fields
+
+A parameter can filter the root records by the records nested or looked up beneath them. Give its `field` as a path. The path starts with the names of the nests and lookups to follow, as the projection declares them, separated by dots. It ends with a field of the last entity.
+
+```yaml
+- operation: ADD_PROJECTION
+  name: Parks (Detailed)
+  root: Park@1
+  parameters:
+    beach_surface:
+      field: Beach Routes.Beach.Surfaces
+      match: contains
+    route_access:
+      field: Beach Routes.Accessibility
+  nest:
+    Beach Routes:
+      entity: Beach Route@1
+      on:
+        Park Code: Code
+      lookup:
+        Beach:
+          entity: Beach@1
+          on:
+            Code: Beach Code
+```
+
+`?beach_surface=Sandy` returns the parks with at least one route to a sandy beach. Each park comes back whole, with all of its routes, including routes to beaches that are not sandy. A park with no beach routes is left out when the parameter is supplied, and included when it is not.
+
+A parameter is tested against one record at a time. So a `range` parameter only matches when a single route lies within both bounds. Separate parameters are tested separately, though. `?beach_surface=Sandy&route_access=Step%20Free` returns the parks that have a sandy beach and a step-free route, even when they are different routes.
+
+Every match type works at the end of a path, including `contains` and `in` on an array field. A lookup has no nests of its own, so it can only be the last name before the field. The field does not need to appear in the documents. Consumers only ever see the parameter's name, never its path. The OpenAPI document describes the parameter with the type of the field at the end of the path.
+
 ##### Selecting fields
 
 Use `fields` to choose which fields appear in a document and their order. It can be specified on the root, a nest or a lookup.
@@ -733,7 +765,7 @@ Parameters, `order` and `on` still use the entity's field names, not the aliases
 
 ##### Names and dependencies
 
-A nest or lookup name must not duplicate a field of its parent entity, or another nest or lookup name at the same level. Names beginning with `fby_` are reserved for Filby.
+A nest or lookup name must not duplicate a field of its parent entity, or another nest or lookup name at the same level. Names beginning with `fby_` are reserved for Filby. A name cannot contain a dot, because dots separate the names in a parameter's path.
 
 The root, nested and looked-up entities are all dependencies of the projection. A change set affecting any of them appears in the projection's change log and notifies its hooks.
 
@@ -1284,7 +1316,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root. On an array field, `match` must be `in` or `contains`. On any other field, it must not be `contains`. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root, or a path such as `Beach Routes.Beach.Surfaces` that names nests and lookups at successive levels and ends in a field of the last one. A lookup can only be the last name in a path. On an array field, `match` must be `in` or `contains`. On any other field, it must not be `contains`. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
@@ -1297,7 +1329,7 @@ A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `f
 | `nest` | map of name to nest | no | To any depth |
 | `lookup` | map of name to lookup | no | |
 
-A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
+A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
 #### DROP_PROJECTION
 

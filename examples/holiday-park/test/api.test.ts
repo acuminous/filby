@@ -199,6 +199,38 @@ describe('API', () => {
     });
   });
 
+  describe('Which parks reach a beach of a given surface', () => {
+    it('should filter the beaches by a surface they contain', async () => {
+      const response = await get('/api/projections/Beaches/v1?changeSetId=1&surface=Rocky');
+      eq(response.status, 200);
+      deq(await response.json(), [{ code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] }, { code: 'TENBY_CASTLE', name: 'Tenby Castle Beach', surfaces: ['Sandy', 'Rocky'] }]);
+    });
+
+    it('should list the parks with a route to a sandy beach', async () => {
+      const response = await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=1&beach_surface=Sandy');
+      eq(response.status, 200);
+      eq(response.headers.get('X-Total-Count'), '7');
+      deq((await response.json()).map((park: any) => park.name), ['Craig Tara', 'Devon Cliffs', 'Golden Sands', 'Greenacres', 'Kiln Park', 'Primrose Valley', 'Seashore']);
+    });
+
+    it('should return each matching park with all its beach routes', async () => {
+      const response = await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=1&beach_surface=Rocky');
+      eq(response.status, 200);
+      const parks = await response.json();
+      deq(parks.map((park: any) => park.name), ['Devon Cliffs', 'Kiln Park']);
+      deq(parks[1].beach_routes.map((route: any) => route.beach.name), ['Tenby Castle Beach', 'Tenby South Beach']);
+    });
+
+    it('should page the parks that offer any of a list of amenities', async () => {
+      const response = await get('/api/projections/Parks%20(Detailed)/v1?changeSetId=1&amenity=NATURE_TRAIL&amenity=SPORTS_COURTS&page=2&pageSize=2');
+      eq(response.status, 200);
+      eq(response.headers.get('X-Total-Count'), '4');
+      const parks = await response.json();
+      deq(parks.map((park: any) => park.name), ['Richmond', 'Rockley Park']);
+      eq(parks[1].amenities.length, 8);
+    });
+  });
+
   describe('What a Gold van is', () => {
     it('should respond with the grades in rank order, each with its attributes and the models that hold it, by code, year and name', async () => {
       const response = await get('/api/projections/Grades/v1?changeSetId=5');
@@ -400,7 +432,10 @@ describe('API', () => {
       deq(minimal.properties.region, { type: 'string', enum: ['Scotland', 'North East', 'Yorkshire', 'North West', 'Wales', 'Midlands', 'East', 'South East', 'South West'] });
 
       const detailed = schema(document, 'Parks (Detailed)');
-      deq(document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'page', 'pageSize']);
+      deq(document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'beach_surface', 'amenity', 'page', 'pageSize']);
+      const detailedParameters = document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters;
+      deq(detailedParameters.find((parameter: any) => parameter.name === 'beach_surface').schema, { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] });
+      deq(detailedParameters.find((parameter: any) => parameter.name === 'amenity').schema, { type: 'array', items: { type: 'string' } });
       deq(detailed.properties.seasons.items.properties.current_season_start, { type: 'string', format: 'date-time' });
       deq(detailed.properties.seasons.items.properties.next_season_start, { type: ['string', 'null'], format: 'date-time' });
       deq(Object.keys(detailed.properties.amenities.items.properties), ['amenity']);
@@ -429,7 +464,7 @@ describe('API', () => {
       deq(offers.items.properties.discount_percent, { type: ['string', 'null'] });
 
       const beaches = schema(document, 'Beaches');
-      deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code']);
+      deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'surface']);
       deq(beaches.required, ['code', 'name', 'surfaces']);
 
       const grades = schema(document, 'Grades');

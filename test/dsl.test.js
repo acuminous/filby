@@ -2606,6 +2606,166 @@ describe('DSL', () => {
       deq(park.seasons[0], { season_type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), rates: [{ season: 'Guests', band: 'A', rate_band: 'A' }, { season: 'Guests', band: 'B', rate_band: 'B' }] });
     });
 
+    const NESTED_PARAMETERS = {
+      code: { field: 'code' },
+      season_type: { field: 'Seasons.Type' },
+      band: { field: 'seasons.rates.band' },
+      amount: { field: 'seasons.rates.amount', match: 'range' },
+    };
+    const ADD_NESTED_PARAMETER_PROJECTION = transform(ADD_NESTED_PROJECTION).set('0.parameters', NESTED_PARAMETERS);
+
+    it('should filter root rows by a field of a nested entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PARAMETER_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      deq((await getDocuments({ parameters: { season_type: 'Owners' } })).documents.map(({ code }) => code), ['DC']);
+      deq((await getDocuments({ parameters: { season_type: 'Guests' } })).documents.map(({ code }) => code), ['DC', 'PV']);
+    });
+
+    it('should filter root rows by a field of an entity nested two deep', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PARAMETER_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      deq((await getDocuments({ parameters: { band: 'B' } })).documents.map(({ code }) => code), ['DC']);
+      deq((await getDocuments({ parameters: { band: 'A' } })).documents.map(({ code }) => code), ['DC', 'PV']);
+    });
+
+    it('should filter root rows by a field of a looked up entity', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      const projection = transform(transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)).set('0.parameters', { operator: { field: 'Operator.Name' } });
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, projection, ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents } = await getDocuments({ parameters: { operator: 'Parkdean' } }, '2020 Operators');
+      deq(documents.map(({ code, operator }) => [code, operator]), [['GA', { name: 'Parkdean' }]]);
+    });
+
+    it('should filter root rows by a field of an entity looked up from a nest', async (t) => {
+      const projection = transform(transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', { park: { entity: 'park@1', on: { code: 'park_code' } } })).set('0.parameters', { park_name: { field: 'seasons.park.name', match: 'prefix' } });
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection, ADD_PARK_CHANGE_SET);
+
+      deq((await getDocuments({ parameters: { park_name: 'Prim' } })).documents.map(({ code }) => code), ['PV']);
+    });
+
+    it('should exclude root rows with no nested entities only when a nested parameter is given', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PARAMETER_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      deq((await getDocuments({ pageSize: 3 })).documents.map(({ code }) => code), ['DC', 'GA', 'PV']);
+      deq((await getDocuments({ pageSize: 3, parameters: { season_type: 'Guests' } })).documents.map(({ code }) => code), ['DC', 'PV']);
+      deq((await getDocuments({ pageSize: 3, parameters: { amount_to: 1000 } })).documents.map(({ code }) => code), ['DC', 'PV']);
+    });
+
+    it('should not filter the nested entities of a root row matched by a nested parameter', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PARAMETER_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      const { documents } = await getDocuments({ parameters: { band: 'B' } });
+      deq(documents, [
+        {
+          code: 'DC',
+          name: 'Devon Cliffs',
+          seasons: [
+            { type: 'Guests', start: new Date('2019-03-15T00:00:00Z'), end: new Date('2019-11-15T00:00:00Z'), rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+            { type: 'Owners', start: new Date('2019-03-01T00:00:00Z'), end: new Date('2019-11-30T00:00:00Z'), rates: [] },
+            { type: 'Guests', start: new Date('2019-02-01T00:00:00Z'), end: new Date('2019-02-28T00:00:00Z'), rates: [{ band: 'A', amount: '120.00' }, { band: 'B', amount: '80.00' }] },
+          ],
+        },
+      ]);
+    });
+
+    it('should test both ends of a nested range against the same nested entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PARAMETER_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      deq((await getDocuments({ parameters: { amount_from: 90, amount_to: 110 } })).documents.map(({ code }) => code), ['PV']);
+      deq((await getDocuments({ parameters: { amount_from: 110 } })).documents.map(({ code }) => code), ['DC']);
+    });
+
+    it('should test separate nested parameters independently', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PARAMETER_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      deq((await getDocuments({ parameters: { season_type: 'Owners', band: 'B' } })).documents.map(({ code }) => code), ['DC']);
+      deq((await getDocuments({ parameters: { season_type: 'Guests', band: 'B' } })).documents.map(({ code }) => code), ['DC']);
+      deq((await getDocuments({ parameters: { season_type: 'Owners', band: 'Z' } })).documents, []);
+      deq((await getDocuments({ parameters: { code: 'PV', band: 'A' } })).documents.map(({ code }) => code), ['PV']);
+    });
+
+    it('should page and count only the root rows that match a nested parameter', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PARAMETER_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      const page1 = await getDocuments({ parameters: { band: 'A' }, pageSize: 1 });
+      eq(page1.total, 2);
+      deq(page1.documents.map(({ code }) => code), ['DC']);
+
+      const page2 = await getDocuments({ parameters: { band: 'A' }, pageOffset: 1, pageSize: 1 });
+      eq(page2.total, 2);
+      deq(page2.documents.map(({ code, seasons }) => [code, seasons.length]), [['PV', 1]]);
+    });
+
+    it('should filter root rows by an array field of a nested entity', async (t) => {
+      const entities = transform(ADD_PARK_ENTITIES).set('1.fields.tags', 'TEXT[]');
+      const changeSet = transform(transform(ADD_PARK_CHANGE_SET).set('0.changes.1.data.0.tags', '{quiet,adults}')).set('0.changes.1.data.3.tags', '{busy}');
+      const projection = transform(ADD_NESTED_PROJECTION).set('0.parameters', { tag: { field: 'seasons.tags', match: 'contains' }, tags: { field: 'seasons.tags', match: 'in' } });
+      await filby.applyYaml(t.name, entities, projection, changeSet);
+
+      deq((await getDocuments({ parameters: { tag: 'busy' } })).documents.map(({ code }) => code), ['PV']);
+      deq((await getDocuments({ parameters: { tags: ['adults', 'busy'] } })).documents.map(({ code }) => code), ['DC', 'PV']);
+      deq((await getDocuments({ parameters: { tags: ['none'] } })).documents, []);
+    });
+
+    it('should reject a contains match on a nested field that is not an array', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { kind: { field: 'seasons.type', match: 'contains' } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' parameter 'kind' cannot use match 'contains' on field 'seasons.type' because it is not an array");
+        return true;
+      });
+    });
+
+    it('should reject a parameter path through a nest or lookup the projection does not declare', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { band: { field: 'seasons.wombat.band' } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' parameter 'band' path 'seasons.wombat.band' references a non existent nest or lookup 'wombat'; existing nests and lookups are 'rates'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { band: { field: 'seasons.rates.wombat.band' } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' parameter 'band' path 'seasons.rates.wombat.band' references a non existent nest or lookup 'wombat'; 'seasons.rates' has no nests or lookups");
+        return true;
+      });
+    });
+
+    it('should reject a parameter path ending in a field the nested entity does not have', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { band: { field: 'seasons.rates.wombat' } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' parameter 'band' path 'seasons.rates.wombat' references a non existent field 'wombat' of entity 'rate v1'; existing fields are 'park_code', 'season_type', 'band', 'amount'");
+        return true;
+      });
+    });
+
+    it('should reject a dot in a nest or lookup name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest', { 'park.seasons': { entity: 'season@1', on: { park_code: 'code' } } })), (err) => {
+        eq(err.message, "001.should-reject-a-dot-in-a-nest-or-lookup-name.yaml: /0/nest must NOT have additional property 'park.seasons'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.lookup', { 'the.park': { entity: 'park@1', on: { code: 'park_code' } } })), (err) => {
+        eq(err.message, "001.should-reject-a-dot-in-a-nest-or-lookup-name.yaml: /0/nest/seasons/lookup must NOT have additional property 'the.park'");
+        return true;
+      });
+    });
+
+    it('should describe a nested parameter by the field at the end of its path', async (t) => {
+      const entities = transform(ADD_PARK_ENTITIES).set('1.fields.tags', 'TEXT[]');
+      const projection = transform(ADD_NESTED_PROJECTION).set('0.parameters', { ...NESTED_PARAMETERS, tag: { field: 'seasons.tags', match: 'contains' }, tags: { field: 'seasons.tags', match: 'in' } });
+      await filby.applyYaml(t.name, entities, projection);
+
+      const document = await (await filby.fetch(new Request('http://localhost/openapi.json'))).json();
+      deq(document.paths['/projections/Parks/v1'].get.parameters, [
+        { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
+        { name: 'code', in: 'query', schema: { type: 'string' } },
+        { name: 'season_type', in: 'query', schema: { type: 'string' } },
+        { name: 'band', in: 'query', schema: { type: 'string' } },
+        { name: 'amount_from', in: 'query', schema: { type: 'string' } },
+        { name: 'amount_to', in: 'query', schema: { type: 'string' } },
+        { name: 'tag', in: 'query', schema: { type: 'string' } },
+        { name: 'tags', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true },
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
+      ]);
+    });
+
     function setRates(rates) {
       const data = Object.entries(rates).map(([type, rate]) => ({ type, rate }));
       return transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data }]);

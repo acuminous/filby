@@ -370,6 +370,9 @@
   parameters:
     code:
       field: Code
+    surface:
+      field: Surfaces
+      match: contains
   order:
     - field: Name
 
@@ -404,6 +407,12 @@
       match: prefix
     region:
       field: Region
+      match: in
+    beach_surface:
+      field: Beach Routes.Beach.Surfaces
+      match: contains
+    amenity:
+      field: Amenities.Amenity Code
       match: in
   order:
     - field: Name
