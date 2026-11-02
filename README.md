@@ -382,7 +382,7 @@ A change set is added with `ADD_CHANGE_SET`: a description, an effective date an
         - Code: HF
 ```
 
-YAML gets long, so a frame may take its rows from a CSV file instead, with `source`, a path relative to the migration file. The CSV needs a header row of the entity's field names. Put the action on the frame to apply it to every row, in which case the file must not have an `action` column, or leave it off the frame and give the file an `action` column with every cell filled.
+YAML gets long, so a frame may take its rows from a CSV file instead, with `source`, a path relative to the migration file. The CSV needs a header row of the entity's field names. Put the action on the frame to apply it to every row, in which case the file must not have an `action` column, or leave it off the frame and give the file an `action` column with every cell filled. A file whose name ends in `.tsv`, in any case, is read as tab-separated.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -1319,7 +1319,7 @@ Each frame has these keys.
 | `version` | integer | with an `entity` that has no `@n` | |
 | `action` | `SET` or `DELETE`, in any case | without `source`, or with a `source` that has no `action` column | |
 | `data` | list of objects, at least one | one of `data`, `source` | Keys are field names; a map or list value is stored as JSON |
-| `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names |
+| `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names. A `.tsv` extension, in any case, means tab-separated |
 
 A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row with the header as line 1, and keeps Postgres's SQLSTATE.
 

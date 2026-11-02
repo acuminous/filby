@@ -4156,6 +4156,59 @@ describe('DSL', () => {
       });
     });
 
+    it('should load tsv values that contain commas', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'description', type: 'TEXT' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-commas.tsv' }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced']);
+      deq(frames.map((frame) => frame.description), ['Most goods, services and imports', 'Fuel, power and 1,200 other items']);
+    });
+
+    it('should load postgres array literals from tsv files', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'surfaces', type: 'TEXT[]' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-array.tsv' }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].type, 'standard');
+      deq(frames[0].surfaces, ['Sandy', 'Rocky']);
+    });
+
+    it('should take frame actions from a tsv action column', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-action.tsv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced', 'zero']);
+    });
+
+    it('should read the tsv extension in any case', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-upper.TSV' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced']);
+      deq(frames.map((frame) => frame.rate), [0.1, 0.05]);
+    });
+
+    it('should report bad tsv files', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/bad.tsv' }]);
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
+        eq(err.message, `Error parsing ${path.join(__dirname, 'dsl', 'datafiles', 'bad.tsv')}:3 - Too few fields: expected 3 fields but parsed 2`);
+        return true;
+      });
+    });
+
     it('should make aggregates available from the API', async (t) => {
       await filby.applyYaml(
         t.name,
