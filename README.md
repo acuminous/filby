@@ -382,7 +382,7 @@ A change set is added with `ADD_CHANGE_SET`: a description, an effective date an
         - Code: HF
 ```
 
-YAML gets long, so a frame may take its rows from a CSV file instead, with `source`, a path relative to the migration file. The CSV needs a header row of the entity's field names. Put the action on the frame to apply it to every row, in which case the file must not have an `action` column, or leave it off the frame and give the file an `action` column with every cell filled.
+YAML gets long, so a frame may take its rows from a CSV file instead, with `source`, a path relative to the migration file. The CSV needs a header row of the entity's field names. Put the action on the frame to apply it to every row, in which case the file must not have an `action` column, or leave it off the frame and give the file an `action` column with every cell filled. A file whose name ends in `.tsv`, in any case, is read as tab-separated.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -472,12 +472,15 @@ Each parameter names a field of the root entity and a matching rule:
 | ----- | --------- |
 | `equals` | Matches the supplied value exactly. This is the default. |
 | `prefix` | Matches values beginning with the supplied text. |
-| `in` | Matches any of the supplied values. |
+| `in` | Matches any of the supplied values. On an array field, matches arrays that share at least one value with the supplied values. |
+| `contains` | Matches arrays that include the supplied value. Applies only to an array field. |
 | `range` | Matches values between optional, inclusive lower and upper bounds. |
 | `gt` | Matches values greater than the supplied value. |
 | `gte` | Matches values greater than or equal to the supplied value. |
 | `lt` | Matches values less than the supplied value. |
 | `lte` | Matches values less than or equal to the supplied value. |
+
+An array field accepts only `in` and `contains`. An empty or null array never matches.
 
 The parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
@@ -1281,7 +1284,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root. On an array field, `match` must be `in` or `contains`. On any other field, it must not be `contains`. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
@@ -1345,7 +1348,7 @@ Each frame has these keys.
 | `version` | integer | with an `entity` that has no `@n` | |
 | `action` | `SET` or `DELETE`, in any case | without `source`, or with a `source` that has no `action` column | |
 | `data` | list of objects, at least one | one of `data`, `source` | Keys are field names; a map or list value is stored as JSON |
-| `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names |
+| `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names. A `.tsv` extension, in any case, means tab-separated |
 
 A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row with the header as line 1, and keeps Postgres's SQLSTATE.
 

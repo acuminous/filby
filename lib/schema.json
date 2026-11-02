@@ -371,6 +371,7 @@
                   "equals",
                   "prefix",
                   "in",
+                  "contains",
                   "range",
                   "gt",
                   "gte",

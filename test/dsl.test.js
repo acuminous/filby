@@ -1120,6 +1120,25 @@ describe('DSL', () => {
 
   describe('Add Projection', () => {
 
+    const ADD_ARRAY_PROJECTION = `
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  root: VAT Rate@1
+  parameters:
+    rate:
+      field: rate
+      match: contains
+    rates:
+      field: rate
+      match: in
+    types:
+      field: type
+      match: in
+`;
+
+    const ARRAY_RATES = { books: '{"zero"}', empty: '{}', food: '{"reduced","zero"}', fuel: '{"standard"}', unknown: null };
+
     it('should add projection', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION);
       const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_projection'));
@@ -1652,9 +1671,80 @@ describe('DSL', () => {
 
     it('should require parameter match to be a known operator', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.parameters.type.match', 'wombat')), (err) => {
-        eq(err.message, "001.should-require-parameter-match-to-be-a-known-operator.yaml: /0/parameters/type/match must be equal to one of the allowed values 'equals', 'prefix', 'in', 'range', 'gt', 'gte', 'lt' or 'lte'");
+        eq(err.message, "001.should-require-parameter-match-to-be-a-known-operator.yaml: /0/parameters/type/match must be equal to one of the allowed values 'equals', 'prefix', 'in', 'contains', 'range', 'gt', 'gte', 'lt' or 'lte'");
         return true;
       });
+    });
+
+    it('should filter by a value a text array contains', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT[]'), ADD_ARRAY_PROJECTION, setRates(ARRAY_RATES));
+
+      deq(await getArrayDocuments({ rate: 'zero' }), [{ type: 'books', rate: ['zero'] }, { type: 'food', rate: ['reduced', 'zero'] }]);
+      deq(await getArrayDocuments({ rate: 'wombat' }), []);
+    });
+
+    it('should filter by a value an enum array contains', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate[]'), ADD_ARRAY_PROJECTION, setRates(ARRAY_RATES));
+
+      deq(await getArrayDocuments({ rate: 'zero' }), [{ type: 'books', rate: ['zero'] }, { type: 'food', rate: ['reduced', 'zero'] }]);
+      deq(await getArrayDocuments({ rate: 'standard' }), [{ type: 'fuel', rate: ['standard'] }]);
+    });
+
+    it('should filter by overlap with a text array', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT[]'), ADD_ARRAY_PROJECTION, setRates(ARRAY_RATES));
+
+      deq(await getArrayDocuments({ rates: ['standard', 'reduced'] }), [{ type: 'food', rate: ['reduced', 'zero'] }, { type: 'fuel', rate: ['standard'] }]);
+      deq(await getArrayDocuments({ rates: ['wombat'] }), []);
+    });
+
+    it('should filter by overlap with an enum array', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate[]'), ADD_ARRAY_PROJECTION, setRates(ARRAY_RATES));
+
+      deq(await getArrayDocuments({ rates: ['standard', 'reduced'] }), [{ type: 'food', rate: ['reduced', 'zero'] }, { type: 'fuel', rate: ['standard'] }]);
+    });
+
+    it('should filter by membership of a scalar field alongside an array field', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT[]'), ADD_ARRAY_PROJECTION, setRates(ARRAY_RATES));
+
+      deq(await getArrayDocuments({ types: ['books', 'empty', 'unknown'] }), [{ type: 'books', rate: ['zero'] }, { type: 'empty', rate: [] }, { type: 'unknown', rate: null }]);
+      deq(await getArrayDocuments({ types: ['books', 'food'], rates: ['reduced'] }), [{ type: 'food', rate: ['reduced', 'zero'] }]);
+    });
+
+    it('should never match an empty or null array', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT[]'), ADD_ARRAY_PROJECTION, setRates(ARRAY_RATES));
+
+      deq((await getArrayDocuments({ rates: ['standard', 'reduced', 'zero'] })).map(({ type }) => type), ['books', 'food', 'fuel']);
+      deq(await getArrayDocuments({ rates: [] }), []);
+      deq((await getArrayDocuments({})).map(({ type }) => type), ['books', 'empty', 'food', 'fuel', 'unknown']);
+    });
+
+    it('should reject a contains match on a field that is not an array', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { kind: { field: 'Type', match: 'contains' } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'kind' cannot use match 'contains' on field 'type' because it is not an array");
+        return true;
+      });
+    });
+
+    it('should reject scalar matches on an array field', async (t) => {
+      for (const match of ['equals', 'prefix', 'range', 'gt', 'gte', 'lt', 'lte']) {
+        await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT[]'), transform(ADD_ROOT_PROJECTION).set('0.parameters', { band: { field: 'Rate', match } })), (err) => {
+          eq(err.message, `Projection 'VAT Rates v1' parameter 'band' cannot use match '${match}' on field 'rate' because it is an array`);
+          return true;
+        });
+      }
+    });
+
+    it('should describe array parameters by their element type', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate[]'), ADD_ARRAY_PROJECTION);
+
+      const document = await (await filby.fetch(new Request('http://localhost/openapi.json'))).json();
+      const values = { type: 'string', enum: ['standard', 'reduced', 'zero'] };
+      deq(document.paths['/projections/VAT%20Rates/v1'].get.parameters, [
+        { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
+        { name: 'rate', in: 'query', schema: values },
+        { name: 'rates', in: 'query', schema: { type: 'array', items: values }, style: 'form', explode: true },
+        { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true },
+      ]);
     });
 
     it('should require paging to have a positive size and max', async (t) => {
@@ -2531,6 +2621,13 @@ describe('DSL', () => {
       const projection = await filby.getProjection('Parks', 1);
       const changeSetId = await getChangeSetId(description);
       return filby.getDocuments(projection, changeSetId, options);
+    }
+
+    async function getArrayDocuments(parameters) {
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const { documents } = await filby.getDocuments(projection, changeSetId, { parameters });
+      return documents;
     }
   });
 
@@ -4373,6 +4470,59 @@ describe('DSL', () => {
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
         eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (type=type-00001) in change set '2020 VAT Rates'");
+        return true;
+      });
+    });
+
+    it('should load tsv values that contain commas', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'description', type: 'TEXT' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-commas.tsv' }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced']);
+      deq(frames.map((frame) => frame.description), ['Most goods, services and imports', 'Fuel, power and 1,200 other items']);
+    });
+
+    it('should load postgres array literals from tsv files', async (t) => {
+      const entity = transform(ADD_ENTITY).set('0.fields', [
+        { name: 'type', type: 'TEXT' },
+        { name: 'surfaces', type: 'TEXT[]' },
+      ]);
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-array.tsv' }]);
+      await filby.applyYaml(t.name, entity, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].type, 'standard');
+      deq(frames[0].surfaces, ['Sandy', 'Rocky']);
+    });
+
+    it('should take frame actions from a tsv action column', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-action.tsv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced', 'zero']);
+    });
+
+    it('should read the tsv extension in any case', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-upper.TSV' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced']);
+      deq(frames.map((frame) => frame.rate), [0.1, 0.05]);
+    });
+
+    it('should report bad tsv files', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/bad.tsv' }]);
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
+        eq(err.message, `Error parsing ${path.join(__dirname, 'dsl', 'datafiles', 'bad.tsv')}:3 - Too few fields: expected 3 fields but parsed 2`);
         return true;
       });
     });
