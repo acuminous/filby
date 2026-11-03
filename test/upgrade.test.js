@@ -111,7 +111,7 @@ describe('Upgrade', () => {
       GROUP BY c.oid, c.contype, c.confdeltype
       ORDER BY c.contype`);
     deq(constraints, [
-      { type: 'f', columns: ['fby_frame_id', 'fby_change_set_id'], on_delete: 'c' },
+      { type: 'f', columns: ['fby_frame_id', 'fby_change_set_id', 'fby_action'], on_delete: 'c' },
       { type: 'u', columns: ['fby_change_set_id', 'tax_rate', 'region'], on_delete: ' ' },
     ]);
 
@@ -126,7 +126,54 @@ describe('Upgrade', () => {
       { name: 'region', not_null: true },
       { name: 'rate', not_null: false },
       { name: 'fby_change_set_id', not_null: true },
+      { name: 'fby_action', not_null: true },
     ]);
+  });
+
+  it('should apply existing entity checks to SET frames only', async () => {
+    await createVatRateEntity();
+    await query(`
+      ALTER TABLE vat_rate_v1 ADD CONSTRAINT chk_rate_required CHECK (rate IS NOT NULL);
+
+      INSERT INTO fby_change_set (id, effective, description) VALUES
+        (1, '2020-04-05T00:00:00.000Z', '2020 VAT Rates');
+
+      INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES
+        (1, 1, (SELECT id FROM fby_entity), 'POST');
+
+      INSERT INTO vat_rate_v1 (fby_frame_id, tax_rate, region, rate) VALUES
+        (1, 'standard', 'uk', 0.20);
+
+      SELECT setval(pg_get_serial_sequence('fby_change_set', 'id'), 1);
+      SELECT setval(pg_get_serial_sequence('fby_data_frame', 'id'), 1);
+    `);
+
+    await upgrade();
+
+    const { rows: actions } = await query('SELECT fby_frame_id, fby_action FROM vat_rate_v1');
+    deq(actions, [{ fby_frame_id: 1, fby_action: 'SET' }]);
+
+    const { rows: checks } = await query('SELECT name, expression FROM fby_entity_check ORDER BY name');
+    deq(checks, [
+      { name: 'max_rate', expression: '((rate <= (1)::numeric))' },
+      { name: 'rate_required', expression: '((rate IS NOT NULL))' },
+    ]);
+
+    await query(`
+      INSERT INTO fby_change_set (id, effective, description) VALUES (2, '2021-04-05T00:00:00.000Z', '2021 VAT Rates');
+      INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES (2, 2, (SELECT id FROM fby_entity), 'DELETE');
+      INSERT INTO vat_rate_v1 (fby_frame_id, fby_change_set_id, fby_action, tax_rate, region) VALUES (2, 2, 'DELETE', 'standard', 'uk');
+    `);
+    deq((await query('SELECT * FROM get_vat_rate_v1_aggregate(2)')).rows, []);
+
+    await rejects(() => query(`
+      INSERT INTO fby_change_set (id, effective, description) VALUES (3, '2022-04-05T00:00:00.000Z', '2022 VAT Rates');
+      INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) VALUES (3, 3, (SELECT id FROM fby_entity), 'SET');
+      INSERT INTO vat_rate_v1 (fby_frame_id, fby_change_set_id, fby_action, tax_rate, region) VALUES (3, 3, 'SET', 'standard', 'uk');
+    `), (err) => {
+      eq(err.message, 'new row for relation "vat_rate_v1" violates check constraint "chk_rate_required"');
+      return true;
+    });
   });
 
   it('should regenerate aggregate functions', async () => {

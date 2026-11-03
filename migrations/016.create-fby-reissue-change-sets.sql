@@ -39,7 +39,7 @@ BEGIN
       EXECUTE format(
         'WITH frames AS (SELECT f.id, f.action, nextval(pg_get_serial_sequence(''fby_data_frame'', ''id'')) AS reissued_frame_id FROM fby_data_frame f WHERE f.change_set_id = $1 AND f.entity_id = $2 ORDER BY f.id), '
         'reissued_frames AS (INSERT INTO fby_data_frame (id, change_set_id, entity_id, action) SELECT reissued_frame_id, $3, $2, action FROM frames) '
-        'INSERT INTO %I (fby_frame_id, fby_change_set_id, %s) SELECT f.reissued_frame_id, $3, %s FROM frames f INNER JOIN %I x ON x.fby_frame_id = f.id',
+        'INSERT INTO %I (fby_frame_id, fby_change_set_id, fby_action, %s) SELECT f.reissued_frame_id, $3, f.action, %s FROM frames f INNER JOIN %I x ON x.fby_frame_id = f.id',
         v_table, v_columns, v_columns, v_table
       ) USING v_superseded.id, v_entity.id, v_reissued_id;
 

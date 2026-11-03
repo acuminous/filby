@@ -312,7 +312,7 @@ Fields use PostgreSQL types, including `TEXT`, `DATE`, `NUMERIC(5,2)`, `TIMESTAM
 
 Key fields cannot be null. Other fields are nullable by default. For non-key fields, `nullable: false` describes the field as required for tooling such as generated OpenAPI documentation; it does not by itself enforce non-null values.
 
-Checks are SQL expressions that validate field values. Keep the surrounding parentheses and use canonical field names: lowercase with spaces replaced by underscores. The example checks that `code` contains exactly two characters.
+Checks are SQL expressions that validate field values. Keep the surrounding parentheses and use canonical field names: lowercase with spaces replaced by underscores. The example checks that `code` contains exactly two characters. Checks only apply to `SET` frames. A `DELETE` frame contains just the key of the record being removed, so its other fields are empty and are not checked.
 
 Entity and field names can use Title Case with spaces. Filby canonicalises these names, so a field declared as `Park Code` appears as `park_code` in served documents. See [Names](#names).
 
@@ -1288,7 +1288,7 @@ The enum must exist, and no column may still use the type.
 | `fields` | map of name to type, or to `{ type, nullable }`; or list of `{ name, type, nullable }`; at least one | yes | | `nullable` defaults to `true`; key fields are never nullable |
 | `key` | list of field names, at least one | one of `key`, `identified_by` | | |
 | `identified_by` | list of field names, at least one | one of `key`, `identified_by` | | Equivalent to `key` |
-| `checks` | map of name to expression, at least one | no | | Each becomes `CONSTRAINT chk_<name> CHECK <expression>` |
+| `checks` | map of name to expression, at least one | no | | Each becomes a check constraint named `chk_<name>`, applied to `SET` frames only |
 
 The key fields must be fields of the entity, each field type must be a valid PostgreSQL type, and the entity version must not already exist.
 

@@ -12,6 +12,7 @@ DECLARE
   v_description TEXT;
   v_key TEXT;
   v_constraint TEXT;
+  v_expression TEXT;
 BEGIN
   FOR v_entity IN SELECT id, name, version FROM fby_entity ORDER BY id LOOP
     v_table := lower(regexp_replace(v_entity.name || ' v' || v_entity.version, '\s', '_', 'g'));
@@ -27,8 +28,8 @@ BEGIN
     WHERE entity_id = v_entity.id
       AND identity;
 
-    EXECUTE format('ALTER TABLE %I ADD COLUMN fby_change_set_id INTEGER', v_table);
-    EXECUTE format('UPDATE %I x SET fby_change_set_id = f.change_set_id FROM fby_data_frame f WHERE f.id = x.fby_frame_id', v_table);
+    EXECUTE format('ALTER TABLE %I ADD COLUMN fby_change_set_id INTEGER, ADD COLUMN fby_action fby_action_type', v_table);
+    EXECUTE format('UPDATE %I x SET fby_change_set_id = f.change_set_id, fby_action = f.action FROM fby_data_frame f WHERE f.id = x.fby_frame_id', v_table);
 
     EXECUTE format(
       'SELECT cs.description, %s FROM %I x INNER JOIN fby_change_set cs ON cs.id = x.fby_change_set_id GROUP BY cs.id, cs.description, %s HAVING COUNT(*) > 1 ORDER BY cs.id LIMIT 1',
@@ -51,8 +52,18 @@ BEGIN
       EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', v_table, v_constraint);
     END LOOP;
 
+    FOR v_constraint, v_expression IN
+      SELECT c.conname, regexp_replace(pg_get_constraintdef(c.oid), '^CHECK ', '')
+      FROM pg_constraint c
+      WHERE c.conrelid = to_regclass(format('%I', v_table))
+        AND c.contype = 'c'
+    LOOP
+      EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', v_table, v_constraint);
+      EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I CHECK (fby_action = ''DELETE'' OR %s)', v_table, v_constraint, v_expression);
+    END LOOP;
+
     EXECUTE format(
-      'ALTER TABLE %I ALTER COLUMN fby_change_set_id SET NOT NULL, %s, ADD CONSTRAINT %I FOREIGN KEY (fby_frame_id, fby_change_set_id) REFERENCES fby_data_frame (id, change_set_id) ON DELETE CASCADE, ADD CONSTRAINT %I UNIQUE (fby_change_set_id, %s)',
+      'ALTER TABLE %I ALTER COLUMN fby_change_set_id SET NOT NULL, ALTER COLUMN fby_action SET NOT NULL, %s, ADD CONSTRAINT %I FOREIGN KEY (fby_frame_id, fby_change_set_id, fby_action) REFERENCES fby_data_frame (id, change_set_id, action) ON DELETE CASCADE, ADD CONSTRAINT %I UNIQUE (fby_change_set_id, %s)',
       v_table, v_key_constraints, 'fk_' || v_table || '_fby_data_frame', 'uniq_' || v_table || '_fby_change_set_id_' || v_constraint_suffix, v_keys
     );
   END LOOP;

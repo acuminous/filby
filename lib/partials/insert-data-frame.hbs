@@ -34,8 +34,8 @@ BEGIN
       VALUES (v_change_set_id, v_entity_id, (v_row.value->>'action')::fby_action_type)
       RETURNING id INTO v_frame_id;
 
-      INSERT INTO {{identifier (table ../entity ../version)}} (fby_frame_id, fby_change_set_id, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}})
-      SELECT v_frame_id, v_change_set_id, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}}
+      INSERT INTO {{identifier (table ../entity ../version)}} (fby_frame_id, fby_change_set_id, fby_action, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}})
+      SELECT v_frame_id, v_change_set_id, (v_row.value->>'action')::fby_action_type, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}}
       FROM json_populate_record(null::{{identifier (table ../entity ../version)}}, v_row.value->'data');
     EXCEPTION
       WHEN unique_violation

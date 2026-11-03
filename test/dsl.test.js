@@ -587,7 +587,7 @@ describe('DSL', () => {
         GROUP BY c.oid, c.contype, c.confdeltype
         ORDER BY c.contype`));
       deq(constraints, [
-        { type: 'f', columns: ['fby_frame_id', 'fby_change_set_id'], on_delete: 'c' },
+        { type: 'f', columns: ['fby_frame_id', 'fby_change_set_id', 'fby_action'], on_delete: 'c' },
         { type: 'u', columns: ['fby_change_set_id', 'type'], on_delete: ' ' },
       ]);
     });
@@ -793,8 +793,8 @@ describe('DSL', () => {
       await filby.applyYaml(t.name, yaml);
 
       const { rows: columns } = await filby.withTransaction((tx) => tx.query("SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'vat_rate_v1' ORDER BY ordinal_position"));
-      eq(columns.length, 4);
-      eq(columns[2].name, "pwned',_1);raise_exception_$💀$you_have_been_pwned!$💀$;");
+      eq(columns.length, 5);
+      eq(columns[3].name, "pwned',_1);raise_exception_$💀$you_have_been_pwned!$💀$;");
     });
 
     it('should require fields to have a type', async (t) => {
@@ -976,6 +976,33 @@ describe('DSL', () => {
         transform(ADD_CHANGE_SET_1).set('0.frames.0.data.0.rate', 1.1),
       ), (err) => {
         eq(err.code, CHECK_VIOLATION);
+        return true;
+      });
+    });
+
+    it('should not apply checks to DELETE frames', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        transform(ADD_ENTITY).merge('0.checks', { rate_required: '(rate IS NOT NULL)' }),
+        transform(transform(ADD_CHANGE_SET_1).set('0.frames.1.action', 'DELETE')).set('0.frames.1.data.0', { type: 'reduced' }),
+      );
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map(({ action, type }) => ({ action, type })), [
+        { action: 'SET', type: 'standard' },
+        { action: 'DELETE', type: 'reduced' },
+        { action: 'SET', type: 'zero' },
+      ]);
+    });
+
+    it('should apply checks to SET frames', async (t) => {
+      await rejects(() => filby.applyYaml(
+        t.name,
+        transform(ADD_ENTITY).merge('0.checks', { rate_required: '(rate IS NOT NULL)' }),
+        transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0.rate', null),
+      ), (err) => {
+        eq(err.code, CHECK_VIOLATION);
+        eq(err.message, '001.should-apply-checks-to-set-frames.yaml: /1/frames/1/data/0 - new row for relation "vat_rate_v1" violates check constraint "chk_rate_required"');
         return true;
       });
     });
@@ -3374,6 +3401,15 @@ describe('DSL', () => {
       deq(rows, [{ rate: 0.05 }, { rate: 0.2 }]);
     });
 
+    it('should not apply checks to the DELETE frames of re-issued change sets', async (t) => {
+      const deleteStandard = vatRate('2027', 'standard', 0.25).replace('action: POST', 'action: DELETE').replace('\n          rate: 0.25', '');
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).merge('0.checks', { rate_required: '(rate IS NOT NULL)' }), vatRate('2025', 'standard', 0.2), deleteStandard, vatRate('2026', 'reduced', 0.05));
+
+      const [original, reissued] = await getChangeSets('2027 VAT Rates');
+      eq(original.superseded_by, reissued.id);
+      deq(await filby.getAggregates(reissued.id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.05 }]);
+    });
+
     it('should record each entity in a change set once', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ENTITY).set('0.version', 2), transform(ADD_CHANGE_SET_1).set('0.frames.2.version', 2));
 
@@ -4738,7 +4774,7 @@ describe('DSL', () => {
       WHERE c.description = $1
       ORDER BY x.fby_frame_id ASC`, [description]));
     return changeSets.map((changeSet) => {
-      const { fby_frame_id: _frameId, fby_change_set_id: _changeSetId, ...cs } = changeSet;
+      const { fby_frame_id: _frameId, fby_change_set_id: _changeSetId, fby_action: _action, ...cs } = changeSet;
       return cs;
     });
   }

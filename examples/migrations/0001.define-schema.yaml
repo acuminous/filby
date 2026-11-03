@@ -223,10 +223,9 @@
     - Year
   checks:
     park_offer_value: >-
-      ((offer_type IS NULL AND offer_price IS NULL AND discount_percent IS NULL AND discount_amount IS NULL)
-      OR (offer_type = 'Offer Price' AND offer_price IS NOT NULL AND discount_percent IS NULL AND discount_amount IS NULL)
+      (offer_type = 'Offer Price' AND offer_price IS NOT NULL AND discount_percent IS NULL AND discount_amount IS NULL)
       OR (offer_type = 'Percent Off' AND discount_percent IS NOT NULL AND offer_price IS NULL AND discount_amount IS NULL)
-      OR (offer_type = 'Amount Off' AND discount_amount IS NOT NULL AND offer_price IS NULL AND discount_percent IS NULL))
+      OR (offer_type = 'Amount Off' AND discount_amount IS NOT NULL AND offer_price IS NULL AND discount_percent IS NULL)
 
 - operation: ADD_ENTITY
   name: Park Model
