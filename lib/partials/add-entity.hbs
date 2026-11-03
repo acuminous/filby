@@ -1,6 +1,18 @@
 -- add entity
 DO $$
+DECLARE
+  v_existing TEXT;
 BEGIN
+  SELECT name || ' v' || version INTO v_existing
+  FROM fby_entity
+  WHERE lower(regexp_replace(name || ' v' || version, '\s', '_', 'g')) = {{literal (table name version)}}
+    AND NOT (name = {{literal name}} AND version = {{literal version}})
+  LIMIT 1;
+
+  IF v_existing IS NOT NULL THEN
+    RAISE EXCEPTION 'Entity ''%'' cannot be added because entity ''%'' already exists, and both become ''%''', {{literal name (v version)}}, v_existing, {{literal (table name version)}};
+  END IF;
+
   BEGIN
     INSERT INTO fby_entity (name, version, description) VALUES
     ({{literal name}}, {{literal version}}, {{literal description}});
@@ -11,13 +23,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-INSERT INTO fby_entity_field (entity_id, position, name, type, identity, nullable)
-SELECT e.id, f.position, f.name, f.type, f.identity, f.nullable
+INSERT INTO fby_entity_field (entity_id, position, name, given_name, type, identity, nullable)
+SELECT e.id, f.position, f.name, f.given_name, f.type, f.identity, f.nullable
 FROM fby_entity e, (VALUES
   {{#fields}}
-  ({{ordinal}}, {{literal (canonical name)}}, {{fieldType ../name ../version name type}}, {{#if (includes ../identified_by this)}}TRUE{{else}}FALSE{{/if}}, {{#if nullable}}TRUE{{else}}FALSE{{/if}}){{#unless @last}},{{/unless}}
+  ({{ordinal}}, {{literal (canonical name)}}, {{literal name}}, {{fieldType ../name ../version name type}}, {{#if (includes ../identified_by this)}}TRUE{{else}}FALSE{{/if}}, {{#if nullable}}TRUE{{else}}FALSE{{/if}}){{#unless @last}},{{/unless}}
   {{/fields}}
-) AS f (position, name, type, identity, nullable)
+) AS f (position, name, given_name, type, identity, nullable)
 WHERE e.name = {{literal name}}
   AND e.version = {{literal version}};
 

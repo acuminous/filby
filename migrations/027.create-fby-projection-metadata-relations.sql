@@ -28,7 +28,7 @@ CREATE TABLE fby_projection_order (
 
 CREATE OR REPLACE FUNCTION fby_entity_field_hint(p_entity_id INTEGER) RETURNS TEXT
 AS $$
-  SELECT '; existing fields are ' || string_agg('''' || name || '''', ', ' ORDER BY position)
+  SELECT '; existing fields are ' || string_agg('''' || COALESCE(given_name, name) || '''', ', ' ORDER BY position)
   FROM fby_entity_field
   WHERE entity_id = p_entity_id;
 $$ LANGUAGE sql STABLE;

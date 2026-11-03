@@ -4,6 +4,7 @@ CREATE TABLE fby_entity_field (
   entity_id INTEGER REFERENCES fby_entity (id) ON DELETE CASCADE NOT NULL,
   position INTEGER NOT NULL,
   name TEXT NOT NULL,
+  given_name TEXT,
   type TEXT NOT NULL,
   identity BOOLEAN NOT NULL,
   PRIMARY KEY (entity_id, position),
@@ -19,6 +20,7 @@ CREATE TABLE fby_entity_check (
 
 CREATE TABLE fby_enum (
   name TEXT NOT NULL,
+  given_name TEXT,
   position INTEGER NOT NULL,
   value TEXT NOT NULL,
   PRIMARY KEY (name, position),
