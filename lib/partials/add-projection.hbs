@@ -62,7 +62,7 @@ BEGIN
     AND version = {{literal version}};
 
   IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_entity_id AND name = {{literal field}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%''{{#if nests}} path ''%''{{/if}} references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{#if nests}}{{literal path}}, {{/if}}{{literal field}}, {{literal entity (v version)}}, fby_entity_field_hint(v_entity_id);
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%''{{#if nests}} path ''%''{{/if}} references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{#if nests}}{{literal written.path}}, {{/if}}{{literal written.field}}, {{literal entity (v version)}}, fby_entity_field_hint(v_entity_id);
   END IF;
 
   SELECT COALESCE(t.typcategory = 'A', FALSE) INTO v_array
@@ -72,11 +72,11 @@ BEGIN
     AND f.name = {{literal field}};
 
   IF {{literal match}} = 'contains' AND NOT v_array THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal path}};
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal written.path}};
   END IF;
 
   IF {{literal match}} NOT IN ('in', 'contains') AND v_array THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal path}};
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal written.path}};
   END IF;
 
   v_arrays := v_arrays || v_array;
@@ -87,7 +87,7 @@ BEGIN
   {{/each}}
   {{#each order}}
   IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal (canonical field)}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal (canonical field)}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+    RAISE EXCEPTION 'Projection ''%'' orders by a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal field}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
   END IF;
 
   INSERT INTO fby_projection_order (projection_id, position, field, direction, nulls) VALUES
@@ -96,7 +96,7 @@ BEGIN
   {{/each}}
   {{#each fields}}
   IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal field}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal field}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal written.field}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
   END IF;
 
   {{/each}}

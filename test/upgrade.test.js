@@ -64,6 +64,25 @@ describe('Upgrade', () => {
     ]);
   });
 
+  it('should list backfilled fields by their canonical names in hints', async () => {
+    await createVatRateEntity();
+
+    await upgrade();
+
+    const projection = `
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 1
+  root: VAT Rate@1
+  order:
+    - field: Wombat Field
+`;
+    await rejects(() => applyYaml(projection), (err) => {
+      eq(err.message, "Projection 'VAT Rates v1' orders by a non existent field 'Wombat Field' of entity 'VAT Rate v1'; existing fields are 'tax_rate', 'region', 'rate'");
+      return true;
+    });
+  });
+
   it('should upgrade entity tables to one frame per key per change set', async () => {
     await createVatRateEntity();
     await query(`

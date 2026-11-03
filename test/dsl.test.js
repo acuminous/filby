@@ -136,6 +136,14 @@ describe('DSL', () => {
       });
     });
 
+    it('should name both spellings and the canonical name when enums become the same name', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUM);
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', 'VAT Tax Rate')), (err) => {
+        eq(err.message, "Enum 'VAT Tax Rate' cannot be added because enum 'vat_tax_rate' already exists, and both become 'vat_tax_rate'");
+        return true;
+      });
+    });
+
     it('should require a name', async (t) => {
       await rejects(() => filby.applyYaml(
         t.name,
@@ -1747,7 +1755,7 @@ describe('DSL', () => {
 
     it('should reject a contains match on a field that is not an array', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { kind: { field: 'Type', match: 'contains' } })), (err) => {
-        eq(err.message, "Projection 'VAT Rates v1' parameter 'kind' cannot use match 'contains' on field 'type' because it is not an array");
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'kind' cannot use match 'contains' on field 'Type' because it is not an array");
         return true;
       });
     });
@@ -1755,7 +1763,7 @@ describe('DSL', () => {
     it('should reject scalar matches on an array field', async (t) => {
       for (const match of ['equals', 'prefix', 'range', 'gt', 'gte', 'lt', 'lte']) {
         await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'TEXT[]'), transform(ADD_ROOT_PROJECTION).set('0.parameters', { band: { field: 'Rate', match } })), (err) => {
-          eq(err.message, `Projection 'VAT Rates v1' parameter 'band' cannot use match '${match}' on field 'rate' because it is an array`);
+          eq(err.message, `Projection 'VAT Rates v1' parameter 'band' cannot use match '${match}' on field 'Rate' because it is an array`);
           return true;
         });
       }
@@ -2029,7 +2037,7 @@ describe('DSL', () => {
 
     it('should reject a nest with the same name as a root field', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', { Name: { entity: 'season@1', on: { park_code: 'code' } } })), (err) => {
-        eq(err.message, "Projection 'Parks v1' nest 'Name' has the same name as a field of entity 'park v1'");
+        eq(err.message, "Projection 'Parks v1' nest 'Name' has the same name as the field 'name' of entity 'park v1', because both become 'name'");
         return true;
       });
     });
@@ -2059,7 +2067,7 @@ describe('DSL', () => {
     it('should reject nests with the same canonical name', async (t) => {
       const nest = { Seasons: { entity: 'season@1', on: { park_code: 'code' } }, seasons: { entity: 'season@1', on: { park_code: 'code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest', nest)), (err) => {
-        eq(err.message, "Projection 'Parks v1' declares 'seasons' more than once");
+        eq(err.message, "Projection 'Parks v1' cannot declare both 'Seasons' and 'seasons', because both become 'seasons'");
         return true;
       });
 
@@ -2097,7 +2105,7 @@ describe('DSL', () => {
 
     it('should reject a nested nest with the same name as a parent field', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', { Type: { entity: 'rate@1', on: { park_code: 'park_code' } } })), (err) => {
-        eq(err.message, "Projection 'Parks v1' nest 'seasons.Type' has the same name as a field of entity 'season v1'");
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.Type' has the same name as the field 'type' of entity 'season v1', because both become 'type'");
         return true;
       });
     });
@@ -2127,7 +2135,7 @@ describe('DSL', () => {
     it('should reject nested nests with the same canonical name under the same parent', async (t) => {
       const nest = { Rates: { entity: 'rate@1', on: { park_code: 'park_code' } }, rates: { entity: 'rate@1', on: { park_code: 'park_code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest', nest)), (err) => {
-        eq(err.message, "Projection 'Parks v1' declares 'seasons.rates' more than once");
+        eq(err.message, "Projection 'Parks v1' cannot declare both 'seasons.Rates' and 'seasons.rates', because both become 'rates'");
         return true;
       });
 
@@ -2284,6 +2292,11 @@ describe('DSL', () => {
     it('should reject a lookup with the same name as a nest', async (t) => {
       const lookup = { Seasons: { entity: 'park@1', on: { code: 'code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' cannot declare both 'seasons' and 'Seasons', because both become 'seasons'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.lookup', { seasons: { entity: 'park@1', on: { code: 'code' } } })), (err) => {
         eq(err.message, "Projection 'Parks v1' declares 'seasons' more than once");
         return true;
       });
@@ -2529,21 +2542,21 @@ describe('DSL', () => {
 
     it('should reject a root property carried more than once', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', ['code', { field: 'name', as: 'Code' }])), (err) => {
-        eq(err.message, "Projection 'Parks v1' carries more than one property named 'code'");
+        eq(err.message, "Projection 'Parks v1' cannot carry both 'code' and 'Code', because both become 'code'");
         return true;
       });
     });
 
     it('should reject a nest field listed twice under the same name', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', ['type', 'Type'])), (err) => {
-        eq(err.message, "Projection 'Parks v1' nest 'seasons' carries more than one property named 'type'");
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' cannot carry both 'type' and 'Type', because both become 'type'");
         return true;
       });
     });
 
     it('should reject a root alias with the same name as a nest', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.fields', [{ field: 'name', as: 'Seasons' }])), (err) => {
-        eq(err.message, "Projection 'Parks v1' carries more than one property named 'seasons'");
+        eq(err.message, "Projection 'Parks v1' cannot carry both 'seasons' and 'Seasons', because both become 'seasons'");
         return true;
       });
     });
@@ -2578,7 +2591,7 @@ describe('DSL', () => {
       });
 
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.fields', [{ field: 'type', as: 'FBY Type' }])), (err) => {
-        eq(err.message, "Projection 'Parks v1' nest 'seasons' property 'fby_type' uses a reserved name");
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' property 'FBY Type' uses a reserved name");
         return true;
       });
     });
@@ -2821,6 +2834,140 @@ describe('DSL', () => {
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
       ]);
+    });
+
+    describe('Names as written', () => {
+      const ADD_WRITTEN_PARK_ENTITIES = `
+- operation: ADD_ENTITY
+  name: park
+  version: 1
+  fields:
+    Code: TEXT
+    Park Name: TEXT
+  key:
+    - Code
+- operation: ADD_ENTITY
+  name: season
+  version: 1
+  fields:
+    Park Code: TEXT
+    Season Type: TEXT
+    Start: TIMESTAMP WITH TIME ZONE
+  key:
+    - Park Code
+    - Season Type
+    - Start
+`;
+      const ADD_WRITTEN_PARKS_PROJECTION = `
+- operation: ADD_PROJECTION
+  name: Parks
+  version: 1
+  root: park@1
+  nest:
+    Park Seasons:
+      entity: season@1
+      on:
+        Park Code: Code
+`;
+
+      it('should quote a field the root does not have as written, with the existing fields as written', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.order', [{ field: 'Wombat Field' }])), (err) => {
+          eq(err.message, "Projection 'Parks v1' orders by a non existent field 'Wombat Field' of entity 'park v1'; existing fields are 'Code', 'Park Name'");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.fields', ['Code', 'Wombat Field'])), (err) => {
+          eq(err.message, "Projection 'Parks v1' selects a non existent field 'Wombat Field' of entity 'park v1'; existing fields are 'Code', 'Park Name'");
+          return true;
+        });
+      });
+
+      it('should quote a field a nest does not have as written, with the existing fields as written', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set(['0', 'nest', 'Park Seasons', 'on'], { 'Park Kode': 'Code' })), (err) => {
+          eq(err.message, "Projection 'Parks v1' nest 'Park Seasons' joins on a non existent field 'Park Kode' of entity 'season v1'; existing fields are 'Park Code', 'Season Type', 'Start'");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set(['0', 'nest', 'Park Seasons', 'on'], { 'Park Code': 'Park Kode' })), (err) => {
+          eq(err.message, "Projection 'Parks v1' nest 'Park Seasons' joins on a non existent field 'Park Kode' of entity 'park v1'; existing fields are 'Code', 'Park Name'");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set(['0', 'nest', 'Park Seasons', 'order'], [{ field: 'Wombat Field' }])), (err) => {
+          eq(err.message, "Projection 'Parks v1' nest 'Park Seasons' orders by a non existent field 'Wombat Field' of entity 'season v1'; existing fields are 'Park Code', 'Season Type', 'Start'");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set(['0', 'nest', 'Park Seasons', 'fields'], ['Wombat Field'])), (err) => {
+          eq(err.message, "Projection 'Parks v1' nest 'Park Seasons' selects a non existent field 'Wombat Field' of entity 'season v1'; existing fields are 'Park Code', 'Season Type', 'Start'");
+          return true;
+        });
+      });
+
+      it('should quote a parameter path as written', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.parameters', { season: { field: 'Park Seasons.Wombat Field' } })), (err) => {
+          eq(err.message, "Projection 'Parks v1' parameter 'season' path 'Park Seasons.Wombat Field' references a non existent field 'Wombat Field' of entity 'season v1'; existing fields are 'Park Code', 'Season Type', 'Start'");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.parameters', { season: { field: 'Wombat Nest.Start' } })), (err) => {
+          eq(err.message, "Projection 'Parks v1' parameter 'season' path 'Wombat Nest.Start' references a non existent nest or lookup 'Wombat Nest'; existing nests and lookups are 'Park Seasons'");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.parameters', { season: { field: 'Park Seasons.Wombat Nest.Start' } })), (err) => {
+          eq(err.message, "Projection 'Parks v1' parameter 'season' path 'Park Seasons.Wombat Nest.Start' references a non existent nest or lookup 'Wombat Nest'; 'Park Seasons' has no nests or lookups");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.parameters', { kind: { field: 'Park Seasons.Season Type', match: 'contains' } })), (err) => {
+          eq(err.message, "Projection 'Parks v1' parameter 'kind' cannot use match 'contains' on field 'Park Seasons.Season Type' because it is not an array");
+          return true;
+        });
+      });
+
+      it('should quote missing lookup key fields as written', async (t) => {
+        const lookup = { Season: { entity: 'season@1', on: { 'Park Code': 'Code' } } };
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.lookup', lookup)), (err) => {
+          eq(err.message, "Projection 'Parks v1' lookup 'Season' does not join on the whole key of entity 'season v1'; missing key fields are 'Season Type', 'Start'");
+          return true;
+        });
+      });
+
+      it('should name both spellings and the canonical name when a nest and a field become the same name', async (t) => {
+        const seasons = { entity: 'season@1', on: { 'Park Code': 'Code' } };
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.nest', { 'park name': seasons })), (err) => {
+          eq(err.message, "Projection 'Parks v1' nest 'park name' has the same name as the field 'Park Name' of entity 'park v1', because both become 'park_name'");
+          return true;
+        });
+
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.nest', { 'Park Name': seasons })), (err) => {
+          eq(err.message, "Projection 'Parks v1' nest 'Park Name' has the same name as the field 'Park Name' of entity 'park v1'");
+          return true;
+        });
+      });
+
+      it('should name both spellings and the canonical name when nests become the same name', async (t) => {
+        const seasons = { entity: 'season@1', on: { 'Park Code': 'Code' } };
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.nest', { 'Park Seasons': seasons, 'park seasons': seasons })), (err) => {
+          eq(err.message, "Projection 'Parks v1' cannot declare both 'Park Seasons' and 'park seasons', because both become 'park_seasons'");
+          return true;
+        });
+      });
+
+      it('should name both spellings and the canonical name when a property and a join field become the same name', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.fields', [{ field: 'Park Name', as: 'code' }])), (err) => {
+          eq(err.message, "Projection 'Parks v1' property 'code' has the same name as the field 'Code' that nest 'Park Seasons' joins on, because both become 'code'");
+          return true;
+        });
+      });
+
+      it('should quote a reserved property as written', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_PARK_ENTITIES, transform(ADD_WRITTEN_PARKS_PROJECTION).set('0.fields', [{ field: 'Code', as: 'FBY Code' }])), (err) => {
+          eq(err.message, "Projection 'Parks v1' property 'FBY Code' uses a reserved name");
+          return true;
+        });
+      });
     });
 
     function setRates(rates) {
@@ -3472,6 +3619,20 @@ describe('DSL', () => {
     it('should reject data fields that do not exist', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).merge('0.frames.0.data.0', { wombat: 1 })), (err) => {
         eq(err.message, "Change set '2020 VAT Rates' references a non existent field 'wombat' of entity 'VAT Rate v1'");
+        return true;
+      });
+    });
+
+    it('should quote data fields and key fields as written', async (t) => {
+      const ADD_WRITTEN_ENTITY = transform(transform(ADD_ENTITY).set('0.fields', [{ name: 'Tax Type', type: 'TEXT' }, { name: 'Rate', type: 'NUMERIC' }])).set('0.identified_by', ['Tax Type']);
+      const ADD_WRITTEN_CHANGE_SET = transform(ADD_CHANGE_SET_1).del('0.frames.1');
+      await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_ENTITY, transform(ADD_WRITTEN_CHANGE_SET).set('0.frames.0.data', [{ 'Tax Type': 'standard', Rate: 0.2 }, { 'Tax Type': 'standard', Rate: 0.1 }])), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (Tax Type=standard) in change set '2020 VAT Rates'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, ADD_WRITTEN_ENTITY, transform(ADD_WRITTEN_CHANGE_SET).set('0.frames.0.data', [{ 'Tax Type': 'standard', 'Wombat Field': 1 }])), (err) => {
+        eq(err.message, "Change set '2020 VAT Rates' references a non existent field 'Wombat Field' of entity 'VAT Rate v1'");
         return true;
       });
     });

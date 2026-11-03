@@ -29,10 +29,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-INSERT INTO fby_enum (name, position, value)
-SELECT {{literal (canonical name)}}, e.position + v.ordinal, v.value
+INSERT INTO fby_enum (name, written_name, position, value)
+SELECT {{literal (canonical name)}}, e.written_name, e.position + v.ordinal, v.value
 FROM (
-  SELECT COALESCE(MAX(position), 0) AS position FROM fby_enum WHERE name = {{literal (canonical name)}}
+  SELECT MIN(written_name) AS written_name, COALESCE(MAX(position), 0) AS position FROM fby_enum WHERE name = {{literal (canonical name)}}
 ) e
 CROSS JOIN (
   VALUES

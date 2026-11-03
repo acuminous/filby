@@ -1,5 +1,7 @@
 -- add enum
 DO $$
+DECLARE
+  v_existing TEXT;
 BEGIN
   BEGIN
     CREATE TYPE {{identifier name}} AS ENUM (
@@ -8,13 +10,17 @@ BEGIN
       {{/values}}
     );
   EXCEPTION
-    WHEN duplicate_object
-    THEN RAISE EXCEPTION 'Enum '{{literal name}}' already exists';
+    WHEN duplicate_object THEN
+      SELECT COALESCE(written_name, name) INTO v_existing FROM fby_enum WHERE name = {{literal (canonical name)}} LIMIT 1;
+      IF v_existing IS NOT NULL AND v_existing <> {{literal name}} THEN
+        RAISE EXCEPTION 'Enum ''%'' cannot be added because enum ''%'' already exists, and both become ''%''', {{literal name}}, v_existing, {{literal (canonical name)}};
+      END IF;
+      RAISE EXCEPTION 'Enum '{{literal name}}' already exists';
   END;
 END;
 $$ LANGUAGE plpgsql;
 
-INSERT INTO fby_enum (name, position, value) VALUES
+INSERT INTO fby_enum (name, written_name, position, value) VALUES
 {{#values}}
-({{literal (canonical ../name)}}, {{ordinal}}, {{literal this}}){{#unless @last}},{{/unless}}
+({{literal (canonical ../name)}}, {{literal ../name}}, {{ordinal}}, {{literal this}}){{#unless @last}},{{/unless}}
 {{/values}};
