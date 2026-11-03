@@ -8,7 +8,7 @@
     v_missing TEXT;
     {{/if}}
   BEGIN
-    IF {{literal (canonical name)}} = 'fby_total' THEN
+    IF starts_with({{literal (canonical name)}}, 'fby_') THEN
       RAISE EXCEPTION 'Projection ''%'' {{#if lookup}}lookup{{else}}nest{{/if}} ''%'' uses a reserved name', {{literal projection_name (v projection_version)}}, {{literal (nestPath path name)}};
     END IF;
 
