@@ -778,74 +778,80 @@
     "NestType": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "entity": {
-            "type": "string",
-            "pattern": "@[0-9]+$"
-          },
-          "on": {
-            "type": "object",
-            "minProperties": 1,
-            "additionalProperties": {
-              "type": "string"
+      "patternProperties": {
+        "^[^.]*$": {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "type": "string",
+              "pattern": "@[0-9]+$"
+            },
+            "on": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ProjectionFieldType"
+              }
+            },
+            "order": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/OrderItemType"
+              }
+            },
+            "nest": {
+              "$ref": "#/definitions/NestType"
+            },
+            "lookup": {
+              "$ref": "#/definitions/LookupType"
             }
           },
-          "fields": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/ProjectionFieldType"
-            }
-          },
-          "order": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "$ref": "#/definitions/OrderItemType"
-            }
-          },
-          "nest": {
-            "$ref": "#/definitions/NestType"
-          },
-          "lookup": {
-            "$ref": "#/definitions/LookupType"
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "entity",
-          "on"
-        ]
-      }
+          "additionalProperties": false,
+          "required": [
+            "entity",
+            "on"
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "LookupType": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "entity": {
-            "type": "string",
-            "pattern": "@[0-9]+$"
-          },
-          "on": {
-            "type": "object",
-            "minProperties": 1,
-            "additionalProperties": {
-              "type": "string"
+      "patternProperties": {
+        "^[^.]*$": {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "type": "string",
+              "pattern": "@[0-9]+$"
+            },
+            "on": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "fields": {
+              "$ref": "#/definitions/ProjectionFieldListType"
             }
           },
-          "fields": {
-            "$ref": "#/definitions/ProjectionFieldListType"
-          }
-        },
-        "additionalProperties": false,
-        "required": [
-          "entity",
-          "on"
-        ]
-      }
+          "additionalProperties": false,
+          "required": [
+            "entity",
+            "on"
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "ProjectionFieldListType": {
       "type": "array",
