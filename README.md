@@ -466,7 +466,7 @@ Three optional properties control how records are selected and returned:
     page_max: 50
 ```
 
-Each parameter names a field of the root entity and a matching rule. A parameter can also filter on a field of a nested or looked-up entity; see [Filtering by nested fields](#filtering-by-nested-fields).
+Each parameter names a field and a matching rule. The field usually belongs to the root entity, but it can also belong to a nested or looked-up entity, as described in [Filtering by nested fields](#filtering-by-nested-fields).
 
 | Match | Behaviour |
 | ----- | --------- |
@@ -657,7 +657,7 @@ Lookups can appear on the root or under any nest. They have no sort order and ca
 
 ##### Filtering by nested fields
 
-A parameter can filter the root records by the records nested or looked up beneath them. Give its `field` as a path. The path starts with the names of the nests and lookups to follow, as the projection declares them, separated by dots. It ends with a field of the last entity.
+A parameter can also select root records by the values of the records nested or looked up beneath them. Give the parameter's `field` as a path of names separated by dots. The path lists the nests and lookups to follow, using the names the projection declares, and ends with a field of the last entity. Here, `beach_surface` follows each park's `Beach Routes` nest to its `Beach` lookup and tests the beach's `Surfaces`:
 
 ```yaml
 - operation: ADD_PROJECTION
@@ -681,11 +681,11 @@ A parameter can filter the root records by the records nested or looked up benea
             Code: Beach Code
 ```
 
-`?beach_surface=Sandy` returns the parks with at least one route to a sandy beach. Each park comes back whole, with all of its routes, including routes to beaches that are not sandy. A park with no beach routes is left out when the parameter is supplied, and included when it is not.
+`?beach_surface=Sandy` returns the parks with at least one route to a sandy beach. The filter selects which parks are returned without changing their contents, so each park still includes all of its routes, including routes to beaches that are not sandy. When the parameter is supplied, parks with no beach routes are excluded.
 
-A parameter is tested against one record at a time. So a `range` parameter only matches when a single route lies within both bounds. Separate parameters are tested separately, though. `?beach_surface=Sandy&route_access=Step%20Free` returns the parks that have a sandy beach and a step-free route, even when they are different routes.
+Each parameter is tested against one nested record at a time, so a `range` parameter matches only when a single route falls within both bounds. Different parameters are tested independently. `?beach_surface=Sandy&route_access=Step%20Free` returns the parks that have a route to a sandy beach and a step-free route, even when they are different routes.
 
-Every match type works at the end of a path, including `contains` and `in` on an array field. A lookup has no nests of its own, so it can only be the last name before the field. The field does not need to appear in the documents. Consumers only ever see the parameter's name, never its path. The OpenAPI document describes the parameter with the type of the field at the end of the path.
+Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. Consumers see only the parameter's name, and the OpenAPI document describes the parameter using the type of the field at the end of the path.
 
 ##### Selecting fields
 
@@ -1316,7 +1316,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root, or a path such as `Beach Routes.Beach.Surfaces` that names nests and lookups at successive levels and ends in a field of the last one. A lookup can only be the last name in a path. On an array field, `match` must be `in` or `contains`. On any other field, it must not be `contains`. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root or a path. A path such as `Beach Routes.Beach.Surfaces` names a nest or lookup at each level, starting from the root, and ends with a field of the last one. A lookup can only be the last name in a path. Only `in` and `contains` can be used with an array field, and `contains` can only be used with an array field. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
