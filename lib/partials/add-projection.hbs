@@ -13,7 +13,18 @@ DECLARE
   v_outputs TEXT;
   v_order TEXT;
   v_body TEXT;
+  v_existing TEXT;
 BEGIN
+  SELECT name || ' v' || version INTO v_existing
+  FROM fby_projection
+  WHERE lower(regexp_replace(name || ' v' || version, '\s', '_', 'g')) = {{literal (table name version)}}
+    AND NOT (name = {{literal name}} AND version = {{literal version}})
+  LIMIT 1;
+
+  IF v_existing IS NOT NULL THEN
+    RAISE EXCEPTION 'Projection ''%'' cannot be added because projection ''%'' already exists, and both become ''%''', {{literal name (v version)}}, v_existing, {{literal (table name version)}};
+  END IF;
+
   BEGIN
     INSERT INTO fby_projection (name, version, description) VALUES
     ({{literal name}}, {{literal version}}, {{literal description}})
@@ -62,7 +73,7 @@ BEGIN
     AND version = {{literal version}};
 
   IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_entity_id AND name = {{literal field}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%''{{#if nests}} path ''%''{{/if}} references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{#if nests}}{{literal written.path}}, {{/if}}{{literal written.field}}, {{literal entity (v version)}}, fby_entity_field_hint(v_entity_id);
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%''{{#if nests}} path ''%''{{/if}} references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{#if nests}}{{literal given.path}}, {{/if}}{{literal given.field}}, {{literal entity (v version)}}, fby_entity_field_hint(v_entity_id);
   END IF;
 
   SELECT COALESCE(t.typcategory = 'A', FALSE) INTO v_array
@@ -72,11 +83,11 @@ BEGIN
     AND f.name = {{literal field}};
 
   IF {{literal match}} = 'contains' AND NOT v_array THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal written.path}};
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal given.path}};
   END IF;
 
   IF {{literal match}} NOT IN ('in', 'contains') AND v_array THEN
-    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal written.path}};
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal given.path}};
   END IF;
 
   v_arrays := v_arrays || v_array;
@@ -96,7 +107,7 @@ BEGIN
   {{/each}}
   {{#each fields}}
   IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal field}}) THEN
-    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal written.field}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
+    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal given.field}}, {{literal ../root.entity (v ../root.version)}}, fby_entity_field_hint(v_root_id);
   END IF;
 
   {{/each}}

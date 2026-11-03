@@ -13,7 +13,7 @@
       RAISE EXCEPTION 'Projection ''%'' {{#if lookup}}lookup{{else}}nest{{/if}} ''%'' uses a reserved name', {{literal projection_name (v projection_version)}}, {{literal (nestPath path name)}};
     END IF;
 
-    SELECT COALESCE(written_name, name) INTO v_field
+    SELECT COALESCE(given_name, name) INTO v_field
     FROM fby_entity_field
     WHERE entity_id = v_parent_entity_id
       AND name = {{literal (canonical name)}};
@@ -45,7 +45,7 @@
 
     {{/each}}
     {{#if lookup}}
-    SELECT string_agg('''' || COALESCE(written_name, name) || '''', ', ' ORDER BY position) INTO v_missing
+    SELECT string_agg('''' || COALESCE(given_name, name) || '''', ', ' ORDER BY position) INTO v_missing
     FROM fby_entity_field
     WHERE entity_id = v_nest_entity_id
       AND identity
@@ -58,7 +58,7 @@
     {{/if}}
     {{#each fields}}
     IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal field}}) THEN
-      RAISE EXCEPTION 'Projection ''%'' {{#if ../lookup}}lookup{{else}}nest{{/if}} ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal written.field}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);
+      RAISE EXCEPTION 'Projection ''%'' {{#if ../lookup}}lookup{{else}}nest{{/if}} ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal given.field}}, {{literal ../entity (v ../version)}}, fby_entity_field_hint(v_nest_entity_id);
     END IF;
 
     {{/each}}

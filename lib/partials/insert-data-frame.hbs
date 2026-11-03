@@ -16,8 +16,8 @@ DECLARE
   v_field TEXT;
   v_row RECORD;
 BEGIN
-  SELECT f.written_name INTO v_field
-  FROM unnest(ARRAY[{{#each fields}}{{literal this}}{{#unless @last}}, {{/unless}}{{/each}}], ARRAY[{{#each written}}{{literal this}}{{#unless @last}}, {{/unless}}{{/each}}]) AS f (name, written_name)
+  SELECT f.given_name INTO v_field
+  FROM unnest(ARRAY[{{#each fields}}{{literal this}}{{#unless @last}}, {{/unless}}{{/each}}], ARRAY[{{#each given}}{{literal this}}{{#unless @last}}, {{/unless}}{{/each}}]) AS f (name, given_name)
   WHERE NOT EXISTS (SELECT 1 FROM fby_entity_field ef WHERE ef.entity_id = v_entity_id AND ef.name = f.name)
   LIMIT 1;
 
@@ -41,7 +41,7 @@ BEGIN
       WHEN unique_violation
       THEN RAISE EXCEPTION 'Entity ''%'' has more than one frame with key (%) in change set ''%''',
         {{literal ../entity (v ../version)}},
-        (SELECT string_agg(format('%s=%s', COALESCE(i.written_name, i.name), v_row.value->'data'->>i.name), ', ' ORDER BY i.position) FROM fby_entity_field i WHERE i.entity_id = v_entity_id AND i.identity),
+        (SELECT string_agg(format('%s=%s', COALESCE(i.given_name, i.name), v_row.value->'data'->>i.name), ', ' ORDER BY i.position) FROM fby_entity_field i WHERE i.entity_id = v_entity_id AND i.identity),
         (SELECT description FROM fby_change_set WHERE id = v_change_set_id);
       WHEN OTHERS
       THEN RAISE EXCEPTION '%: % - %', {{literal @filename}}, {{literal location.prefix}} || ({{location.first}} + v_row.ordinality - 1), SQLERRM USING ERRCODE = SQLSTATE;
