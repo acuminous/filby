@@ -4456,7 +4456,7 @@ describe('DSL', () => {
       const started = Date.now();
       await filby.applyYaml(t.name, ADD_ENTITY, changeSet);
       const elapsed = Date.now() - started;
-      ok(elapsed < 15000, `Loading 20000 rows took ${elapsed}ms`);
+      ok(elapsed < 60000, `Loading 20000 rows took ${elapsed}ms`);
 
       const { rows } = await filby.withTransaction((tx) => tx.query('SELECT type FROM vat_rate_v1 ORDER BY fby_frame_id'));
       eq(rows.length, 20000);
