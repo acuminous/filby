@@ -1185,57 +1185,7 @@ Two commands build a module. `filby export` applies your migrations to a databas
 
 The package version is derived from the data: the major version is the projection version and the minor version is the latest change set id. A push that adds a change set to one projection therefore produces a new version of that projection's module and leaves the others unchanged, and each application's lockfile records exactly which data it was built with.
 
-The following GitHub Actions workflow publishes two projections with [trusted publishing](https://docs.npmjs.com/trusted-publishers) on every push to `main`. It skips any package whose version is already on the registry.
-
-```yaml
-name: Publish projections
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  publish:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    services:
-      postgres:
-        image: postgres:16-alpine
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: filby
-          POSTGRES_PASSWORD: filby
-          POSTGRES_DB: filby
-    env:
-      TZ: UTC
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: '24.x'
-          registry-url: https://registry.npmjs.org/
-      - run: npm install -g npm@latest
-      - run: npm ci
-      - name: Publish
-        run: |
-          publish() {
-            npx filby export --config filby.json --projection "$1" --out "dist/$2.json"
-            package=$(npx filby pack --bundle "dist/$2.json" --name "@example/$2" --out "dist/$2")
-            if npm view "$package" version > /dev/null 2>&1; then
-              echo "$package is already published"
-            else
-              npm publish "dist/$2" --access public
-            fi
-          }
-          publish 'Parks@1' parks-v1
-          publish 'VAT Rates@1' vat-rates-v1
-```
-
-`filby.json` holds the [configuration](#configuration) used for the export. Here it points Filby at the workflow's Postgres service and the repository's migrations:
+`filby export` reads the Filby [configuration](#configuration) from a JSON file. In CI, it points Filby at a Postgres service container and the repository's migrations:
 
 ```json
 {
@@ -1254,13 +1204,12 @@ An application that installs the module reads the projection without a database 
 ```js
 const parks = require('@example/parks-v1');
 
-const devonCliffs = parks.getCurrentDocuments().find(({ code }) => code === 'DC');
-
-const changeSet = parks.asOf(new Date('2027-01-01T00:00:00Z'));
-const nextYear = parks.getDocuments(changeSet.id);
+const now = new Date();
+const changeSet = parks.asOf(now);
+const documents = parks.getDocuments(changeSet.id);
 ```
 
-`getCurrentDocuments()` returns the documents at the change set in force when it is called, and `asOf` finds the change set in force at a given time. The module always returns every document, so the application filters, sorts and pages them itself. Modules are CommonJS and include TypeScript declarations generated from the projection's fields. [Generated module](#generated-module) lists everything a module exports.
+`asOf` finds the change set in force at a given time, and `getDocuments` returns the documents at that change set. The module always returns every document, so the application filters, sorts and pages them itself. Modules are CommonJS and include TypeScript declarations generated from the projection's fields. [Generated module](#generated-module) lists everything a module exports.
 
 ## Reference
 
@@ -1823,7 +1772,7 @@ npx filby pack --bundle parks-v1.json --name @example/parks-v1 --out dist/parks-
 
 The command reads only the bundle, so it does not need a database. The package contains `package.json`, a copy of the bundle, a CommonJS runtime with no dependencies, and TypeScript declarations generated from the bundle's document schema.
 
-The package version is `<projection version>.<latest change set id>.0`. A new projection version can change the shape of the documents, so it starts a new major version. A new change set only adds data, so it raises the minor version. The command writes `<name>@<version>` to stdout, which the workflow in [Distributing projections as modules](#distributing-projections-as-modules) passes to `npm view`.
+The package version is `<projection version>.<latest change set id>.0`. A new projection version can change the shape of the documents, so it starts a new major version. A new change set only adds data, so it raises the minor version. The command writes `<name>@<version>` to stdout, so a CI job can check whether that version has already been published before running `npm publish`.
 
 If an option is missing, the bundle cannot be read, its format is not supported or it does not match that format's schema, the command reports the problem to stderr and exits with code 1.
 
