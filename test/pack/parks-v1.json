@@ -1,0 +1,64 @@
+{
+  "format": 1,
+  "filby": "0.14.0",
+  "name": "Parks",
+  "version": 1,
+  "description": "Parks with their seasons and operator",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "code": { "type": "string" },
+      "name": { "type": "string" },
+      "price": { "type": "string" },
+      "status": { "anyOf": [{ "type": "string", "enum": ["OPEN", "CLOSED"] }, { "type": "null" }] },
+      "opened": { "type": ["string", "null"], "format": "date-time" },
+      "facts": {},
+      "seasons": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string" },
+            "start": { "type": "string", "format": "date-time" }
+          },
+          "required": ["type", "start"],
+          "additionalProperties": false
+        },
+        "x-filby-on": { "park_code": "code" }
+      },
+      "operator": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+          },
+          { "type": "null" }
+        ],
+        "x-filby-on": { "code": "operator_code" }
+      }
+    },
+    "required": ["code", "name", "price", "seasons", "operator"],
+    "additionalProperties": false
+  },
+  "changeSets": [
+    { "id": 3, "effective": "2020-01-01T00:00:00.000Z", "description": "2020 Parks", "lastModified": "2026-10-01T09:00:00.000Z", "entityTag": "a1" },
+    { "id": 5, "effective": "2021-01-01T00:00:00.000Z", "description": "2021 Parks", "lastModified": "2026-10-01T09:00:01.000Z", "entityTag": "a2" },
+    { "id": 7, "effective": "2099-01-01T00:00:00.000Z", "description": "2099 Parks", "lastModified": "2026-10-01T09:00:02.000Z", "entityTag": "a3" }
+  ],
+  "documents": {
+    "3": [
+      { "code": "DC", "name": "Devon Cliffs", "price": "99.50", "status": "OPEN", "opened": "2001-05-01T00:00:00.000Z", "facts": { "pools": 2 }, "seasons": [{ "type": "Owners", "start": "2020-03-01T00:00:00.000Z" }], "operator": { "name": "Haven" } },
+      { "code": "GA", "name": "Greenacres", "price": "1000.00", "status": null, "opened": null, "facts": null, "seasons": [], "operator": null }
+    ],
+    "5": [
+      { "code": "DC", "name": "Devon Cliffs", "price": "99.50", "status": "OPEN", "opened": "2001-05-01T00:00:00.000Z", "facts": { "pools": 3 }, "seasons": [{ "type": "Owners", "start": "2021-03-01T00:00:00.000Z" }], "operator": { "name": "Haven" } }
+    ],
+    "7": [
+      { "code": "BB", "name": "Burnham Beach", "price": "80.00", "status": "OPEN", "opened": "2098-06-01T00:00:00.000Z", "facts": null, "seasons": [], "operator": { "name": "Haven" } }
+    ]
+  }
+}

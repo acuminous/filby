@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acuminous.github.io/filby/lib/bundle-schema.json",
+  "title": "Filby projection bundle",
+  "description": "One projection's change sets and documents, written by filby export",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": 1
+    },
+    "filby": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "description": {
+      "type": ["string", "null"]
+    },
+    "schema": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "object"
+        }
+      },
+      "required": ["type"]
+    },
+    "changeSets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "effective": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "lastModified": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "entityTag": {
+            "type": "string"
+          },
+          "reissuedFrom": {
+            "type": "integer"
+          }
+        },
+        "required": ["id", "effective", "description", "lastModified", "entityTag"],
+        "additionalProperties": false
+      }
+    },
+    "documents": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[1-9][0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "required": ["format", "filby", "name", "version", "description", "schema", "changeSets", "documents"],
+  "additionalProperties": false
+}

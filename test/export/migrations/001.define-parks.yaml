@@ -1,0 +1,72 @@
+- operation: ADD_ENUM
+  name: park_status
+  values:
+    - OPEN
+    - CLOSED
+
+- operation: ADD_ENTITY
+  name: operator
+  fields:
+    code: TEXT
+    name: TEXT
+  key:
+    - code
+
+- operation: ADD_ENTITY
+  name: park
+  fields:
+    code: TEXT
+    name: TEXT
+    berths: INTEGER
+    price: NUMERIC(10,2)
+    status: park_status
+    opened:
+      type: TIMESTAMP WITH TIME ZONE
+      nullable: true
+    operator_code:
+      type: TEXT
+      nullable: true
+  key:
+    - code
+
+- operation: ADD_ENTITY
+  name: season
+  fields:
+    park_code: TEXT
+    type: TEXT
+    start: TIMESTAMP WITH TIME ZONE
+  key:
+    - park_code
+    - type
+    - start
+
+- operation: ADD_PROJECTION
+  name: Parks
+  description: Parks with their seasons and operator
+  root: park@1
+  paging:
+    page_size: 2
+    page_max: 2
+  nest:
+    seasons:
+      entity: season@1
+      on:
+        park_code: code
+      fields:
+        - type
+        - field: start
+          as: starts at
+  lookup:
+    operator:
+      entity: operator@1
+      on:
+        code: operator_code
+      fields:
+        - field: name
+          as: operator name
+
+- operation: ADD_PROJECTION
+  name: Park Codes
+  dependencies:
+    - entity: park
+      version: 1
