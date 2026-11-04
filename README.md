@@ -1817,8 +1817,6 @@ For projections with a root entity, Filby generates response schemas from the se
 
 For custom SQL projections declared with `dependencies`, response records have an unconstrained schema because Filby cannot infer the function's output structure.
 
-Schemas also include an `x-filby-on` extension describing joins. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`.
-
 #### JSON types
 
 Schemas describe the values returned over HTTP, which may differ from their PostgreSQL types:
@@ -1830,6 +1828,20 @@ Schemas describe the values returned over HTTP, which may differ from their Post
 | `JSON`, `JSONB` and unrecognised types | Unconstrained values. |
 
 Array fields use the corresponding element schema. Nullable fields also allow `null`.
+
+#### Filby extensions
+
+The OpenAPI document carries three extensions that describe how Filby joins and filters documents:
+
+| Extension | Appears on | Value |
+| --------- | ---------- | ----- |
+| `x-filby-on` | Each nest and lookup in a response schema | The join, mapping each field of the nested record to the parent field it matches. |
+| `x-filby-match` | Each declared query parameter | The parameter's match: `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` or `lte`. |
+| `x-filby-field` | Each declared query parameter | The path of the field the parameter filters, as a list of the property names a document uses, including any `as` alias, for example `["seasons", "rates", "band"]`. |
+
+A client can use `x-filby-match` and `x-filby-field` to label filter controls without inferring them from parameter names. A `range` parameter appears as two query parameters, `<name>_from` followed by `<name>_to`, which carry the same match and field. A parameter may filter on a field that documents do not carry, such as one left out by `fields`. That parameter has no `x-filby-field`, because the document has no property to name.
+
+Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match` and `x-filby-field` in the same way.
 
 ### Command line
 
