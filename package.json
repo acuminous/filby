@@ -13,7 +13,9 @@
     "database",
     "postgres",
     "postgresql",
-    "typescript"
+    "typescript",
+    "product information management",
+    "pim"
   ],
   "author": "Stephen Cresswell",
   "license": "ISC",
