@@ -1222,20 +1222,17 @@ Each hook notification is delivered to one instance per attempt, so a handler ru
 
 #### Applying migrations separately
 
-You can instead apply migrations separately from the instances that serve requests, with the [`filby migrate`](#apply-migrations) command:
+You can also apply migrations without deploying, with the [`filby migrate`](#apply-migrations) command:
 
 ```bash
 npx filby migrate --config filby.json
 ```
 
-The instances then call `init({ migrate: false })`. This prepares the instance in the same way as `init()`, but checks that every migration has been applied instead of applying any. It does not take the migration lock, so starting an instance does not pause notification delivery or wait for deliveries in progress, and the instances can connect as a database user without permission to change the schema. If one of the instance's migrations has not been applied, `init()` rejects with an error that names it, so an instance deployed ahead of its migrations fails at startup rather than while it serves requests.
-
-Each change then takes one of two routes:
-
-- A migration that needs no new handler code, such as one that adds a change set or a projection, can be applied on its own, for example from a CI step. The running instances serve the change without restarting.
-- A migration that adds a hook, or otherwise needs new handler code, goes out with a rolling deployment of that code. On Kubernetes, run `filby migrate` from an init container, so that each new instance applies outstanding migrations before the application container starts. Applying such a migration on its own would leave the running instances without a handler, and its notifications would fail and be retried until they exhausted their attempts or the handler was released.
+A migration that needs no new handler code, such as one that adds a change set or a projection, can be applied this way, for example from a CI step. The running instances serve the change without restarting, and the next deployment finds nothing left to apply. A migration that adds a hook, or otherwise needs new handler code, should still go out with a rolling deployment of that code. Applied on its own, it would leave the running instances without a handler, and its notifications would fail and be retried until they ran out of attempts or the handler was released.
 
 A rolling deployment for every migration is simpler, because every change takes the same route, but a migration that only loads data waits for a deployment that replaces every instance. Applying such migrations with `filby migrate` makes them take effect sooner, at the cost of choosing a route for each change. Rolling deployment remains the recommended approach.
+
+If you apply every migration with `filby migrate`, the instances can call `init({ migrate: false })`. This prepares the instance in the same way as `init()`, but checks that every migration has been applied instead of applying any. It does not take the migration lock, so starting an instance does not pause notification delivery, and the instances can connect as a database user without permission to change the schema. Run `filby migrate` before each deployment that includes migrations. An instance whose migrations have not been applied fails at startup with an error that names the first one.
 
 ### Distributing projections as modules
 
