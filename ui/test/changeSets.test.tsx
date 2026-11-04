@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { changeSet, stubApi, stubClipboard, unavailableStorage } from './fixtures';
+import { changeSet, stubApi, stubClipboard, stubExecCommand, unavailableStorage } from './fixtures';
 import { renderAt } from './render';
 
 const CHANGE_SETS = [
@@ -177,15 +177,41 @@ describe('Change sets', () => {
       expect(writeText).toHaveBeenCalledWith(JSON.stringify(CHANGE_SETS, null, 2));
     });
 
-    it('says when the clipboard refuses the copy', async () => {
+    it('copies through a hidden text box when there is no clipboard, as outside a secure context', async () => {
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+      const calls = stubExecCommand();
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1?view=json');
+      const button = await screen.findByRole('button', { name: 'Copy' });
+      button.focus();
+      fireEvent.click(button);
+      expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+      expect(calls).toEqual([{ command: 'copy', text: JSON.stringify(CHANGE_SETS, null, 2) }]);
+      expect(document.querySelector('textarea')).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Copied' }));
+    });
+
+    it('copies through a hidden text box when the clipboard refuses the copy', async () => {
       stubClipboard(() => Promise.reject(new Error('NotAllowedError')));
+      const calls = stubExecCommand();
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1?view=json');
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+      expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+      expect(calls).toEqual([{ command: 'copy', text: JSON.stringify(CHANGE_SETS, null, 2) }]);
+    });
+
+    it('says the copy failed when neither the clipboard nor the text box copies', async () => {
+      stubClipboard(() => Promise.reject(new Error('NotAllowedError')));
+      stubExecCommand(false);
       stubApi({ '/api/changelog': { body: CHANGE_SETS } });
       renderAt('/projections/Parks/v1?view=json');
       fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
       expect(await screen.findByRole('button', { name: 'Copy failed' })).toBeTruthy();
+      expect(document.querySelector('textarea')).toBeNull();
     });
 
-    it('says the copy failed when there is no clipboard, as outside a secure context', async () => {
+    it('says the copy failed when there is no clipboard and no copy command', async () => {
       Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
       stubApi({ '/api/changelog': { body: CHANGE_SETS } });
       renderAt('/projections/Parks/v1?view=json');

@@ -28,14 +28,14 @@ export function JsonBody({ url, body }: { url: string; body: unknown }) {
     const timer = setTimeout(() => (copied.value = 'idle'), 2000);
     return () => clearTimeout(timer);
   }, [copied.value]);
-  // The clipboard is missing outside a secure context, so a missing one fails the copy like a refusal does.
   const copy = () =>
     Promise.resolve()
       .then(() => navigator.clipboard.writeText(text))
+      .catch(() => copyThroughTextBox(text))
       .then(
-      () => (copied.value = 'copied'),
-      () => (copied.value = 'failed'),
-    );
+        () => (copied.value = 'copied'),
+        () => (copied.value = 'failed'),
+      );
   return (
     <>
       <div class="head json-head">
@@ -53,6 +53,29 @@ export function JsonBody({ url, body }: { url: string; body: unknown }) {
       </section>
     </>
   );
+}
+
+// The clipboard is missing outside a secure context, such as plain HTTP on a host other than localhost, and may refuse the copy.
+// The deprecated copy command still works there, from a text box selected for the moment of the copy.
+function copyThroughTextBox(text: string) {
+  const focused = document.activeElement;
+  const box = document.createElement('textarea');
+  box.value = text;
+  box.readOnly = true;
+  box.setAttribute('aria-hidden', 'true');
+  box.style.position = 'fixed';
+  box.style.top = '0';
+  box.style.left = '0';
+  box.style.opacity = '0';
+  document.body.append(box);
+  try {
+    box.focus();
+    box.select();
+    if (!document.execCommand('copy')) throw new Error('The copy command did not copy');
+  } finally {
+    box.remove();
+    if (focused instanceof HTMLElement) focused.focus();
+  }
 }
 
 function tokens(value: unknown, indent: string): ComponentChildren {

@@ -11,4 +11,5 @@ afterEach(() => {
   localStorage.clear();
   openapi.value = undefined;
   Reflect.deleteProperty(navigator, 'clipboard');
+  Reflect.deleteProperty(document, 'execCommand');
 });
