@@ -1215,7 +1215,7 @@ An application can install a projection as an npm module instead of requesting i
 
 Two commands build a module. `filby export` applies your migrations to a database and writes one projection's change sets and documents to a [bundle](#projection-bundle) file. `filby pack` turns the bundle into an npm package directory, which you then publish with `npm publish`. Neither command needs a running application, so they usually run in the CI pipeline of the repository that holds your migrations, against an empty database. Change set ids are assigned as the migrations are applied, so a module built from the same migrations as your production database uses the same ids.
 
-The package version is derived from the data: the major version is the projection version and the minor version is the latest change set id. A push that adds a change set to one projection therefore produces a new version of that projection's module and leaves the others unchanged, and each application's lockfile records exactly which data it was built with.
+Each projection version is published as its own package, named after the projection, such as `@example/projection-parks-v1`. A new projection version can change the shape of the documents, so an application moves to it by installing the new package and changing its code, and can keep both installed while it does. Within a package, the minor version is the latest change set id. A push that adds a change set to one projection therefore produces a new version of that projection's module and leaves the others unchanged, and each application's lockfile records exactly which data it was built with.
 
 `filby export` reads the Filby [configuration](#configuration) from a JSON file. In CI, it points Filby at a Postgres service container and the repository's migrations:
 
@@ -1234,7 +1234,7 @@ The package version is derived from the data: the major version is the projectio
 An application that installs the module reads the projection without a database or a network call:
 
 ```js
-const parks = require('@example/parks-v1');
+const parks = require('@example/projection-parks-v1');
 
 const now = new Date();
 const changeSet = parks.asOf(now);
@@ -1793,20 +1793,32 @@ If an option is missing, the configuration cannot be read or the projection does
 Use `pack` to turn a bundle into an npm package directory:
 
 ```bash
-npx filby pack --bundle parks-v1.json --name @example/parks-v1 --out dist/parks-v1
+npx filby pack --bundle parks-v1.json --scope @example --out dist/parks-v1
 ```
 
 | Option | Value |
 | ------ | ----- |
-| `--bundle` | The bundle file written by `export`. |
-| `--name` | The package name. |
-| `--out` | The directory to write the package to. |
+| `--bundle` | The bundle file written by `export`. Required. |
+| `--out` | The directory to write the package to. Required. |
+| `--scope` | The npm scope to publish the package under, such as `@example`. |
+| `--name` | A package name to use instead of the one built from the projection. Cannot be given with `--scope`. |
+| `--patch` | The patch version, a whole number. Defaults to 0. |
 
 The command reads only the bundle, so it does not need a database. The package contains `package.json`, a copy of the bundle, a CommonJS runtime with no dependencies, and TypeScript declarations generated from the bundle's document schema.
 
-The package version is `<projection version>.<latest change set id>.0`. A new projection version can change the shape of the documents, so it starts a new major version. A new change set only adds data, so it raises the minor version. The command writes `<name>@<version>` to stdout, so a CI job can check whether that version has already been published before running `npm publish`.
+The package is named `projection-<name>-v<version>`, inside the scope if one is given. The projection name is converted to lower case and each run of other characters becomes a hyphen, so `VAT Rates@1` becomes `projection-vat-rates-v1`. The prefix keeps the package apart from any other package of the same name in the scope. If the projection name has no letters or digits from `a` to `z` and `0` to `9`, give the package a name with `--name`.
 
-If an option is missing, the bundle cannot be read, its format is not supported or it does not match that format's schema, the command reports the problem to stderr and exits with code 1.
+The package version is `<module API version>.<latest change set id>.<patch>`.
+
+| Part | Changes when |
+| ---- | ------------ |
+| Major | A Filby release changes the generated module in a way that breaks existing code. The current module API version is 1. |
+| Minor | A new change set is published. Change sets only add data, so applications on a `^` range receive it automatically. |
+| Patch | `--patch` is given, for example to republish data that has already been published with a fixed runtime. |
+
+The command writes `<name>@<version>` to stdout, so a CI job can check whether that version has already been published before running `npm publish`.
+
+If a required option is missing, an option is invalid, the bundle cannot be read, its format is not supported or it does not match that format's schema, the command reports the problem to stderr and exits with code 1.
 
 ### Projection bundle
 

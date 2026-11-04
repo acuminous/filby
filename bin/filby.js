@@ -12,7 +12,7 @@ const { pack } = require('../lib/pack');
 const USAGE = [
   'Usage: filby <validate|preview> [directory ...]',
   '       filby export --config <file> --projection <name@version> --out <file>',
-  '       filby pack --bundle <file> --name <package> --out <directory>',
+  '       filby pack --bundle <file> --out <directory> [--scope <scope> | --name <package>] [--patch <n>]',
 ].join('\n');
 
 const commands = {
@@ -46,7 +46,7 @@ async function check(args, command) {
 }
 
 async function exportCommand(args) {
-  const { config: configFile, projection: reference, out } = requiredOptions(args, ['config', 'projection', 'out']);
+  const { config: configFile, projection: reference, out } = readOptions(args, ['config', 'projection', 'out']);
   const [, name, version] = reference.match(/^(.+)@(\d+)$/) ?? [];
   if (!name) throw new UsageError(`Projection '${reference}' must be given as name@version`);
   const filby = new Filby(readJson(configFile, 'config'));
@@ -62,8 +62,10 @@ async function exportCommand(args) {
 }
 
 async function packCommand(args) {
-  const { bundle: bundleFile, name, out } = requiredOptions(args, ['bundle', 'name', 'out']);
-  const { version } = pack(readJson(bundleFile, 'bundle'), { name, out: path.resolve(out) });
+  const { bundle: bundleFile, out, scope, name: givenName, patch } = readOptions(args, ['bundle', 'out'], ['scope', 'name', 'patch']);
+  if (scope !== undefined && givenName !== undefined) throw new UsageError("Give either '--scope' or '--name', not both");
+  if (patch !== undefined && !/^\d+$/.test(patch)) throw new UsageError(`Patch '${patch}' must be a whole number`);
+  const { name, version } = pack(readJson(bundleFile, 'bundle'), { scope, name: givenName, patch: Number(patch ?? 0), out: path.resolve(out) });
   process.stdout.write(`${name}@${version}\n`);
   return true;
 }
@@ -76,8 +78,8 @@ function parseOptions(args, config) {
   }
 }
 
-function requiredOptions(args, names) {
-  const { values } = parseOptions(args, { options: Object.fromEntries(names.map((name) => [name, { type: 'string' }])) });
+function readOptions(args, names, optional = []) {
+  const { values } = parseOptions(args, { options: Object.fromEntries([...names, ...optional].map((name) => [name, { type: 'string' }])) });
   const missing = names.find((name) => values[name] === undefined);
   if (missing) throw new UsageError(`Missing option '--${missing}'`);
   return values;

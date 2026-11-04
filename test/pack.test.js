@@ -27,22 +27,44 @@ describe('Pack', () => {
     fs.rmSync(directory, { recursive: true, force: true });
   });
 
-  it('writes a package versioned by projection version and latest change set', async () => {
+  it('writes a package named after the projection and versioned by module API and latest change set', async () => {
     const out = path.join(directory, 'versioned');
-    const { stdout } = await run(process.execPath, [cli, 'pack', '--bundle', fixture, '--name', '@example/parks-v1', '--out', out]);
+    const { stdout } = await run(process.execPath, [cli, 'pack', '--bundle', fixture, '--scope', '@example', '--out', out]);
 
-    eq(stdout, '@example/parks-v1@1.7.0\n');
+    eq(stdout, '@example/projection-parks-v1@1.7.0\n');
     const manifest = JSON.parse(fs.readFileSync(path.join(out, 'package.json'), 'utf8'));
-    deq(manifest, { name: '@example/parks-v1', version: '1.7.0', description: 'Parks with their seasons and operator', main: 'index.js', types: 'index.d.ts' });
+    deq(manifest, { name: '@example/projection-parks-v1', version: '1.7.0', description: 'Parks with their seasons and operator', main: 'index.js', types: 'index.d.ts' });
     deq(JSON.parse(fs.readFileSync(path.join(out, 'bundle.json'), 'utf8')), loadBundle());
+  });
+
+  it('names a package without a scope', async () => {
+    const { stdout } = await run(process.execPath, [cli, 'pack', '--bundle', fixture, '--out', path.join(directory, 'unscoped')]);
+    eq(stdout, 'projection-parks-v1@1.7.0\n');
+  });
+
+  it('uses the given package name', async () => {
+    const { stdout } = await run(process.execPath, [cli, 'pack', '--bundle', fixture, '--name', '@example/parks', '--out', path.join(directory, 'named')]);
+    eq(stdout, '@example/parks@1.7.0\n');
+  });
+
+  it('converts the projection name and version into the package name', () => {
+    const bundle = { ...loadBundle(), name: ' VAT Rates (UK) ', version: 2 };
+    const { name, version } = pack(bundle, { scope: '@example', out: path.join(directory, 'converted') });
+    eq(name, '@example/projection-vat-rates-uk-v2');
+    eq(version, '1.7.0');
+  });
+
+  it('sets the patch version', async () => {
+    const { stdout } = await run(process.execPath, [cli, 'pack', '--bundle', fixture, '--patch', '3', '--out', path.join(directory, 'patched')]);
+    eq(stdout, 'projection-parks-v1@1.7.3\n');
   });
 
   it('bumps the minor version when a later bundle has a new change set', () => {
     const bundle = loadBundle();
-    const first = pack(bundle, { name: 'parks-v1', out: path.join(directory, 'first') });
+    const first = pack(bundle, { out: path.join(directory, 'first') });
     bundle.changeSets.push({ id: 9, effective: '2100-01-01T00:00:00.000Z', description: '2100 Parks', lastModified: '2026-10-02T09:00:00.000Z', entityTag: 'a4' });
     bundle.documents[9] = [];
-    const second = pack(bundle, { name: 'parks-v1', out: path.join(directory, 'second') });
+    const second = pack(bundle, { out: path.join(directory, 'second') });
 
     eq(first.version, '1.7.0');
     eq(second.version, '1.9.0');
@@ -53,7 +75,7 @@ describe('Pack', () => {
 
   it('produces a package that installs and resolves change sets by effective date', async () => {
     const consumer = await installPackage('installed');
-    const parks = createRequire(path.join(consumer, 'index.js'))('@example/parks-v1');
+    const parks = createRequire(path.join(consumer, 'index.js'))('@example/projection-parks-v1');
 
     eq(parks.asOf(new Date('2020-06-01T00:00:00Z')).id, 3);
     eq(parks.asOf(new Date('2099-06-01T00:00:00Z')).id, 7);
@@ -70,7 +92,7 @@ describe('Pack', () => {
       files: ['consumer.ts'],
     }));
     fs.writeFileSync(path.join(consumer, 'consumer.ts'), [
-      "import { asOf, getDocuments, getCurrentDocuments, changeSets, name, ProjectionDocument } from '@example/parks-v1';",
+      "import { asOf, getDocuments, getCurrentDocuments, changeSets, name, ProjectionDocument } from '@example/projection-parks-v1';",
       'const documents: ProjectionDocument[] = getDocuments(3);',
       'const opened: Date | null = documents[0].opened;',
       'const start: Date = documents[0].seasons[0].start;',
@@ -116,9 +138,33 @@ describe('Pack', () => {
     match(stderr, /^Cannot read bundle '.*missing\.json': ENOENT/m);
   });
 
-  for (const missing of ['bundle', 'name', 'out']) {
+  it('rejects both a scope and a name', async () => {
+    const { code, stderr } = await fails(['pack', '--bundle', fixture, '--scope', '@example', '--name', 'parks', '--out', path.join(directory, 'both')]);
+    eq(code, 1);
+    match(stderr, /^Give either '--scope' or '--name', not both$/m);
+    match(stderr, usage);
+  });
+
+  it('rejects an invalid scope', async () => {
+    const { code, stderr } = await fails(['pack', '--bundle', fixture, '--scope', 'example', '--out', path.join(directory, 'scope')]);
+    eq(code, 1);
+    match(stderr, /^Scope 'example' is not a valid npm scope$/m);
+  });
+
+  it('rejects an invalid patch', async () => {
+    const { code, stderr } = await fails(['pack', '--bundle', fixture, '--patch', '1.5', '--out', path.join(directory, 'patch')]);
+    eq(code, 1);
+    match(stderr, /^Patch '1\.5' must be a whole number$/m);
+    match(stderr, usage);
+  });
+
+  it('rejects a projection name with nothing to use in a package name', () => {
+    throws(() => pack({ ...loadBundle(), name: '£$%' }, { out: path.join(directory, 'unnamed') }), { message: "Projection '£$%' has no characters that can be used in a package name; give one with --name" });
+  });
+
+  for (const missing of ['bundle', 'out']) {
     it(`rejects a missing --${missing}`, async () => {
-      const args = { bundle: fixture, name: 'parks-v1', out: path.join(directory, 'missing') };
+      const args = { bundle: fixture, out: path.join(directory, 'missing') };
       delete args[missing];
       const { code, stderr } = await fails(['pack', ...Object.entries(args).flatMap(([name, value]) => [`--${name}`, value])]);
       eq(code, 1);
@@ -172,11 +218,11 @@ describe('Pack', () => {
     const out = path.join(root, 'package');
     const consumer = path.join(root, 'consumer');
     fs.mkdirSync(consumer, { recursive: true });
-    await run(process.execPath, [cli, 'pack', '--bundle', fixture, '--name', '@example/parks-v1', '--out', out]);
+    await run(process.execPath, [cli, 'pack', '--bundle', fixture, '--scope', '@example', '--out', out]);
     const { stdout } = await run('npm', ['pack', '--silent', '--pack-destination', root], { cwd: out });
     fs.writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'consumer', private: true }));
     await run('npm', ['install', '--offline', '--no-audit', '--no-fund', '--silent', path.join(root, stdout.trim())], { cwd: consumer });
-    ok(fs.existsSync(path.join(consumer, 'node_modules', '@example', 'parks-v1', 'index.d.ts')));
+    ok(fs.existsSync(path.join(consumer, 'node_modules', '@example', 'projection-parks-v1', 'index.d.ts')));
     return consumer;
   }
 
@@ -187,7 +233,7 @@ describe('Pack', () => {
   }
 
   async function packFails(bundle) {
-    return fails(['pack', '--bundle', bundle, '--name', 'parks-v1', '--out', path.join(directory, 'rejected')]);
+    return fails(['pack', '--bundle', bundle, '--out', path.join(directory, 'rejected')]);
   }
 
   async function fails(args) {
