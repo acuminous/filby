@@ -13,7 +13,7 @@ export function Filters({ filters, query, onSubmit }: Props) {
   const nested = filters.filter((filter) => filter.nested);
   return (
     <form class="toolbar" key={query.toString()} onSubmit={submit}>
-      <span class="muted" style="align-self: center; margin-bottom: 0.25rem">
+      <span class="muted" style="align-self: flex-end; margin-bottom: 1.75rem">
         <ListFilter size={16} aria-hidden="true" />
       </span>
       {filters.map((filter) => (
@@ -38,7 +38,7 @@ function Field({ filter, query }: { filter: Filter; query: URLSearchParams }) {
     return (
       <fieldset class="field">
         <legend>{filter.name}</legend>
-        <div class="range">
+        <div class="bounds">
           <label>
             from
             <input class="input input-sm w-28" name={filter.from} defaultValue={query.get(filter.from) ?? ''} aria-describedby={caption} />
