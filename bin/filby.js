@@ -10,12 +10,14 @@ const exportBundle = require('../lib/export');
 
 const USAGE = [
   'Usage: filby <validate|preview> [directory ...]',
+  '       filby migrate --config <file>',
   '       filby export --config <file> --projection <name@version> --out <file>',
 ].join('\n');
 
 const commands = {
   validate: (args) => check(args, validate),
   preview: (args) => check(args, preview),
+  migrate: migrateCommand,
   export: exportCommand,
 };
 
@@ -40,6 +42,17 @@ async function check(args, command) {
   const { positionals: directories } = parseOptions(args, { allowPositionals: true });
   const results = await scan(directories.length > 0 ? directories : ['migrations']);
   return command(results);
+}
+
+async function migrateCommand(args) {
+  const { config: configFile } = requiredOptions(args, ['config']);
+  const filby = new Filby(readJson(configFile, 'config'));
+  try {
+    await filby.init();
+  } finally {
+    await filby.stop();
+  }
+  return true;
 }
 
 async function exportCommand(args) {

@@ -40,6 +40,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.fetch`, a framework-independent HTTP handler for change logs, projections and the list of projections (#59, #180).
 - A generated OpenAPI document at `/openapi.json`, which says how each parameter matches and which field it filters (#64, #198, #235).
 - `filby export`, which writes a projection's documents at every change set to a bundle. [filby-pack](https://github.com/acuminous/filby-pack), released separately, turns a bundle into an npm module (#181).
+- `filby migrate`, which applies outstanding migrations and exits, and `init({ migrate: false })`, which starts an instance without applying migrations and rejects if any are outstanding (#236).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
 - A published JSON Schema for migration files, for editor validation and completion (#48).
 - The `COMMENCE_CHANGE_SET` hook event, which fires when a projection's current change set changes (#55).
@@ -67,7 +68,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - A CSV source with a single column loads (#152).
 - Field types such as `NUMERIC(10,2)`, `TEXT[]` and schema-qualified types are accepted (#9).
 - `DROP_ENUM` and `ALTER_ENUM` find an enum by the name it was declared with (#145).
-- An array of an enum is served as an array of strings (#196).
+- An array of an enum is served as an array of strings (#196), including an enum added by another process after the instance started (#236).
 - `getAggregates` works for entities whose names need quoting (#27).
 - Filby no longer changes the shared Handlebars module used by the host application (#24).
 - `index.d.ts` matches the code (#31).
