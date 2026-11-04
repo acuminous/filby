@@ -1,7 +1,6 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createRequire } = require('node:module');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const { strictEqual: eq, deepStrictEqual: deq, ok, match } = require('node:assert');
@@ -12,8 +11,6 @@ const addFormats = require('ajv-formats');
 
 const { Filby } = require('..');
 const exportBundle = require('../lib/export');
-const runtime = require('../lib/bundle-runtime');
-const { pack } = require('../lib/pack');
 const bundleSchema = require('../lib/bundle-schema.json');
 const { version: filbyVersion } = require('../package.json');
 
@@ -75,7 +72,6 @@ describe('Export', () => {
     deq(Object.keys(bundle.schema.properties.operator.anyOf[0].properties), ['operator_name']);
     deq(devonCliffs.seasons, [{ type: 'Guests', starts_at: '2020-03-15T00:00:00.000Z' }, { type: 'Owners', starts_at: '2020-03-01T00:00:00.000Z' }]);
     deq(devonCliffs.operator, { operator_name: 'Haven' });
-    ok(runtime(bundle).getDocuments(bundle.changeSets[0].id)[0].seasons[0].starts_at instanceof Date);
   });
 
   it('includes every document of a paged projection at every change set, as the API serves them', async () => {
@@ -92,34 +88,6 @@ describe('Export', () => {
     } finally {
       await filby.stop();
     }
-  });
-
-  it('returns the documents the API returns for a change set with no parameters, including nested documents', async () => {
-    const parks = runtime(await exportWithCli('Parks@1'));
-    const filby = new Filby({ database, migrations });
-    try {
-      for (const changeSet of parks.changeSets) {
-        deq(JSON.parse(JSON.stringify(parks.getDocuments(changeSet.id))), await fetchAll(filby, '/projections/Parks/v1', changeSet.id));
-      }
-      const [devonCliffs] = parks.getDocuments(parks.changeSets[0].id);
-      eq(devonCliffs.seasons.length, 2);
-      eq(devonCliffs.operator.operator_name, 'Haven');
-    } finally {
-      await filby.stop();
-    }
-  });
-
-  it('revives date-time fields as dates at every level', async () => {
-    const parks = runtime(await exportWithCli('Parks@1'));
-
-    const [changeSet] = parks.changeSets;
-    ok(changeSet.effective instanceof Date);
-    ok(changeSet.lastModified instanceof Date);
-    const [devonCliffs, greenacres] = parks.getDocuments(changeSet.id);
-    ok(devonCliffs.opened instanceof Date);
-    eq(devonCliffs.opened.toISOString(), '2001-05-01T00:00:00.000Z');
-    ok(devonCliffs.seasons.every(({ starts_at }) => starts_at instanceof Date));
-    eq(greenacres.opened, null);
   });
 
   it('exports a projection declared with dependencies', async () => {
@@ -146,22 +114,8 @@ describe('Export', () => {
 
     validateBundle(bundle);
     eq(bundle.name, 'Parks (Detailed)');
-    const out = path.join(directory, 'parks-detailed-v1');
-    const consumer = path.join(directory, 'consumer');
-    const { version } = pack(bundle, { name: 'parks-detailed-v1', out });
-    const { stdout: tarball } = await run('npm', ['pack', '--silent', '--pack-destination', directory], { cwd: out });
-    fs.mkdirSync(consumer);
-    fs.writeFileSync(path.join(consumer, 'package.json'), JSON.stringify({ name: 'consumer', private: true }));
-    await run('npm', ['install', '--offline', '--no-audit', '--no-fund', '--silent', path.join(directory, tarball.trim())], { cwd: consumer });
-    const parks = createRequire(path.join(consumer, 'index.js'))('parks-detailed-v1');
-    const [first, second] = parks.changeSets.toSorted((a, b) => a.effective - b.effective);
-    const last = parks.changeSets.toSorted((a, b) => b.effective - a.effective || b.id - a.id)[0];
-    ok(first.effective < second.effective);
-
-    eq(version, `1.${Math.max(...bundle.changeSets.map(({ id }) => id))}.0`);
-    eq(parks.asOf(new Date((first.effective.getTime() + second.effective.getTime()) / 2)).id, first.id);
-    eq(parks.asOf(new Date(last.effective.getTime() + 1)).id, last.id);
-    for (const changeSet of parks.changeSets) ok(Array.isArray(parks.getDocuments(changeSet.id)));
+    ok(bundle.changeSets.length > 1);
+    deq(Object.keys(bundle.documents).map(Number).toSorted((a, b) => a - b), bundle.changeSets.map(({ id }) => id).toSorted((a, b) => a - b));
   });
 
   it('rejects an unknown projection', async () => {

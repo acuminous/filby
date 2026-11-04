@@ -1213,9 +1213,7 @@ See [OpenAPI document](#openapi-document) for details of the generated contents.
 
 An application can install a projection as an npm module instead of requesting it over HTTP. The module contains the projection's change log and the documents at every change set, including change sets that have not yet taken effect. An application deployed in November with a change set that takes effect on 1 January starts using the new data on 1 January without being redeployed. Modules suit reference data that is small enough to ship with an application. Read larger projections through the API.
 
-Two commands build a module. `filby export` applies your migrations to a database and writes one projection's change sets and documents to a [bundle](#projection-bundle) file. `filby pack` turns the bundle into an npm package directory, which you then publish with `npm publish`. Neither command needs a running application, so they usually run in the CI pipeline of the repository that holds your migrations, against an empty database. Change set ids are assigned as the migrations are applied, so a module built from the same migrations as your production database uses the same ids.
-
-The package version is derived from the data: the major version is the projection version and the minor version is the latest change set id. A push that adds a change set to one projection therefore produces a new version of that projection's module and leaves the others unchanged, and each application's lockfile records exactly which data it was built with.
+Two tools build a module. `filby export` applies your migrations to a database and writes one projection's change sets and documents to a [bundle](#projection-bundle) file. [filby-pack](https://github.com/acuminous/filby-pack) turns the bundle into an npm package, which you then publish with `npm publish`. Neither needs a running application, so they usually run in the CI pipeline of the repository that holds your migrations, against an empty database. Change set ids are assigned as the migrations are applied, so a module built from the same migrations as your production database uses the same ids.
 
 `filby export` reads the Filby [configuration](#configuration) from a JSON file. In CI, it points Filby at a Postgres service container and the repository's migrations:
 
@@ -1231,17 +1229,7 @@ The package version is derived from the data: the major version is the projectio
 }
 ```
 
-An application that installs the module reads the projection without a database or a network call:
-
-```js
-const parks = require('@example/parks-v1');
-
-const now = new Date();
-const changeSet = parks.asOf(now);
-const documents = parks.getDocuments(changeSet.id);
-```
-
-`asOf` finds the change set in force at a given time, and `getDocuments` returns the documents at that change set. The module always returns every document, so the application filters, sorts and pages them itself. Modules are CommonJS and include TypeScript declarations generated from the projection's fields. [Generated module](#generated-module) lists everything a module exports.
+filby-pack is released separately from Filby, so you choose when to take changes to the modules it generates. Its README explains how packages are versioned and what a module exports.
 
 ## Reference
 
@@ -1735,9 +1723,9 @@ Array fields use the corresponding element schema. Nullable fields also allow `n
 
 ### Command line
 
-Use Filby's command line tool to check migration files without a database, and to package projections as npm modules.
+Use Filby's command line tool to check migration files without a database, and to export projections for distribution as npm modules.
 
-`validate` and `preview` accept one or more directories, and use `migrations` if you omit them. Neither command validates SQL migration files. `export` and `pack` build the modules described in [Distributing projections as modules](#distributing-projections-as-modules).
+`validate` and `preview` accept one or more directories, and use `migrations` if you omit them. Neither command validates SQL migration files. `export` writes the bundles described in [Distributing projections as modules](#distributing-projections-as-modules).
 
 #### Validate migrations
 
@@ -1788,29 +1776,9 @@ A projection declared with `dependencies` is exported in the same way, using the
 
 If an option is missing, the configuration cannot be read or the projection does not exist, the command reports the problem to stderr and exits with code 1.
 
-#### Pack a module
-
-Use `pack` to turn a bundle into an npm package directory:
-
-```bash
-npx filby pack --bundle parks-v1.json --name @example/parks-v1 --out dist/parks-v1
-```
-
-| Option | Value |
-| ------ | ----- |
-| `--bundle` | The bundle file written by `export`. |
-| `--name` | The package name. |
-| `--out` | The directory to write the package to. |
-
-The command reads only the bundle, so it does not need a database. The package contains `package.json`, a copy of the bundle, a CommonJS runtime with no dependencies, and TypeScript declarations generated from the bundle's document schema.
-
-The package version is `<projection version>.<latest change set id>.0`. A new projection version can change the shape of the documents, so it starts a new major version. A new change set only adds data, so it raises the minor version. The command writes `<name>@<version>` to stdout, so a CI job can check whether that version has already been published before running `npm publish`.
-
-If an option is missing, the bundle cannot be read, its format is not supported or it does not match that format's schema, the command reports the problem to stderr and exits with code 1.
-
 ### Projection bundle
 
-A bundle is a JSON file holding one projection's change log and the documents at every change set. `filby pack` reads it to build an npm module. Other tools can read it too, for example to build a package for another language.
+A bundle is a JSON file holding one projection's change log and the documents at every change set. [filby-pack](https://github.com/acuminous/filby-pack) reads it to build an npm module. Other tools can read it too, for example to build a package for another language.
 
 Bundles have their own format version, independent of Filby's version. This section describes format 1. Its JSON Schema is published at https://acuminous.github.io/filby/lib/bundle-schema.json.
 
@@ -1826,22 +1794,6 @@ Bundles have their own format version, independent of Filby's version. This sect
 | `documents` | An object keyed by change set id. Each value is the array of every document at that change set, as `GET /projections/<name>/v<n>` returns them with no parameters. |
 
 Values are represented as described under [JSON types](#json-types). Dates and timestamps are ISO 8601 strings, and the schema marks them with `"format": "date-time"` so that a reader can convert them back into dates.
-
-#### Generated module
-
-A module built by `filby pack` exports:
-
-| Export | Description |
-| ------ | ----------- |
-| `name`, `version`, `description` | The projection's name, version and description. |
-| `changeSets` | The change log, with `effective` and `lastModified` as `Date` objects. |
-| `asOf(instant)` | The change set in force at the given time, or `undefined` if there is none. |
-| `getDocuments(changeSetId)` | Every document at the change set. |
-| `getCurrentDocuments(instant)` | Every document at the change set in force at the given time, which defaults to now. |
-
-`asOf` follows the same rule as Filby's current change set. It picks the change set with the latest effective date that is not after the given time, and if several share that date, the one with the highest id.
-
-Dates and timestamps in the documents are `Date` objects at every level, except in projections declared with `dependencies`. Each call returns new objects, so changing a document does not affect later calls. `getDocuments` throws if the change set is not in the bundle, and `getCurrentDocuments` throws if no change set is in force at the given time.
 
 ### Database objects
 
