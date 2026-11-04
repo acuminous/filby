@@ -8,7 +8,7 @@ export class Filby {
   static MIGRATION_LOCK_KEY: number;
   readonly config: Config;
   constructor(config: Config);
-  init(): Promise<void>;
+  init(options?: { migrate?: boolean }): Promise<void>;
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
   getNotificationStatus(): Promise<NotificationStatus>;

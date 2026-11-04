@@ -1214,23 +1214,25 @@ See [OpenAPI document](#openapi-document) for details of the generated contents.
 
 Run Filby inside your application as a cluster of two or more instances, so that the API stays available while one instance restarts. Each instance calls `init()` at startup, which applies any migrations that have not yet been applied before the instance serves requests.
 
-Deploy new migrations with a rolling deployment, replacing the instances one at a time. The first new instance applies the migrations, and the remaining instances find nothing left to apply. Instances that are still running continue to serve HTTP requests while the migrations are applied. A running instance does not pick up everything a migration changes, however. Your application subscribes to hooks when it starts, and Filby reads the enum types it needs to convert enum arrays during `init()`. Restarting every instance after the migrations have been applied ensures that each one has the current definitions.
+Deploy new migrations with a rolling deployment, replacing the instances one at a time. The first new instance applies the migrations, and the remaining instances find nothing left to apply. Instances that are still running continue to serve HTTP requests while the migrations are applied, and serve the new data and definitions once they have been applied, because Filby reads projection and enum definitions from the database for each request. Hook handlers are different. Your application subscribes to hooks when it starts, so only an instance running the new code can handle a hook that a migration adds. Replacing every instance ensures that each one has the current handlers.
 
 Several instances can start at the same time. `init()` holds a database lock while it applies migrations, so one instance applies them while the others wait, and the waiting instances continue once it has finished. Notification delivery pauses across all instances while migrations are applied, as described under [Migrations](#migrations).
 
-On Kubernetes, you can apply migrations from an init container instead. The container runs a script that calls `init()` and then `stop()`:
+Each hook notification is delivered to one instance per attempt, so a handler runs once in the cluster rather than once per instance. During a rolling deployment, a notification for a new hook may be claimed by an instance that started before the hook was added and has no subscriber for it. That attempt fails and is retried, as described under [Delivery and retries](#delivery-and-retries), and a later attempt is normally claimed by a new instance.
 
-```js
-const { Filby } = require('filby');
-const config = require('./config.json');
+#### Applying migrations separately
 
-const filby = new Filby(config);
-filby.init().finally(() => filby.stop());
+You can also apply migrations without deploying, with the [`filby migrate`](#apply-migrations) command:
+
+```bash
+npx filby migrate --config filby.json
 ```
 
-The application containers still call `init()`, which then has nothing to apply.
+A migration that needs no new handler code, such as one that adds a change set or a projection, can be applied this way, for example from a CI step. The running instances serve the change without restarting, and the next deployment finds nothing left to apply. A migration that adds a hook, or otherwise needs new handler code, should still go out with a rolling deployment of that code. Applied on its own, it would leave the running instances without a handler, and its notifications would fail and be retried until they ran out of attempts or the handler was released.
 
-Each hook notification is delivered to one instance per attempt, so a handler runs once in the cluster rather than once per instance. During a rolling deployment, a notification for a new hook may be claimed by an instance that started before the hook was added and has no subscriber for it. That attempt fails and is retried, as described under [Delivery and retries](#delivery-and-retries), and a later attempt is normally claimed by a new instance.
+A rolling deployment for every migration is simpler, because every change takes the same route, but a migration that only loads data waits for a deployment that replaces every instance. Applying such migrations with `filby migrate` makes them take effect sooner, at the cost of choosing a route for each change. Rolling deployment remains the recommended approach.
+
+If you apply every migration with `filby migrate`, the instances can call `init({ migrate: false })`. This prepares the instance in the same way as `init()`, but checks that every migration has been applied instead of applying any. It does not take the migration lock, so starting an instance does not pause notification delivery, and the instances can connect as a database user without permission to change the schema. Run `filby migrate` before each deployment that includes migrations. An instance whose migrations have not been applied fails at startup with an error that names the first one.
 
 ### Distributing projections as modules
 
@@ -1537,7 +1539,7 @@ Methods that read the database return promises and run in their own transactions
 | Method | Behaviour |
 | ------ | --------- |
 | `new Filby(config)` | Validates the configuration and creates the connection pool. See [Configuration](#configuration). |
-| `filby.init()` | Connects to the database and applies Filby's migrations, followed by your application's migrations. |
+| `filby.init(options?)` | Connects to the database and applies Filby's migrations, followed by your application's migrations. Pass `{ migrate: false }` to check that the migrations have been applied without applying them. |
 | `filby.startNotifications()` | Starts notification polling and, if `notifications.listen` is enabled, database listening. Does nothing if polling has already started. |
 | `filby.stopNotifications()` | Signals active handlers to stop, stops listening and polling, and waits for the current delivery attempt to be recorded. |
 | `filby.stop()` | Stops notifications and closes the connection pool. |
@@ -1545,6 +1547,8 @@ Methods that read the database return promises and run in their own transactions
 During `init()`, Filby holds the advisory lock identified by `Filby.MIGRATION_LOCK_KEY`. This pauses notification delivery across all instances. Before applying migrations, it waits for delivery attempts already in progress, up to the configured handler timeout.
 
 `init()` rejects if a migration fails or the checksum of one of Filby's own migrations has changed.
+
+`init({ migrate: false })` does not take the lock and does not apply migrations. It rejects with an error naming the first outstanding migration if any of Filby's migrations, or any migration in your configured directories, has not been applied. Migrations recorded in the database without a matching file are ignored. See [Applying migrations separately](#applying-migrations-separately).
 
 #### Notification handlers
 
@@ -1845,9 +1849,9 @@ Response schemas contain only `x-filby-on`. If you validate them with Ajv in str
 
 ### Command line
 
-Use Filby's command line tool to check migration files without a database, and to export projections for distribution as npm modules.
+Use Filby's command line tool to check migration files without a database, to apply migrations, and to export projections for distribution as npm modules.
 
-`validate` and `preview` accept one or more directories, and use `migrations` if you omit them. Neither command validates SQL migration files. `export` writes the bundles described in [Distributing projections as modules](#distributing-projections-as-modules).
+`validate` and `preview` accept one or more directories, and use `migrations` if you omit them. Neither command validates SQL migration files. `migrate` applies migrations as described in [Applying migrations separately](#applying-migrations-separately). `export` writes the bundles described in [Distributing projections as modules](#distributing-projections-as-modules).
 
 #### Validate migrations
 
@@ -1877,6 +1881,20 @@ It performs the same checks as `validate`, then writes the SQL to stdout:
 Use the output to inspect a change before applying it or to review a SQL diff.
 
 If any migration fails validation, the command reports the errors to stderr, writes no SQL and exits with code 1.
+
+#### Apply migrations
+
+Use `migrate` to apply outstanding migrations to a database without starting your application:
+
+```bash
+npx filby migrate --config filby.json
+```
+
+| Option | Value |
+| ------ | ----- |
+| `--config` | A JSON file holding a Filby [configuration](#configuration). |
+
+The option is required. The command applies Filby's migrations and then yours, as `filby.init()` does, and exits with code 0. It does not start notifications. If the option is missing, the configuration cannot be read or a migration fails, the command reports the problem to stderr and exits with code 1.
 
 #### Export a projection
 
