@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { changeSet, stubApi } from './fixtures';
+import { changeSet, stubApi, stubClipboard, unavailableStorage } from './fixtures';
 import { renderAt } from './render';
 
 const CHANGE_SETS = [
@@ -122,5 +122,77 @@ describe('Change sets', () => {
     renderAt('/projections/Parks/v1');
     expect(await screen.findByText('No change sets')).toBeTruthy();
     expect(screen.getByText('no change set in force')).toBeTruthy();
+  });
+
+  describe('JSON view', () => {
+    const json = () => screen.getByLabelText('Response body');
+
+    it('switches between the timeline and the JSON of the change log without a new request, remembering the choice', async () => {
+      const requests = stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1');
+      await history();
+      const timeline = screen.getByRole('radio', { name: 'Timeline' }) as HTMLInputElement;
+      expect(timeline.checked).toBe(true);
+      fireEvent.click(screen.getByRole('radio', { name: 'JSON' }));
+      await waitFor(() => expect(location.search).toBe('?view=json'));
+      expect(json().textContent).toBe(JSON.stringify(CHANGE_SETS, null, 2));
+      expect(json().querySelector('.key')?.textContent).toBe('"id"');
+      expect(json().querySelector('.number')?.textContent).toBe('1');
+      expect(json().querySelector('.string')?.textContent).toBe('"2020-01-01T00:00:00.000Z"');
+      expect(screen.getByText(`${location.origin}/api/changelog?projection=Parks&version=1`)).toBeTruthy();
+      expect((screen.getByRole('radio', { name: 'JSON' }) as HTMLInputElement).checked).toBe(true);
+      expect(within(screen.getByRole('main')).queryByRole('list')).toBeNull();
+      expect(screen.queryByLabelText(/As of/)).toBeNull();
+      expect(requests.filter(({ pathname }) => pathname === '/api/changelog')).toHaveLength(1);
+      expect(localStorage.getItem('filby-ui/view/change-sets')).toBe('json');
+      fireEvent.click(screen.getByRole('radio', { name: 'Timeline' }));
+      await waitFor(() => expect(location.search).toBe(''));
+      expect((await history()).length).toBe(3);
+      expect(screen.queryByLabelText('Response body')).toBeNull();
+      expect(localStorage.getItem('filby-ui/view/change-sets')).toBe('timeline');
+      expect(requests.filter(({ pathname }) => pathname === '/api/changelog')).toHaveLength(1);
+    });
+
+    it('opens a link to the JSON view in the JSON view', async () => {
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1?view=json');
+      expect((await screen.findByLabelText('Response body')).textContent).toBe(JSON.stringify(CHANGE_SETS, null, 2));
+      expect(within(screen.getByRole('main')).queryByRole('list')).toBeNull();
+    });
+
+    it('opens in the remembered view, putting it in the URL', async () => {
+      localStorage.setItem('filby-ui/view/change-sets', 'json');
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1');
+      expect(await screen.findByLabelText('Response body')).toBeTruthy();
+      await waitFor(() => expect(location.search).toBe('?view=json'));
+    });
+
+    it('copies the JSON to the clipboard', async () => {
+      const writeText = stubClipboard();
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1?view=json');
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+      expect(writeText).toHaveBeenCalledWith(JSON.stringify(CHANGE_SETS, null, 2));
+      expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+    });
+
+    it('says when the clipboard refuses the copy', async () => {
+      stubClipboard(() => Promise.reject(new Error('NotAllowedError')));
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1?view=json');
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+      expect(await screen.findByRole('button', { name: 'Copy failed' })).toBeTruthy();
+    });
+
+    it('switches views when storage is unavailable', async () => {
+      unavailableStorage();
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1');
+      await history();
+      fireEvent.click(screen.getByRole('radio', { name: 'JSON' }));
+      expect((await screen.findByLabelText('Response body')).textContent).toBe(JSON.stringify(CHANGE_SETS, null, 2));
+      expect(location.search).toBe('?view=json');
+    });
   });
 });

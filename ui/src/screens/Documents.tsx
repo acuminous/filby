@@ -1,37 +1,42 @@
 import { ChevronsDownUp, ChevronsUpDown } from 'lucide-preact';
 import { useLocation, useRoute } from 'preact-iso';
 
-import { ApiError, getChangeLog, getDocuments, getOpenApi } from '../api';
+import { ApiError, documentsUrl, getChangeLog, getDocuments, getOpenApi } from '../api';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { DocumentTable } from '../components/DocumentTable';
 import { Filters } from '../components/Filters';
+import { JsonBody, ViewToggle } from '../components/Json';
 import { PageHeader } from '../components/PageHeader';
 import { Paging } from '../components/Paging';
 import { Empty, ErrorMessage, Loading } from '../components/Status';
 import { formatDateTime, plural } from '../format';
-import { type Resource, useEscape, useNests, useQuery, useResource } from '../hooks';
+import { type Resource, useEscape, useNests, useQuery, useResource, useView } from '../hooks';
 import { type NestState, storageKey, withAll } from '../nests';
 import { changeSetsPath, documentsPath, parseVersion, projectionsPath } from '../routes';
 import { type ProjectionSchema, describeProjection, inferColumns, nests } from '../schema';
 import type { ChangeSet, Page } from '../types';
+import { type View, withoutView } from '../views';
 
 export function Documents() {
   const { params } = useRoute();
   const { route } = useLocation();
   const query = useQuery();
+  const apiQuery = withoutView(query);
   const name = params.name ?? '';
   const version = parseVersion(params.version ?? '') ?? Number.NaN;
   const changeSetId = Number(params.id);
   useEscape(changeSetsPath(name, version));
   const [nestState, setNests] = useNests(storageKey(name, version));
+  const [view, setView] = useView('documents');
 
   const context = useResource(() => loadContext(name, version), `${name}/${version}/${changeSetId}`);
-  const page = useResource(() => getDocuments(name, version, changeSetId, query), `${name}/${version}/${changeSetId}?${query}`);
+  const page = useResource(() => getDocuments(name, version, changeSetId, apiQuery), `${name}/${version}/${changeSetId}?${apiQuery}`);
 
   const navigate = (next: URLSearchParams) => route(documentsPath(name, version, changeSetId, next));
   const applyFilters = (filters: URLSearchParams) => {
     const pageSize = query.get('pageSize');
     if (pageSize) filters.set('pageSize', pageSize);
+    if (view === 'json') filters.set('view', 'json');
     navigate(filters);
   };
   const changePage = (number: number) => {
@@ -66,11 +71,11 @@ export function Documents() {
       )}
       {context.status === 'ready' && (
         <>
-          <Header name={name} version={version} changeSetId={changeSetId} changeLog={context.data.changeLog} query={query} page={page} onChangeSet={changeChangeSet} />
-          {context.data.schema.filters.length > 0 && <Filters filters={context.data.schema.filters} query={query} onSubmit={applyFilters} />}
+          <Header name={name} version={version} changeSetId={changeSetId} changeLog={context.data.changeLog} query={query} page={page} view={view} onChangeSet={changeChangeSet} onView={setView} />
+          {context.data.schema.filters.length > 0 && <Filters filters={context.data.schema.filters} query={apiQuery} onSubmit={applyFilters} />}
           {page.status === 'loading' && <Loading />}
           {page.status === 'error' && <ErrorMessage error={page.error} />}
-          {page.status === 'ready' && <Results schema={context.data.schema} page={page.data} query={query} nests={nestState} onNests={setNests} onPage={changePage} onSize={changeSize} />}
+          {page.status === 'ready' && <Results schema={context.data.schema} page={page.data} query={query} url={documentsUrl(name, version, changeSetId, apiQuery)} view={view} nests={nestState} onNests={setNests} onPage={changePage} onSize={changeSize} />}
         </>
       )}
     </>
@@ -86,9 +91,9 @@ async function loadContext(name: string, version: number): Promise<Context> {
   return { schema, changeLog };
 }
 
-type HeaderProps = { name: string; version: number; changeSetId: number; changeLog: ChangeSet[]; query: URLSearchParams; page: Resource<Page>; onChangeSet: (id: number) => void };
+type HeaderProps = { name: string; version: number; changeSetId: number; changeLog: ChangeSet[]; query: URLSearchParams; page: Resource<Page>; view: View; onChangeSet: (id: number) => void; onView: (view: View) => void };
 
-function Header({ name, version, changeSetId, changeLog, query, page, onChangeSet }: HeaderProps) {
+function Header({ name, version, changeSetId, changeLog, query, page, view, onChangeSet, onView }: HeaderProps) {
   const changeSet = changeLog.find(({ id }) => id === changeSetId);
   const reissue = changeSet ? undefined : changeLog.find(({ reissuedFrom }) => reissuedFrom === changeSetId);
   const ordered = [...changeLog].sort((a, b) => Date.parse(b.effective) - Date.parse(a.effective) || b.id - a.id);
@@ -125,16 +130,33 @@ function Header({ name, version, changeSetId, changeLog, query, page, onChangeSe
         </select>
       </label>
       <span class="muted">{description}</span>
+      <ViewToggle
+        views={[
+          ['table', 'Table'],
+          ['json', 'JSON'],
+        ]}
+        value={view}
+        onChange={onView}
+      />
     </PageHeader>
   );
 }
 
-type ResultsProps = { schema: ProjectionSchema; page: Page; query: URLSearchParams; nests: NestState; onNests: (state: NestState) => void; onPage: (page: number) => void; onSize: (size: number | undefined) => void };
+type ResultsProps = { schema: ProjectionSchema; page: Page; query: URLSearchParams; url: string; view: View; nests: NestState; onNests: (state: NestState) => void; onPage: (page: number) => void; onSize: (size: number | undefined) => void };
 
-function Results({ schema, page, query, nests: state, onNests, onPage, onSize }: ResultsProps) {
+function Results({ schema, page, query, url, view, nests: state, onNests, onPage, onSize }: ResultsProps) {
   const columns = schema.columns ?? inferColumns(page.documents);
   const number = Number(query.get('page') ?? 1);
   const size = query.has('pageSize') ? Number(query.get('pageSize')) : schema.paging?.size;
+  const paging = schema.paging && <Paging paging={schema.paging} page={number} size={size} count={page.documents.length} total={page.total} prev={Boolean(page.prev)} next={Boolean(page.next)} onPage={onPage} onSize={onSize} />;
+  if (view === 'json') {
+    return (
+      <div class="panel">
+        <JsonBody url={url} body={page.documents} />
+        {paging}
+      </div>
+    );
+  }
   if (page.documents.length === 0 && !schema.paging) return <Empty>No documents</Empty>;
   const paths = page.documents.length > 0 ? nests(columns) : [];
   return (
@@ -151,7 +173,7 @@ function Results({ schema, page, query, nests: state, onNests, onPage, onSize }:
         </div>
       )}
       {page.documents.length === 0 ? <Empty>No documents</Empty> : <DocumentTable columns={columns} documents={page.documents} nests={state} onNests={onNests} />}
-      {schema.paging && <Paging paging={schema.paging} page={number} size={size} count={page.documents.length} total={page.total} prev={Boolean(page.prev)} next={Boolean(page.next)} onPage={onPage} onSize={onSize} />}
+      {paging}
     </div>
   );
 }

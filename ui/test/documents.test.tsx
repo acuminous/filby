@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, declared, deep, detailed, detailedPark, openapi, operation, parameter, park, stubApi } from './fixtures';
+import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, declared, deep, detailed, detailedPark, openapi, operation, parameter, park, stubApi, stubClipboard, unavailableStorage } from './fixtures';
 import { renderAt } from './render';
 
 const PARKS = [park(), park({ code: 'PV', name: null, seasons: [] })];
@@ -364,6 +364,109 @@ describe('Documents', () => {
     renderAt('/projections/Parks/v1/change-sets/2');
     expect(await screen.findByText('No documents')).toBeTruthy();
     expect(screen.getByText('0–0 of 0')).toBeTruthy();
+  });
+
+  describe('JSON view', () => {
+    const json = () => screen.getByLabelText('Response body');
+
+    it('switches between the table and the JSON of the documents without a new request, remembering the choice', async () => {
+      const requests = stub();
+      renderAt('/projections/Parks/v1/change-sets/2');
+      await screen.findByRole('table');
+      expect((screen.getByRole('radio', { name: 'Table' }) as HTMLInputElement).checked).toBe(true);
+      const count = requests.length;
+      fireEvent.click(screen.getByRole('radio', { name: 'JSON' }));
+      await waitFor(() => expect(location.search).toBe('?view=json'));
+      expect(json().textContent).toBe(JSON.stringify(PARKS, null, 2));
+      expect(Array.from(json().querySelectorAll('.null')).map((span) => span.textContent)).toEqual(['null']);
+      expect(json().querySelector('.key')?.textContent).toBe('"code"');
+      expect(json().querySelector('.string')?.textContent).toBe('"DC"');
+      expect(screen.queryByRole('table')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'seasons' })).toBeNull();
+      expect(screen.getByText('1–2 of 5')).toBeTruthy();
+      expect(requests).toHaveLength(count);
+      expect(localStorage.getItem('filby-ui/view/documents')).toBe('json');
+      fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+      await waitFor(() => expect(location.search).toBe(''));
+      expect(await screen.findByRole('table')).toBeTruthy();
+      expect(localStorage.getItem('filby-ui/view/documents')).toBe('table');
+      expect(requests).toHaveLength(count);
+    });
+
+    it('colours booleans', async () => {
+      stub({ '/api/projections/Parks/v1': { body: [{ code: 'DC', open: true, closed: false }] } });
+      renderAt('/projections/Parks/v1/change-sets/2?view=json');
+      const body = await screen.findByLabelText('Response body');
+      expect(Array.from(body.querySelectorAll('.boolean')).map((span) => span.textContent)).toEqual(['true', 'false']);
+    });
+
+    it('shows the request URL, which leaves out the view, above the body', async () => {
+      const requests = stub();
+      renderAt('/projections/Parks/v1/change-sets/2?code=DC&view=json');
+      await screen.findByLabelText('Response body');
+      expect(screen.getByText(`${location.origin}/api/projections/Parks/v1?code=DC&changeSetId=2`)).toBeTruthy();
+      expect(requests.map(String)).toContain('http://localhost/api/projections/Parks/v1?code=DC&changeSetId=2');
+      expect(requests.some((url) => url.searchParams.has('view'))).toBe(false);
+    });
+
+    it('opens a link to the JSON view in the JSON view', async () => {
+      stub();
+      renderAt('/projections/Parks/v1/change-sets/2?view=json');
+      expect((await screen.findByLabelText('Response body')).textContent).toBe(JSON.stringify(PARKS, null, 2));
+      expect(screen.queryByRole('table')).toBeNull();
+    });
+
+    it('opens in the remembered view, putting it in the URL', async () => {
+      localStorage.setItem('filby-ui/view/documents', 'json');
+      stub();
+      renderAt('/projections/Parks/v1/change-sets/2?code=DC');
+      expect(await screen.findByLabelText('Response body')).toBeTruthy();
+      await waitFor(() => expect(location.search).toBe('?code=DC&view=json'));
+    });
+
+    it('keeps the JSON view across pages, filters and change sets', async () => {
+      const requests = stub();
+      renderAt('/projections/Parks/v1/change-sets/2?view=json');
+      fireEvent.click(await screen.findByText('Next'));
+      await waitFor(() => expect(location.search).toBe('?view=json&page=2'));
+      await waitFor(() => expect(requests.map(String)).toContain('http://localhost/api/projections/Parks/v1?page=2&changeSetId=2'));
+      const code = screen.getByLabelText('code') as HTMLInputElement;
+      fireEvent.input(code, { target: { value: 'DC' } });
+      fireEvent.submit(code.closest('form') as HTMLFormElement);
+      await waitFor(() => expect(location.search).toBe('?code=DC&view=json'));
+      fireEvent.click(screen.getByText('Clear'));
+      await waitFor(() => expect(location.search).toBe('?view=json'));
+      fireEvent.change(screen.getByLabelText('Change set'), { target: { value: '1' } });
+      await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1/change-sets/1'));
+      expect(location.search).toBe('?view=json');
+      expect(await screen.findByLabelText('Response body')).toBeTruthy();
+    });
+
+    it('shows an empty page as JSON', async () => {
+      stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters: [CHANGE_SET_ID] }) }) }, '/api/projections/Parks/v1': { body: [] } });
+      renderAt('/projections/Parks/v1/change-sets/2?view=json');
+      expect((await screen.findByLabelText('Response body')).textContent).toBe('[]');
+      expect(screen.queryByText('No documents')).toBeNull();
+    });
+
+    it('copies the JSON to the clipboard', async () => {
+      const writeText = stubClipboard();
+      stub();
+      renderAt('/projections/Parks/v1/change-sets/2?view=json');
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+      expect(writeText).toHaveBeenCalledWith(JSON.stringify(PARKS, null, 2));
+      expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+    });
+
+    it('switches views when storage is unavailable', async () => {
+      unavailableStorage();
+      stub();
+      renderAt('/projections/Parks/v1/change-sets/2');
+      await screen.findByRole('table');
+      fireEvent.click(screen.getByRole('radio', { name: 'JSON' }));
+      expect((await screen.findByLabelText('Response body')).textContent).toBe(JSON.stringify(PARKS, null, 2));
+      expect(location.search).toBe('?view=json');
+    });
   });
 });
 

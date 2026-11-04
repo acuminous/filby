@@ -129,3 +129,22 @@ export const DEEP_SCHEMA: Schema = {
 export function deep(): Operation {
   return operation({ parameters: [CHANGE_SET_ID], responses: { 200: { description: 'Deep', content: { 'application/json': { schema: { type: 'array', items: DEEP_SCHEMA } } } } } });
 }
+
+// Storage that throws on every access, as a browser's does when storage is disabled or full.
+export function unavailableStorage() {
+  vi.stubGlobal('localStorage', {
+    getItem() {
+      throw new Error('SecurityError');
+    },
+    setItem() {
+      throw new Error('QuotaExceededError');
+    },
+  });
+}
+
+// happy-dom's navigator has no clipboard to spy on, so define one; test/setup.ts removes it after each test.
+export function stubClipboard(writeText: (text: string) => Promise<void> = async () => {}) {
+  const spy = vi.fn(writeText);
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText: spy }, configurable: true });
+  return spy;
+}

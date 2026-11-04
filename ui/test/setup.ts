@@ -10,4 +10,5 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   openapi.value = undefined;
+  Reflect.deleteProperty(navigator, 'clipboard');
 });

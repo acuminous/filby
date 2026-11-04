@@ -1,21 +1,24 @@
 import { useSignal } from '@preact/signals';
 import { useRoute } from 'preact-iso';
 
-import { ApiError, getChangeLog } from '../api';
+import { ApiError, changeLogUrl, getChangeLog } from '../api';
 import { Breadcrumb } from '../components/Breadcrumb';
+import { JsonBody, ViewToggle } from '../components/Json';
 import { PageHeader } from '../components/PageHeader';
 import { Empty, ErrorMessage, Loading } from '../components/Status';
 import { formatDateTime, plural, toDateTimeLocal } from '../format';
-import { useEscape, useResource } from '../hooks';
+import { useEscape, useResource, useView } from '../hooks';
 import { resolveChangeSet } from '../resolveChangeSet';
 import { documentsPath, parseVersion, projectionsPath } from '../routes';
 import type { ChangeSet } from '../types';
+import type { View } from '../views';
 
 export function ChangeSets() {
   const { params } = useRoute();
   const name = params.name ?? '';
   const version = parseVersion(params.version ?? '');
   useEscape(projectionsPath());
+  const [view, setView] = useView('change-sets');
   const resource = useResource(() => (version === undefined ? Promise.reject(new ApiError(404, `No route for ${location.pathname}`)) : getChangeLog(name, version)), `${name}/${version}`);
   return (
     <>
@@ -32,12 +35,14 @@ export function ChangeSets() {
           <ErrorMessage error={resource.error} />
         </>
       )}
-      {resource.status === 'ready' && version !== undefined && <Timeline name={name} version={version} changeSets={resource.data} />}
+      {resource.status === 'ready' && version !== undefined && <Timeline name={name} version={version} changeSets={resource.data} view={view} onView={setView} />}
     </>
   );
 }
 
-function Timeline({ name, version, changeSets }: { name: string; version: number; changeSets: ChangeSet[] }) {
+type TimelineProps = { name: string; version: number; changeSets: ChangeSet[]; view: View; onView: (view: View) => void };
+
+function Timeline({ name, version, changeSets, view, onView }: TimelineProps) {
   const asOf = useSignal(toDateTimeLocal(new Date()));
   const now = new Date();
   const current = resolveChangeSet(changeSets, now);
@@ -47,13 +52,27 @@ function Timeline({ name, version, changeSets }: { name: string; version: number
   return (
     <>
       <PageHeader name={name} version={version} description={plural(changeSets.length, 'change set')}>
-        <label class="as-of">
-          As of
-          <input class="input input-sm w-52" type="datetime-local" value={asOf.value} onInput={(event) => (asOf.value = (event.currentTarget as HTMLInputElement).value)} />
-          <span class="muted">{resolved ? `change set ${resolved.id}` : 'no change set in force'}</span>
-        </label>
+        {view === 'timeline' && (
+          <label class="as-of">
+            As of
+            <input class="input input-sm w-52" type="datetime-local" value={asOf.value} onInput={(event) => (asOf.value = (event.currentTarget as HTMLInputElement).value)} />
+            <span class="muted">{resolved ? `change set ${resolved.id}` : 'no change set in force'}</span>
+          </label>
+        )}
+        <ViewToggle
+          views={[
+            ['timeline', 'Timeline'],
+            ['json', 'JSON'],
+          ]}
+          value={view}
+          onChange={onView}
+        />
       </PageHeader>
-      {changeSets.length === 0 ? (
+      {view === 'json' ? (
+        <div class="panel">
+          <JsonBody url={changeLogUrl(name, version)} body={changeSets} />
+        </div>
+      ) : changeSets.length === 0 ? (
         <Empty>No change sets</Empty>
       ) : (
         <ol class="history">
