@@ -44,7 +44,7 @@ Every screen has a sidebar listing the projections, with the one on screen marke
 
 ![The documents screen showing Devon Cliffs with its amenities and beach routes expanded, each amenity and beach flattened into the row](docs/screenshots/documents.png)
 
-**JSON view.** A toggle in the header of the change sets screen (`Timeline` / `JSON`) and the documents screen (`Table` / `JSON`) swaps the view for the response body the screen already fetched, pretty-printed and coloured, under its request URL and with a button to copy it, keeping the documents screen's filters and paging, reflecting the choice in the URL as `?view=json` and remembering it per screen in the browser's local storage.
+**JSON view.** A `UI` / `JSON` toggle in the header of the change sets and documents screens swaps the screen's own view for the response body the screen already fetched, pretty-printed and coloured, under its request URL and with a button to copy it, keeping the documents screen's filters and paging, reflecting the choice in the URL as `?view=json` and remembering it per screen in the browser's local storage.
 
 ## Development
 

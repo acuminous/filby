@@ -132,7 +132,7 @@ function Header({ name, version, changeSetId, changeLog, query, page, view, onCh
       <span class="muted">{description}</span>
       <ViewToggle
         views={[
-          ['table', 'Table'],
+          ['ui', 'UI'],
           ['json', 'JSON'],
         ]}
         value={view}

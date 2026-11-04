@@ -1,9 +1,7 @@
 export type Screen = 'change-sets' | 'documents';
 
-export type View = 'timeline' | 'table' | 'json';
-
-// The view each screen opens in when neither the URL nor storage names one.
-export const DEFAULT_VIEW: Record<Screen, View> = { 'change-sets': 'timeline', documents: 'table' };
+// ui is the screen's own view, a timeline or a table, and the one it opens in when neither the URL nor storage names one.
+export type View = 'ui' | 'json';
 
 export function viewKey(screen: Screen) {
   return `filby-ui/view/${screen}`;
@@ -12,7 +10,7 @@ export function viewKey(screen: Screen) {
 export function loadView(screen: Screen): View | undefined {
   try {
     const stored = localStorage.getItem(viewKey(screen));
-    return stored === 'json' || stored === DEFAULT_VIEW[screen] ? stored : undefined;
+    return stored === 'json' || stored === 'ui' ? stored : undefined;
   } catch {
     return undefined;
   }

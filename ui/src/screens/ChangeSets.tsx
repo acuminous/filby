@@ -52,7 +52,7 @@ function Timeline({ name, version, changeSets, view, onView }: TimelineProps) {
   return (
     <>
       <PageHeader name={name} version={version} description={plural(changeSets.length, 'change set')}>
-        {view === 'timeline' && (
+        {view === 'ui' && (
           <label class="as-of">
             As of
             <input class="input input-sm w-52" type="datetime-local" value={asOf.value} onInput={(event) => (asOf.value = (event.currentTarget as HTMLInputElement).value)} />
@@ -61,7 +61,7 @@ function Timeline({ name, version, changeSets, view, onView }: TimelineProps) {
         )}
         <ViewToggle
           views={[
-            ['timeline', 'Timeline'],
+            ['ui', 'UI'],
             ['json', 'JSON'],
           ]}
           value={view}

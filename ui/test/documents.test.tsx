@@ -199,6 +199,21 @@ describe('Documents', () => {
     expect(screen.getByText('1–2 of 2')).toBeTruthy();
   });
 
+  it('suggests the remaining values of a list after the ones already entered', async () => {
+    const parameters = [CHANGE_SET_ID, declared('types', 'in', ['type'], { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests', 'Staff'] } })];
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters }) }) } });
+    renderAt('/projections/Parks/v1/change-sets/2');
+    const types = (await screen.findByLabelText(/types/)) as HTMLInputElement;
+    const suggestions = () => Array.from(document.querySelectorAll('#types-values option')).map((option) => option.getAttribute('value'));
+    expect(suggestions()).toEqual(['Owners', 'Guests', 'Staff']);
+    fireEvent.input(types, { target: { value: 'Owners,' } });
+    expect(suggestions()).toEqual(['Owners, Guests', 'Owners, Staff']);
+    fireEvent.input(types, { target: { value: 'Owners, Staff, Gu' } });
+    expect(suggestions()).toEqual(['Owners, Staff, Guests']);
+    fireEvent.input(types, { target: { value: 'Gu' } });
+    expect(suggestions()).toEqual(['Owners', 'Guests', 'Staff']);
+  });
+
   it('builds filters from the parameters and reflects them in the URL', async () => {
     const parameters = [CHANGE_SET_ID, declared('code', 'equals', ['code']), declared('types', 'in', ['type'], { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests'] } }), declared('rate_from', 'range', ['rate']), declared('rate_to', 'range', ['rate']), PAGE, PAGE_SIZE];
     const requests = stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters }) }) } });
@@ -373,7 +388,7 @@ describe('Documents', () => {
       const requests = stub();
       renderAt('/projections/Parks/v1/change-sets/2');
       await screen.findByRole('table');
-      expect((screen.getByRole('radio', { name: 'Table' }) as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByRole('radio', { name: 'UI' }) as HTMLInputElement).checked).toBe(true);
       const count = requests.length;
       fireEvent.click(screen.getByRole('radio', { name: 'JSON' }));
       await waitFor(() => expect(location.search).toBe('?view=json'));
@@ -386,10 +401,10 @@ describe('Documents', () => {
       expect(screen.getByText('1–2 of 5')).toBeTruthy();
       expect(requests).toHaveLength(count);
       expect(localStorage.getItem('filby-ui/view/documents')).toBe('json');
-      fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+      fireEvent.click(screen.getByRole('radio', { name: 'UI' }));
       await waitFor(() => expect(location.search).toBe(''));
       expect(await screen.findByRole('table')).toBeTruthy();
-      expect(localStorage.getItem('filby-ui/view/documents')).toBe('table');
+      expect(localStorage.getItem('filby-ui/view/documents')).toBe('ui');
       expect(requests).toHaveLength(count);
     });
 

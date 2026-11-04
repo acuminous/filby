@@ -4,7 +4,7 @@ import { useLocation } from 'preact-iso';
 
 import { ApiError } from './api';
 import { type NestState, loadNests, saveNests } from './nests';
-import { DEFAULT_VIEW, type Screen, type View, loadView, saveView, withView } from './views';
+import { type Screen, type View, loadView, saveView, withView } from './views';
 
 export type Resource<T> = { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; error: ApiError };
 
@@ -44,8 +44,7 @@ export function useNests(key: string): [NestState, (state: NestState) => void] {
 export function useView(screen: Screen): [View, (view: View) => void] {
   const { url, route } = useLocation();
   const param = useQuery().get('view');
-  const fallback = DEFAULT_VIEW[screen];
-  const view = param === 'json' ? 'json' : param !== null ? fallback : (loadView(screen) ?? fallback);
+  const view: View = param === 'json' ? 'json' : param !== null ? 'ui' : (loadView(screen) ?? 'ui');
   useEffect(() => {
     if (param === null && view === 'json') route(withView(url, view), true);
   }, [url]);
