@@ -1,6 +1,6 @@
-import { ListFilter } from 'lucide-preact';
+import { Info, ListFilter } from 'lucide-preact';
 
-import type { Filter } from '../schema';
+import { type Filter, label } from '../schema';
 
 type Props = { filters: Filter[]; query: URLSearchParams; onSubmit: (query: URLSearchParams) => void };
 
@@ -10,6 +10,7 @@ export function Filters({ filters, query, onSubmit }: Props) {
     onSubmit(read(filters, new FormData(event.currentTarget as HTMLFormElement)));
   };
   const clear = () => onSubmit(new URLSearchParams());
+  const nested = filters.filter((filter) => filter.nested);
   return (
     <form class="toolbar" key={query.toString()} onSubmit={submit}>
       <span class="muted" style="align-self: center; margin-bottom: 0.25rem">
@@ -26,11 +27,13 @@ export function Filters({ filters, query, onSubmit }: Props) {
           Clear
         </button>
       </div>
+      {nested.length > 0 && <Note filters={nested} />}
     </form>
   );
 }
 
 function Field({ filter, query }: { filter: Filter; query: URLSearchParams }) {
+  const caption = `${filter.name}-match`;
   if (filter.kind === 'range') {
     return (
       <fieldset class="field">
@@ -38,27 +41,55 @@ function Field({ filter, query }: { filter: Filter; query: URLSearchParams }) {
         <div class="range">
           <label>
             from
-            <input class="input input-sm w-28" name={filter.from} defaultValue={query.get(filter.from) ?? ''} />
+            <input class="input input-sm w-28" name={filter.from} defaultValue={query.get(filter.from) ?? ''} aria-describedby={caption} />
           </label>
           <label>
             to
-            <input class="input input-sm w-28" name={filter.to} defaultValue={query.get(filter.to) ?? ''} />
+            <input class="input input-sm w-28" name={filter.to} defaultValue={query.get(filter.to) ?? ''} aria-describedby={caption} />
           </label>
         </div>
+        <Caption id={caption} filter={filter} />
       </fieldset>
     );
   }
   const list = filter.values && `${filter.name}-values`;
   const value = filter.kind === 'list' ? query.getAll(filter.name).join(', ') : (query.get(filter.name) ?? '');
   return (
-    <label class="field">
-      <span>
-        {filter.name}
-        {filter.kind === 'list' && ' (comma separated)'}
-      </span>
-      <input class="input input-sm w-44" name={filter.name} defaultValue={value} list={list} />
+    <div class="field">
+      <label>
+        <span>
+          {filter.name}
+          {filter.kind === 'list' && ' (comma separated)'}
+        </span>
+        <input class="input input-sm w-44" name={filter.name} defaultValue={value} list={list} aria-describedby={caption} />
+      </label>
       {list && <datalist id={list}>{filter.values?.map((option) => <option key={option} value={option} />)}</datalist>}
-    </label>
+      <Caption id={caption} filter={filter} />
+    </div>
+  );
+}
+
+function Caption({ id, filter }: { id: string; filter: Filter }) {
+  return (
+    <small id={id} class="caption">
+      {label(filter)}
+    </small>
+  );
+}
+
+// A parameter on a field inside a nest picks the documents that have a matching nested row; the documents still carry all their nested rows.
+function Note({ filters }: { filters: Filter[] }) {
+  const names = filters.map(({ name }) => name);
+  const subject = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  const text = names.length === 1 ? ' filters on a nested field, so it selects which documents are returned and does not filter the nested rows inside them.' : ' filter on nested fields, so they select which documents are returned and do not filter the nested rows inside them.';
+  return (
+    <p class="note" role="note">
+      <Info size={14} aria-hidden="true" />
+      <span>
+        {subject}
+        {text}
+      </span>
+    </p>
   );
 }
 
