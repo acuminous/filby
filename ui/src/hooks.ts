@@ -4,6 +4,7 @@ import { useLocation } from 'preact-iso';
 
 import { ApiError } from './api';
 import { type NestState, loadNests, saveNests } from './nests';
+import { DEFAULT_VIEW, type Screen, type View, loadView, saveView, withView } from './views';
 
 export type Resource<T> = { status: 'loading' } | { status: 'ready'; data: T } | { status: 'error'; error: ApiError };
 
@@ -37,6 +38,22 @@ export function useNests(key: string): [NestState, (state: NestState) => void] {
     saveNests(key, next);
   };
   return [state.value, update];
+}
+
+// The view named by the URL, else the one last chosen on this type of screen, else the screen's default. A remembered JSON view is put in the URL so the address on screen links to what is shown.
+export function useView(screen: Screen): [View, (view: View) => void] {
+  const { url, route } = useLocation();
+  const param = useQuery().get('view');
+  const fallback = DEFAULT_VIEW[screen];
+  const view = param === 'json' ? 'json' : param !== null ? fallback : (loadView(screen) ?? fallback);
+  useEffect(() => {
+    if (param === null && view === 'json') route(withView(url, view), true);
+  }, [url]);
+  const update = (next: View) => {
+    saveView(screen, next);
+    route(withView(url, next));
+  };
+  return [view, update];
 }
 
 export function useEscape(href: string | undefined) {

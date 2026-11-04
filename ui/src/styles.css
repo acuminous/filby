@@ -654,6 +654,56 @@ table.documents tr.nest details > table > thead {
   position: static;
 }
 
+.panel .json-head {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.panel .json-head .url {
+  min-width: 0;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.panel .json-head .btn {
+  flex: none;
+  font-family: var(--font-sans);
+}
+
+/* Scrolls inside the panel, both ways, so a long line or a large page does not widen or lengthen the page. */
+section.json {
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+}
+
+section.json .key {
+  color: var(--color-primary);
+}
+
+section.json .string {
+  color: var(--color-success);
+}
+
+section.json .number {
+  color: var(--color-info);
+}
+
+section.json .boolean {
+  color: var(--color-warning);
+}
+
+section.json .null {
+  font-size: inherit;
+}
+
 .state {
   display: flex;
   align-items: center;

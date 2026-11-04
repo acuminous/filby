@@ -27,17 +27,25 @@ export async function getOpenApi(): Promise<OpenApi> {
 }
 
 export async function getChangeLog(name: string, version: number): Promise<ChangeSet[]> {
-  const response = await get(`/api/changelog?${new URLSearchParams({ projection: name, version: String(version) })}`);
+  const response = await get(changeLogUrl(name, version));
   return response.json();
 }
 
+export function changeLogUrl(name: string, version: number) {
+  return `/api/changelog?${new URLSearchParams({ projection: name, version: String(version) })}`;
+}
+
 export async function getDocuments(name: string, version: number, changeSetId: number, query: URLSearchParams): Promise<Page> {
-  const params = new URLSearchParams(query);
-  params.set('changeSetId', String(changeSetId));
-  const response = await get(`${projectionPath(name, version)}?${params}`);
+  const response = await get(documentsUrl(name, version, changeSetId, query));
   const documents: Document[] = await response.json();
   const total = Number(response.headers.get('X-Total-Count') ?? documents.length);
   return { documents, total, ...parseLink(response.headers.get('Link')) };
+}
+
+export function documentsUrl(name: string, version: number, changeSetId: number, query: URLSearchParams) {
+  const params = new URLSearchParams(query);
+  params.set('changeSetId', String(changeSetId));
+  return `${projectionPath(name, version)}?${params}`;
 }
 
 export function projectionPath(name: string, version: number) {
