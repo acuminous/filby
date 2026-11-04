@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it } from 'vitest';
 
-import { CHANGE_SET_ID, PAGE, declared, deep, detailed, openapi, operation, parameter, projection, stubApi } from './fixtures';
+import { CHANGE_SET_ID, PAGE, declared, deep, detailed, openapi, operation, parameter, projection, renamed, renamedSeasons, stubApi } from './fixtures';
 import { renderAt } from './render';
 
 const VAT_RATES = operation({
@@ -66,6 +66,18 @@ describe('Projections', () => {
     stubApi({ '/api/projections': { body: [projection({ name: 'Parks (Detailed)' })] }, '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': detailed() }) } });
     renderAt('/');
     expect((await entries())[0]?.details).toEqual(['codename', 'none', 'amenitiesbeach_routes', 'amenities.amenitybeach_routes.beach', 'none']);
+  });
+
+  it('shows renamed fields, parameters and lookups by their aliases', async () => {
+    stubApi({
+      '/api/projections': { body: [projection({ name: 'Parks (Renamed)' }), projection({ name: 'Seasons (Renamed)' })] },
+      '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Renamed)/v1': renamed(), '/projections/Seasons%20(Renamed)/v1': renamedSeasons() }) },
+    });
+    renderAt('/');
+    expect((await entries()).map(({ details }) => details)).toEqual([
+      ['park_codenamearea', 'park_codeequalsareainamenity_nameprefix amenities.amenity.amenity_name', 'amenities', 'amenities.amenity', 'none'],
+      ['park_refcustomer_typeopens', 'park_refequalsopensrange', 'none', 'park', 'none'],
+    ]);
   });
 
   it('labels each parameter with its match and the field it filters', async () => {
