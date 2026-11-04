@@ -2,7 +2,7 @@
 [![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
 [![Codecov](https://codecov.io/gh/acuminous/filby/graph/badge.svg)](https://codecov.io/gh/acuminous/filby)
 
-# Filby - A framework for managing slow-moving temporal data
+# Filby - A framework for managing reference data that changes over time
 
 *There is no difference between Time and any of the three dimensions of Space except that our consciousness moves along it.*
 <p align="right">-<a href="https://www.amazon.co.uk/Time-Machine-H-G-Wells/dp/1614271976">The Time Machine - H. G. Wells</a></p>
@@ -21,7 +21,7 @@
 
 ## Introduction
 
-Filby is a framework for managing slow-moving temporal data, such as product catalogues, price lists, tax rates and calendars. Like a time series database, it stores successive values over time and lets applications query them by date. However, rather than storing high volumes of measurements such as sensor readings, Filby focuses on reference data that changes infrequently. Each change takes effect on a specified date and can be scheduled in advance. Previous values are retained after they are replaced, so an application can read the data as it stood, stands or will stand at any point in time, past, present or future.
+Filby is a framework for managing reference data that changes over time, such as product catalogues, price lists, tax rates and calendars. Like a time series database, it stores successive values over time and lets applications query them by date. However, rather than storing high volumes of measurements such as sensor readings, Filby focuses on data that changes infrequently. Each change takes effect on a specified date and can be scheduled in advance. Previous values are retained after they are replaced, so an application can read the data as it stood, stands or will stand at any point in time, past, present or future.
 
 Two typical uses are:
 
