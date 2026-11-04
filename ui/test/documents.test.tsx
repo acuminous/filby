@@ -199,6 +199,21 @@ describe('Documents', () => {
     expect(screen.getByText('1–2 of 2')).toBeTruthy();
   });
 
+  it('suggests the remaining values of a list after the ones already entered', async () => {
+    const parameters = [CHANGE_SET_ID, declared('types', 'in', ['type'], { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests', 'Staff'] } })];
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters }) }) } });
+    renderAt('/projections/Parks/v1/change-sets/2');
+    const types = (await screen.findByLabelText(/types/)) as HTMLInputElement;
+    const suggestions = () => Array.from(document.querySelectorAll('#types-values option')).map((option) => option.getAttribute('value'));
+    expect(suggestions()).toEqual(['Owners', 'Guests', 'Staff']);
+    fireEvent.input(types, { target: { value: 'Owners,' } });
+    expect(suggestions()).toEqual(['Owners, Guests', 'Owners, Staff']);
+    fireEvent.input(types, { target: { value: 'Owners, Staff, Gu' } });
+    expect(suggestions()).toEqual(['Owners, Staff, Guests']);
+    fireEvent.input(types, { target: { value: 'Gu' } });
+    expect(suggestions()).toEqual(['Owners', 'Guests', 'Staff']);
+  });
+
   it('builds filters from the parameters and reflects them in the URL', async () => {
     const parameters = [CHANGE_SET_ID, declared('code', 'equals', ['code']), declared('types', 'in', ['type'], { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests'] } }), declared('rate_from', 'range', ['rate']), declared('rate_to', 'range', ['rate']), PAGE, PAGE_SIZE];
     const requests = stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters }) }) } });

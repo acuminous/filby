@@ -1,3 +1,4 @@
+import { useSignal } from '@preact/signals';
 import { Info, ListFilter } from 'lucide-preact';
 
 import { type Filter, label } from '../schema';
@@ -54,6 +55,8 @@ function Field({ filter, query }: { filter: Filter; query: URLSearchParams }) {
   }
   const list = filter.values && `${filter.name}-values`;
   const value = filter.kind === 'list' ? query.getAll(filter.name).join(', ') : (query.get(filter.name) ?? '');
+  const typed = useSignal(value);
+  const suggestions = filter.kind === 'list' ? remaining(filter.values ?? [], typed.value) : (filter.values ?? []);
   return (
     <div class="field">
       <label>
@@ -61,12 +64,25 @@ function Field({ filter, query }: { filter: Filter; query: URLSearchParams }) {
           {filter.name}
           {filter.kind === 'list' && ' (comma separated)'}
         </span>
-        <input class="input input-sm w-44" name={filter.name} defaultValue={value} list={list} aria-describedby={caption} />
+        <input class="input input-sm w-44" name={filter.name} defaultValue={value} list={list} aria-describedby={caption} onInput={(event) => (typed.value = (event.currentTarget as HTMLInputElement).value)} />
       </label>
-      {list && <datalist id={list}>{filter.values?.map((option) => <option key={option} value={option} />)}</datalist>}
+      {list && <datalist id={list}>{suggestions.map((option) => <option key={option} value={option} />)}</datalist>}
       <Caption id={caption} filter={filter} />
     </div>
   );
+}
+
+// A browser matches suggestions against all of a box's text, so once a list has a value in it each suggestion repeats the values entered so far and adds one not yet chosen.
+function remaining(values: string[], typed: string) {
+  const comma = typed.lastIndexOf(',');
+  if (comma === -1) return values;
+  const entered = typed
+    .slice(0, comma)
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const prefix = entered.map((value) => `${value}, `).join('');
+  return values.filter((value) => !entered.includes(value)).map((value) => `${prefix}${value}`);
 }
 
 function Caption({ id, filter }: { id: string; filter: Filter }) {
