@@ -454,8 +454,8 @@ describe('Documents', () => {
       stub();
       renderAt('/projections/Parks/v1/change-sets/2?view=json');
       fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
-      expect(writeText).toHaveBeenCalledWith(JSON.stringify(PARKS, null, 2));
       expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+      expect(writeText).toHaveBeenCalledWith(JSON.stringify(PARKS, null, 2));
     });
 
     it('switches views when storage is unavailable', async () => {

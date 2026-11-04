@@ -28,8 +28,11 @@ export function JsonBody({ url, body }: { url: string; body: unknown }) {
     const timer = setTimeout(() => (copied.value = 'idle'), 2000);
     return () => clearTimeout(timer);
   }, [copied.value]);
+  // The clipboard is missing outside a secure context, so a missing one fails the copy like a refusal does.
   const copy = () =>
-    navigator.clipboard.writeText(text).then(
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(text))
+      .then(
       () => (copied.value = 'copied'),
       () => (copied.value = 'failed'),
     );

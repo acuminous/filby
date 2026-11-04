@@ -173,12 +173,20 @@ describe('Change sets', () => {
       stubApi({ '/api/changelog': { body: CHANGE_SETS } });
       renderAt('/projections/Parks/v1?view=json');
       fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
-      expect(writeText).toHaveBeenCalledWith(JSON.stringify(CHANGE_SETS, null, 2));
       expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
+      expect(writeText).toHaveBeenCalledWith(JSON.stringify(CHANGE_SETS, null, 2));
     });
 
     it('says when the clipboard refuses the copy', async () => {
       stubClipboard(() => Promise.reject(new Error('NotAllowedError')));
+      stubApi({ '/api/changelog': { body: CHANGE_SETS } });
+      renderAt('/projections/Parks/v1?view=json');
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+      expect(await screen.findByRole('button', { name: 'Copy failed' })).toBeTruthy();
+    });
+
+    it('says the copy failed when there is no clipboard, as outside a secure context', async () => {
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
       stubApi({ '/api/changelog': { body: CHANGE_SETS } });
       renderAt('/projections/Parks/v1?view=json');
       fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
