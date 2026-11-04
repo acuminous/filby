@@ -1,7 +1,5 @@
 import type { Document, Match, OpenApi, Operation, Parameter, Schema } from './types';
 
-const RESERVED = ['changeSetId', 'page', 'pageSize'];
-
 // field is the path of the property the parameter filters, absent when the documents do not carry it; nested marks a field inside a nest.
 type FilterBase = { name: string; match: Match; field?: string[]; nested?: true };
 
@@ -23,10 +21,11 @@ export function describeProjection(document: OpenApi, name: string, version: num
 }
 
 export function filters(parameters: Parameter[], columns: Column[] = []): Filter[] {
+  // Filby marks each declared parameter with its match; changeSetId and the paging parameters carry none.
   return parameters
-    .filter(({ name }) => !RESERVED.includes(name))
+    .filter((parameter): parameter is Parameter & { 'x-filby-match': Match } => parameter['x-filby-match'] !== undefined)
     .flatMap((parameter): Filter[] => {
-      const match = parameter['x-filby-match'] ?? 'equals';
+      const match = parameter['x-filby-match'];
       const field = parameter['x-filby-field'];
       const base = { match, ...(field && { field }), ...(field && throughNest(columns, field) && { nested: true as const }) };
       // Filby declares a range as <name>_from followed by <name>_to, both carrying the range match.

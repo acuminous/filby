@@ -8,6 +8,10 @@ describe('filters', () => {
     expect(filters([CHANGE_SET_ID, PAGE, PAGE_SIZE])).toEqual([]);
   });
 
+  it('ignores a parameter that carries no match', () => {
+    expect(filters([parameter('code')])).toEqual([]);
+  });
+
   it('describes a single value parameter with its match and field', () => {
     expect(filters([declared('code', 'equals', ['code'])])).toEqual([{ kind: 'value', name: 'code', match: 'equals', field: ['code'] }]);
   });
