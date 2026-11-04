@@ -39,7 +39,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.getDocuments`, which returns a projection's documents with their nests and lookups (#104).
 - `filby.fetch`, a framework-independent HTTP handler for change logs, projections and the list of projections (#59, #180).
 - A generated OpenAPI document at `/openapi.json` (#64, #198).
-- `filby export` and `filby pack`, which build an npm module holding a projection's documents at every change set (#181).
+- `filby export`, which writes a projection's documents at every change set to a bundle. [filby-pack](https://github.com/acuminous/filby-pack), released separately, turns a bundle into an npm module (#181).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
 - A published JSON Schema for migration files, for editor validation and completion (#48).
 - The `COMMENCE_CHANGE_SET` hook event, which fires when a projection's current change set changes (#55).
