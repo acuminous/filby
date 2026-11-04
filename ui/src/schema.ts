@@ -1,8 +1,9 @@
-import type { Document, OpenApi, Operation, Parameter, Schema } from './types';
+import type { Document, Match, OpenApi, Operation, Parameter, Schema } from './types';
 
-const RESERVED = ['changeSetId', 'page', 'pageSize'];
+// field is the path of the property the parameter filters, absent when the documents do not carry it; nested marks a field inside a nest.
+type FilterBase = { name: string; match: Match; field?: string[]; nested?: true };
 
-export type Filter = { kind: 'value'; name: string; values?: string[] } | { kind: 'list'; name: string; values?: string[] } | { kind: 'range'; name: string; from: string; to: string };
+export type Filter = (FilterBase & { kind: 'value'; values?: string[] }) | (FilterBase & { kind: 'list'; values?: string[] }) | (FilterBase & { kind: 'range'; from: string; to: string });
 
 export type Column = { name: string; kind: 'value' | 'date-time' | 'array' | 'table' | 'lookup'; columns?: Column[]; on?: Record<string, string> };
 
@@ -15,25 +16,39 @@ export function describeProjection(document: OpenApi, name: string, version: num
   if (!operation) return undefined;
   const parameters = operation.parameters ?? [];
   const schema = operation.responses['200']?.content?.['application/json']?.schema;
-  return { operation, filters: filters(parameters), columns: schema?.items ? columns(schema.items) : undefined, paging: paging(parameters) };
+  const described = schema?.items ? columns(schema.items) : undefined;
+  return { operation, filters: filters(parameters, described), columns: described, paging: paging(parameters) };
 }
 
-export function filters(parameters: Parameter[]): Filter[] {
-  const declared = parameters.filter(({ name }) => !RESERVED.includes(name));
-  const result: Filter[] = [];
-  for (let i = 0; i < declared.length; i++) {
-    const parameter = declared[i] as Parameter;
-    const next = declared[i + 1];
-    if (parameter.name.endsWith('_from') && next?.name === `${parameter.name.slice(0, -5)}_to`) {
-      result.push({ kind: 'range', name: parameter.name.slice(0, -5), from: parameter.name, to: next.name });
-      i++;
-    } else if (baseType(parameter.schema) === 'array') {
-      result.push({ kind: 'list', name: parameter.name, ...values(parameter.schema.items) });
-    } else {
-      result.push({ kind: 'value', name: parameter.name, ...values(parameter.schema) });
-    }
-  }
-  return result;
+export function filters(parameters: Parameter[], columns: Column[] = []): Filter[] {
+  // Filby marks each declared parameter with its match; changeSetId and the paging parameters carry none.
+  return parameters
+    .filter((parameter): parameter is Parameter & { 'x-filby-match': Match } => parameter['x-filby-match'] !== undefined)
+    .flatMap((parameter): Filter[] => {
+      const match = parameter['x-filby-match'];
+      const field = parameter['x-filby-field'];
+      const base = { match, ...(field && { field }), ...(field && throughNest(columns, field) && { nested: true as const }) };
+      // Filby declares a range as <name>_from followed by <name>_to, both carrying the range match.
+      if (match === 'range') {
+        if (!parameter.name.endsWith('_from')) return [];
+        const name = parameter.name.slice(0, -'_from'.length);
+        return [{ kind: 'range', name, ...base, from: parameter.name, to: `${name}_to` }];
+      }
+      if (match === 'in') return [{ kind: 'list', name: parameter.name, ...base, ...values(parameter.schema.items) }];
+      return [{ kind: 'value', name: parameter.name, ...base, ...values(parameter.schema) }];
+    });
+}
+
+export function label(filter: Filter): string {
+  const field = filter.field?.join('.');
+  return field && field !== filter.name ? `${filter.match} ${field}` : filter.match;
+}
+
+function throughNest(columns: Column[], path: string[]): boolean {
+  const [name, ...rest] = path;
+  const column = columns.find((candidate) => candidate.name === name);
+  if (!column || rest.length === 0) return false;
+  return column.kind === 'table' || throughNest(column.columns ?? [], rest);
 }
 
 export function columns(schema: Schema): Column[] | undefined {

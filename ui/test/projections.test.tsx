@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it } from 'vitest';
 
-import { CHANGE_SET_ID, PAGE, deep, detailed, openapi, operation, parameter, projection, stubApi } from './fixtures';
+import { CHANGE_SET_ID, PAGE, declared, deep, detailed, openapi, operation, parameter, projection, stubApi } from './fixtures';
 import { renderAt } from './render';
 
 const VAT_RATES = operation({
   summary: 'VAT Rates v1',
-  parameters: [CHANGE_SET_ID, parameter('type', { type: 'string', enum: ['standard', 'reduced'] }), parameter('types', { type: 'array', items: { type: 'string' } }), parameter('rate_from'), parameter('rate_to'), PAGE, parameter('pageSize', { type: 'integer', minimum: 1, default: 10 })],
+  parameters: [CHANGE_SET_ID, declared('type', 'equals', ['type'], { type: 'string', enum: ['standard', 'reduced'] }), declared('types', 'in', ['type'], { type: 'array', items: { type: 'string' } }), declared('rate_from', 'range', ['rate']), declared('rate_to', 'range', ['rate']), PAGE, parameter('pageSize', { type: 'integer', minimum: 1, default: 10 })],
   responses: { 200: { description: 'Rates', content: { 'application/json': { schema: { type: 'array', items: { type: 'object', properties: { type: { type: 'string' }, rate: { type: 'string' } } } } } } } },
 });
 
@@ -50,8 +50,8 @@ describe('Projections', () => {
     stub();
     renderAt('/');
     expect(await entries()).toEqual([
-      { title: 'Parksv1', description: 'Holiday parks and their seasons', details: ['codename', 'code', 'seasons', 'none', '2 per page, up to 3'], href: '/projections/Parks/v1' },
-      { title: 'VAT Ratesv1', description: '', details: ['typerate', 'typetypesinraterange', 'none', 'none', '10 per page'], href: '/projections/VAT%20Rates/v1' },
+      { title: 'Parksv1', description: 'Holiday parks and their seasons', details: ['codename', 'codeequals', 'seasons', 'none', '2 per page, up to 3'], href: '/projections/Parks/v1' },
+      { title: 'VAT Ratesv1', description: '', details: ['typerate', 'typeequalstypesin typeraterange', 'none', 'none', '10 per page'], href: '/projections/VAT%20Rates/v1' },
       { title: 'Summaryv3', description: 'A function', details: ['function rows', 'none', 'none', 'none', 'on request'], href: '/projections/Summary/v3' },
     ]);
   });
@@ -66,6 +66,32 @@ describe('Projections', () => {
     stubApi({ '/api/projections': { body: [projection({ name: 'Parks (Detailed)' })] }, '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': detailed() }) } });
     renderAt('/');
     expect((await entries())[0]?.details).toEqual(['codename', 'none', 'amenitiesbeach_routes', 'amenities.amenitybeach_routes.beach', 'none']);
+  });
+
+  it('labels each parameter with its match and the field it filters', async () => {
+    const parameters = [
+      CHANGE_SET_ID,
+      declared('prefix', 'prefix', ['name']),
+      declared('above', 'gt', ['rate']),
+      declared('at_least', 'gte', ['rate']),
+      declared('below', 'lt', ['rate']),
+      declared('at_most', 'lte', ['rate']),
+      declared('beach_surface', 'contains', ['beach_routes', 'beach', 'surfaces']),
+      declared('region', 'equals'),
+    ];
+    stubApi({ '/api/projections': { body: [projection({ name: 'Parks (Detailed)' })] }, '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': { ...detailed(), parameters } }) } });
+    renderAt('/');
+    await entries();
+    const chips = Array.from(main().getByText('Parameters').nextElementSibling?.querySelectorAll('.chip') ?? []);
+    expect(chips.map((chip) => [chip.firstChild?.textContent, chip.querySelector('.kind')?.textContent])).toEqual([
+      ['prefix', 'prefix name'],
+      ['above', 'gt rate'],
+      ['at_least', 'gte rate'],
+      ['below', 'lt rate'],
+      ['at_most', 'lte rate'],
+      ['beach_surface', 'contains beach_routes.beach.surfaces'],
+      ['region', 'equals'],
+    ]);
   });
 
   it('opens the change sets on click', async () => {

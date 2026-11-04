@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, deep, detailed, detailedPark, openapi, operation, parameter, park, stubApi } from './fixtures';
+import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, declared, deep, detailed, detailedPark, openapi, operation, parameter, park, stubApi } from './fixtures';
 import { renderAt } from './render';
 
 const PARKS = [park(), park({ code: 'PV', name: null, seasons: [] })];
@@ -200,7 +200,7 @@ describe('Documents', () => {
   });
 
   it('builds filters from the parameters and reflects them in the URL', async () => {
-    const parameters = [CHANGE_SET_ID, parameter('code'), parameter('types', { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests'] } }), parameter('rate_from'), parameter('rate_to'), PAGE, PAGE_SIZE];
+    const parameters = [CHANGE_SET_ID, declared('code', 'equals', ['code']), declared('types', 'in', ['type'], { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests'] } }), declared('rate_from', 'range', ['rate']), declared('rate_to', 'range', ['rate']), PAGE, PAGE_SIZE];
     const requests = stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters }) }) } });
     renderAt('/projections/Parks/v1/change-sets/2?pageSize=3&page=2');
     const code = (await screen.findByLabelText('code')) as HTMLInputElement;
@@ -219,7 +219,7 @@ describe('Documents', () => {
   });
 
   it('fills the filters from the URL and clears them', async () => {
-    const parameters = [CHANGE_SET_ID, parameter('code'), parameter('types', { type: 'array', items: { type: 'string' } }), parameter('rate_from'), parameter('rate_to')];
+    const parameters = [CHANGE_SET_ID, declared('code', 'equals', ['code']), declared('types', 'in', ['type'], { type: 'array', items: { type: 'string' } }), declared('rate_from', 'range', ['rate']), declared('rate_to', 'range', ['rate'])];
     stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters }) }) } });
     renderAt('/projections/Parks/v1/change-sets/2?code=DC&types=a&types=b&rate_to=9');
     expect(((await screen.findByLabelText('code')) as HTMLInputElement).value).toBe('DC');
@@ -228,6 +228,34 @@ describe('Documents', () => {
     expect((screen.getByLabelText('to') as HTMLInputElement).value).toBe('9');
     fireEvent.click(screen.getByText('Clear'));
     await waitFor(() => expect(location.search).toBe(''));
+  });
+
+  it('captions each filter with its match and the field it filters', async () => {
+    const parameters = [CHANGE_SET_ID, declared('code', 'equals', ['code']), declared('above', 'gt', ['rate']), declared('types', 'in', ['type'], { type: 'array', items: { type: 'string' } }), declared('rate_from', 'range', ['rate']), declared('rate_to', 'range', ['rate']), declared('region', 'equals')];
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': operation({ parameters }) }) } });
+    renderAt('/projections/Parks/v1/change-sets/2');
+    const caption = (input: HTMLElement) => document.getElementById(input.getAttribute('aria-describedby') ?? '')?.textContent;
+    expect(caption(await screen.findByLabelText('code'))).toBe('equals');
+    expect(caption(screen.getByLabelText('above'))).toBe('gt rate');
+    expect(caption(screen.getByLabelText(/types/))).toBe('in type');
+    expect(caption(screen.getByLabelText('from'))).toBe('range');
+    expect(caption(screen.getByLabelText('to'))).toBe('range');
+    expect(caption(screen.getByLabelText('region'))).toBe('equals');
+    expect(screen.queryByRole('note')).toBeNull();
+  });
+
+  it('notes that a parameter on a nested field selects documents rather than filtering their nested rows', async () => {
+    const parameters = [CHANGE_SET_ID, declared('code', 'equals', ['code']), declared('beach_surface', 'contains', ['beach_routes', 'beach', 'surfaces']), declared('amenity', 'equals', ['amenities', 'amenity_code'])];
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': { ...detailed(), parameters } }) }, '/api/projections/Parks%20(Detailed)/v1': { body: [detailedPark()] } });
+    renderAt('/projections/Parks%20(Detailed)/v1/change-sets/2');
+    expect((await screen.findByRole('note')).textContent).toBe('beach_surface and amenity filter on nested fields, so they select which documents are returned and do not filter the nested rows inside them.');
+  });
+
+  it('notes a single parameter on a nested field', async () => {
+    const parameters = [CHANGE_SET_ID, declared('beach_surface', 'contains', ['beach_routes', 'beach', 'surfaces'])];
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': { ...detailed(), parameters } }) }, '/api/projections/Parks%20(Detailed)/v1': { body: [detailedPark()] } });
+    renderAt('/projections/Parks%20(Detailed)/v1/change-sets/2');
+    expect((await screen.findByRole('note')).textContent).toBe('beach_surface filters on a nested field, so it selects which documents are returned and does not filter the nested rows inside them.');
   });
 
   it('pages with the Link header and the total', async () => {

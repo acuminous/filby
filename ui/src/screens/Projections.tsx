@@ -5,10 +5,8 @@ import { PageHeader } from '../components/PageHeader';
 import { Empty, ErrorMessage, Loading } from '../components/Status';
 import { useResource } from '../hooks';
 import { changeSetsPath } from '../routes';
-import { type Filter, describeProjection, lookups, nests } from '../schema';
+import { describeProjection, label, lookups, nests } from '../schema';
 import type { OpenApi, Projection } from '../types';
-
-const KINDS: Record<Filter['kind'], string> = { value: '', list: 'in', range: 'range' };
 
 export function Projections() {
   const resource = useResource(() => Promise.all([getProjections(), getOpenApi()]), 'projections');
@@ -53,7 +51,7 @@ function Entry({ projection, document }: { projection: Projection; document: Ope
               schema.filters.map((filter) => (
                 <span class="chip" key={filter.name}>
                   {filter.name}
-                  {KINDS[filter.kind] && <span class="kind">{KINDS[filter.kind]}</span>}
+                  <span class="kind">{label(filter)}</span>
                 </span>
               ))
             ) : (

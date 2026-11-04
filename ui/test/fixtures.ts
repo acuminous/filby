@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import type { ChangeSet, Document, OpenApi, Operation, Parameter, Projection, Schema } from '../src/types';
+import type { ChangeSet, Document, Match, OpenApi, Operation, Parameter, Projection, Schema } from '../src/types';
 
 export type Stub = { status?: number; body?: unknown; headers?: Record<string, string> };
 export type Routes = Record<string, Stub | ((url: URL) => Stub)>;
@@ -15,6 +15,11 @@ export function changeSet(overrides: Partial<ChangeSet> = {}): ChangeSet {
 
 export function parameter(name: string, schema: Schema = { type: 'string' }, extra: Partial<Parameter> = {}): Parameter {
   return { name, in: 'query', schema, ...extra };
+}
+
+// A projection's declared parameter as Filby 1.0.0 describes it: its match, the field it filters when the document has one, and form style for a repeated parameter.
+export function declared(name: string, match: Match, field?: string[], schema: Schema = { type: 'string' }): Parameter {
+  return parameter(name, schema, { ...(schema.type === 'array' && { style: 'form', explode: true }), 'x-filby-match': match, ...(field && { 'x-filby-field': field }) });
 }
 
 export const CHANGE_SET_ID = parameter('changeSetId', { type: 'integer' });
@@ -45,7 +50,7 @@ export function operation(overrides: Partial<Operation> = {}): Operation {
     operationId: 'get_parks_v1',
     summary: 'Parks v1',
     description: 'Holiday parks and their seasons',
-    parameters: [CHANGE_SET_ID, parameter('code'), PAGE, PAGE_SIZE],
+    parameters: [CHANGE_SET_ID, declared('code', 'equals', ['code']), PAGE, PAGE_SIZE],
     responses: { 200: { description: 'The documents', content: { 'application/json': { schema: { type: 'array', items: PARK_SCHEMA } } } } },
     ...overrides,
   };

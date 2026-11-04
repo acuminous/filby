@@ -1,35 +1,82 @@
 import { describe, expect, it } from 'vitest';
 
-import { columns, describeProjection, filters, inferColumns, paging } from '../src/schema';
-import { CHANGE_SET_ID, DETAILED_SCHEMA, PAGE, PAGE_SIZE, PARK_SCHEMA, detailedPark, openapi, operation, parameter } from './fixtures';
+import { columns, describeProjection, filters, inferColumns, label, paging } from '../src/schema';
+import { CHANGE_SET_ID, DETAILED_SCHEMA, PAGE, PAGE_SIZE, PARK_SCHEMA, declared, detailedPark, openapi, operation, parameter } from './fixtures';
 
 describe('filters', () => {
   it('ignores the reserved parameters', () => {
     expect(filters([CHANGE_SET_ID, PAGE, PAGE_SIZE])).toEqual([]);
   });
 
-  it('describes a single value parameter', () => {
-    expect(filters([parameter('code')])).toEqual([{ kind: 'value', name: 'code' }]);
+  it('ignores a parameter that carries no match', () => {
+    expect(filters([parameter('code')])).toEqual([]);
   });
 
-  it('describes a repeated parameter as a list', () => {
-    expect(filters([parameter('types', { type: 'array', items: { type: 'string' } }, { style: 'form', explode: true })])).toEqual([{ kind: 'list', name: 'types' }]);
+  it('describes a single value parameter with its match and field', () => {
+    expect(filters([declared('code', 'equals', ['code'])])).toEqual([{ kind: 'value', name: 'code', match: 'equals', field: ['code'] }]);
   });
 
-  it('describes a from and to pair as a range', () => {
-    expect(filters([parameter('rate_from'), parameter('rate_to'), parameter('above')])).toEqual([
-      { kind: 'range', name: 'rate', from: 'rate_from', to: 'rate_to' },
-      { kind: 'value', name: 'above' },
+  it('describes each single value match', () => {
+    const matches = ['equals', 'prefix', 'contains', 'gt', 'gte', 'lt', 'lte'] as const;
+    expect(filters(matches.map((match) => declared(match, match, ['rate'])))).toEqual(matches.map((match) => ({ kind: 'value', name: match, match, field: ['rate'] })));
+  });
+
+  it('describes an in parameter as a list', () => {
+    expect(filters([declared('types', 'in', ['type'], { type: 'array', items: { type: 'string' } })])).toEqual([{ kind: 'list', name: 'types', match: 'in', field: ['type'] }]);
+  });
+
+  it('describes a range parameter as one from and to pair', () => {
+    expect(filters([declared('rate_from', 'range', ['rate']), declared('rate_to', 'range', ['rate']), declared('above', 'gt', ['rate'])])).toEqual([
+      { kind: 'range', name: 'rate', match: 'range', field: ['rate'], from: 'rate_from', to: 'rate_to' },
+      { kind: 'value', name: 'above', match: 'gt', field: ['rate'] },
     ]);
   });
 
-  it('keeps a lone from parameter as a value', () => {
-    expect(filters([parameter('rate_from'), parameter('code')])).toEqual([{ kind: 'value', name: 'rate_from' }, { kind: 'value', name: 'code' }]);
+  it('goes by the match, not the name', () => {
+    expect(filters([declared('stay_from', 'gte', ['start']), declared('stay_to', 'lte', ['end']), declared('tags', 'contains', ['tags'])])).toEqual([
+      { kind: 'value', name: 'stay_from', match: 'gte', field: ['start'] },
+      { kind: 'value', name: 'stay_to', match: 'lte', field: ['end'] },
+      { kind: 'value', name: 'tags', match: 'contains', field: ['tags'] },
+    ]);
+  });
+
+  it('describes a parameter on a field the documents do not carry', () => {
+    expect(filters([declared('region', 'equals')])).toStrictEqual([{ kind: 'value', name: 'region', match: 'equals' }]);
   });
 
   it('includes the enumerated values', () => {
-    expect(filters([parameter('type', { type: 'string', enum: ['Owners', 'Guests'] })])).toEqual([{ kind: 'value', name: 'type', values: ['Owners', 'Guests'] }]);
-    expect(filters([parameter('types', { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests'] } })])).toEqual([{ kind: 'list', name: 'types', values: ['Owners', 'Guests'] }]);
+    expect(filters([declared('type', 'equals', ['type'], { type: 'string', enum: ['Owners', 'Guests'] })])).toEqual([{ kind: 'value', name: 'type', match: 'equals', field: ['type'], values: ['Owners', 'Guests'] }]);
+    expect(filters([declared('types', 'in', ['type'], { type: 'array', items: { type: 'string', enum: ['Owners', 'Guests'] } })])).toEqual([{ kind: 'list', name: 'types', match: 'in', field: ['type'], values: ['Owners', 'Guests'] }]);
+  });
+
+  it('marks a parameter whose field is inside a nest', () => {
+    const parameters = [declared('code', 'equals', ['code']), declared('beach_surface', 'contains', ['beach_routes', 'beach', 'surfaces']), declared('amenity', 'equals', ['amenities', 'amenity_code'])];
+    expect(filters(parameters, columns(DETAILED_SCHEMA)).map(({ name, nested }) => [name, nested])).toEqual([
+      ['code', undefined],
+      ['beach_surface', true],
+      ['amenity', true],
+    ]);
+  });
+
+  it('does not mark a parameter whose field is on a lookup at the root', () => {
+    const schema = { type: 'object', properties: { code: { type: 'string' }, region: { type: 'object', properties: { name: { type: 'string' } } } } };
+    expect(filters([declared('region', 'equals', ['region', 'name'])], columns(schema))[0]?.nested).toBeUndefined();
+  });
+});
+
+describe('label', () => {
+  it('names the match', () => {
+    expect(label({ kind: 'value', name: 'code', match: 'equals', field: ['code'] })).toBe('equals');
+    expect(label({ kind: 'range', name: 'rate', match: 'range', field: ['rate'], from: 'rate_from', to: 'rate_to' })).toBe('range');
+  });
+
+  it('names the field when it differs from the parameter', () => {
+    expect(label({ kind: 'value', name: 'above', match: 'gt', field: ['rate'] })).toBe('gt rate');
+    expect(label({ kind: 'value', name: 'beach_surface', match: 'contains', field: ['beach_routes', 'beach', 'surfaces'] })).toBe('contains beach_routes.beach.surfaces');
+  });
+
+  it('names only the match when there is no field', () => {
+    expect(label({ kind: 'value', name: 'region', match: 'equals' })).toBe('equals');
   });
 });
 
@@ -122,7 +169,7 @@ describe('describeProjection', () => {
 
   it('describes the filters, columns and paging', () => {
     const description = describeProjection(openapi(), 'Parks', 1);
-    expect(description?.filters).toEqual([{ kind: 'value', name: 'code' }]);
+    expect(description?.filters).toEqual([{ kind: 'value', name: 'code', match: 'equals', field: ['code'] }]);
     expect(description?.columns?.map(({ name }) => name)).toEqual(['code', 'name', 'seasons']);
     expect(description?.paging).toEqual({ size: 2, max: 3 });
   });

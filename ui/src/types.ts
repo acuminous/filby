@@ -17,7 +17,9 @@ export type Schema = {
   'x-filby-on'?: Record<string, string>;
 };
 
-export type Parameter = { name: string; in: string; schema: Schema; required?: boolean; style?: string; explode?: boolean };
+export type Match = 'equals' | 'prefix' | 'in' | 'contains' | 'range' | 'gt' | 'gte' | 'lt' | 'lte';
+
+export type Parameter = { name: string; in: string; schema: Schema; required?: boolean; style?: string; explode?: boolean; 'x-filby-match'?: Match; 'x-filby-field'?: string[] };
 
 export type Operation = {
   operationId: string;
