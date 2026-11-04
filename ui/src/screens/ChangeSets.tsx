@@ -86,6 +86,11 @@ function Timeline({ name, version, changeSets }: { name: string; version: number
                     <code>{changeSet.entityTag}</code>
                   </span>
                 </a>
+                {changeSet.reissuedFrom !== undefined && (
+                  <p class="reissued">
+                    Re-issues <a href={documentsPath(name, version, changeSet.reissuedFrom)}>change set {changeSet.reissuedFrom}</a>
+                  </p>
+                )}
               </li>
             );
           })}

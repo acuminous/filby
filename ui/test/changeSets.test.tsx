@@ -19,6 +19,7 @@ async function history() {
       what: item.querySelector('.what')?.textContent,
       meta: item.querySelector('.meta')?.textContent,
       current: item.querySelector('a')?.getAttribute('aria-current'),
+      reissued: item.querySelector('.reissued')?.textContent,
     }));
 }
 
@@ -77,6 +78,18 @@ describe('Change sets', () => {
     stubApi({ '/api/changelog': { body: CHANGE_SETS } });
     renderAt('/projections/Parks/v1');
     fireEvent.click(await screen.findByText('2021 Parks'));
+    await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1/change-sets/2'));
+  });
+
+  it('says that a re-issue re-issues the earlier change set and links to the documents at it', async () => {
+    stubApi({ '/api/changelog': { body: [changeSet({ id: 1 }), changeSet({ id: 4, effective: '2021-01-01T00:00:00.000Z', description: '2021 Parks', reissuedFrom: 2 })] } });
+    renderAt('/projections/Parks/v1');
+    const items = await history();
+    expect(items.map(({ reissued }) => reissued)).toEqual(['Re-issues change set 2', undefined]);
+    expect(items.map(({ what }) => what)).toEqual(['#42021 Parkslive', '#12020 Parks']);
+    const link = screen.getByRole('link', { name: 'change set 2' });
+    expect(link.parentElement?.closest('a')).toBeNull();
+    fireEvent.click(link);
     await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1/change-sets/2'));
   });
 

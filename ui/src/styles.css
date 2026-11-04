@@ -352,7 +352,12 @@ main {
   margin-top: 0.5rem;
 }
 
-.history li a {
+.history li {
+  position: relative;
+  border-radius: var(--radius-box);
+}
+
+.history li > a {
   position: relative;
   display: grid;
   grid-template-columns: 1.5rem 11rem minmax(0, 1fr);
@@ -363,24 +368,25 @@ main {
   color: inherit;
 }
 
-.history li a:hover {
+.history li > a:hover {
   background: var(--color-base-200);
 }
 
-.history li a::before {
+.history li::before {
   content: '';
   position: absolute;
+  z-index: 1;
   left: 0.6875rem;
   top: 0;
   bottom: 0;
   border-left: 2px solid var(--color-base-300);
 }
 
-.history li:first-child a::before {
+.history li:first-child::before {
   top: 1.1rem;
 }
 
-.history li:last-child a::before {
+.history li:last-child::before {
   bottom: calc(100% - 1.1rem);
 }
 
@@ -406,7 +412,7 @@ main {
   border-color: var(--color-primary);
 }
 
-.history li.resolved a {
+.history li.resolved {
   background: color-mix(in oklab, var(--color-primary) 7%, transparent);
 }
 
@@ -436,6 +442,19 @@ main {
   margin-top: 0.125rem;
   font-size: 0.75rem;
   color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+
+.history .reissued {
+  position: relative;
+  margin-top: -0.5rem;
+  padding: 0 0.75rem 0.75rem 14rem;
+  font-size: 0.75rem;
+  color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+
+.history .reissued a {
+  color: var(--color-base-content);
+  text-decoration: underline;
 }
 
 .history .id {
@@ -665,8 +684,12 @@ table.documents tr.nest details > table > thead {
     padding: 1.25rem 1rem 3rem;
   }
 
-  .history li a {
+  .history li > a {
     grid-template-columns: 1.5rem minmax(0, 1fr);
+  }
+
+  .history .reissued {
+    padding-left: 2.25rem;
   }
 
   .history .what,
