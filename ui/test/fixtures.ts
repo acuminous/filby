@@ -130,6 +130,118 @@ export function deep(): Operation {
   return operation({ parameters: [CHANGE_SET_ID], responses: { 200: { description: 'Deep', content: { 'application/json': { schema: { type: 'array', items: DEEP_SCHEMA } } } } } });
 }
 
+// Parks with the models they sell, as the holiday park example's Parks (Detailed) serves them from Filby 1.0.0. Each model is a link row that carries no fields of its own (fields: []),
+// only the model lookup and a nest of offers, which joins on fields of the link row that the row does not carry.
+export const LINK_ROW_SCHEMA: Schema = {
+  type: 'object',
+  properties: {
+    code: { type: 'string' },
+    models: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          offers: {
+            type: 'array',
+            items: { type: 'object', properties: { year: { type: 'integer' }, offer_price: { type: ['string', 'null'] } }, required: ['year'], additionalProperties: false },
+            'x-filby-on': { park_code: 'park_code', model_code: 'model_code' },
+          },
+          model: { anyOf: [{ type: 'object', properties: { code: { type: 'string' }, name: { type: 'string' } }, required: ['code', 'name'], additionalProperties: false }, { type: 'null' }], 'x-filby-on': { code: 'model_code' } },
+        },
+        required: ['offers', 'model'],
+        additionalProperties: false,
+      },
+      'x-filby-on': { park_code: 'code' },
+    },
+  },
+  required: ['code', 'models'],
+  additionalProperties: false,
+};
+
+export function linkRows(): Operation {
+  return operation({ parameters: [CHANGE_SET_ID], responses: { 200: { description: 'The documents', content: { 'application/json': { schema: { type: 'array', items: LINK_ROW_SCHEMA } } } } } });
+}
+
+export function linkRowPark(overrides: Partial<Document> = {}): Document {
+  return { code: 'DC', models: [{ offers: [{ year: 2026, offer_price: '19995.00' }], model: { code: 'CLW', name: 'Willerby Clearwater Lodge' } }], ...overrides };
+}
+
+const REGIONS: Schema = { type: 'string', enum: ['South West', 'Yorkshire', 'Wales'] };
+
+// Parks as Filby 1.0.0 serves a projection that renames fields with { field, as }, whose amenities are link rows carrying no fields of their own (fields: []), only a lookup.
+// Filby writes each alias into the property name, x-filby-on and x-filby-field, so park_code is Code, area is Region and amenity_ref and amenity_name are the amenity's Code and Name.
+export const RENAMED_SCHEMA: Schema = {
+  type: 'object',
+  properties: {
+    park_code: { type: 'string' },
+    name: { type: 'string' },
+    area: REGIONS,
+    amenities: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          amenity: {
+            anyOf: [{ type: 'object', properties: { amenity_ref: { type: 'string' }, amenity_name: { type: 'string' }, category: { type: 'string', enum: ['Pool', 'Entertainment'] } }, required: ['amenity_ref', 'amenity_name', 'category'], additionalProperties: false }, { type: 'null' }],
+            'x-filby-on': { amenity_ref: 'amenity_code' },
+          },
+        },
+        required: ['amenity'],
+        additionalProperties: false,
+      },
+      'x-filby-on': { park_code: 'park_code' },
+    },
+  },
+  required: ['park_code', 'name', 'area', 'amenities'],
+  additionalProperties: false,
+};
+
+export function renamed(): Operation {
+  return operation({
+    operationId: 'get_parks_renamed_v1',
+    summary: 'Parks (Renamed) v1',
+    parameters: [CHANGE_SET_ID, declared('park_code', 'equals', ['park_code']), declared('area', 'in', ['area'], { type: 'array', items: REGIONS }), declared('amenity_name', 'prefix', ['amenities', 'amenity', 'amenity_name'])],
+    responses: { 200: { description: 'The documents', content: { 'application/json': { schema: { type: 'array', items: RENAMED_SCHEMA } } } } },
+  });
+}
+
+export function renamedPark(overrides: Partial<Document> = {}): Document {
+  return {
+    park_code: 'DC',
+    name: 'Devon Cliffs',
+    area: 'South West',
+    amenities: [{ amenity: { amenity_ref: 'INDOOR_POOL', amenity_name: 'Indoor Pool', category: 'Pool' } }, { amenity: null }],
+    ...overrides,
+  };
+}
+
+// Park seasons as Filby 1.0.0 serves them with the park code renamed, joined to a park lookup on the renamed field, and a range parameter on a renamed date.
+export const RENAMED_SEASON_SCHEMA: Schema = {
+  type: 'object',
+  properties: {
+    park_ref: { type: 'string' },
+    customer_type: { type: 'string', enum: ['Guest', 'Owner'] },
+    opens: { type: 'string', format: 'date-time' },
+    park: { anyOf: [{ type: 'object', properties: { code: { type: 'string' }, name: { type: 'string' } }, required: ['code', 'name'], additionalProperties: false }, { type: 'null' }], 'x-filby-on': { code: 'park_ref' } },
+  },
+  required: ['park_ref', 'customer_type', 'opens', 'park'],
+  additionalProperties: false,
+};
+
+export function renamedSeasons(): Operation {
+  const opens: Schema = { type: 'string', format: 'date-time' };
+  return operation({
+    operationId: 'get_seasons_renamed_v1',
+    summary: 'Seasons (Renamed) v1',
+    parameters: [CHANGE_SET_ID, declared('park_ref', 'equals', ['park_ref']), declared('opens_from', 'range', ['opens'], opens), declared('opens_to', 'range', ['opens'], opens)],
+    responses: { 200: { description: 'The documents', content: { 'application/json': { schema: { type: 'array', items: RENAMED_SEASON_SCHEMA } } } } },
+  });
+}
+
+export function renamedSeason(overrides: Partial<Document> = {}): Document {
+  return { park_ref: 'DC', customer_type: 'Guest', opens: '2026-03-16T00:00:00.000Z', park: { code: 'DC', name: 'Devon Cliffs' }, ...overrides };
+}
+
 // Storage that throws on every access, as a browser's does when storage is disabled or full.
 export function unavailableStorage() {
   vi.stubGlobal('localStorage', {

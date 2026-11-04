@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, declared, deep, detailed, detailedPark, openapi, operation, parameter, park, stubApi, stubClipboard, unavailableStorage } from './fixtures';
+import { CHANGE_SET_ID, PAGE, PAGE_SIZE, type Routes, changeSet, declared, deep, detailed, detailedPark, linkRowPark, linkRows, openapi, operation, parameter, park, renamed, renamedPark, renamedSeason, renamedSeasons, stubApi, stubClipboard, unavailableStorage } from './fixtures';
 import { renderAt } from './render';
 
 const PARKS = [park(), park({ code: 'PV', name: null, seasons: [] })];
@@ -173,6 +173,46 @@ describe('Documents', () => {
     expect(screen.getAllByRole('columnheader').every((th) => th.title === '')).toBe(true);
   });
 
+  it('renders renamed fields under their aliases, flattening a link row that carries only its lookup and underlining the renamed join column', async () => {
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Renamed)/v1': renamed() }) }, '/api/projections/Parks%20(Renamed)/v1': { body: [renamedPark()] } });
+    renderAt('/projections/Parks%20(Renamed)/v1/change-sets/2');
+    fireEvent.click(await screen.findByRole('button', { name: 'amenities' }));
+    const [parks, amenities] = screen.getAllByRole('table') as HTMLTableElement[];
+    expect(Array.from(parks?.querySelectorAll(':scope > thead th') ?? []).map((th) => th.textContent)).toEqual(['park_code', 'name', 'area']);
+    expect(Array.from(parks?.querySelectorAll(':scope > tbody > tr:not(.nest) > td') ?? []).map((td) => td.textContent)).toEqual(['DC', 'Devon Cliffs', 'South West']);
+    const headers = within(amenities as HTMLTableElement).getAllByRole('columnheader');
+    expect(headers.map((th) => th.textContent)).toEqual(['amenity_ref', 'amenity_name', 'category']);
+    expect(headers.map((th) => th.title)).toEqual(['joins amenity on amenity_ref', '', '']);
+    const rows = Array.from(amenities?.querySelectorAll(':scope > tbody > tr') ?? []);
+    expect(rows.map((row) => Array.from(row.querySelectorAll('td')).map((td) => td.textContent))).toEqual([
+      ['INDOOR_POOL', 'Indoor Pool', 'Pool'],
+      ['null', 'null', 'null'],
+    ]);
+  });
+
+  it('renders a link row that carries only a lookup and a nest as the lookup\'s columns with the nest beneath', async () => {
+    stub({ '/api/projections/Parks/v1': { body: [linkRowPark()] }, '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': linkRows() }) } });
+    renderAt('/projections/Parks/v1/change-sets/2');
+    fireEvent.click(await screen.findByRole('button', { name: 'models' }));
+    fireEvent.click(screen.getByRole('button', { name: 'models.offers' }));
+    const [, models, offers] = screen.getAllByRole('table') as HTMLTableElement[];
+    const headers = Array.from(models?.querySelectorAll<HTMLTableCellElement>(':scope > thead th') ?? []);
+    expect(headers.map((th) => th.textContent)).toEqual(['code', 'name']);
+    expect(headers.map((th) => th.title)).toEqual(['joins model on code', '']);
+    expect(Array.from(models?.querySelectorAll(':scope > tbody > tr:not(.nest) > td') ?? []).map((td) => td.textContent)).toEqual(['CLW', 'Willerby Clearwater Lodge']);
+    expect(Array.from(offers?.querySelectorAll('td') ?? []).map((td) => td.textContent)).toEqual(['2026', '19995.00']);
+  });
+
+  it('underlines a renamed parent column that a lookup joins on', async () => {
+    stub({ '/api/openapi.json': { body: openapi({ '/projections/Seasons%20(Renamed)/v1': renamedSeasons() }) }, '/api/projections/Seasons%20(Renamed)/v1': { body: [renamedSeason()] } });
+    renderAt('/projections/Seasons%20(Renamed)/v1/change-sets/2');
+    const table = (await screen.findByRole('table')) as HTMLTableElement;
+    const headers = within(table).getAllByRole('columnheader');
+    expect(headers.map((th) => th.textContent)).toEqual(['park_ref', 'customer_type', 'opens', 'code', 'name']);
+    expect(headers.map((th) => th.title)).toEqual(['joins park on code', '', '', '', '']);
+    expect(Array.from(table.querySelectorAll('td')).map((td) => td.textContent)).toEqual(['DC', 'Guest', 'Mar 16, 2026, 12:00 AM', 'DC', 'Devon Cliffs']);
+  });
+
   it('infers lookups from the documents', async () => {
     const rows = operation({ parameters: [CHANGE_SET_ID], responses: { 200: { description: 'Rows', content: { 'application/json': { schema: { type: 'array', items: { type: 'object' } } } } } } });
     stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks/v1': rows }) }, '/api/projections/Parks/v1': { body: [{ park: 'DC', region: { name: 'South West' } }, { park: 'PV', region: null }] } });
@@ -271,6 +311,28 @@ describe('Documents', () => {
     stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Detailed)/v1': { ...detailed(), parameters } }) }, '/api/projections/Parks%20(Detailed)/v1': { body: [detailedPark()] } });
     renderAt('/projections/Parks%20(Detailed)/v1/change-sets/2');
     expect((await screen.findByRole('note')).textContent).toBe('beach_surface filters on a nested field, so it selects which documents are returned and does not filter the nested rows inside them.');
+  });
+
+  it('captions the filters on renamed fields with their aliases and notes the one inside a nest', async () => {
+    const requests = stub({ '/api/openapi.json': { body: openapi({ '/projections/Parks%20(Renamed)/v1': renamed() }) }, '/api/projections/Parks%20(Renamed)/v1': { body: [renamedPark()] } });
+    renderAt('/projections/Parks%20(Renamed)/v1/change-sets/2');
+    const caption = (input: HTMLElement) => document.getElementById(input.getAttribute('aria-describedby') ?? '')?.textContent;
+    expect(caption(await screen.findByLabelText('park_code'))).toBe('equals');
+    expect(caption(screen.getByLabelText(/area/))).toBe('in');
+    const amenity = screen.getByLabelText('amenity_name');
+    expect(caption(amenity)).toBe('prefix amenities.amenity.amenity_name');
+    expect(screen.getByRole('note').textContent).toBe('amenity_name filters on a nested field, so it selects which documents are returned and does not filter the nested rows inside them.');
+    fireEvent.input(amenity, { target: { value: 'Indoor' } });
+    fireEvent.submit(amenity.closest('form') as HTMLFormElement);
+    await waitFor(() => expect(requests.at(-1)?.searchParams.get('amenity_name')).toBe('Indoor'));
+  });
+
+  it('filters a renamed date with a from and to pair', async () => {
+    const requests = stub({ '/api/openapi.json': { body: openapi({ '/projections/Seasons%20(Renamed)/v1': renamedSeasons() }) }, '/api/projections/Seasons%20(Renamed)/v1': { body: [renamedSeason()] } });
+    renderAt('/projections/Seasons%20(Renamed)/v1/change-sets/2?opens_from=2026-01-01T00:00:00.000Z');
+    expect(((await screen.findByLabelText('from')) as HTMLInputElement).value).toBe('2026-01-01T00:00:00.000Z');
+    await waitFor(() => expect(requests.at(-1)?.searchParams.get('opens_from')).toBe('2026-01-01T00:00:00.000Z'));
+    expect(requests.at(-1)?.searchParams.has('opens_to')).toBe(false);
   });
 
   it('pages with the Link header and the total', async () => {
