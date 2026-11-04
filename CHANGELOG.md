@@ -38,7 +38,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `fields` in projections, to choose which fields a document carries, and `{ field, as }` to rename them (#199, #213).
 - `filby.getDocuments`, which returns a projection's documents with their nests and lookups (#104).
 - `filby.fetch`, a framework-independent HTTP handler for change logs, projections and the list of projections (#59, #180).
-- A generated OpenAPI document at `/openapi.json` (#64, #198).
+- A generated OpenAPI document at `/openapi.json`, which says how each parameter matches and which field it filters (#64, #198, #235).
 - `filby export`, which writes a projection's documents at every change set to a bundle. [filby-pack](https://github.com/acuminous/filby-pack), released separately, turns a bundle into an npm module (#181).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
 - A published JSON Schema for migration files, for editor validation and completion (#48).

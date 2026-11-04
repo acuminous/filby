@@ -1805,9 +1805,9 @@ describe('DSL', () => {
       const values = { type: 'string', enum: ['standard', 'reduced', 'zero'] };
       deq(document.paths['/projections/VAT%20Rates/v1'].get.parameters, [
         { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
-        { name: 'rate', in: 'query', schema: values },
-        { name: 'rates', in: 'query', schema: { type: 'array', items: values }, style: 'form', explode: true },
-        { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true },
+        { name: 'rate', in: 'query', schema: values, 'x-filby-match': 'contains', 'x-filby-field': ['rate'] },
+        { name: 'rates', in: 'query', schema: { type: 'array', items: values }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['rate'] },
+        { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['type'] },
       ]);
     });
 
@@ -2853,13 +2853,13 @@ describe('DSL', () => {
       const document = await (await filby.fetch(new Request('http://localhost/openapi.json'))).json();
       deq(document.paths['/projections/Parks/v1'].get.parameters, [
         { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
-        { name: 'code', in: 'query', schema: { type: 'string' } },
-        { name: 'season_type', in: 'query', schema: { type: 'string' } },
-        { name: 'band', in: 'query', schema: { type: 'string' } },
-        { name: 'amount_from', in: 'query', schema: { type: 'string' } },
-        { name: 'amount_to', in: 'query', schema: { type: 'string' } },
-        { name: 'tag', in: 'query', schema: { type: 'string' } },
-        { name: 'tags', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true },
+        { name: 'code', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'equals', 'x-filby-field': ['code'] },
+        { name: 'season_type', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'equals', 'x-filby-field': ['seasons', 'type'] },
+        { name: 'band', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'equals', 'x-filby-field': ['seasons', 'rates', 'band'] },
+        { name: 'amount_from', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'range', 'x-filby-field': ['seasons', 'rates', 'amount'] },
+        { name: 'amount_to', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'range', 'x-filby-field': ['seasons', 'rates', 'amount'] },
+        { name: 'tag', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'contains', 'x-filby-field': ['seasons', 'tags'] },
+        { name: 'tags', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['seasons', 'tags'] },
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
       ]);
