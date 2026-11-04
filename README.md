@@ -15,6 +15,7 @@
 - [How it works](#how-it-works)
 - [Getting started](#getting-started)
 - [Guide](#guide)
+- [Upgrading from 0.14.0 to 1.0.0](#upgrading-from-0140-to-100)
 - [Reference](#reference)
 - [Example application](#example-application)
 
@@ -1230,6 +1231,93 @@ Two tools build a module. `filby export` applies your migrations to a database a
 ```
 
 filby-pack is released separately from Filby, so you choose when to take changes to the modules it generates. Its README explains how packages are versioned and what a module exports.
+
+## Upgrading from 0.14.0 to 1.0.0
+
+Most of the upgrade happens automatically. The first time `init()` runs with 1.0.0, Filby applies its own migrations, which convert the tables and data created by 0.14.0. A few things can stop those migrations or need changing by hand, so work through the steps below in order. The [CHANGELOG](CHANGELOG.md) lists every change in the release.
+
+### Before you upgrade
+
+1. Check your runtime. Filby 1.0.0 needs Node.js 22.12 or later and PostgreSQL 15 or later. 0.14.0 did not state a minimum PostgreSQL version, so check yours if it is older.
+2. Back up the database, so that you can return to 0.14.0 if you need to.
+3. Check for change sets that contain more than one frame for the same key, as described below.
+4. Find any of your own SQL that will need changing, as described in [Your own SQL](#your-own-sql). Make the changes when you deploy 1.0.0, not before.
+
+#### More than one frame for the same key
+
+A change set may now contain only one frame for each key of an entity. 0.14.0 allowed several, and the frame with the highest id won. If an existing change set breaks the new rule, the upgrade stops before converting the entity tables, `init()` rejects, and the error names the first duplicate:
+
+```
+Entity 'VAT Rate v1' has more than one frame with key (type=standard) in change set '2021 VAT Rates'
+```
+
+To list every duplicate for an entity, run a query like this one against your 0.14.0 database, replacing `vat_rate_v1` with the entity's table and `type` with its key fields:
+
+```sql
+SELECT cs.id AS change_set_id, cs.description, x.type, COUNT(*) AS frames, MAX(x.fby_frame_id) AS winning_frame_id
+FROM vat_rate_v1 x
+INNER JOIN fby_data_frame f ON f.id = x.fby_frame_id
+INNER JOIN fby_change_set cs ON cs.id = f.change_set_id
+GROUP BY cs.id, cs.description, x.type
+HAVING COUNT(*) > 1
+ORDER BY cs.id;
+```
+
+The frame in `winning_frame_id` is the one 0.14.0 served, so keep it and delete the others for that key and change set. Delete each frame's row from the entity table first, then its row from `fby_data_frame`. Filby does not delete data for you. If `init()` has already stopped on a duplicate, fix the data and call `init()` again, and the upgrade continues from the step that failed.
+
+### What happens when init() runs
+
+The first `init()` with 1.0.0 applies Filby's own migrations to the existing database. They record your entity definitions in new metadata tables, recreate the aggregate functions, relabel existing `POST` frames as `SET`, and recreate each entity check so that it applies only to `SET` frames, keeping its name and expression. Your reference data is not otherwise changed.
+
+The migrations also put change sets back in effective date order. 0.14.0 assigned ids in the order change sets were added, so a change set added with an earlier effective date than an existing one, for example to backfill data, could have a higher id. The upgrade re-issues each change set that is out of order as a new change set with the same description, effective date and data. The change log gains the re-issued change sets, the originals drop out of it, and `ADD_CHANGE_SET` notifications are scheduled for the re-issued ones. Anything that reads the original ids still gets the original data. See [Correcting and re-issuing data](#correcting-and-re-issuing-data).
+
+Filby no longer uses the pgcrypto extension. The upgrade leaves it installed, so drop it if nothing else in the database needs it.
+
+Error messages now quote fields and enums as they were written in your migrations. Fields and enums created by 0.14.0 are the exception. 0.14.0 did not record how they were written, so messages about them use their lower case names.
+
+### Your own SQL
+
+The `POST` action is now called `SET`. YAML, JSON and CSV migrations that say `POST` keep working, but SQL that uses the literal `'POST'` fails, because the database value has been renamed. Change it to `'SET'` in your functions and views.
+
+Entity tables gain two columns, `fby_change_set_id` and `fby_action`, which hold the change set and action of each row's frame. SQL that inserts rows into an entity table directly must supply both. `fby_notify_add_change_set` now takes the change set id as its first argument, so update any SQL that calls it.
+
+None of this works on 0.14.0, because the `SET` value and the new columns do not exist until the upgrade. Instead, recreate the affected functions and views in a new SQL migration that you deploy with 1.0.0. Filby applies its own migrations before yours, so your migration runs after the upgrade, during the same `init()`. SQL migrations that have already been applied do not need changing for the upgrade, but they may stop a new database from being created. See [Creating new databases from your migrations](#creating-new-databases-from-your-migrations).
+
+### Application code
+
+Some of Filby's API behaves differently in 1.0.0. Check your application for the following:
+
+| Change | What to do |
+| ------ | ---------- |
+| A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener receives `{ error, notification }` instead of the notification with an `err` property. The `ErrorNotification` type is removed. | Read `error` and `notification` from the payload. |
+| `Filby.NOTIFICATION_ERROR` is emitted after every failed delivery attempt, and when polling or a database connection fails. | Expect more of these events. Check for `notification` to tell delivery failures from polling and connection failures. See [Monitoring failures](#monitoring-failures). |
+| A notification for a hook with no subscriber counts as a failed attempt and is retried. In 0.14.0 it was discarded. | Subscribe to every hook you declare, or drop the hooks you no longer use. |
+| `getChangeLog` returns change sets in id order, oldest first. | Remove any sorting you added to work around the previous order. |
+| `getAggregates` rejects when the change set does not exist, instead of returning an empty array. | Handle the rejection. |
+| `withTransaction` runs its callback in a transaction, which is rolled back if the callback throws. In 0.14.0 each statement was committed as it ran. | Check any code that relied on earlier statements being kept after a later one failed. |
+| Deleting a change set with SQL also deletes its rows from the entity tables. | Delete a superseded change set and its re-issue in the same statement. See [Correcting and re-issuing data](#correcting-and-re-issuing-data). |
+| In TypeScript, `getProjection`, `getChangeSet` and `getCurrentChangeSet` can return `undefined`. | Handle the `undefined` case. |
+
+### Creating new databases from your migrations
+
+Upgrading an existing database does not run your old migration files again, but creating a new one does, for example for local development or tests. 1.0.0 checks migrations more strictly than 0.14.0, so a file that was applied without complaint may now fail:
+
+- A change set with more than one frame for the same key fails. Remove the extra frames from the file, as you did in the database.
+- An `ADD_HOOK` with a `projection` must use the `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET` event. In 0.14.0, a projection on an `ADD_PROJECTION` or `DROP_PROJECTION` hook was ignored, so remove it.
+- A SQL migration that inserts `'POST'` frames, or inserts rows into an entity table without `fby_change_set_id` and `fby_action`, fails. Change it as described in [Your own SQL](#your-own-sql).
+- A `DROP_ENTITY` must include `operation: DROP_ENTITY`, like every other operation.
+
+Filby does not compare your migration files with the versions it has already applied, so you can correct old files without affecting existing databases.
+
+A new database may also hold slightly different values from one loaded by 0.14.0. CSV cells are now passed to PostgreSQL as written, so `007` stays `007` in a `TEXT` column, and a YAML field with no value is stored as `NULL` rather than an empty string.
+
+### Checking the upgrade
+
+After the first `init()`:
+
+1. Read the change log of each projection. Re-issued change sets have `reissuedFrom` set to the id of the change set they replace.
+2. Call `filby.getNotificationStatus()` once notifications have started. A rising exhausted or overdue count, or `Filby.NOTIFICATION_ERROR` events reporting `No subscribers for hook`, point to a hook that needs a subscriber. See [Health checks](#health-checks).
+3. Request a projection at a change set id your clients already use, and confirm the documents are the ones they expect.
 
 ## Reference
 

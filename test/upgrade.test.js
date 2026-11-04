@@ -105,7 +105,7 @@ describe('Upgrade', () => {
 
     await rejects(() => upgrade(), (err) => {
       eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (tax_rate=standard, region=uk) in change set '2021 VAT Rates'");
-      eq(err.hint, 'Keep one frame per key in each change set. See the CHANGELOG for a query that lists every duplicate.');
+      eq(err.hint, 'Keep one frame per key in each change set. See Upgrading from 0.14.0 to 1.0.0 in the README for a query that lists every duplicate.');
       return true;
     });
 

@@ -38,7 +38,7 @@ BEGIN
 
     IF v_description IS NOT NULL THEN
       RAISE EXCEPTION 'Entity ''% v%'' has more than one frame with key (%) in change set ''%''', v_entity.name, v_entity.version, v_key, v_description
-        USING HINT = 'Keep one frame per key in each change set. See the CHANGELOG for a query that lists every duplicate.';
+        USING HINT = 'Keep one frame per key in each change set. See Upgrading from 0.14.0 to 1.0.0 in the README for a query that lists every duplicate.';
     END IF;
 
     FOR v_constraint IN
