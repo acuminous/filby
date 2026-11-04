@@ -131,7 +131,7 @@ describe('Change sets', () => {
       const requests = stubApi({ '/api/changelog': { body: CHANGE_SETS } });
       renderAt('/projections/Parks/v1');
       await history();
-      const timeline = screen.getByRole('radio', { name: 'Timeline' }) as HTMLInputElement;
+      const timeline = screen.getByRole('radio', { name: 'UI' }) as HTMLInputElement;
       expect(timeline.checked).toBe(true);
       fireEvent.click(screen.getByRole('radio', { name: 'JSON' }));
       await waitFor(() => expect(location.search).toBe('?view=json'));
@@ -145,11 +145,11 @@ describe('Change sets', () => {
       expect(screen.queryByLabelText(/As of/)).toBeNull();
       expect(requests.filter(({ pathname }) => pathname === '/api/changelog')).toHaveLength(1);
       expect(localStorage.getItem('filby-ui/view/change-sets')).toBe('json');
-      fireEvent.click(screen.getByRole('radio', { name: 'Timeline' }));
+      fireEvent.click(screen.getByRole('radio', { name: 'UI' }));
       await waitFor(() => expect(location.search).toBe(''));
       expect((await history()).length).toBe(3);
       expect(screen.queryByLabelText('Response body')).toBeNull();
-      expect(localStorage.getItem('filby-ui/view/change-sets')).toBe('timeline');
+      expect(localStorage.getItem('filby-ui/view/change-sets')).toBe('ui');
       expect(requests.filter(({ pathname }) => pathname === '/api/changelog')).toHaveLength(1);
     });
 

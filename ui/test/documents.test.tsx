@@ -373,7 +373,7 @@ describe('Documents', () => {
       const requests = stub();
       renderAt('/projections/Parks/v1/change-sets/2');
       await screen.findByRole('table');
-      expect((screen.getByRole('radio', { name: 'Table' }) as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByRole('radio', { name: 'UI' }) as HTMLInputElement).checked).toBe(true);
       const count = requests.length;
       fireEvent.click(screen.getByRole('radio', { name: 'JSON' }));
       await waitFor(() => expect(location.search).toBe('?view=json'));
@@ -386,10 +386,10 @@ describe('Documents', () => {
       expect(screen.getByText('1–2 of 5')).toBeTruthy();
       expect(requests).toHaveLength(count);
       expect(localStorage.getItem('filby-ui/view/documents')).toBe('json');
-      fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+      fireEvent.click(screen.getByRole('radio', { name: 'UI' }));
       await waitFor(() => expect(location.search).toBe(''));
       expect(await screen.findByRole('table')).toBeTruthy();
-      expect(localStorage.getItem('filby-ui/view/documents')).toBe('table');
+      expect(localStorage.getItem('filby-ui/view/documents')).toBe('ui');
       expect(requests).toHaveLength(count);
     });
 
