@@ -1210,6 +1210,28 @@ Set `options.info` to customise the document's title, version and description. T
 
 See [OpenAPI document](#openapi-document) for details of the generated contents.
 
+### Deploying
+
+Run Filby inside your application as a cluster of two or more instances, so that the API stays available while one instance restarts. Each instance calls `init()` at startup, which applies any migrations that have not yet been applied before the instance serves requests.
+
+Deploy new migrations with a rolling deployment, replacing the instances one at a time. The first new instance applies the migrations, and the remaining instances find nothing left to apply. Instances that are still running continue to serve HTTP requests while the migrations are applied. A running instance does not pick up everything a migration changes, however. Your application subscribes to hooks when it starts, and Filby reads the enum types it needs to convert enum arrays during `init()`. Restarting every instance after the migrations have been applied ensures that each one has the current definitions.
+
+Several instances can start at the same time. `init()` holds a database lock while it applies migrations, so one instance applies them while the others wait, and the waiting instances continue once it has finished. Notification delivery pauses across all instances while migrations are applied, as described under [Migrations](#migrations).
+
+On Kubernetes, you can apply migrations from an init container instead. The container runs a script that calls `init()` and then `stop()`:
+
+```js
+const { Filby } = require('filby');
+const config = require('./config.json');
+
+const filby = new Filby(config);
+filby.init().finally(() => filby.stop());
+```
+
+The application containers still call `init()`, which then has nothing to apply.
+
+Each hook notification is delivered to one instance per attempt, so a handler runs once in the cluster rather than once per instance. During a rolling deployment, a notification for a new hook may be claimed by an instance that started before the hook was added and has no subscriber for it. That attempt fails and is retried, as described under [Delivery and retries](#delivery-and-retries), and a later attempt is normally claimed by a new instance.
+
 ### Distributing projections as modules
 
 An application can install a projection as an npm module instead of requesting it over HTTP. The module contains the projection's change log and the documents at every change set, including change sets that have not yet taken effect. An application deployed in November with a change set that takes effect on 1 January starts using the new data on 1 January without being redeployed. Modules suit reference data that is small enough to ship with an application. Read larger projections through the API.
