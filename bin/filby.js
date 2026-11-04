@@ -7,19 +7,16 @@ const marv = require('marv/api/promise');
 const { Filby } = require('..');
 const render = require('../lib/render-migration');
 const exportBundle = require('../lib/export');
-const { pack } = require('../lib/pack');
 
 const USAGE = [
   'Usage: filby <validate|preview> [directory ...]',
   '       filby export --config <file> --projection <name@version> --out <file>',
-  '       filby pack --bundle <file> --name <package> --out <directory>',
 ].join('\n');
 
 const commands = {
   validate: (args) => check(args, validate),
   preview: (args) => check(args, preview),
   export: exportCommand,
-  pack: packCommand,
 };
 
 class UsageError extends Error {}
@@ -58,13 +55,6 @@ async function exportCommand(args) {
   } finally {
     await filby.stop();
   }
-  return true;
-}
-
-async function packCommand(args) {
-  const { bundle: bundleFile, name, out } = requiredOptions(args, ['bundle', 'name', 'out']);
-  const { version } = pack(readJson(bundleFile, 'bundle'), { name, out: path.resolve(out) });
-  process.stdout.write(`${name}@${version}\n`);
   return true;
 }
 
