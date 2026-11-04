@@ -66,7 +66,7 @@ export function Documents() {
       )}
       {context.status === 'ready' && (
         <>
-          <Header name={name} version={version} changeSetId={changeSetId} changeLog={context.data.changeLog} page={page} onChangeSet={changeChangeSet} />
+          <Header name={name} version={version} changeSetId={changeSetId} changeLog={context.data.changeLog} query={query} page={page} onChangeSet={changeChangeSet} />
           {context.data.schema.filters.length > 0 && <Filters filters={context.data.schema.filters} query={query} onSubmit={applyFilters} />}
           {page.status === 'loading' && <Loading />}
           {page.status === 'error' && <ErrorMessage error={page.error} />}
@@ -86,18 +86,26 @@ async function loadContext(name: string, version: number): Promise<Context> {
   return { schema, changeLog };
 }
 
-type HeaderProps = { name: string; version: number; changeSetId: number; changeLog: ChangeSet[]; page: Resource<Page>; onChangeSet: (id: number) => void };
+type HeaderProps = { name: string; version: number; changeSetId: number; changeLog: ChangeSet[]; query: URLSearchParams; page: Resource<Page>; onChangeSet: (id: number) => void };
 
-function Header({ name, version, changeSetId, changeLog, page, onChangeSet }: HeaderProps) {
+function Header({ name, version, changeSetId, changeLog, query, page, onChangeSet }: HeaderProps) {
   const changeSet = changeLog.find(({ id }) => id === changeSetId);
+  const reissue = changeSet ? undefined : changeLog.find(({ reissuedFrom }) => reissuedFrom === changeSetId);
   const ordered = [...changeLog].sort((a, b) => Date.parse(b.effective) - Date.parse(a.effective) || b.id - a.id);
+  const total = page.status === 'ready' && ` · ${plural(page.data.total, 'document')}`;
+  const link = (id: number) => <a href={documentsPath(name, version, id, query)}>change set {id}</a>;
   const description = changeSet ? (
     <>
       Effective{' '}
       <time dateTime={changeSet.effective} title={changeSet.effective}>
         {formatDateTime(changeSet.effective)}
       </time>
-      {page.status === 'ready' && ` · ${plural(page.data.total, 'document')}`}
+      {changeSet.reissuedFrom !== undefined && <> · re-issues {link(changeSet.reissuedFrom)}</>}
+      {total}
+    </>
+  ) : reissue ? (
+    <>
+      re-issued as {link(reissue.id)} · documents as originally published{total}
     </>
   ) : (
     "change set not in this projection's change log"
@@ -111,6 +119,7 @@ function Header({ name, version, changeSetId, changeLog, page, onChangeSet }: He
           {ordered.map((entry) => (
             <option key={entry.id} value={String(entry.id)}>
               #{entry.id} {entry.description}
+              {entry.reissuedFrom !== undefined && ` (re-issues #${entry.reissuedFrom})`}
             </option>
           ))}
         </select>

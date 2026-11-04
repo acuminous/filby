@@ -6,6 +6,9 @@ import { renderAt } from './render';
 
 const PARKS = [park(), park({ code: 'PV', name: null, seasons: [] })];
 
+// Change set 2 was re-issued as 4, which takes its place in the change log
+const REISSUED = [changeSet({ id: 1 }), changeSet({ id: 4, effective: '2021-01-01T00:00:00.000Z', description: '2021 Parks', reissuedFrom: 2 })];
+
 function stub(overrides: Routes = {}) {
   return stubApi({
     '/api/openapi.json': { body: openapi() },
@@ -290,6 +293,42 @@ describe('Documents', () => {
     const picker = screen.getByLabelText('Change set') as HTMLSelectElement;
     expect(picker.value).toBe('');
     expect(Array.from(picker.options).map((option) => option.textContent)).toEqual(['9', '#2 2021 Parks', '#1 2020 Parks']);
+  });
+
+  it('notes a re-issue in the picker and the header, linking to the change set it re-issues', async () => {
+    stub({ '/api/changelog': { body: REISSUED } });
+    renderAt('/projections/Parks/v1/change-sets/4?code=DC');
+    expect(await screen.findByText(/5 documents/)).toBeTruthy();
+    const picker = screen.getByLabelText('Change set') as HTMLSelectElement;
+    expect(picker.value).toBe('4');
+    expect(Array.from(picker.options).map((option) => option.textContent)).toEqual(['#4 2021 Parks (re-issues #2)', '#1 2020 Parks']);
+    expect(document.querySelector('.page-header .muted')?.textContent).toBe('Effective Jan 1, 2021, 12:00 AM · re-issues change set 2 · 5 documents');
+    fireEvent.click(screen.getByRole('link', { name: 'change set 2' }));
+    await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1/change-sets/2'));
+    expect(location.search).toBe('?code=DC');
+  });
+
+  it('says that a superseded change set was re-issued, linking to the re-issue', async () => {
+    const requests = stub({ '/api/changelog': { body: REISSUED } });
+    renderAt('/projections/Parks/v1/change-sets/2?code=DC');
+    expect(await screen.findByText(/5 documents/)).toBeTruthy();
+    expect(requests.map(String)).toContain('http://localhost/api/projections/Parks/v1?code=DC&changeSetId=2');
+    expect(document.querySelector('.page-header .muted')?.textContent).toBe('re-issued as change set 4 · documents as originally published · 5 documents');
+    expect(screen.queryByText("change set not in this projection's change log")).toBeNull();
+    const picker = screen.getByLabelText('Change set') as HTMLSelectElement;
+    expect(picker.value).toBe('');
+    expect(Array.from(picker.options).map((option) => option.textContent)).toEqual(['2', '#4 2021 Parks (re-issues #2)', '#1 2020 Parks']);
+    fireEvent.click(screen.getByRole('link', { name: 'change set 4' }));
+    await waitFor(() => expect(location.pathname).toBe('/projections/Parks/v1/change-sets/4'));
+    expect(location.search).toBe('?code=DC');
+  });
+
+  it('says a change set is not in the change log when the change log names only a later re-issue in its chain', async () => {
+    // Change set 2 was re-issued as 3 and 3 as 4, so the change log names only 3
+    stub({ '/api/changelog': { body: [changeSet({ id: 1 }), changeSet({ id: 4, effective: '2021-01-01T00:00:00.000Z', description: '2021 Parks', reissuedFrom: 3 })] } });
+    renderAt('/projections/Parks/v1/change-sets/2');
+    expect(await screen.findByText("change set not in this projection's change log")).toBeTruthy();
+    expect(screen.queryByText(/re-issued as/)).toBeNull();
   });
 
   it('says when there are no documents', async () => {
