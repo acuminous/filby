@@ -92,6 +92,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE FUNCTION fby_schedule_commencements(p_hook_id INTEGER, p_projection_id INTEGER) RETURNS VOID
+AS $$
+BEGIN
+  PERFORM fby_schedule_notification(h.id, c.projection_name, c.projection_version, c.effective)
+  FROM fby_hook h
+  CROSS JOIN (
+    SELECT DISTINCT projection_name, projection_version, effective
+    FROM fby_projection_change_log_vw
+    WHERE effective > now()
+      AND (projection_id = p_projection_id OR p_projection_id IS NULL)
+  ) c
+  WHERE h.id = p_hook_id
+    AND h.event = 'COMMENCE_CHANGE_SET';
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION fby_reissue_change_sets(p_change_set_id INTEGER) RETURNS VOID
 AS $$
 DECLARE

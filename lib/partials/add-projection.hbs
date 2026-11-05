@@ -173,5 +173,10 @@ BEGIN
   FROM fby_hook h
   WHERE h.event = 'ADD_PROJECTION';
 
+  PERFORM fby_schedule_commencements(h.id, v_projection_id)
+  FROM fby_hook h
+  WHERE h.event = 'COMMENCE_CHANGE_SET'
+    AND h.projection_id IS NULL;
+
 END;
 $$ LANGUAGE plpgsql;
