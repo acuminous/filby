@@ -1,5 +1,20 @@
 START TRANSACTION;
 
+CREATE TABLE fby_change_set_counter (
+  last_id INTEGER NOT NULL
+);
+
+INSERT INTO fby_change_set_counter (last_id)
+SELECT CASE WHEN is_called THEN last_value ELSE last_value - 1 END FROM fby_change_set_id_seq;
+
+ALTER TABLE fby_change_set ALTER COLUMN id DROP DEFAULT;
+DROP SEQUENCE fby_change_set_id_seq;
+
+CREATE FUNCTION fby_next_change_set_id() RETURNS INTEGER
+AS $$
+  UPDATE fby_change_set_counter SET last_id = last_id + 1 RETURNING last_id;
+$$ LANGUAGE sql;
+
 CREATE FUNCTION fby_reissue_change_sets(p_change_set_id INTEGER) RETURNS VOID
 AS $$
 DECLARE
@@ -18,8 +33,8 @@ BEGIN
       AND cs.superseded_by IS NULL
     ORDER BY cs.effective, cs.id
   LOOP
-    INSERT INTO fby_change_set (effective, description, reissued_from) VALUES
-    (v_superseded.effective, v_superseded.description, v_superseded.id)
+    INSERT INTO fby_change_set (id, effective, description, reissued_from) VALUES
+    (fby_next_change_set_id(), v_superseded.effective, v_superseded.description, v_superseded.id)
     RETURNING id INTO v_reissued_id;
 
     FOR v_entity IN
