@@ -27,11 +27,14 @@
   "bin": {
     "filby": "bin/filby.js"
   },
-  "directories": {
-    "example": "examples",
-    "lib": "lib",
-    "test": "test"
-  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "bin",
+    "lib",
+    "migrations",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "docker": "docker-compose up --detach",
     "example": "docker compose up --detach --wait fby_example && npm --prefix examples/holiday-park ci && npm --prefix examples/holiday-park start",
