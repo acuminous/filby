@@ -409,6 +409,56 @@ describe('Upgrade', () => {
     deq(notifications, []);
   });
 
+  it('should give change sets the ids a fresh build of the same migrations gives them', async () => {
+    const changeSets = [
+      { effective: '2026-01-01', description: '2026 VAT Rates', taxRate: 'standard', rate: '0.2' },
+      { effective: '2027-01-01', description: '2027 VAT Rates', taxRate: 'standard', rate: '0.25' },
+      { effective: '2026-06-01', description: 'Mid 2026 VAT Rates', taxRate: 'reduced', rate: '0.05' },
+    ];
+    await createVatRateEntity();
+    await createVatRatesProjection();
+    for (const changeSet of changeSets) {
+      await addChangeSet(changeSet);
+    }
+    await upgrade();
+    const { rows: upgraded } = await query('SELECT id, description, superseded_by, reissued_from FROM fby_change_set ORDER BY id');
+
+    await execute(server, `DROP DATABASE ${upgradeDatabase} WITH (FORCE)`);
+    await execute(server, `CREATE DATABASE ${upgradeDatabase}`);
+    await applyYaml(vatRatesMigration(changeSets));
+    const { rows: migrated } = await query('SELECT id, description, superseded_by, reissued_from FROM fby_change_set ORDER BY id');
+
+    deq(upgraded, migrated);
+  });
+
+  it('should continue change set ids from where the upgraded database left off', async () => {
+    await createVatRateEntity();
+    await createVatRatesProjection();
+    await addChangeSet({ effective: '2026-01-01', description: '2026 VAT Rates', taxRate: 'standard', rate: '0.2' });
+    await addChangeSet({ effective: '2027-01-01', description: '2027 VAT Rates', taxRate: 'standard', rate: '0.25' });
+    await query("SELECT nextval(pg_get_serial_sequence('fby_change_set', 'id'))");
+
+    await applyYaml(`
+- operation: ADD_CHANGE_SET
+  description: 2028 VAT Rates
+  effective: 2028-01-01T00:00:00.000Z
+  frames:
+    - entity: VAT Rate
+      version: 1
+      action: SET
+      data:
+        - tax_rate: standard
+          region: uk
+          rate: 0.3`);
+
+    const { rows: changeSets } = await query('SELECT id, description FROM fby_change_set ORDER BY id');
+    deq(changeSets, [
+      { id: 1, description: '2026 VAT Rates' },
+      { id: 2, description: '2027 VAT Rates' },
+      { id: 4, description: '2028 VAT Rates' },
+    ]);
+  });
+
   async function expectSameLiveChangeSetsAsMigration(changeSets) {
     await createVatRateEntity();
     await createVatRatesProjection();
