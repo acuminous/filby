@@ -12,7 +12,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - The `POST` frame action is renamed to `SET`. YAML, JSON and CSV migrations may still say `POST`, but SQL must use `'SET'` (#77).
 - A change set may contain only one frame for each key of an entity (#6).
 - Adding a change set with an earlier effective date than existing ones re-issues the later change sets with new ids, so ids always follow effective dates. The originals keep their data but leave the change log (#4, #99).
-- Change set ids come from a counter instead of a sequence, so a failed migration leaves no gap and every database built from the same migrations gives its change sets the same ids. `fby_change_set.id` no longer has a default, so SQL that inserts a change set without an id fails (#242).
+- Change set ids come from a counter instead of a sequence, so a failed migration leaves no gap and every database built from the same migrations gives its change sets the same ids. `fby_change_set.id` no longer has a default, so SQL that inserts a change set must take its id from `fby_next_change_set_id()` (#242).
 - Aggregates take each record from the change set with the latest effective date, rather than from the most recently added frame (#3).
 - Deleting a change set with SQL also deletes its rows from the entity tables (#6, #25).
 - Entity checks apply only to `SET` frames, so they no longer block deletes. SQL that inserts rows into an entity table must supply the new `fby_change_set_id` and `fby_action` columns (#6, #225).

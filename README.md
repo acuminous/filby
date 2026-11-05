@@ -1307,7 +1307,14 @@ The `POST` action is now called `SET`. YAML, JSON and CSV migrations that say `P
 
 Entity tables gain two columns, `fby_change_set_id` and `fby_action`, which hold the change set and action of each row's frame. SQL that inserts rows into an entity table directly must supply both. `fby_notify_add_change_set` now takes the change set id as its first argument, so update any SQL that calls it.
 
-None of this works on 0.14.0, because the `SET` value and the new columns do not exist until the upgrade. Instead, recreate the affected functions and views in a new SQL migration that you deploy with 1.0.0. Filby applies its own migrations before yours, so your migration runs after the upgrade, during the same `init()`. SQL migrations that have already been applied do not need changing for the upgrade, but they may stop a new database from being created. See [Creating new databases from your migrations](#creating-new-databases-from-your-migrations).
+Change set ids no longer come from a sequence, so `fby_change_set.id` has no default and SQL that inserts a change set without an id fails. Take the id from `fby_next_change_set_id()`, which issues the next id from the same counter that Filby uses:
+
+```sql
+INSERT INTO fby_change_set (id, effective, description)
+VALUES (fby_next_change_set_id(), '2025-04-01T00:00:00Z', '2025 Prices');
+```
+
+None of this works on 0.14.0, because the `SET` value, the new columns and `fby_next_change_set_id` do not exist until the upgrade. Instead, recreate the affected functions and views in a new SQL migration that you deploy with 1.0.0. Filby applies its own migrations before yours, so your migration runs after the upgrade, during the same `init()`. SQL migrations that have already been applied do not need changing for the upgrade, but they may stop a new database from being created. See [Creating new databases from your migrations](#creating-new-databases-from-your-migrations).
 
 ### Application code
 
@@ -1330,7 +1337,7 @@ Upgrading an existing database does not run your old migration files again, but 
 
 - A change set with more than one frame for the same key fails. Remove the extra frames from the file, as you did in the database.
 - An `ADD_HOOK` with a `projection` must use the `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET` event. In 0.14.0, a projection on an `ADD_PROJECTION` or `DROP_PROJECTION` hook was ignored, so remove it.
-- A SQL migration that inserts `'POST'` frames, or inserts rows into an entity table without `fby_change_set_id` and `fby_action`, fails. Change it as described in [Your own SQL](#your-own-sql).
+- A SQL migration that inserts `'POST'` frames, inserts a change set without an id, or inserts rows into an entity table without `fby_change_set_id` and `fby_action`, fails. Change it as described in [Your own SQL](#your-own-sql).
 - A `DROP_ENTITY` must include `operation: DROP_ENTITY`, like every other operation.
 
 Filby does not compare your migration files with the versions it has already applied, so you can correct old files without affecting existing databases.

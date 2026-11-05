@@ -3990,6 +3990,17 @@ describe('DSL', () => {
       eq(await getChangeSetId('2022 VAT Rates'), deletedId + 1);
     });
 
+    it('should give a change set inserted with fby_next_change_set_id the next id', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, vatRate('2020', 'standard', 0.2));
+      const firstId = await getChangeSetId('2020 VAT Rates');
+
+      const { rows } = await filby.withTransaction((tx) => tx.query("INSERT INTO fby_change_set (id, effective, description) VALUES (fby_next_change_set_id(), '2021-04-05T00:00:00.000Z', '2021 VAT Rates') RETURNING id"));
+      eq(rows[0].id, firstId + 1);
+
+      await applyLaterYaml(t.name, vatRate('2022', 'standard', 0.3));
+      eq(await getChangeSetId('2022 VAT Rates'), firstId + 2);
+    });
+
     it('should reject a change set inserted without an id', async () => {
       await rejects(() => filby.withTransaction((tx) => tx.query("INSERT INTO fby_change_set (effective, description) VALUES (now(), '2020 VAT Rates')")), (err) => {
         eq(err.code, NOT_NULL_VIOLATION);
