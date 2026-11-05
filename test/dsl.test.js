@@ -30,6 +30,8 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v2_aggregate');
     await tx.query('DROP TABLE IF EXISTS cgt_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
+    await tx.query('DROP TABLE IF EXISTS thing_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_thing_v1_aggregate');
     await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
     await tx.query('DROP TYPE IF EXISTS cgt_tax_rate');
     await tx.query('DROP TYPE IF EXISTS season_type');
@@ -1491,7 +1493,7 @@ describe('DSL', () => {
       deq(rows, [
         { type: 'zero', rate: '0', fby_total: 3 },
         { type: 'reduced', rate: '0.05', fby_total: 3 },
-        { type: 'standard', rate: '0.1', fby_total: 3 },
+        { type: 'standard', rate: '0.10', fby_total: 3 },
       ]);
     });
 
@@ -1508,7 +1510,7 @@ describe('DSL', () => {
       const rows = await getProjectionRows();
       deq(rows, [
         { type: 'reduced', rate: '0.05' },
-        { type: 'standard', rate: '0.1' },
+        { type: 'standard', rate: '0.10' },
         { type: 'zero', rate: '0' },
       ]);
     });
@@ -1581,7 +1583,7 @@ describe('DSL', () => {
         { type: 'reduced', rate: '0.05', fby_total: 3 },
       ]);
       deq(await getProjectionRows('p_page_offset => 2'), [
-        { type: 'standard', rate: '0.1', fby_total: 3 },
+        { type: 'standard', rate: '0.10', fby_total: 3 },
       ]);
       deq(await getProjectionRows('p_page_offset => 3'), []);
     });
@@ -1590,7 +1592,7 @@ describe('DSL', () => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
 
       deq(await getProjectionRows('p_prefix => $2, p_page_size => 1', ['s']), [
-        { type: 'standard', rate: '0.1', fby_total: 1 },
+        { type: 'standard', rate: '0.10', fby_total: 1 },
       ]);
     });
 
@@ -3951,6 +3953,149 @@ describe('DSL', () => {
       const frames = await getDataFrames('2020 VAT Rates');
       eq(frames.length, 1);
       eq(frames[0].label, '{ pool: true }');
+    });
+
+    it('should keep inline yaml data values as written', async (t) => {
+      await filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: Thing
+  fields:
+    Code: TEXT
+    Big: BIGINT
+    Amount: NUMERIC
+    Label: TEXT
+  key:
+    - Code
+- operation: ADD_CHANGE_SET
+  description: inline
+  effective: 2020-01-01T00:00:00Z
+  changes:
+    - entity: Thing@1
+      action: SET
+      data:
+        - Code: 007
+          Big: 9007199254740993
+          Amount: 1.50
+          Label: 1e3
+        - Code: 0x1F
+          Big: 1
+          Amount: 2
+          Label: yes`);
+
+      const frames = await getDataFrames('inline', 'thing_v1');
+      deq(frames.map(({ code, big, amount, label }) => ({ code, big, amount, label })), [
+        { code: '007', big: '9007199254740993', amount: '1.50', label: '1e3' },
+        { code: '0x1F', big: '1', amount: '2', label: 'yes' },
+      ]);
+    });
+
+    it('should keep inline json data values as written', async (t) => {
+      await filby.applyJson(t.name, `
+        [
+          {
+            "operation": "ADD_ENTITY",
+            "name": "Thing",
+            "fields": { "Code": "TEXT", "Big": "BIGINT", "Amount": "NUMERIC", "Label": "TEXT" },
+            "key": ["Code"]
+          },
+          {
+            "operation": "ADD_CHANGE_SET",
+            "description": "inline",
+            "effective": "2020-01-01T00:00:00Z",
+            "changes": [
+              {
+                "entity": "Thing@1",
+                "action": "SET",
+                "data": [
+                  { "Code": "007", "Big": 9007199254740993, "Amount": 1.50, "Label": 1e3 }
+                ]
+              }
+            ]
+          }
+        ]`);
+
+      const frames = await getDataFrames('inline', 'thing_v1');
+      deq(frames.map(({ code, big, amount, label }) => ({ code, big, amount, label })), [
+        { code: '007', big: '9007199254740993', amount: '1.50', label: '1e3' },
+      ]);
+    });
+
+    it('should parse json versions outside data as numbers', async (t) => {
+      await filby.applyJson(t.name, `
+        [
+          {
+            "operation": "ADD_ENTITY",
+            "name": "VAT Rate",
+            "version": 2,
+            "fields": { "type": "TEXT", "rate": "NUMERIC" },
+            "key": ["type"]
+          },
+          {
+            "operation": "ADD_PROJECTION",
+            "name": "VAT Rates",
+            "version": 2,
+            "dependencies": [{ "entity": "VAT Rate", "version": 2 }]
+          },
+          {
+            "operation": "ADD_CHANGE_SET",
+            "description": "2020 VAT Rates",
+            "effective": "2020-04-05T00:00:00Z",
+            "frames": [{ "entity": "VAT Rate", "version": 2, "action": "SET", "data": [{ "type": "standard", "rate": 0.20 }] }]
+          }
+        ]`);
+
+      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_projection'));
+      deq(projections, [{ name: 'VAT Rates', version: 2 }]);
+      const frames = await getDataFrames('2020 VAT Rates', 'vat_rate_v2');
+      eq(frames.length, 1);
+      eq(frames[0].version, 2);
+      eq(frames[0].rate, '0.20');
+    });
+
+    it('should keep inline yaml booleans as written in text columns', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'label', type: 'TEXT' }, 2), vatRateWith('label: True'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].label, 'True');
+    });
+
+    it('should cast inline yaml booleans to boolean columns', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'flag', type: 'BOOLEAN' }, 2), vatRateWith('flag: True'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].flag, true);
+    });
+
+    it('should cast inline json booleans to boolean columns', async (t) => {
+      await filby.applyJson(t.name, `
+        [
+          {
+            "operation": "ADD_ENTITY",
+            "name": "VAT Rate",
+            "fields": { "type": "TEXT", "flag": "BOOLEAN" },
+            "key": ["type"]
+          },
+          {
+            "operation": "ADD_CHANGE_SET",
+            "description": "2020 VAT Rates",
+            "effective": "2020-04-05T00:00:00Z",
+            "changes": [{ "entity": "VAT Rate@1", "action": "SET", "data": [{ "type": "standard", "flag": false }] }]
+          }
+        ]`);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].flag, false);
+    });
+
+    it('should keep numbers in nested inline data as json numbers', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'metadata', type: 'JSONB' }, 2), vatRateWith('metadata:\n            pitches: 012\n            open: true'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      deq(frames[0].metadata, { pitches: 12, open: true });
     });
   });
 
