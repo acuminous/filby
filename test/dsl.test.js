@@ -4090,6 +4090,52 @@ describe('DSL', () => {
       eq(frames[0].flag, false);
     });
 
+    it('should store bare inline yaml numbers and booleans in json columns as json values', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', [{ name: 'type', type: 'TEXT' }, { name: 'rate', type: 'NUMERIC' }, { name: 'count', type: 'JSONB' }, { name: 'open', type: 'JSONB' }, { name: 'closed', type: 'JSONB' }]), vatRateWith('count: 1.50\n          open: true\n          closed: false'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].count, 1.5);
+      eq(frames[0].open, true);
+      eq(frames[0].closed, false);
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT count::TEXT AS count FROM vat_rate_v1'));
+      eq(rows[0].count, '1.50');
+    });
+
+    it('should store bare inline json numbers and booleans in json columns as json values', async (t) => {
+      await filby.applyJson(t.name, `
+        [
+          {
+            "operation": "ADD_ENTITY",
+            "name": "VAT Rate",
+            "fields": { "type": "TEXT", "count": "JSONB", "open": "JSONB", "closed": "JSONB" },
+            "key": ["type"]
+          },
+          {
+            "operation": "ADD_CHANGE_SET",
+            "description": "2020 VAT Rates",
+            "effective": "2020-04-05T00:00:00Z",
+            "changes": [{ "entity": "VAT Rate@1", "action": "SET", "data": [{ "type": "standard", "count": 1.50, "open": true, "closed": false }] }]
+          }
+        ]`);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].count, 1.5);
+      eq(frames[0].open, true);
+      eq(frames[0].closed, false);
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT count::TEXT AS count FROM vat_rate_v1'));
+      eq(rows[0].count, '1.50');
+    });
+
+    it('should store inline yaml values that are not json as text in json columns', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'metadata', type: 'JSONB' }, 2), vatRateWith('metadata: 007'));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1);
+      eq(frames[0].metadata, '007');
+    });
+
     it('should keep numbers in nested inline data as json numbers', async (t) => {
       await filby.applyYaml(t.name, transform(ADD_ENTITY).insert('0.fields', { name: 'metadata', type: 'JSONB' }, 2), vatRateWith('metadata:\n            pitches: 012\n            open: true'));
 
