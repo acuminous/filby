@@ -43,7 +43,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby migrate`, which applies outstanding migrations and exits, and `init({ migrate: false })`, which starts an instance without applying migrations and rejects if any are outstanding (#236).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
 - A published JSON Schema for migration files, for editor validation and completion (#48).
-- The `COMMENCE_CHANGE_SET` hook event, which fires when a projection's current change set changes (#55).
+- The `COMMENCE_CHANGE_SET` hook event, which fires when a projection's current change set changes. Adding the hook or a projection schedules notifications for future change sets that were loaded earlier (#55, #241).
 - `notifications.listen`, which delivers notifications as soon as they are scheduled rather than at the next poll (#57).
 - `notifications.handlerTimeout`, and an `AbortSignal` passed to each handler (#22).
 - `filby.getNotificationStatus()`, for health checks (#58).
