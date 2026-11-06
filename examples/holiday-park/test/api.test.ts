@@ -9,6 +9,7 @@ import config from '../config';
 import Application from '../lib/Application';
 
 const CURRENT_CATALOGUE_CHANGE_SET = Date.now() < Date.parse('2027-01-01T00:00:00Z') ? 5 : 10;
+const CURRENT_PARKS_CHANGE_SET = Date.now() < Date.parse('2027-01-01T00:00:00Z') ? 8 : 10;
 
 describe('API', () => {
 
@@ -61,7 +62,7 @@ describe('API', () => {
     it('should redirect to the current change set', async () => {
       const response = await get('/api/projections/Parks%20(Detailed)/v1?code=DC');
       eq(response.status, 307);
-      eq(response.headers.get('Location'), '/api/projections/Parks%20(Detailed)/v1?code=DC&changeSetId=8');
+      eq(response.headers.get('Location'), `/api/projections/Parks%20(Detailed)/v1?code=DC&changeSetId=${CURRENT_PARKS_CHANGE_SET}`);
     });
 
     it('should respond with the park, its amenities and beach routes in full, seasons, and models with their offers', async () => {
