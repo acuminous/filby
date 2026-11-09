@@ -119,11 +119,12 @@ describe('Listen', () => {
   it('should deliver a notification scheduled by a migration without waiting for the next poll', async (t) => {
     await filby.startNotifications();
 
-    const delivered = once(filby, 'VAT Rates Changed', { timeout: 1000 });
+    const notifications = [];
+    filby.subscribe('VAT Rates Changed', (notification) => notifications.push(notification));
     await filby.applyYaml(t.name, VAT_RATES);
-    const notification = await delivered;
+    await until(() => notifications.length === 1, { timeout: 1000 });
 
-    eq(notification.projection.key, 'VAT Rates v1');
+    eq(notifications[0].projection.key, 'VAT Rates v1');
   });
 
   it('should report a dropped listening connection', async () => {
