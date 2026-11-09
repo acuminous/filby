@@ -10,7 +10,7 @@ BEGIN
   ) INTO v_exists;
 
   IF NOT v_exists THEN
-    RAISE EXCEPTION 'Enum '{{literal name}}' does not exist';
+    RAISE EXCEPTION 'Enum ''%'' does not exist', {{literal name}};
   END IF;
 
   DROP TYPE {{identifier name}};

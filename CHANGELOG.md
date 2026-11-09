@@ -26,6 +26,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `DROP_PROJECTION` keeps the projection's name and version, and `ADD_PROJECTION` rejects them from then on. Documents already served from a dropped projection's URLs therefore never change. The projection routes and the change log respond with `410` for a dropped projection. `getProjections`, `getProjection`, the OpenAPI document and `filby export` leave it out. `getProjections` also returns projections ordered by name then version. Projections dropped before the upgrade were not recorded, so their names and versions can still be reused (#243).
 - Migration errors quote names as they were written, and explain when two names clash because they only differ in case or spacing (#185).
 - Errors about a missing entity or projection suggest the names that do exist (#26, #49).
+- `ADD_PROJECTION` rejects a parameter named `page`, `pageSize` or `changeSetId`, in any case, because Filby's HTTP routes use these names. Such a projection previously worked through `getDocuments` but not over HTTP (#253).
 - A change set row that PostgreSQL rejects is reported with the migration file and the row's location (#157).
 - Change set data is loaded in batches, so a 20,000 row CSV loads in seconds rather than about 30 seconds (#37).
 - Change logs and aggregates are read through new indexes and tables, so their cost grows with the number of change sets rather than the number of frames (#35, #36, #38).
@@ -69,6 +70,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `unsubscribe(event)` without a handler removes every handler, as documented (#20).
 - An invalid or negative `notifications` duration is rejected when Filby is constructed (#134).
 - A `notifications.maxAttempts` below 1 is rejected when Filby is constructed. Previously 0 meant 10 attempts and a negative value meant no notification was ever delivered (#258).
+- A zero `notifications.interval` or `notifications.handlerTimeout` is rejected when Filby is constructed. Previously a zero interval polled the database continuously and a zero handler timeout aborted every handler as soon as it started. Use a small positive value such as `10ms` instead (#259).
 - CSV cells are passed to PostgreSQL as written, so `007` keeps its leading zeros in a `TEXT` column. An empty cell is stored as `NULL` (#7).
 - Inline YAML and JSON data values are passed to PostgreSQL as written, so `007` keeps its leading zeros in a `TEXT` column, `1.50` keeps its scale in a `NUMERIC` column and large integers keep their precision. Nested maps and lists are still stored as JSON (#240).
 - A YAML field with no value is stored as `NULL` rather than an empty string, and a nested map or list is stored as JSON (#8).
@@ -78,7 +80,9 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Field types such as `NUMERIC(10,2)`, `TEXT[]` and schema-qualified types are accepted (#9).
 - `DROP_ENUM` and `ALTER_ENUM` find an enum by the name it was declared with (#145).
 - An array of an enum is served as an array of strings (#196), including an enum added by another process after the instance started (#236).
+- A custom SQL projection requested with a page past the end reports the real `X-Total-Count` and a `Link` header to the previous page, as projections declared with a root already did (#250).
 - `getAggregates` works for entities whose names need quoting (#27).
+- Enums, enum values, entities, projections and hooks whose names contain `%` or `\` can be used in migrations. Previously adding, altering or dropping them failed with an unrelated PostgreSQL error such as `too few parameters specified for RAISE`, even when nothing was wrong. Errors such as `Hook '100% coverage' already exists` now report the name as written (#252).
 - Filby no longer changes the shared Handlebars module used by the host application (#24).
 - `index.d.ts` matches the code (#31).
 - `index.d.ts` accepts notification handlers that return nothing, so a synchronous handler compiles in TypeScript, and no longer lists `disabled` as a poller state (#249).

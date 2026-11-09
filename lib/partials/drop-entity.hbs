@@ -11,7 +11,7 @@ BEGIN
   ) INTO v_exists;
 
   IF NOT v_exists THEN
-    RAISE EXCEPTION 'Entity '{{literal name (v version)}}' does not exist';
+    RAISE EXCEPTION 'Entity ''%'' does not exist', {{literal name (v version)}};
   END IF;
 
   DELETE FROM fby_entity

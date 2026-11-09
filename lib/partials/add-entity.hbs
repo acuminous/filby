@@ -18,7 +18,7 @@ BEGIN
     ({{literal name}}, {{literal version}}, {{literal description}});
   EXCEPTION
     WHEN unique_violation
-    THEN RAISE EXCEPTION 'Entity '{{literal name (v version)}}' already exists';
+    THEN RAISE EXCEPTION 'Entity ''%'' already exists', {{literal name (v version)}};
   END;
 END;
 $$ LANGUAGE plpgsql;

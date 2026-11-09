@@ -8,7 +8,7 @@ BEGIN
   WHERE h.name = {{literal name}};
 
   IF v_hook_id IS NULL THEN
-    RAISE EXCEPTION 'Hook '{{literal name}}' does not exist';
+    RAISE EXCEPTION 'Hook ''%'' does not exist', {{literal name}};
   END IF;
 
   DELETE FROM fby_hook

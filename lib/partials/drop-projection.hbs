@@ -11,11 +11,11 @@ BEGIN
     AND version = {{literal version}};
 
   IF v_projection_id IS NULL THEN
-    RAISE EXCEPTION 'Projection '{{literal name (v version)}}' does not exist';
+    RAISE EXCEPTION 'Projection ''%'' does not exist', {{literal name (v version)}};
   END IF;
 
   IF v_dropped_at IS NOT NULL THEN
-    RAISE EXCEPTION 'Projection '{{literal name (v version)}}' was already dropped';
+    RAISE EXCEPTION 'Projection ''%'' was already dropped', {{literal name (v version)}};
   END IF;
 
   DELETE FROM fby_projection_entity WHERE projection_id = v_projection_id;
