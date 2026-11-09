@@ -880,6 +880,8 @@ Declare a hook with `ADD_HOOK`, giving it a name and one of these events:
 
 For `ADD_CHANGE_SET` and `COMMENCE_CHANGE_SET`, set `projection` to restrict the hook to one projection, or omit it to receive notifications for every projection. `ADD_PROJECTION` and `DROP_PROJECTION` hooks always cover all projections.
 
+A `COMMENCE_CHANGE_SET` hook also fires for change sets that were loaded before the hook, or before the projection it covers. When either is added, Filby schedules a notification for each live change set with a future effective date. Change sets that are already in effect are not notified.
+
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0009.define-hooks.yaml

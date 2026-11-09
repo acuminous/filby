@@ -36,6 +36,21 @@ const COMMENCE_ALL_RATES = `
   event: COMMENCE_CHANGE_SET
 `;
 
+const ADD_ALL_RATES = `
+- operation: ADD_HOOK
+  name: Rates Changed
+  event: ADD_CHANGE_SET
+`;
+
+const VAT_RATES_V2 = `
+- operation: ADD_PROJECTION
+  name: VAT Rates
+  version: 2
+  dependencies:
+    - entity: VAT Rate
+      version: 1
+`;
+
 const ADD_VAT_RATES = `
 - operation: ADD_HOOK
   name: VAT Rates Changed
@@ -78,7 +93,7 @@ describe('Commencement', () => {
       FROM fby_notification n
       INNER JOIN fby_hook h ON h.id = n.hook_id
       WHERE h.name = $1
-      ORDER BY n.scheduled_for, n.projection_name`, [hookName]));
+      ORDER BY n.scheduled_for, n.projection_name, n.projection_version`, [hookName]));
     return rows;
   }
 
@@ -185,6 +200,84 @@ describe('Commencement', () => {
       { status: 'PENDING', scheduled_for: new Date('2031-01-01T00:00:00.000Z') },
     ]);
     ok(commencements[1].id > commencements[0].id);
+  });
+
+  it('should schedule commencements for future change sets added before a general hook and projection', async (t) => {
+    await filby.applyYaml(
+      t.name,
+      VAT_RATES,
+      changeSet('VAT', '2099 VAT Rates', '2099-01-01T00:00:00.000Z'),
+      COMMENCE_ALL_RATES,
+      VAT_RATES_V2,
+    );
+
+    const commencements = await getNotifications('Rates Commenced');
+    deq(commencements.map(({ status, projection_name, projection_version, scheduled_for }) => ({ status, projection_name, projection_version, scheduled_for })), [
+      { status: 'PENDING', projection_name: 'VAT Rates', projection_version: 1, scheduled_for: new Date('2099-01-01T00:00:00.000Z') },
+      { status: 'PENDING', projection_name: 'VAT Rates', projection_version: 2, scheduled_for: new Date('2099-01-01T00:00:00.000Z') },
+    ]);
+  });
+
+  it('should schedule commencements for future change sets added before a projection specific hook only for its projection', async (t) => {
+    await filby.applyYaml(
+      t.name,
+      VAT_RATES,
+      CGT_RATES,
+      changeSet('VAT', '2030 VAT Rates', '2030-01-01T00:00:00.000Z'),
+      changeSet('CGT', '2030 CGT Rates', '2030-01-01T00:00:00.000Z'),
+      changeSet('VAT', '2031 VAT Rates', '2031-01-01T00:00:00.000Z'),
+      COMMENCE_VAT_RATES,
+    );
+
+    const commencements = await getNotifications('VAT Rates Commenced');
+    deq(commencements.map(({ projection_name, projection_version, scheduled_for }) => ({ projection_name, projection_version, scheduled_for })), [
+      { projection_name: 'VAT Rates', projection_version: 1, scheduled_for: new Date('2030-01-01T00:00:00.000Z') },
+      { projection_name: 'VAT Rates', projection_version: 1, scheduled_for: new Date('2031-01-01T00:00:00.000Z') },
+    ]);
+  });
+
+  it('should not schedule commencements for change sets already in effect when the hook is added', async (t) => {
+    await filby.applyYaml(
+      t.name,
+      VAT_RATES,
+      changeSet('VAT', '2020 VAT Rates', '2020-04-05T00:00:00.000Z'),
+      COMMENCE_ALL_RATES,
+      VAT_RATES_V2,
+    );
+
+    const commencements = await getNotifications('Rates Commenced');
+    eq(commencements.length, 0);
+  });
+
+  it('should not schedule commencements for a new projection from a projection specific hook', async (t) => {
+    await filby.applyYaml(
+      t.name,
+      VAT_RATES,
+      COMMENCE_VAT_RATES,
+      changeSet('VAT', '2030 VAT Rates', '2030-01-01T00:00:00.000Z'),
+      VAT_RATES_V2,
+    );
+
+    const commencements = await getNotifications('VAT Rates Commenced');
+    deq(commencements.map(({ projection_name, projection_version }) => ({ projection_name, projection_version })), [
+      { projection_name: 'VAT Rates', projection_version: 1 },
+    ]);
+  });
+
+  it('should not schedule change set additions for a new projection', async (t) => {
+    await filby.applyYaml(
+      t.name,
+      VAT_RATES,
+      ADD_ALL_RATES,
+      changeSet('VAT', '2030 VAT Rates', '2030-01-01T00:00:00.000Z'),
+      COMMENCE_ALL_RATES,
+      VAT_RATES_V2,
+    );
+
+    const additions = await getNotifications('Rates Changed');
+    deq(additions.map(({ projection_name, projection_version }) => ({ projection_name, projection_version })), [
+      { projection_name: 'VAT Rates', projection_version: 1 },
+    ]);
   });
 });
 
