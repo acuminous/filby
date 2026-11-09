@@ -1810,6 +1810,7 @@ describe('DSL', () => {
         { name: 'rate', in: 'query', schema: values, 'x-filby-match': 'contains', 'x-filby-field': ['rate'] },
         { name: 'rates', in: 'query', schema: { type: 'array', items: values }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['rate'] },
         { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['type'] },
+        { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
     });
 
@@ -2864,6 +2865,7 @@ describe('DSL', () => {
         { name: 'tags', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['seasons', 'tags'] },
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
+        { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
     });
 

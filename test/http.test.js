@@ -761,6 +761,7 @@ describe('HTTP', () => {
         { name: 'projection', in: 'query', required: true, schema: { type: 'string' } },
         { name: 'version', in: 'query', required: true, schema: { type: 'integer' } },
         { name: 'since', in: 'query', schema: { type: 'integer' } },
+        { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
       deq(Object.keys(operation.responses), ['200', '304', '400', '404']);
       deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified', 'Cache-Control']);
@@ -810,6 +811,7 @@ describe('HTTP', () => {
         { name: 'at_most', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'lte', 'x-filby-field': ['rate'] },
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
+        { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
       deq(Object.keys(operation.responses), ['200', '304', '307', '400', '404']);
       deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified', 'Cache-Control', 'X-Total-Count', 'Link']);
@@ -832,7 +834,7 @@ describe('HTTP', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       const { paths } = await getDocument();
-      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize'].includes(name));
+      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize', 'If-None-Match'].includes(name));
       deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field']]), [
         ['code', 'equals', ['code']],
         ['kind', 'equals', ['seasons', 'kind']],
@@ -853,7 +855,7 @@ describe('HTTP', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       const { paths } = await getDocument();
-      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize'].includes(name));
+      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize', 'If-None-Match'].includes(name));
       deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], 'x-filby-field' in parameter]), [
         ['code', 'equals', false],
         ['season_park', 'equals', false],
@@ -882,14 +884,14 @@ describe('HTTP', () => {
 
       const { paths } = await getDocument();
       const names = paths['/projections/VAT%20Rates/v1'].get.parameters.map(({ name }) => name);
-      deq(names, ['changeSetId', 'type', 'prefix', 'types', 'rate_from', 'rate_to', 'above', 'at_least', 'below', 'at_most']);
+      deq(names, ['changeSetId', 'type', 'prefix', 'types', 'rate_from', 'rate_to', 'above', 'at_least', 'below', 'at_most', 'If-None-Match']);
     });
 
     it('should omit a declared parameter named page', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { page: { field: 'type' } }));
 
       const { paths } = await getDocument();
-      deq(paths['/projections/VAT%20Rates/v1'].get.parameters.map(({ name }) => name), ['changeSetId', 'page', 'pageSize']);
+      deq(paths['/projections/VAT%20Rates/v1'].get.parameters.map(({ name }) => name), ['changeSetId', 'page', 'pageSize', 'If-None-Match']);
     });
 
     it('should describe the documents of a nested projection', async (t) => {
@@ -984,7 +986,7 @@ describe('HTTP', () => {
 
       const { paths } = await getDocument();
       const { get: operation } = paths['/projections/Parks/v1'];
-      deq(operation.parameters.map(({ name, schema }) => [name, schema.type]), [['changeSetId', 'integer'], ['code', 'string'], ['page', 'integer'], ['pageSize', 'integer']]);
+      deq(operation.parameters.map(({ name, schema }) => [name, schema.type]), [['changeSetId', 'integer'], ['code', 'string'], ['page', 'integer'], ['pageSize', 'integer'], ['If-None-Match', 'string']]);
       const { schema } = operation.responses['200'].content['application/json'];
       deq(schema, {
         type: 'array',
@@ -1079,6 +1081,7 @@ describe('HTTP', () => {
         { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
       deq(operation.responses['200'].content['application/json'].schema, { type: 'array', items: { type: 'object' } });
     });
