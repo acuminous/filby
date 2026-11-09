@@ -686,7 +686,7 @@ A parameter can also select root records by the values of the records nested or 
 
 Each parameter is tested against one nested record at a time, so a `range` parameter matches only when a single route falls within both bounds. Different parameters are tested independently. `?beach_surface=Sandy&route_access=Step%20Free` returns the parks that have a route to a sandy beach and a step-free route, even when they are different routes.
 
-Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. Consumers see only the parameter's name, and the OpenAPI document describes the parameter using the type of the field at the end of the path.
+Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. The OpenAPI document gives the parameter the type of the field at the end of the path, and its [Filby extensions](#filby-extensions) say which field the parameter filters and whether documents carry it.
 
 ##### Selecting fields
 
