@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert');
+const { ok, strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert');
 const { describe, it, before, beforeEach, after } = require('node:test');
 const YAML = require('yaml');
 const op = require('object-path-immutable');
@@ -166,7 +166,7 @@ describe('HTTP', () => {
       eq(response.headers.get('ETag'), `"${second.entityTag}"`);
       eq(response.headers.get('Last-Modified'), second.lastModified.toUTCString());
       match(response.headers.get('Last-Modified'), RFC_1123);
-      eq(response.headers.get('Cache-Control'), null);
+      eq(response.headers.get('Cache-Control'), 'no-cache');
     });
 
     it('should list change sets since a change set id', async (t) => {
@@ -199,6 +199,7 @@ describe('HTTP', () => {
       deq(await response.json(), []);
       eq(response.headers.get('ETag'), null);
       eq(response.headers.get('Last-Modified'), null);
+      eq(response.headers.get('Cache-Control'), 'no-cache');
     });
 
     it('should respond with 400 when the projection is missing', async () => {
@@ -597,6 +598,111 @@ describe('HTTP', () => {
     }
   });
 
+  describe('Conditional requests', () => {
+
+    it('should respond with 304 when the change log entity tag matches', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2);
+      const changeLog = await get('/changelog?projection=VAT%20Rates&version=1');
+
+      const response = await getIfNoneMatch('/changelog?projection=VAT%20Rates&version=1', changeLog.headers.get('ETag'));
+      eq(response.status, 304);
+      eq(await response.text(), '');
+      eq(response.headers.get('ETag'), changeLog.headers.get('ETag'));
+      eq(response.headers.get('Last-Modified'), changeLog.headers.get('Last-Modified'));
+      eq(response.headers.get('Cache-Control'), 'no-cache');
+      eq(response.headers.get('Content-Type'), null);
+    });
+
+    it('should respond with 304 when the projection entity tag matches', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const projection = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
+      ok(projection.headers.get('Link'));
+
+      const response = await getIfNoneMatch(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`, projection.headers.get('ETag'));
+      eq(response.status, 304);
+      eq(await response.text(), '');
+      eq(response.headers.get('ETag'), projection.headers.get('ETag'));
+      eq(response.headers.get('Last-Modified'), projection.headers.get('Last-Modified'));
+      eq(response.headers.get('Cache-Control'), 'max-age=31536000, immutable');
+      eq(response.headers.get('Content-Type'), null);
+      eq(response.headers.get('X-Total-Count'), null);
+      eq(response.headers.get('Link'), null);
+    });
+
+    it('should respond with 200 when the entity tag does not match', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2);
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const [first, second] = await filby.getChangeLog(projection);
+
+      const response = await getIfNoneMatch('/changelog?projection=VAT%20Rates&version=1', `"${first.entityTag}"`);
+      eq(response.status, 200);
+      eq(response.headers.get('ETag'), `"${second.entityTag}"`);
+      eq((await response.json()).length, 2);
+    });
+
+    it('should respond with 304 when any entity tag in a list matches', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2);
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const [first, second] = await filby.getChangeLog(projection);
+
+      const response = await getIfNoneMatch('/changelog?projection=VAT%20Rates&version=1', `"${first.entityTag}" , "${second.entityTag}","other"`);
+      eq(response.status, 304);
+    });
+
+    it('should respond with 304 for * when the response has an entity tag', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const changeLog = await getIfNoneMatch('/changelog?projection=VAT%20Rates&version=1', '*');
+      eq(changeLog.status, 304);
+
+      const projection = await getIfNoneMatch(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`, '*');
+      eq(projection.status, 304);
+    });
+
+    it('should compare entity tags weakly', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const changeSet = await filby.getChangeSet(changeSetId);
+
+      const response = await getIfNoneMatch(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`, `W/"${changeSet.entityTag}"`);
+      eq(response.status, 304);
+      eq(response.headers.get('ETag'), `"${changeSet.entityTag}"`);
+    });
+
+    it('should not respond with 304 to a redirect', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const response = await getIfNoneMatch('/projections/VAT%20Rates/v1', '*');
+      eq(response.status, 307);
+    });
+
+    it('should not respond with 304 to an empty change log', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const response = await getIfNoneMatch('/changelog?projection=VAT%20Rates&version=1', '*');
+      eq(response.status, 200);
+      deq(await response.json(), []);
+    });
+
+    it('should not respond with 304 to the projection list', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const response = await getIfNoneMatch('/projections', '*');
+      eq(response.status, 200);
+    });
+
+    it('should not respond with 304 to an error', async () => {
+      const response = await getIfNoneMatch('/changelog?projection=VAT%20Rates&version=1', '*');
+      eq(response.status, 404);
+    });
+
+    async function getIfNoneMatch(path, tags) {
+      return filby.fetch(new Request(`http://localhost${path}`, { headers: { 'If-None-Match': tags } }));
+    }
+  });
+
   describe('OpenAPI', () => {
 
     const ajv = new Ajv();
@@ -656,8 +762,10 @@ describe('HTTP', () => {
         { name: 'version', in: 'query', required: true, schema: { type: 'integer' } },
         { name: 'since', in: 'query', schema: { type: 'integer' } },
       ]);
-      deq(Object.keys(operation.responses), ['200', '400', '404']);
-      deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified']);
+      deq(Object.keys(operation.responses), ['200', '304', '400', '404']);
+      deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified', 'Cache-Control']);
+      deq(Object.keys(operation.responses['304'].headers), ['ETag', 'Last-Modified', 'Cache-Control']);
+      eq(operation.responses['304'].content, undefined);
       deq(operation.responses['200'].content['application/json'].schema, { type: 'array', items: { $ref: '#/components/schemas/ChangeSet' } });
       deq(operation.responses['400'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
       deq(operation.responses['404'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
@@ -703,8 +811,10 @@ describe('HTTP', () => {
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
       ]);
-      deq(Object.keys(operation.responses), ['200', '307', '400', '404']);
+      deq(Object.keys(operation.responses), ['200', '304', '307', '400', '404']);
       deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified', 'Cache-Control', 'X-Total-Count', 'Link']);
+      deq(Object.keys(operation.responses['304'].headers), ['ETag', 'Last-Modified', 'Cache-Control']);
+      eq(operation.responses['304'].content, undefined);
       deq(Object.keys(operation.responses['307'].headers), ['Location']);
       deq(operation.responses['400'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
       deq(operation.responses['404'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
