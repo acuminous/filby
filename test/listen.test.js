@@ -108,12 +108,13 @@ describe('Listen', () => {
     await setup();
     await filby.startNotifications();
 
-    const delivered = once(filby, 'VAT Rate Changed', { timeout: 1000 });
+    const notifications = [];
+    filby.subscribe('VAT Rate Changed', (notification) => notifications.push(notification));
     await scheduleNotification();
-    const notification = await delivered;
+    await until(() => notifications.length === 1, { timeout: 1000 });
 
-    eq(notification.hook.name, 'VAT Rate Changed');
-    eq(notification.projection.key, 'VAT Rates v1');
+    eq(notifications[0].hook.name, 'VAT Rate Changed');
+    eq(notifications[0].projection.key, 'VAT Rates v1');
   });
 
   it('should deliver a notification scheduled by a migration without waiting for the next poll', async (t) => {
@@ -171,11 +172,12 @@ describe('Listen', () => {
       return listeners.length === 1 && listeners[0] !== pid;
     });
 
-    const delivered = once(filby, 'VAT Rate Changed', { timeout: 1000 });
+    const notifications = [];
+    filby.subscribe('VAT Rate Changed', (notification) => notifications.push(notification));
     await scheduleNotification();
-    const notification = await delivered;
+    await until(() => notifications.length === 1, { timeout: 1000 });
 
-    eq(notification.projection.key, 'VAT Rates v1');
+    eq(notifications[0].projection.key, 'VAT Rates v1');
   });
 
   it('should stop listening when notifications are stopped', async () => {
