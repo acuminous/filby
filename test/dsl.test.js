@@ -1716,12 +1716,19 @@ describe('DSL', () => {
     });
 
     it('should reject reserved parameter names', async (t) => {
-      for (const name of ['change_set_id', 'page_offset', 'Page Size']) {
+      for (const name of ['change_set_id', 'page_offset', 'Page Size', 'page', 'Page', 'pageSize', 'changeSetId']) {
         await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { [name]: { field: 'type' } })), (err) => {
           eq(err.message, `Projection 'VAT Rates v1' parameter '${name}' uses a reserved name`);
           return true;
         });
       }
+    });
+
+    it('should reject a range parameter with a reserved name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.parameters', { page: { field: 'rate', match: 'range' } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'page' uses a reserved name");
+        return true;
+      });
     });
 
     it('should escape parameter names', async (t) => {
