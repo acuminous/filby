@@ -356,6 +356,13 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject existing values that contain a percent sign', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ALTER_ENUM).set('0.add', ['100%', '100%'])), (err) => {
+        eq(err.message, "Enum 'vat_tax_rate' already has value '100%'");
+        return true;
+      });
+    });
+
     it('should report missing enums', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ALTER_ENUM), (err) => {
         eq(err.message, "Enum 'vat_tax_rate' does not exist");
@@ -3098,6 +3105,17 @@ describe('DSL', () => {
       });
     });
 
+    it('should report a projection that was already dropped when its name contains a percent sign', async (t) => {
+      const ADD_PERCENT_PROJECTION = transform(ADD_PROJECTION).set('0.name', '100% VAT Rates');
+      const DROP_PERCENT_PROJECTION = transform(DROP_PROJECTION).set('0.name', '100% VAT Rates');
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PERCENT_PROJECTION, DROP_PERCENT_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_PERCENT_PROJECTION), (err) => {
+        eq(err.message, "Projection '100% VAT Rates v1' was already dropped");
+        return true;
+      });
+    });
+
     it('should allow a projection whose identifiers matched a dropped projection', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, DROP_PROJECTION, transform(ADD_ROOT_PROJECTION).set('0.name', 'VAT_Rates'));
       ok(await hasFunction('get_vat_rates_v1'));
@@ -4632,6 +4650,22 @@ describe('DSL', () => {
         });
       });
 
+      it('should reject a duplicate hook whose name contains a percent sign', async (t) => {
+        const ADD_PERCENT_HOOK = transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.name', '100% coverage');
+        await rejects(() => filby.applyYaml(t.name, ADD_PERCENT_HOOK, ADD_PERCENT_HOOK), (err) => {
+          eq(err.message, "Hook '100% coverage' already exists");
+          return true;
+        });
+      });
+
+      it('should reject a duplicate hook whose name contains a backslash', async (t) => {
+        const ADD_BACKSLASH_HOOK = transform(ADD_HOOK_CHANGE_SET_GENERAL).set('0.name', 'sns\\add-change-set');
+        await rejects(() => filby.applyYaml(t.name, ADD_BACKSLASH_HOOK, ADD_BACKSLASH_HOOK), (err) => {
+          eq(err.message, "Hook 'sns\\add-change-set' already exists");
+          return true;
+        });
+      });
+
       it('should require a name', async (t) => {
         await rejects(() => filby.applyYaml(t.name, transform(ADD_HOOK_CHANGE_SET_PROJECTION).del('0.name')), (err) => {
           eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
@@ -4889,6 +4923,13 @@ describe('DSL', () => {
       it('should report missing hooks', async (t) => {
         await rejects(() => filby.applyYaml(t.name, DROP_HOOK_ADD_CHANGE_SET_GENERAL), (err) => {
           eq(err.message, "Hook 'sns/add-change-set/*' does not exist");
+          return true;
+        });
+      });
+
+      it('should report missing hooks whose name contains a percent sign', async (t) => {
+        await rejects(() => filby.applyYaml(t.name, transform(DROP_HOOK_ADD_CHANGE_SET_GENERAL).set('0.name', '100% coverage')), (err) => {
+          eq(err.message, "Hook '100% coverage' does not exist");
           return true;
         });
       });
