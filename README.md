@@ -1086,7 +1086,7 @@ Use the corresponding `DROP_*` operation when a definition is no longer needed:
 - `DROP_ENTITY` removes an entity version. You cannot remove it while a projection depends on it or a change set contains data for it.
 - `DROP_ENUM` removes an enum and its values. You cannot remove it while a field uses it.
 
-A dropped projection's name and version cannot be used again. Clients and caches may still hold documents fetched from its URLs, which Filby allowed them to cache indefinitely, so a different projection at the same URLs would give them conflicting data. To replace a dropped projection, add it with a higher version. Requests for a dropped projection return `410 Gone`.
+A dropped projection's name and version cannot be used again. Clients and caches may still hold documents fetched from its URLs, because Filby allowed them to be cached indefinitely. A different projection at the same URLs would give them conflicting data. To replace a dropped projection, add it with a higher version. Requests for a dropped projection return `410 Gone`.
 
 Each operation requires the object to exist. The following example shows the syntax; entity and enum removal will fail if their dependencies have not been removed.
 

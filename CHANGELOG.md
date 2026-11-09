@@ -23,7 +23,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - An `ADD_HOOK` with a `projection` must use a change set event, and `DROP_ENTITY` requires `operation` (#29).
 - Notifications pause on every instance while migrations run (#101).
 - Filby no longer uses the pgcrypto extension, so `init()` no longer needs permission to create extensions. The upgrade leaves the extension installed (#23).
-- `DROP_PROJECTION` keeps the projection's name and version, and `ADD_PROJECTION` rejects them from then on, so documents already served from a dropped projection's URLs never change. The projection routes and the change log respond with `410` for a dropped projection, and `getProjections`, `getProjection`, the OpenAPI document and `filby export` leave it out. Projections dropped before the upgrade were not recorded, so their names and versions can still be reused (#243).
+- `DROP_PROJECTION` keeps the projection's name and version, and `ADD_PROJECTION` rejects them from then on. Documents already served from a dropped projection's URLs therefore never change. The projection routes and the change log respond with `410` for a dropped projection. `getProjections`, `getProjection`, the OpenAPI document and `filby export` leave it out. Projections dropped before the upgrade were not recorded, so their names and versions can still be reused (#243).
 - Migration errors quote names as they were written, and explain when two names clash because they only differ in case or spacing (#185).
 - Errors about a missing entity or projection suggest the names that do exist (#26, #49).
 - A change set row that PostgreSQL rejects is reported with the migration file and the row's location (#157).
