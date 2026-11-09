@@ -41,6 +41,7 @@ const ADD_ENUM = loadYaml('ADD_ENUM');
 const ADD_SAMPLE_ENTITY = loadYaml('ADD_SAMPLE_ENTITY');
 const ADD_SAMPLE_PROJECTION = loadYaml('ADD_SAMPLE_PROJECTION');
 const ADD_SAMPLE_CHANGE_SET = loadYaml('ADD_SAMPLE_CHANGE_SET');
+const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
 
 const RFC_1123 = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
 
@@ -123,6 +124,13 @@ describe('HTTP', () => {
         { name: 'VAT Rates', version: 1, description: 'Rates of VAT' },
         { name: 'VAT Rates', version: 2, description: null },
       ]);
+    });
+
+    it('should leave out dropped projections', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, transform(ADD_PROJECTION).set('0.version', 2), DROP_PROJECTION);
+
+      const response = await get('/projections');
+      deq(await response.json(), [{ name: 'VAT Rates', version: 2, description: null }]);
     });
 
     it('should not set caching headers', async (t) => {
@@ -234,6 +242,14 @@ describe('HTTP', () => {
       eq(response.status, 404);
       deq(await response.json(), { error: "Projection 'VAT Rates v2' does not exist" });
     });
+
+    it('should respond with 410 when the projection was dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, DROP_PROJECTION);
+
+      const response = await get('/changelog?projection=VAT%20Rates&version=1');
+      eq(response.status, 410);
+      deq(await response.json(), { error: "Projection 'VAT Rates v1' was dropped" });
+    });
   });
 
   describe('Projections', () => {
@@ -278,6 +294,20 @@ describe('HTTP', () => {
 
       const badVersion = await get('/projections/VAT%20Rates/1');
       eq(badVersion.status, 404);
+    });
+
+    it('should respond with 410 when the projection was dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      await filby.applyYaml(t.name, DROP_PROJECTION);
+
+      const current = await get('/projections/VAT%20Rates/v1');
+      eq(current.status, 410);
+      deq(await current.json(), { error: "Projection 'VAT Rates v1' was dropped" });
+
+      const atChangeSet = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
+      eq(atChangeSet.status, 410);
+      deq(await atChangeSet.json(), { error: "Projection 'VAT Rates v1' was dropped" });
     });
 
     it('should respond with 400 when the projection name is malformed', async () => {
@@ -619,6 +649,13 @@ describe('HTTP', () => {
       eq(valid, true);
     });
 
+    it('should leave out dropped projections', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, transform(ADD_PROJECTION).set('0.version', 2), DROP_PROJECTION);
+
+      const { paths } = await getDocument();
+      deq(Object.keys(paths), ['/projections', '/changelog', '/projections/VAT%20Rates/v2']);
+    });
+
     it('should describe the projection list', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).set('0.description', 'Rates of VAT'), transform(ADD_PROJECTION).set('0.version', 2));
 
@@ -656,11 +693,12 @@ describe('HTTP', () => {
         { name: 'version', in: 'query', required: true, schema: { type: 'integer' } },
         { name: 'since', in: 'query', schema: { type: 'integer' } },
       ]);
-      deq(Object.keys(operation.responses), ['200', '400', '404']);
+      deq(Object.keys(operation.responses), ['200', '400', '404', '410']);
       deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified']);
       deq(operation.responses['200'].content['application/json'].schema, { type: 'array', items: { $ref: '#/components/schemas/ChangeSet' } });
       deq(operation.responses['400'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
       deq(operation.responses['404'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
+      deq(operation.responses['410'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
       deq(components.schemas.ChangeSet, {
         type: 'object',
         properties: {
@@ -703,11 +741,12 @@ describe('HTTP', () => {
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
       ]);
-      deq(Object.keys(operation.responses), ['200', '307', '400', '404']);
+      deq(Object.keys(operation.responses), ['200', '307', '400', '404', '410']);
       deq(Object.keys(operation.responses['200'].headers), ['ETag', 'Last-Modified', 'Cache-Control', 'X-Total-Count', 'Link']);
       deq(Object.keys(operation.responses['307'].headers), ['Location']);
       deq(operation.responses['400'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
       deq(operation.responses['404'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
+      deq(operation.responses['410'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
     });
 
     it('should describe the match and document path of parameters on nested fields', async (t) => {

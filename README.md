@@ -1086,6 +1086,8 @@ Use the corresponding `DROP_*` operation when a definition is no longer needed:
 - `DROP_ENTITY` removes an entity version. You cannot remove it while a projection depends on it or a change set contains data for it.
 - `DROP_ENUM` removes an enum and its values. You cannot remove it while a field uses it.
 
+A dropped projection's name and version cannot be used again. Clients and caches may still hold documents fetched from its URLs, which Filby allowed them to cache indefinitely, so a different projection at the same URLs would give them conflicting data. To replace a dropped projection, add it with a higher version. Requests for a dropped projection return `410 Gone`.
+
 Each operation requires the object to exist. The following example shows the syntax; entity and enum removal will fail if their dependencies have not been removed.
 
 ```yaml
@@ -1484,7 +1486,7 @@ A projection must specify either `root` or `dependencies`, not both, and the key
 | `version` | integer | yes | |
 | `description` | string | no | Accepted but not stored |
 
-Deletes the projection, the hooks that name it, its notifications and its generated function, and schedules `DROP_PROJECTION` notifications. The projection must exist.
+Deletes the projection's definition, the hooks that name it, its notifications and its generated function, and schedules `DROP_PROJECTION` notifications. Filby keeps the projection's name, version and description, and `ADD_PROJECTION` rejects that name and version from then on. The projection must exist and must not already have been dropped.
 
 #### ADD_HOOK
 
@@ -1752,13 +1754,13 @@ URL-encode projection names in paths. A name that cannot be URL-decoded produces
 | `version` | Yes | Must be an integer. |
 | `since` | No | Must be an integer when supplied. |
 
-Missing required parameters or invalid integers produce a `400` response. An unknown projection produces a `404`.
+Missing required parameters or invalid integers produce a `400` response. An unknown projection produces a `404`, and a dropped projection produces a `410`.
 
 #### Projection data
 
 Without `changeSetId`, Filby redirects to the projection's current change set. The response is `307`, with the destination in `Location`. All other query parameters are preserved.
 
-An unknown projection, or one with no current change set, produces a `404`.
+An unknown projection, or one with no current change set, produces a `404`. A dropped projection produces a `410`.
 
 With `changeSetId`, Filby returns the documents at that change set. Requests can include the projection's declared filters and, where supported, `page` and `pageSize`.
 
@@ -1771,7 +1773,7 @@ The following produce a `400` response:
 - `page` or `pageSize` is not a positive integer.
 - `page` or `pageSize` is supplied for a root-based projection without `paging` configured.
 
-An unknown projection produces a `404`.
+An unknown projection produces a `404`, and a dropped projection produces a `410`.
 
 The HTTP handler reserves `page`, `pageSize` and `changeSetId`. Do not use these names for declared filters: the handler reads them as HTTP controls, so they cannot reach the projection as filter values.
 

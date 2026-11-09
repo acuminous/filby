@@ -14,11 +14,18 @@ DECLARE
   v_order TEXT;
   v_body TEXT;
   v_existing TEXT;
+  v_next_version INTEGER;
 BEGIN
+  IF EXISTS (SELECT 1 FROM fby_projection WHERE name = {{literal name}} AND version = {{literal version}} AND dropped_at IS NOT NULL) THEN
+    SELECT max(version) + 1 INTO v_next_version FROM fby_projection WHERE name = {{literal name}};
+    RAISE EXCEPTION 'Projection ''%'' was dropped and cannot be added again; use version %', {{literal name (v version)}}, v_next_version;
+  END IF;
+
   SELECT name || ' v' || version INTO v_existing
   FROM fby_projection
   WHERE lower(regexp_replace(name || ' v' || version, '\s', '_', 'g')) = {{literal (table name version)}}
     AND NOT (name = {{literal name}} AND version = {{literal version}})
+    AND dropped_at IS NULL
   LIMIT 1;
 
   IF v_existing IS NOT NULL THEN
