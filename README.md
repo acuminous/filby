@@ -1617,7 +1617,7 @@ The notification counts overlap: an exhausted notification is also overdue. The 
 
 | Method | Behaviour |
 | ------ | --------- |
-| `filby.getProjections()` | Returns all projections as `{ id, name, version, key }`, with no guaranteed order. |
+| `filby.getProjections()` | Returns the projections that have not been dropped as `{ id, name, version, key }`, ordered by name then version. |
 | `filby.getProjection(name, version)` | Returns the matching projection, or `undefined` if it does not exist. |
 | `filby.getChangeLog(projection, { since })` | Returns change sets affecting the projection, in ascending id order. Superseded change sets are omitted. Only ids greater than `since` are returned; `since` defaults to 0. |
 | `filby.getCurrentChangeSet(projection)` | Returns the live change set with the latest effective date that is not after the database's current time, or `undefined` if none exists. |
