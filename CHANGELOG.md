@@ -55,6 +55,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `since` on `getChangeLog`, to read only newer change sets (#56).
 - Frame actions in any case, and an `action` on a CSV source frame that applies to every row (#103).
 - CSV sources with a `.tsv` extension, read as tab-separated (#214).
+- A CSV `action` column header in any case, such as `Action` or `ACTION`. A CSV column that is `action` in any case is always read as the action, never as an entity field (#254).
 
 ### Fixed
 
