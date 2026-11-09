@@ -44,7 +44,7 @@ BEGIN
         (SELECT string_agg(format('%s=%s', COALESCE(i.given_name, i.name), v_row.value->'data'->>i.name), ', ' ORDER BY i.position) FROM fby_entity_field i WHERE i.entity_id = v_entity_id AND i.identity),
         (SELECT description FROM fby_change_set WHERE id = v_change_set_id);
       WHEN OTHERS
-      THEN RAISE EXCEPTION '%: % - %', {{literal @filename}}, {{literal location.prefix}} || ({{location.first}} + v_row.ordinality - 1), SQLERRM USING ERRCODE = SQLSTATE;
+      THEN RAISE EXCEPTION '%: % - %', {{literal @filename}}, {{literal prefix}} || (v_row.value->>'location'), SQLERRM USING ERRCODE = SQLSTATE;
     END;
   END LOOP;
 END;
