@@ -594,6 +594,12 @@
         "required": [
           "entity"
         ],
+        "not": {
+          "required": [
+            "source",
+            "data"
+          ]
+        },
         "oneOf": [
           {
             "required": [

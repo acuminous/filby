@@ -47,7 +47,7 @@ export default class Application {
   }
 
   #reportFailingWebhooks() {
-    this.#filby.subscribe<ExhaustedNotification>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, async ({ error, notification }) => {
+    this.#filby.subscribe<ExhaustedNotification>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, ({ error, notification }) => {
       console.error(`Notification '${notification.hook.name}' for event '${notification.hook.event}' failed after ${notification.attempts} attempts and will no longer be retried`, error);
     });
   }

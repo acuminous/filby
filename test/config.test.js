@@ -64,4 +64,13 @@ describe('Config', () => {
   it('should reject a listen flag that is not a boolean', () => {
     throws(() => new Filby({ notifications: { listen: 'yes' } }), { message: 'Invalid config: /notifications/listen must be boolean' });
   });
+
+  it('should reject maxAttempts below 1', () => {
+    throws(() => new Filby({ notifications: { maxAttempts: 0 } }), { message: 'Invalid config: /notifications/maxAttempts must be >= 1' });
+    throws(() => new Filby({ notifications: { maxAttempts: -1 } }), { message: 'Invalid config: /notifications/maxAttempts must be >= 1' });
+  });
+
+  it('should accept a maxAttempts of 1', () => {
+    doesNotThrow(() => new Filby({ notifications: { maxAttempts: 1 } }));
+  });
 });

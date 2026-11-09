@@ -12,8 +12,8 @@ export class Filby {
   startNotifications(): Promise<void>;
   stopNotifications(): Promise<void>;
   getNotificationStatus(): Promise<NotificationStatus>;
-  subscribe<T>(event: string, handler: (notification: T, context: HandlerContext) => Promise<void>): void;
-  unsubscribe<T>(event: string, handler?: (notification: T, context: HandlerContext) => Promise<void>): void;
+  subscribe<T>(event: string, handler: (notification: T, context: HandlerContext) => void | Promise<void>): void;
+  unsubscribe<T>(event: string, handler?: (notification: T, context: HandlerContext) => void | Promise<void>): void;
   unsubscribeAll(): void;
   stop(): Promise<void>;
   withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
@@ -99,7 +99,7 @@ export type NotificationError = {
 
 export type NotificationStatus = {
   started: boolean;
-  poller?: 'idle' | 'running' | 'stopped' | 'disabled';
+  poller?: 'idle' | 'running' | 'stopped';
   lastSuccessfulPollAt?: Date;
   failuresSinceLastSuccess: number;
   lastError?: {
