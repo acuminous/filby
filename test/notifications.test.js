@@ -556,8 +556,53 @@ describe('Notifications', () => {
     const status = await filby.getNotificationStatus();
 
     eq(status.pending, 3);
-    eq(status.overdue, 2);
+    eq(status.overdue, 1);
     eq(status.exhausted, 1);
+  });
+
+  it('should count a notification whose last attempt has failed as exhausted and not overdue', async () => {
+    await setup();
+
+    const other = new TestFilby({ ...config, notifications: { ...config.notifications, maxAttempts: 1, maxRescheduleDelay: '1h' } });
+    other.subscribe('VAT Rate Changed', () => {
+      throw new Error('Oh Noes!');
+    });
+
+    try {
+      const exhausted = once(other, TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED);
+      other.startNotifications();
+      await exhausted;
+      await other.stopNotifications();
+
+      const status = await other.getNotificationStatus();
+      eq(status.pending, 1);
+      eq(status.overdue, 0);
+      eq(status.exhausted, 1);
+    } finally {
+      await other.stop();
+    }
+  });
+
+  it('should not count an exhausted notification as overdue after its scheduled time has passed', async () => {
+    await setup();
+    await filby.withTransaction((tx) => tx.query("UPDATE fby_notification SET attempts = 3, scheduled_for = now() - INTERVAL '1 hour'"));
+
+    const status = await filby.getNotificationStatus();
+
+    eq(status.pending, 1);
+    eq(status.overdue, 0);
+    eq(status.exhausted, 1);
+  });
+
+  it('should count a late notification that will be retried as overdue and not exhausted', async () => {
+    await setup();
+    await filby.withTransaction((tx) => tx.query("UPDATE fby_notification SET attempts = 2, scheduled_for = now() - INTERVAL '1 hour'"));
+
+    const status = await filby.getNotificationStatus();
+
+    eq(status.pending, 1);
+    eq(status.overdue, 1);
+    eq(status.exhausted, 0);
   });
 
   it('should throw when the notification status cannot be read', async () => {

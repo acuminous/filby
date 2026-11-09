@@ -970,7 +970,7 @@ These monitoring events are emitted synchronously. Catch errors inside their lis
 
 Use `filby.getNotificationStatus()` to check whether polling has started, when the last successful poll occurred, how many failures have occurred since then, and how many notifications are pending, overdue or exhausted. The returned fields are described under [API](#api).
 
-Investigate a growing overdue count even when polling is succeeding. Successful polling does not guarantee successful delivery.
+Watch both the overdue and exhausted counts, and investigate either one growing, even when polling is succeeding. Successful polling does not guarantee successful delivery, and a notification that has run out of attempts is counted only as exhausted.
 
 ```js
 app.get('/health', async (c) => {
@@ -1608,12 +1608,12 @@ Call `filby.getNotificationStatus()` to inspect polling activity and notificatio
 | `failuresSinceLastSuccess` | The number of failed polls since the last successful one. |
 | `lastError` | The most recent recorded error, as `{ at, message }`. |
 | `pending` | Notifications that have not yet been delivered. |
-| `overdue` | Undelivered notifications whose scheduled time has passed. |
+| `overdue` | Undelivered notifications whose scheduled time has passed and that will still be retried. |
 | `exhausted` | Notifications that have reached `maxAttempts` and will not be retried. |
 
 The polling history fields—`lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError`—are held in memory. They survive `stopNotifications()` but reset when the application restarts. A successful poll resets the failure count to zero but retains `lastError`.
 
-The notification counts overlap: an exhausted notification is also overdue. The method rejects if the counts cannot be read from the database.
+The overdue and exhausted counts do not overlap. Once a notification has reached `maxAttempts` it is counted as exhausted and not as overdue, even after its scheduled time has passed. The method rejects if the counts cannot be read from the database.
 
 #### Projections and change sets
 
