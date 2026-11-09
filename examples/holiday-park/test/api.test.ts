@@ -36,6 +36,17 @@ describe('API', () => {
       eq(typeof status.overdue, 'number');
       eq(typeof status.exhausted, 'number');
     });
+
+    it('should report the service unavailable when the database is unreachable', async () => {
+      const unreachable = new Application({ config: { ...config, filby: { ...config.filby, database: { ...config.filby.database, database: 'fby_does_not_exist' } } } });
+      try {
+        const response = await unreachable.app.request('/health');
+        eq(response.status, 503);
+        deq(await response.json(), { error: 'Notification status unavailable' });
+      } finally {
+        await unreachable.stop();
+      }
+    });
   });
 
   describe('GET /api/projections', () => {
