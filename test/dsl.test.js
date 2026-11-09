@@ -11,11 +11,13 @@ const TestFilby = require('./TestFilby');
 const { table } = require('../lib/helpers');
 const validateMigration = require('../lib/validate-migration');
 const driver = require('../lib/marv-filby-driver');
+const exportBundle = require('../lib/export');
 
 const config = {
   nukeCustomObjects: async (tx) => {
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rates_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_parks_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_parks_v2');
     await tx.query('DROP TABLE IF EXISTS park_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_park_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS season_v1');
@@ -3051,8 +3053,8 @@ describe('DSL', () => {
       const { rows: joins } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection_nest_on'));
       eq(joins.length, 0);
 
-      await filby.applyYaml(t.name, ADD_NESTED_PROJECTION);
-      ok(await hasFunction('get_parks_v1'));
+      await filby.applyYaml(t.name, transform(ADD_NESTED_PROJECTION).set('0.version', 2));
+      ok(await hasFunction('get_parks_v2'));
     });
 
     it('should leave a hand written function with the same name in place', async (t) => {
@@ -3065,8 +3067,111 @@ describe('DSL', () => {
 
     it('should drop projection', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION);
-      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
-      eq(projections.length, 0);
+      deq(await filby.getProjections(), []);
+      eq(await filby.getProjection('VAT Rates', 1), undefined);
+    });
+
+    it('should reject adding a dropped projection name and version again', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, DROP_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ROOT_PROJECTION).set('0.fields', ['rate'])), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' was dropped and cannot be added again; use version 2");
+        return true;
+      });
+    });
+
+    it('should suggest the version after the highest version of the dropped projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(ADD_PROJECTION).set('0.version', 3), DROP_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_PROJECTION), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' was dropped and cannot be added again; use version 4");
+        return true;
+      });
+    });
+
+    it('should report a projection that was already dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_PROJECTION), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' was already dropped");
+        return true;
+      });
+    });
+
+    it('should allow a projection whose identifiers matched a dropped projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, DROP_PROJECTION, transform(ADD_ROOT_PROJECTION).set('0.name', 'VAT_Rates'));
+      ok(await hasFunction('get_vat_rates_v1'));
+      deq((await filby.getProjections()).map(({ name }) => name), ['VAT_Rates']);
+    });
+
+    it('should not find a dropped projection when adding a hook', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION), (err) => {
+        eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'VAT Rates v1'; no projections exist");
+        return true;
+      });
+    });
+
+    it('should not suggest a dropped projection', async (t) => {
+      await rejects(() => filby.applyYaml(
+        t.name,
+        ADD_ENTITY,
+        ADD_PROJECTION,
+        transform(ADD_PROJECTION).set('0.version', 2),
+        DROP_PROJECTION,
+        transform(ADD_HOOK_CHANGE_SET_PROJECTION).set('0.projection', 'vat rates'),
+      ), (err) => {
+        eq(err.message, "Hook 'sns/add-change-set/vat-rates-v1' references a non existent projection 'vat rates v1'; existing projections are 'VAT Rates v2'");
+        return true;
+      });
+    });
+
+    it('should delete hooks scoped to the projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, DROP_PROJECTION);
+
+      const { rows: hooks } = await filby.withTransaction((tx) => tx.query('SELECT name FROM fby_hook'));
+      deq(hooks, [{ name: 'sns/add-change-set/*' }]);
+    });
+
+    it('should allow the root entity to be dropped once the projection is dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, DROP_PROJECTION, DROP_ENTITY);
+      ok(!await hasTable('vat_rate_v1'));
+    });
+
+    it('should allow a dependency to be dropped once the projection is dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, DROP_PROJECTION, DROP_ENTITY);
+      ok(!await hasTable('vat_rate_v1'));
+    });
+
+    it('should allow nested entities to be dropped once the projection is dropped', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        ADD_PARK_ENTITIES,
+        ADD_NESTED_PROJECTION,
+        transform(DROP_PROJECTION).set('0.name', 'Parks'),
+        transform(DROP_ENTITY).set('0.name', 'rate'),
+        transform(DROP_ENTITY).set('0.name', 'season'),
+        transform(DROP_ENTITY).set('0.name', 'park'),
+      );
+      ok(!await hasTable('park_v1'));
+      ok(!await hasTable('season_v1'));
+      ok(!await hasTable('rate_v1'));
+    });
+
+    it('should leave a dropped projection out of the change log and change set notifications', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL, DROP_PROJECTION, ADD_CHANGE_SET_1);
+
+      eq(await countNotifications(), 0);
+      const { rows } = await filby.withTransaction((tx) => tx.query("SELECT * FROM fby_projection_change_log_vw WHERE projection_name = 'VAT Rates'"));
+      eq(rows.length, 0);
+    });
+
+    it('should not export a dropped projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, DROP_PROJECTION);
+
+      await rejects(() => exportBundle(filby, 'VAT Rates', 1), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' does not exist");
+        return true;
+      });
     });
 
     it('should schedule notifications', async (t) => {
@@ -3124,8 +3229,7 @@ describe('DSL', () => {
     version: 1
 `;
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_ANOTHER_PROJETION, DROP_PROJECTION);
-      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT * FROM fby_projection'));
-      eq(projections.length, 1);
+      deq((await filby.getProjections()).map(({ version }) => version), [2]);
     });
 
     it('should require a name', async (t) => {
@@ -3150,8 +3254,7 @@ describe('DSL', () => {
         transform(DROP_PROJECTION).set('0.name', "pwned', 1);RAISE EXCEPTION $💀$You have been pwned!$💀$;"),
       );
 
-      const { rows: projections } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_projection'));
-      eq(projections.length, 0);
+      deq(await filby.getProjections(), []);
     });
 
     it('should require a version', async (t) => {

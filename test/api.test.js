@@ -44,9 +44,9 @@ describe('API', () => {
 
       const projections = await filby.getProjections();
       eq(projections.length, 3);
-      deq(projections[0], { id: 1, name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
-      deq(projections[1], { id: 2, name: 'VAT Rates', version: 2, key: 'VAT Rates v2' });
-      deq(projections[2], { id: 3, name: 'CGT Rates', version: 1, key: 'CGT Rates v1' });
+      deq(projections[0], { id: 3, name: 'CGT Rates', version: 1, key: 'CGT Rates v1' });
+      deq(projections[1], { id: 1, name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
+      deq(projections[2], { id: 2, name: 'VAT Rates', version: 2, key: 'VAT Rates v2' });
     });
 
     it('should get projection by name and version', async () => {

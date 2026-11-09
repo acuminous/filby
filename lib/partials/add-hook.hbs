@@ -8,7 +8,8 @@ BEGIN
   SELECT id INTO v_projection_id
   FROM fby_projection
   WHERE name = {{literal projection}}
-    AND version = {{literal version}};
+    AND version = {{literal version}}
+    AND dropped_at IS NULL;
 
   IF v_projection_id IS NULL THEN
     RAISE EXCEPTION 'Hook ''%'' references a non existent projection ''%''%', {{literal name}}, {{literal projection (v version)}}, fby_projection_hint({{literal projection}}, {{literal version}});
