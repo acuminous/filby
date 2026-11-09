@@ -65,6 +65,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `unsubscribe(event)` without a handler removes every handler, as documented (#20).
 - An invalid or negative `notifications` duration is rejected when Filby is constructed (#134).
 - CSV cells are passed to PostgreSQL as written, so `007` keeps its leading zeros in a `TEXT` column. An empty cell is stored as `NULL` (#7).
+- Inline YAML and JSON data values are passed to PostgreSQL as written, so `007` keeps its leading zeros in a `TEXT` column, `1.50` keeps its scale in a `NUMERIC` column and large integers keep their precision. Nested maps and lists are still stored as JSON (#240).
 - A YAML field with no value is stored as `NULL` rather than an empty string, and a nested map or list is stored as JSON (#8).
 - A CSV source with a single column loads (#152).
 - Field types such as `NUMERIC(10,2)`, `TEXT[]` and schema-qualified types are accepted (#9).
