@@ -897,7 +897,7 @@ A `COMMENCE_CHANGE_SET` hook also fires for change sets that were loaded before 
 
 #### Handling notifications
 
-Register an asynchronous handler with `filby.subscribe`, using the hook's name exactly as declared. Subscribe before calling `startNotifications`. The following publishes a notification to SNS whenever the current change set for `Parks@1` changes:
+Register a handler with `filby.subscribe`, using the hook's name exactly as declared. Subscribe before calling `startNotifications`. The following publishes a notification to SNS whenever the current change set for `Parks@1` changes:
 
 ```js
 filby.subscribe(

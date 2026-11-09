@@ -75,3 +75,4 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `getAggregates` works for entities whose names need quoting (#27).
 - Filby no longer changes the shared Handlebars module used by the host application (#24).
 - `index.d.ts` matches the code (#31).
+- `index.d.ts` accepts notification handlers that return nothing, so a synchronous handler compiles in TypeScript, and no longer lists `disabled` as a poller state (#249).
