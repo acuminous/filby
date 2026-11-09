@@ -483,7 +483,7 @@ Each parameter names a field and a matching rule. The field usually belongs to t
 
 An array field accepts only `in` and `contains`. An empty or null array never matches.
 
-The parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
+Some parameter names are reserved. `change_set_id`, `page_offset` and `page_size` are the projection function's own arguments, and `page`, `pageSize` and `changeSetId` are taken by Filby's HTTP routes. Names are compared after canonicalisation, so `Page Size` and `pagesize` are reserved too. Applying a migration that declares a parameter with one of these names fails.
 
 `order` lists the fields to sort by. Each is ascending by default, or can use `DESC` for descending order. `nulls` can specify `FIRST` or `LAST`. Records with equal sort values are ordered by the entity's key. When no order is declared, the key determines the entire order.
 
@@ -1345,6 +1345,7 @@ Upgrading an existing database does not run your old migration files again, but 
 - An `ADD_HOOK` with a `projection` must use the `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET` event. In 0.14.0, a projection on an `ADD_PROJECTION` or `DROP_PROJECTION` hook was ignored, so remove it.
 - A SQL migration that inserts `'POST'` frames, inserts a change set without an id, or inserts rows into an entity table without `fby_change_set_id` and `fby_action`, fails. Change it as described in [Your own SQL](#your-own-sql).
 - A `DROP_ENTITY` must include `operation: DROP_ENTITY`, like every other operation.
+- An `ADD_PROJECTION` with a parameter named `page`, `pageSize` or `changeSetId`, in any case, fails because Filby's HTTP routes use these names. Rename the parameter in the file.
 
 Filby does not compare your migration files with the versions it has already applied, so you can correct old files without affecting existing databases.
 
@@ -1465,7 +1466,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root or a path. A path such as `Beach Routes.Beach.Surfaces` names a nest or lookup at each level, starting from the root, and ends with a field of the last one. A lookup can only be the last name in a path. Only `in` and `contains` can be used with an array field, and `contains` can only be used with an array field. The canonical parameter names `change_set_id`, `page_offset` and `page_size` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root or a path. A path such as `Beach Routes.Beach.Surfaces` names a nest or lookup at each level, starting from the root, and ends with a field of the last one. A lookup can only be the last name in a path. Only `in` and `contains` can be used with an array field, and `contains` can only be used with an array field. The canonical parameter names `change_set_id`, `page_offset`, `page_size`, `changesetid`, `page` and `pagesize` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
@@ -1777,7 +1778,7 @@ The following produce a `400` response:
 
 An unknown projection produces a `404`, and a dropped projection produces a `410`.
 
-The HTTP handler reserves `page`, `pageSize` and `changeSetId`. Do not use these names for declared filters: the handler reads them as HTTP controls, so they cannot reach the projection as filter values.
+The HTTP handler reserves `page`, `pageSize` and `changeSetId`, so `ADD_PROJECTION` rejects a parameter with one of these names.
 
 ##### Custom SQL projections
 

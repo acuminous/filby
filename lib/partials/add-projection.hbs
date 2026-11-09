@@ -70,7 +70,7 @@ BEGIN
   WHERE id = v_projection_id;
 
   {{#each parameters}}
-  IF {{literal (canonical name)}} IN ('change_set_id', 'page_offset', 'page_size') THEN
+  IF {{literal (canonical name)}} IN ('change_set_id', 'page_offset', 'page_size', 'changesetid', 'page', 'pagesize') THEN
     RAISE EXCEPTION 'Projection ''%'' parameter ''%'' uses a reserved name', {{literal ../name (v ../version)}}, {{literal name}};
   END IF;
 
