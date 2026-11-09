@@ -1364,7 +1364,7 @@ After the first `init()`:
 | `migrations` | list of paths | `['migrations']` | Relative to the working directory. |
 | `notifications.interval` | duration | `1m` | How often Filby polls for notifications |
 | `notifications.initialDelay` | duration | `10s` | The delay before the first poll after `startNotifications` |
-| `notifications.maxAttempts` | integer | `10` | Attempts before a notification is exhausted |
+| `notifications.maxAttempts` | integer | `10` | Attempts before a notification is exhausted. Must be at least 1 |
 | `notifications.maxRescheduleDelay` | duration | `1h` | The longest delay before a retry |
 | `notifications.handlerTimeout` | duration | `30s` | How long a handler may run before its signal is aborted and the attempt fails |
 | `notifications.listen` | boolean | `false` | Whether to hold a connection that listens for scheduled notifications and polls at once |
