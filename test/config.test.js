@@ -45,8 +45,20 @@ describe('Config', () => {
     });
   }
 
-  it('should accept a zero duration', () => {
-    doesNotThrow(() => new Filby({ notifications: { initialDelay: '0ms' } }));
+  for (const key of ['initialDelay', 'maxRescheduleDelay']) {
+    it(`should accept a zero ${key}`, () => {
+      doesNotThrow(() => new Filby({ notifications: { [key]: '0ms' } }));
+    });
+  }
+
+  for (const key of ['interval', 'handlerTimeout']) {
+    it(`should reject a zero ${key}`, () => {
+      throws(() => new Filby({ notifications: { [key]: '0s' } }), { message: `Invalid config: /notifications/${key} must be greater than zero` });
+    });
+  }
+
+  it('should report zero and unparseable durations together', () => {
+    throws(() => new Filby({ notifications: { interval: '0ms', initialDelay: 'soon', handlerTimeout: '0s' } }), { message: "Invalid config: /notifications/interval must be greater than zero\nInvalid config: /notifications/initialDelay must be a duration such as '30s'\nInvalid config: /notifications/handlerTimeout must be greater than zero" });
   });
 
   it('should reject a negative duration', () => {

@@ -1373,7 +1373,7 @@ After the first `init()`:
 | `notifications.handlerTimeout` | duration | `30s` | How long a handler may run before its signal is aborted and the attempt fails |
 | `notifications.listen` | boolean | `false` | Whether to hold a connection that listens for scheduled notifications and polls at once |
 
-Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax; zero is allowed and a negative or unparseable value is rejected. The config is validated when Filby is constructed, and an unknown key or a bad duration is rejected. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
+Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax, and a negative or unparseable value is rejected. `initialDelay` and `maxRescheduleDelay` may be zero, so the first poll happens as soon as notifications start and a failed notification is retried on the next poll. `interval` and `handlerTimeout` must be greater than zero, because a zero interval polls the database continuously and a zero handler timeout aborts every handler as soon as it starts. The config is validated when Filby is constructed, and an unknown key or a bad duration is rejected. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
 
 ```js
 const filby = new Filby({
