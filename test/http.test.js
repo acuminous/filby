@@ -311,7 +311,7 @@ describe('HTTP', () => {
       deq(await response.json(), [
         { type: 'zero', rate: '0' },
         { type: 'reduced', rate: '0.05' },
-        { type: 'standard', rate: '0.1' },
+        { type: 'standard', rate: '0.10' },
       ]);
     });
 
@@ -522,7 +522,7 @@ describe('HTTP', () => {
       eq(response.status, 200);
       deq(await response.json(), [
         { type: 'reduced', rate: '0.05' },
-        { type: 'standard', rate: '0.1' },
+        { type: 'standard', rate: '0.10' },
         { type: 'zero', rate: '0' },
       ]);
       eq(response.headers.get('X-Total-Count'), '3');

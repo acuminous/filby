@@ -414,7 +414,7 @@ DELETE,TP,,
 
 The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Why Filby](#why-filby).
 
-A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. CSV cells are read as text and cast by Postgres to the column type, so `007` keeps its leading zeros in a `TEXT` column and `1.50` keeps its scale in a `NUMERIC` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
+A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML or JSON is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. Every other value, whether inline or in a CSV cell, is passed to Postgres as written and cast to the column type. Filby does not convert values that look like numbers, so `007` keeps its leading zeros in a `TEXT` column, `1.50` keeps its scale in a `NUMERIC` column and `9007199254740993` keeps every digit in a `BIGINT` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
 
 ### Projections
 
@@ -1335,7 +1335,7 @@ Upgrading an existing database does not run your old migration files again, but 
 
 Filby does not compare your migration files with the versions it has already applied, so you can correct old files without affecting existing databases.
 
-A new database may also hold slightly different values from one loaded by 0.14.0. CSV cells are now passed to PostgreSQL as written, so `007` stays `007` in a `TEXT` column, and a YAML field with no value is stored as `NULL` rather than an empty string.
+A new database may also hold slightly different values from one loaded by 0.14.0. CSV cells and inline YAML and JSON values are now passed to PostgreSQL as written, so `007` stays `007` in a `TEXT` column and `1.50` stays `1.50` in a `NUMERIC` column, and a YAML field with no value is stored as `NULL` rather than an empty string.
 
 ### Checking the upgrade
 
