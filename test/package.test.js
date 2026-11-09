@@ -14,7 +14,7 @@ describe('Package', () => {
   let tracked;
 
   before(() => {
-    const stdout = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const stdout = execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts', '--foreground-scripts=false'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     const [pack] = Object.values(JSON.parse(stdout));
     packed = pack.files.map((file) => file.path).sort();
     tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean).sort();
