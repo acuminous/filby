@@ -414,7 +414,7 @@ DELETE,TP,,
 
 The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Why Filby](#why-filby).
 
-A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. CSV cells are read as text and cast by Postgres to the column type, so `007` keeps its leading zeros in a `TEXT` column and `1.50` keeps its scale in a `NUMERIC` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
+A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML or JSON is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. Every other value, whether inline or in a CSV cell, is passed to Postgres as written and cast to the column type. Filby does not convert values that look like numbers, so `007` keeps its leading zeros in a `TEXT` column, `1.50` keeps its scale in a `NUMERIC` column and `9007199254740993` keeps every digit in a `BIGINT` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
 
 ### Projections
 
@@ -880,6 +880,8 @@ Declare a hook with `ADD_HOOK`, giving it a name and one of these events:
 
 For `ADD_CHANGE_SET` and `COMMENCE_CHANGE_SET`, set `projection` to restrict the hook to one projection, or omit it to receive notifications for every projection. `ADD_PROJECTION` and `DROP_PROJECTION` hooks always cover all projections.
 
+A `COMMENCE_CHANGE_SET` hook also fires for change sets that were loaded before the hook, or before the projection it covers. When either is added, Filby schedules a notification for each live change set with a future effective date. Change sets that are already in effect are not notified.
+
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0009.define-hooks.yaml
@@ -1140,7 +1142,7 @@ Data requested at a specific change set id never changes. Projection responses i
 | Header | Purpose |
 | ------ | ------- |
 | `Cache-Control: max-age=31536000, immutable` | Allows the response to remain fresh in a cache for one year without revalidation. |
-| `ETag` | Identifies the response using the change set. |
+| `ETag` | Identifies the response using the change set's entity tag, in double quotes. |
 | `Last-Modified` | Provides the modification date from the change set. |
 | `X-Total-Count` | Gives the total number of matching root records. |
 | `Link` | Links to the next and previous pages, where available. |
@@ -1333,7 +1335,7 @@ Upgrading an existing database does not run your old migration files again, but 
 
 Filby does not compare your migration files with the versions it has already applied, so you can correct old files without affecting existing databases.
 
-A new database may also hold slightly different values from one loaded by 0.14.0. CSV cells are now passed to PostgreSQL as written, so `007` stays `007` in a `TEXT` column, and a YAML field with no value is stored as `NULL` rather than an empty string.
+A new database may also hold slightly different values from one loaded by 0.14.0. CSV cells and inline YAML and JSON values are now passed to PostgreSQL as written, so `007` stays `007` in a `TEXT` column and `1.50` stays `1.50` in a `NUMERIC` column, and a YAML field with no value is stored as `NULL` rather than an empty string.
 
 ### Checking the upgrade
 
@@ -1794,7 +1796,7 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 | Header | Sent on | Value |
 | ------ | ------- | ----- |
 | `Content-Type` | Every response with a body | `application/json` |
-| `ETag` | Projection responses and non-empty change logs | The change set's entity tag, or the latest change log entry's entity tag. |
+| `ETag` | Projection responses and non-empty change logs | The change set's entity tag, or the latest change log entry's entity tag, in double quotes, for example `"6a8f467b146c4695a674"`. |
 | `Last-Modified` | Projection responses and non-empty change logs | The corresponding change set's `lastModified`, formatted as an RFC 1123 date. |
 | `Cache-Control` | Projection responses | `max-age=31536000, immutable` |
 | `X-Total-Count` | Projection responses | The total number of matching records, regardless of the requested page. |
@@ -1803,6 +1805,8 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 | `Allow` | `405` responses | `GET` |
 
 A projection's `ETag` identifies the change set rather than being calculated from the response body. It is shared across pages and filter combinations at that change set; the request URL distinguishes those responses.
+
+HTTP requires an entity tag to be a quoted string, so the `ETag` header wraps the tag in double quotes. The `entityTag` field returned by `getChangeLog()`, `getChangeSet()` and the change log route is the same tag without the quotes, so remove the quotes from the header before comparing the two.
 
 Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all other query parameters.
 

@@ -163,7 +163,7 @@ describe('HTTP', () => {
       const [, second] = await filby.getChangeLog(projection);
 
       const response = await get('/changelog?projection=VAT%20Rates&version=1');
-      eq(response.headers.get('ETag'), second.entityTag);
+      eq(response.headers.get('ETag'), `"${second.entityTag}"`);
       eq(response.headers.get('Last-Modified'), second.lastModified.toUTCString());
       match(response.headers.get('Last-Modified'), RFC_1123);
       eq(response.headers.get('Cache-Control'), null);
@@ -177,7 +177,7 @@ describe('HTTP', () => {
       const response = await get(`/changelog?projection=VAT%20Rates&version=1&since=${first.id}`);
       eq(response.status, 200);
       deq((await response.json()).map(({ id }) => id), [second.id]);
-      eq(response.headers.get('ETag'), second.entityTag);
+      eq(response.headers.get('ETag'), `"${second.entityTag}"`);
     });
 
     it('should respond with an empty change log when there is nothing since the change set id', async (t) => {
@@ -311,7 +311,7 @@ describe('HTTP', () => {
       deq(await response.json(), [
         { type: 'zero', rate: '0' },
         { type: 'reduced', rate: '0.05' },
-        { type: 'standard', rate: '0.1' },
+        { type: 'standard', rate: '0.10' },
       ]);
     });
 
@@ -321,7 +321,7 @@ describe('HTTP', () => {
       const changeSet = await filby.getChangeSet(changeSetId);
 
       const response = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
-      eq(response.headers.get('ETag'), changeSet.entityTag);
+      eq(response.headers.get('ETag'), `"${changeSet.entityTag}"`);
       eq(response.headers.get('Last-Modified'), changeSet.lastModified.toUTCString());
       match(response.headers.get('Last-Modified'), RFC_1123);
       eq(response.headers.get('Cache-Control'), 'max-age=31536000, immutable');
@@ -522,12 +522,12 @@ describe('HTTP', () => {
       eq(response.status, 200);
       deq(await response.json(), [
         { type: 'reduced', rate: '0.05' },
-        { type: 'standard', rate: '0.1' },
+        { type: 'standard', rate: '0.10' },
         { type: 'zero', rate: '0' },
       ]);
       eq(response.headers.get('X-Total-Count'), '3');
       eq(response.headers.get('Link'), null);
-      eq(response.headers.get('ETag'), changeSet.entityTag);
+      eq(response.headers.get('ETag'), `"${changeSet.entityTag}"`);
       eq(response.headers.get('Last-Modified'), changeSet.lastModified.toUTCString());
       eq(response.headers.get('Cache-Control'), 'max-age=31536000, immutable');
     });
