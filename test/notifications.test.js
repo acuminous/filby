@@ -76,9 +76,9 @@ describe('Notifications', () => {
   it('should notify interested parties of projection changes', async () => {
     await setup();
 
-    const delivered = once(filby, 'VAT Rate Changed');
+    const notified = once(filby, 'VAT Rate Changed');
     filby.startNotifications();
-    const notification = await delivered;
+    const notification = await notified;
 
     deq(notification.hook, { name: 'VAT Rate Changed', event: 'ADD_CHANGE_SET' });
     deq(notification.projection, { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' });
@@ -178,9 +178,10 @@ describe('Notifications', () => {
     await setup();
 
     const checkpoint = await getDatabaseTime();
+    const firstFailure = once(filby, TestFilby.NOTIFICATION_ERROR);
     filby.startNotifications();
-
-    await until(async () => (await getNotifications())[0].attempts > 0);
+    await firstFailure;
+    await filby.stopNotifications();
 
     const failed = (await getNotifications())[0];
     eq(failed.status, 'PENDING');
@@ -188,7 +189,9 @@ describe('Notifications', () => {
     ok(failed.last_attempted >= checkpoint);
     match(failed.last_error, /No subscribers for hook 'VAT Rate Changed'/);
 
-    const notification = await once(filby, 'VAT Rate Changed');
+    const notified = once(filby, 'VAT Rate Changed');
+    filby.startNotifications();
+    const notification = await notified;
     eq(notification.attempts, 2);
 
     await until(async () => (await getNotifications())[0].status === 'OK');
@@ -316,19 +319,28 @@ describe('Notifications', () => {
 
     const checkpoint = await getDatabaseTime();
     try {
+      const firstFailure = once(other, TestFilby.NOTIFICATION_ERROR);
       other.startNotifications();
-
-      await until(async () => (await getNotifications())[0].attempts === 1);
+      await firstFailure;
+      await other.stopNotifications();
 
       const notifications = await getNotifications();
       eq(notifications[0].status, 'PENDING');
+      eq(notifications[0].attempts, 1);
       ok(notifications[0].last_attempted >= checkpoint);
       match(notifications[0].last_error, /timed out after 100ms/);
       eq(signals.length, 1);
       eq(signals[0].aborted, true);
+      match(signals[0].reason.message, /timed out after 100ms/);
 
-      await until(async () => (await getNotifications())[0].attempts === 2);
+      const secondFailure = once(other, TestFilby.NOTIFICATION_ERROR);
+      other.startNotifications();
+      await secondFailure;
+      await other.stopNotifications();
+
+      eq((await getNotifications())[0].attempts, 2);
       eq(signals.length, 2);
+      match(signals[1].reason.message, /timed out after 100ms/);
     } finally {
       await other.stop();
     }
