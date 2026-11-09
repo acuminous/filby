@@ -51,7 +51,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - The `COMMENCE_CHANGE_SET` hook event, which fires when a projection's current change set changes. Adding the hook or a projection schedules notifications for future change sets that were loaded earlier (#55, #241).
 - `notifications.listen`, which delivers notifications as soon as they are scheduled rather than at the next poll (#57).
 - `notifications.handlerTimeout`, and an `AbortSignal` passed to each handler (#22).
-- `filby.getNotificationStatus()`, for health checks (#58).
+- `filby.getNotificationStatus()`, for health checks. Its `overdue` and `exhausted` counts do not overlap (#58, #261).
 - `ALTER_ENUM`, which adds values to an existing enum (#62).
 - `timezone` on a change set, so `effective` can be a calendar date (#102).
 - `nullable: false` on entity fields, and shorter equivalent forms of the DSL (#51).
