@@ -427,13 +427,13 @@ describe('API', () => {
       deq(Object.keys(document.paths), ['/projections', '/changelog', '/projections/Amenities/v1', '/projections/Beaches/v1', '/projections/Catalogue/v1', '/projections/Grades/v1', '/projections/Models/v1', '/projections/Parks%20(Detailed)/v1', '/projections/Parks%20(Minimal)/v1', '/projections/VAT%20Rates/v1']);
 
       const minimal = schema(document, 'Parks (Minimal)');
-      deq(document.paths['/projections/Parks%20(Minimal)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'page', 'pageSize']);
+      deq(document.paths['/projections/Parks%20(Minimal)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'page', 'pageSize', 'If-None-Match']);
       deq(Object.keys(minimal.properties), ['code', 'name', 'address', 'town', 'county', 'postcode', 'region']);
       deq(minimal.required, ['code', 'name', 'address', 'town', 'county', 'postcode', 'region']);
       deq(minimal.properties.region, { type: 'string', enum: ['Scotland', 'North East', 'Yorkshire', 'North West', 'Wales', 'Midlands', 'East', 'South East', 'South West'] });
 
       const detailed = schema(document, 'Parks (Detailed)');
-      deq(document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'beach_surface', 'amenity', 'page', 'pageSize']);
+      deq(document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'name', 'region', 'beach_surface', 'amenity', 'page', 'pageSize', 'If-None-Match']);
       const detailedParameters = document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters;
       deq(detailedParameters.find((parameter: any) => parameter.name === 'beach_surface').schema, { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] });
       deq(detailedParameters.find((parameter: any) => parameter.name === 'amenity').schema, { type: 'array', items: { type: 'string' } });
@@ -465,7 +465,7 @@ describe('API', () => {
       deq(offers.items.properties.discount_percent, { type: ['string', 'null'] });
 
       const beaches = schema(document, 'Beaches');
-      deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'surface']);
+      deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'surface', 'If-None-Match']);
       deq(beaches.required, ['code', 'name', 'surfaces']);
 
       const grades = schema(document, 'Grades');
