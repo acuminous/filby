@@ -1812,6 +1812,7 @@ describe('DSL', () => {
         { name: 'rate', in: 'query', schema: values, 'x-filby-match': 'contains', 'x-filby-field': ['rate'] },
         { name: 'rates', in: 'query', schema: { type: 'array', items: values }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['rate'] },
         { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['type'] },
+        { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
     });
 
@@ -2866,6 +2867,7 @@ describe('DSL', () => {
         { name: 'tags', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['seasons', 'tags'] },
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
+        { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
     });
 
@@ -3631,6 +3633,46 @@ describe('DSL', () => {
         eq(err.message, "001.should-require-frames-to-specify-either-an-action-or-a-source.yaml: /0/frames/0 must have required property 'source' or 'action'");
         return true;
       });
+    });
+
+    it('should reject a frame that has both a source and data', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate@1', source: '../dsl/datafiles/vat-rate-v1-2020-set.csv', data: [{ type: 'standard', rate: 0.2 }] }])), (err) => {
+        eq(err.message, "001.should-reject-a-frame-that-has-both-a-source-and-data.yaml: /1/frames/0 for entity 'VAT Rate v1' cannot have both 'source' and 'data'");
+        return true;
+      });
+    });
+
+    it('should reject a frame that has a source an action and data', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv', data: [{ type: 'standard', rate: 0.2 }] }])), (err) => {
+        eq(err.message, "001.should-reject-a-frame-that-has-a-source-an-action-and-data.yaml: /1/frames/0 for entity 'VAT Rate v1' cannot have both 'source' and 'data'");
+        return true;
+      });
+    });
+
+    it('should reject a frame that has both a source and data when the entity is incomplete', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', source: '../dsl/datafiles/vat-rate-v1-2020-set.csv', data: [{ type: 'standard', rate: 0.2 }] }])), (err) => {
+        eq(err.message, "001.should-reject-a-frame-that-has-both-a-source-and-data-when-the-entity-is-incomplete.yaml: /0/frames/0 for entity 'VAT Rate' cannot have both 'source' and 'data'");
+        return true;
+      });
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).set('0.frames', [{ source: '../dsl/datafiles/vat-rate-v1-2020-set.csv', data: [{ type: 'standard', rate: 0.2 }] }])), (err) => {
+        eq(err.message, "001.should-reject-a-frame-that-has-both-a-source-and-data-when-the-entity-is-incomplete.yaml: /0/frames/0 cannot have both 'source' and 'data'");
+        return true;
+      });
+    });
+
+    it('should accept a frame that has a source and an action', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map(({ action, type }) => ({ action, type })), [{ action: 'SET', type: 'standard' }, { action: 'SET', type: 'reduced' }, { action: 'SET', type: 'zero' }]);
+    });
+
+    it('should accept a frame that has an action and data', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data: [{ type: 'standard', rate: 0.2 }] }]));
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map(({ action, type, rate }) => ({ action, type, rate })), [{ action: 'SET', type: 'standard', rate: 0.2 }]);
     });
 
     it('should accept lower case frame actions', async (t) => {
@@ -5051,6 +5093,32 @@ describe('DSL', () => {
 
       const frames = await getDataFrames('2020 VAT Rates');
       deq(frames.map((frame) => frame.action), ['SET', 'DELETE', 'SET']);
+    });
+
+    it('should take frame actions from a csv action column with a title case header', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-title-case-action.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE']);
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced']);
+    });
+
+    it('should take frame actions from a csv action column with an upper case header', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-upper-case-action.csv' }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, yaml);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map((frame) => frame.action), ['SET', 'DELETE']);
+      deq(frames.map((frame) => frame.type), ['standard', 'reduced']);
+    });
+
+    it('should reject a frame action when the csv has an action column in another case', async (t) => {
+      const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-title-case-action.csv' }]);
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
+        eq(err.message, `Frame for entity 'VAT Rate v1' specifies action 'SET' but ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-title-case-action.csv')} also has an action column`);
+        return true;
+      });
     });
 
     it('should reject a frame action when the csv has an action column', async (t) => {

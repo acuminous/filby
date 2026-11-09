@@ -897,7 +897,7 @@ A `COMMENCE_CHANGE_SET` hook also fires for change sets that were loaded before 
 
 #### Handling notifications
 
-Register an asynchronous handler with `filby.subscribe`, using the hook's name exactly as declared. Subscribe before calling `startNotifications`. The following publishes a notification to SNS whenever the current change set for `Parks@1` changes:
+Register a handler with `filby.subscribe`, using the hook's name exactly as declared. Subscribe before calling `startNotifications`. The following publishes a notification to SNS whenever the current change set for `Parks@1` changes:
 
 ```js
 filby.subscribe(
@@ -1149,7 +1149,9 @@ Data requested at a specific change set id never changes. Projection responses i
 | `X-Total-Count` | Gives the total number of matching root records. |
 | `Link` | Links to the next and previous pages, where available. |
 
-Change log responses include `ETag` and `Last-Modified` headers based on their latest entry.
+A change log gains an entry whenever a change set is added, so change log responses include `Cache-Control: no-cache`. A browser or CDN may store the change log, but must check with Filby before using it again. A non-empty change log also includes `ETag` and `Last-Modified` headers based on its latest entry.
+
+Clients and caches can revalidate a response that has an `ETag` by sending its value in an `If-None-Match` request header. If the tag still matches, Filby replies `304 Not Modified` with no body, so the client keeps using its stored copy. Otherwise Filby sends the full response with its new `ETag`.
 
 The projection list and OpenAPI document can change when projections are added or dropped. Filby serves them without caching headers.
 
@@ -1366,7 +1368,7 @@ After the first `init()`:
 | `migrations` | list of paths | `['migrations']` | Relative to the working directory. |
 | `notifications.interval` | duration | `1m` | How often Filby polls for notifications |
 | `notifications.initialDelay` | duration | `10s` | The delay before the first poll after `startNotifications` |
-| `notifications.maxAttempts` | integer | `10` | Attempts before a notification is exhausted |
+| `notifications.maxAttempts` | integer | `10` | Attempts before a notification is exhausted. Must be at least 1 |
 | `notifications.maxRescheduleDelay` | duration | `1h` | The longest delay before a retry |
 | `notifications.handlerTimeout` | duration | `30s` | How long a handler may run before its signal is aborted and the attempt fails |
 | `notifications.listen` | boolean | `false` | Whether to hold a connection that listens for scheduled notifications and polls at once |
@@ -1807,9 +1809,9 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 | Header | Sent on | Value |
 | ------ | ------- | ----- |
 | `Content-Type` | Every response with a body | `application/json` |
-| `ETag` | Projection responses and non-empty change logs | The change set's entity tag, or the latest change log entry's entity tag, in double quotes, for example `"6a8f467b146c4695a674"`. |
-| `Last-Modified` | Projection responses and non-empty change logs | The corresponding change set's `lastModified`, formatted as an RFC 1123 date. |
-| `Cache-Control` | Projection responses | `max-age=31536000, immutable` |
+| `ETag` | Projection responses, non-empty change logs and their `304` responses | The change set's entity tag, or the latest change log entry's entity tag, in double quotes, for example `"6a8f467b146c4695a674"`. |
+| `Last-Modified` | Projection responses, non-empty change logs and their `304` responses | The corresponding change set's `lastModified`, formatted as an RFC 1123 date. |
+| `Cache-Control` | Projection responses, change logs and their `304` responses | `max-age=31536000, immutable` on projection responses and `no-cache` on change logs. |
 | `X-Total-Count` | Projection responses | The total number of matching records, regardless of the requested page. |
 | `Link` | Paged projection responses | Links to the next and previous pages, where available. |
 | `Location` | Redirect responses | The path and query with `changeSetId` set to the current change set. |
@@ -1818,6 +1820,8 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 A projection's `ETag` identifies the change set rather than being calculated from the response body. It is shared across pages and filter combinations at that change set; the request URL distinguishes those responses.
 
 HTTP requires an entity tag to be a quoted string, so the `ETag` header wraps the tag in double quotes. The `entityTag` field returned by `getChangeLog()`, `getChangeSet()` and the change log route is the same tag without the quotes, so remove the quotes from the header before comparing the two.
+
+A `GET` request for a projection or change log may send an `If-None-Match` header to revalidate a stored response. When any tag in the header matches the response's `ETag`, or the header is `*`, Filby replies `304 Not Modified` with no body. The `304` carries the `ETag`, `Last-Modified` and `Cache-Control` headers the full response would have sent, but not `Content-Type`, `X-Total-Count` or `Link`. Filby compares tags weakly, so `W/"6a8f467b146c4695a674"` matches `"6a8f467b146c4695a674"`. Responses without an `ETag`, such as redirects, empty change logs and errors, ignore `If-None-Match`.
 
 Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all other query parameters.
 
