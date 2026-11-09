@@ -1827,7 +1827,7 @@ A projection's `ETag` identifies the change set rather than being calculated fro
 
 HTTP requires an entity tag to be a quoted string, so the `ETag` header wraps the tag in double quotes. The `entityTag` field returned by `getChangeLog()`, `getChangeSet()` and the change log route is the same tag without the quotes, so remove the quotes from the header before comparing the two.
 
-A `GET` request for a projection or change log may send an `If-None-Match` header to revalidate a stored response. When any tag in the header matches the response's `ETag`, or the header is `*`, Filby replies `304 Not Modified` with no body. The `304` carries the `ETag`, `Last-Modified` and `Cache-Control` headers the full response would have sent, but not `Content-Type`, `X-Total-Count` or `Link`. Filby compares tags weakly, so `W/"6a8f467b146c4695a674"` matches `"6a8f467b146c4695a674"`. Responses without an `ETag`, such as redirects, empty change logs and errors, ignore `If-None-Match`.
+A `GET` or `HEAD` request for a projection or change log may send an `If-None-Match` header to revalidate a stored response. When any tag in the header matches the response's `ETag`, or the header is `*`, Filby replies `304 Not Modified` with no body. The `304` carries the `ETag`, `Last-Modified` and `Cache-Control` headers the full response would have sent, but not `Content-Type`, `X-Total-Count` or `Link`. Filby compares tags weakly, so `W/"6a8f467b146c4695a674"` matches `"6a8f467b146c4695a674"`. Responses without an `ETag`, such as redirects, empty change logs and errors, ignore `If-None-Match`.
 
 Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all other query parameters.
 
