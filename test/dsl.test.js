@@ -34,6 +34,13 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_cgt_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS thing_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_thing_v1_aggregate');
+    await tx.query('DROP TABLE IF EXISTS holiday_park_accommodation_grade_attribute_value_override_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_holiday_park_accommodation_grade_attribute_value_override_v1_aggregate');
+    await tx.query('DROP TABLE IF EXISTS holiday_park_accommodation_grade_attribute_value_exception_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_holiday_park_accommodation_grade_attribute_value_exception_v1_aggregate');
+    await tx.query('DROP FUNCTION IF EXISTS get_holiday_park_accommodation_grade_attribute_value_overrides_v1');
+    await tx.query('DROP TYPE IF EXISTS holiday_park_accommodation_grade_attribute_value_override_category');
+    await tx.query(`DROP TYPE IF EXISTS "${'é'.repeat(32)}a"`);
     await tx.query('DROP TYPE IF EXISTS vat_tax_rate');
     await tx.query('DROP TYPE IF EXISTS cgt_tax_rate');
     await tx.query('DROP TYPE IF EXISTS season_type');
@@ -144,6 +151,22 @@ describe('DSL', () => {
       await filby.applyYaml(t.name, ADD_ENUM);
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', 'VAT Tax Rate')), (err) => {
         eq(err.message, "Enum 'VAT Tax Rate' cannot be added because enum 'vat_tax_rate' already exists, and both become 'vat_tax_rate'");
+        return true;
+      });
+    });
+
+    it('should name both enums when PostgreSQL truncates their names to the same name', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', 'Holiday Park Accommodation Grade Attribute Value Override Category'));
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', 'Holiday Park Accommodation Grade Attribute Value Override Categories')), (err) => {
+        eq(err.message, "Enum 'Holiday Park Accommodation Grade Attribute Value Override Categories' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of enum 'Holiday Park Accommodation Grade Attribute Value Override Category'. Use a shorter name.");
+        return true;
+      });
+    });
+
+    it('should truncate enum names to 63 bytes when comparing them', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', `${'é'.repeat(32)}a`));
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', `${'é'.repeat(32)}b`)), (err) => {
+        eq(err.message, `Enum '${'é'.repeat(32)}b' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of enum '${'é'.repeat(32)}a'. Use a shorter name.`);
         return true;
       });
     });
@@ -625,6 +648,66 @@ describe('DSL', () => {
         eq(err.message, "Entity 'vat rate v1' cannot be added because entity 'VAT Rate v1' already exists, and both become 'vat_rate_v1'");
         return true;
       });
+    });
+
+    it('should name both entities when PostgreSQL truncates their object names to the same names', async (t) => {
+      await filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: Holiday Park Accommodation Grade Attribute Value Override
+  fields:
+    Code: TEXT
+  key:
+    - Code`);
+      await rejects(() => filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: Holiday Park Accommodation Grade Attribute Value Override
+  version: 2
+  fields:
+    Code: TEXT
+  key:
+    - Code`), (err) => {
+        eq(err.message, "Entity 'Holiday Park Accommodation Grade Attribute Value Override v2' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of entity 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a shorter name.");
+        return true;
+      });
+    });
+
+    it('should name the projection when PostgreSQL truncates an entity object name to the same name as its function', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, `
+- operation: ADD_PROJECTION
+  name: Holiday Park Accommodation Grade Attribute Value Override
+  root: VAT Rate@1`);
+      await rejects(() => filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: Holiday Park Accommodation Grade Attribute Value Override
+  fields:
+    Code: TEXT
+  key:
+    - Code`), (err) => {
+        eq(err.message, "Entity 'Holiday Park Accommodation Grade Attribute Value Override v1' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of projection 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a shorter name.");
+        return true;
+      });
+    });
+
+    it('should add entities with long names that PostgreSQL truncates to different names', async (t) => {
+      await filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: Holiday Park Accommodation Grade Attribute Value Override
+  fields:
+    Code: TEXT
+  key:
+    - Code
+- operation: ADD_ENTITY
+  name: Holiday Park Accommodation Grade Attribute Value Exception
+  fields:
+    Code: TEXT
+  key:
+    - Code`);
+
+      const { rows: entities } = await filby.withTransaction((tx) => tx.query('SELECT name, version FROM fby_entity ORDER BY name'));
+      deq(entities, [
+        { name: 'Holiday Park Accommodation Grade Attribute Value Exception', version: 1 },
+        { name: 'Holiday Park Accommodation Grade Attribute Value Override', version: 1 },
+      ]);
     });
 
     it('should name both spellings and the canonical name when fields become the same name', async (t) => {
@@ -1266,6 +1349,38 @@ describe('DSL', () => {
     it('should name both spellings and the canonical name when projections become the same name', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, transform(ADD_PROJECTION).set('0.name', 'vat rates')), (err) => {
         eq(err.message, "Projection 'vat rates v1' cannot be added because projection 'VAT Rates v1' already exists, and both become 'vat_rates_v1'");
+        return true;
+      });
+    });
+
+    it('should name both projections when PostgreSQL truncates their function names to the same name', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, `
+- operation: ADD_PROJECTION
+  name: Holiday Park Accommodation Grade Attribute Value Overrides
+  root: VAT Rate@1`);
+      await rejects(() => filby.applyYaml(t.name, `
+- operation: ADD_PROJECTION
+  name: Holiday Park Accommodation Grade Attribute Value Overrides
+  version: 2
+  root: VAT Rate@1`), (err) => {
+        eq(err.message, "Projection 'Holiday Park Accommodation Grade Attribute Value Overrides v2' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of projection 'Holiday Park Accommodation Grade Attribute Value Overrides v1'. Use a shorter name.");
+        return true;
+      });
+    });
+
+    it('should name the entity when PostgreSQL truncates a projection function name to the same name as its aggregate', async (t) => {
+      await filby.applyYaml(t.name, `
+- operation: ADD_ENTITY
+  name: Holiday Park Accommodation Grade Attribute Value Override
+  fields:
+    Code: TEXT
+  key:
+    - Code`);
+      await rejects(() => filby.applyYaml(t.name, `
+- operation: ADD_PROJECTION
+  name: Holiday Park Accommodation Grade Attribute Value Override
+  root: Holiday Park Accommodation Grade Attribute Value Override@1`), (err) => {
+        eq(err.message, "Projection 'Holiday Park Accommodation Grade Attribute Value Override v1' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of entity 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a shorter name.");
         return true;
       });
     });

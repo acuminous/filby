@@ -2,6 +2,7 @@
 DO $$
 DECLARE
   v_existing TEXT;
+  v_canonical TEXT;
 BEGIN
   BEGIN
     CREATE TYPE {{identifier name}} AS ENUM (
@@ -11,7 +12,10 @@ BEGIN
     );
   EXCEPTION
     WHEN duplicate_object THEN
-      SELECT COALESCE(given_name, name) INTO v_existing FROM fby_enum WHERE name = {{literal (canonical name)}} LIMIT 1;
+      SELECT name, COALESCE(given_name, name) INTO v_canonical, v_existing FROM fby_enum WHERE name::name = {{literal (canonical name)}}::name LIMIT 1;
+      IF v_canonical <> {{literal (canonical name)}} THEN
+        RAISE EXCEPTION 'Enum ''%'' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of enum ''%''. Use a shorter name.', {{literal name}}, v_existing;
+      END IF;
       IF v_existing IS NOT NULL AND v_existing <> {{literal name}} THEN
         RAISE EXCEPTION 'Enum ''%'' cannot be added because enum ''%'' already exists, and both become ''%''', {{literal name}}, v_existing, {{literal (canonical name)}};
       END IF;
