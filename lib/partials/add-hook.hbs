@@ -2,6 +2,7 @@
 DO $$
 DECLARE
   v_projection_id INTEGER;
+  v_hook_id INTEGER;
 BEGIN
   {{#if (and projection version)}}
   SELECT id INTO v_projection_id
@@ -15,10 +16,13 @@ BEGIN
   {{/if}}
 
   BEGIN
-    INSERT INTO fby_hook (name, description, event, projection_id) VALUES ({{literal name}}, {{literal description}}, {{literal event}}, v_projection_id);
+    INSERT INTO fby_hook (name, description, event, projection_id) VALUES ({{literal name}}, {{literal description}}, {{literal event}}, v_projection_id)
+    RETURNING id INTO v_hook_id;
   EXCEPTION
     WHEN unique_violation
     THEN RAISE EXCEPTION 'Hook '{{literal name}}' already exists';
   END;
+
+  PERFORM fby_schedule_commencements(v_hook_id, v_projection_id);
 END;
 $$ LANGUAGE plpgsql;

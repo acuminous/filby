@@ -880,6 +880,8 @@ Declare a hook with `ADD_HOOK`, giving it a name and one of these events:
 
 For `ADD_CHANGE_SET` and `COMMENCE_CHANGE_SET`, set `projection` to restrict the hook to one projection, or omit it to receive notifications for every projection. `ADD_PROJECTION` and `DROP_PROJECTION` hooks always cover all projections.
 
+A `COMMENCE_CHANGE_SET` hook also fires for change sets that were loaded before the hook, or before the projection it covers. When either is added, Filby schedules a notification for each live change set with a future effective date. Change sets that are already in effect are not notified.
+
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
 # migrations/0009.define-hooks.yaml
@@ -1140,7 +1142,7 @@ Data requested at a specific change set id never changes. Projection responses i
 | Header | Purpose |
 | ------ | ------- |
 | `Cache-Control: max-age=31536000, immutable` | Allows the response to remain fresh in a cache for one year without revalidation. |
-| `ETag` | Identifies the response using the change set. |
+| `ETag` | Identifies the response using the change set's entity tag, in double quotes. |
 | `Last-Modified` | Provides the modification date from the change set. |
 | `X-Total-Count` | Gives the total number of matching root records. |
 | `Link` | Links to the next and previous pages, where available. |
@@ -1803,7 +1805,7 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 | Header | Sent on | Value |
 | ------ | ------- | ----- |
 | `Content-Type` | Every response with a body | `application/json` |
-| `ETag` | Projection responses and non-empty change logs | The change set's entity tag, or the latest change log entry's entity tag. |
+| `ETag` | Projection responses and non-empty change logs | The change set's entity tag, or the latest change log entry's entity tag, in double quotes, for example `"6a8f467b146c4695a674"`. |
 | `Last-Modified` | Projection responses and non-empty change logs | The corresponding change set's `lastModified`, formatted as an RFC 1123 date. |
 | `Cache-Control` | Projection responses | `max-age=31536000, immutable` |
 | `X-Total-Count` | Projection responses | The total number of matching records, regardless of the requested page. |
@@ -1812,6 +1814,8 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 | `Allow` | `405` responses | `GET` |
 
 A projection's `ETag` identifies the change set rather than being calculated from the response body. It is shared across pages and filter combinations at that change set; the request URL distinguishes those responses.
+
+HTTP requires an entity tag to be a quoted string, so the `ETag` header wraps the tag in double quotes. The `entityTag` field returned by `getChangeLog()`, `getChangeSet()` and the change log route is the same tag without the quotes, so remove the quotes from the header before comparing the two.
 
 Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all other query parameters.
 
