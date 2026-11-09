@@ -283,10 +283,12 @@
         "checks": {
           "type": "object",
           "minProperties": 1,
-          "patternProperties": {
-            ".+": {
-              "type": "string"
-            }
+          "propertyNames": {
+            "minLength": 1
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
           }
         }
       },

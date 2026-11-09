@@ -1041,6 +1041,27 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject an empty check name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).merge('0.checks', { '': '(rate >= 0)' })), (err) => {
+        eq(err.message, '001.should-reject-an-empty-check-name.yaml: /0/checks must NOT have an empty property name');
+        return true;
+      });
+    });
+
+    it('should reject an empty check expression', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).merge('0.checks', { positive: '' })), (err) => {
+        eq(err.message, '001.should-reject-an-empty-check-expression.yaml: /0/checks/positive must NOT be empty');
+        return true;
+      });
+    });
+
+    it('should require check expressions to be strings', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).merge('0.checks', { positive: 1 })), (err) => {
+        eq(err.message, "001.should-require-check-expressions-to-be-strings.yaml: /0/checks/positive must be of type 'string'");
+        return true;
+      });
+    });
+
     it('should forbid additional properties', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).merge('0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties.yaml: /0 must NOT have additional property 'wombat'");
