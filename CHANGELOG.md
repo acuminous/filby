@@ -77,6 +77,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Field types such as `NUMERIC(10,2)`, `TEXT[]` and schema-qualified types are accepted (#9).
 - `DROP_ENUM` and `ALTER_ENUM` find an enum by the name it was declared with (#145).
 - An array of an enum is served as an array of strings (#196), including an enum added by another process after the instance started (#236).
+- A custom SQL projection requested with a page past the end reports the real `X-Total-Count` and a `Link` header to the previous page, as projections declared with a root already did (#250).
 - `getAggregates` works for entities whose names need quoting (#27).
 - Filby no longer changes the shared Handlebars module used by the host application (#24).
 - `index.d.ts` matches the code (#31).

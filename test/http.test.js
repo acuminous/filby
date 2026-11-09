@@ -589,6 +589,18 @@ describe('HTTP', () => {
       eq(page2.headers.get('Link'), `</projections/VAT%20Rates/v1?changeSetId=${changeSetId}&pageSize=2&page=1>; rel="prev"`);
     });
 
+    it('should report the total when rows are paged past the end', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+      await createRawProjection();
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const response = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&page=5&pageSize=1`);
+      eq(response.status, 200);
+      deq(await response.json(), []);
+      eq(response.headers.get('X-Total-Count'), '3');
+      eq(response.headers.get('Link'), `</projections/VAT%20Rates/v1?changeSetId=${changeSetId}&page=4&pageSize=1>; rel="prev"`);
+    });
+
     it('should respond with 400 for a page without a page size', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
       await createRawProjection();
