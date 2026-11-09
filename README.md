@@ -1476,7 +1476,7 @@ A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `f
 | `nest` | map of name to nest | no | To any depth |
 | `lookup` | map of name to lookup | no | |
 
-A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection version must not already exist, and must not have been dropped; add a dropped projection again with a higher version. Every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
+A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection name and version must not have been used before, including by a projection that has since been dropped. Every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
 #### DROP_PROJECTION
 
@@ -1617,7 +1617,7 @@ The notification counts overlap: an exhausted notification is also overdue. The 
 
 | Method | Behaviour |
 | ------ | --------- |
-| `filby.getProjections()` | Returns the projections that have not been dropped as `{ id, name, version, key }`, ordered by name then version. |
+| `filby.getProjections()` | Returns the live projections as `{ id, name, version, key }`, ordered by name then version. Dropped projections are left out. |
 | `filby.getProjection(name, version)` | Returns the matching projection, or `undefined` if it does not exist. |
 | `filby.getChangeLog(projection, { since })` | Returns change sets affecting the projection, in ascending id order. Superseded change sets are omitted. Only ids greater than `since` are returned; `since` defaults to 0. |
 | `filby.getCurrentChangeSet(projection)` | Returns the live change set with the latest effective date that is not after the database's current time, or `undefined` if none exists. |
