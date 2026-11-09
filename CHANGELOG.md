@@ -79,6 +79,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `DROP_ENUM` and `ALTER_ENUM` find an enum by the name it was declared with (#145).
 - An array of an enum is served as an array of strings (#196), including an enum added by another process after the instance started (#236).
 - `getAggregates` works for entities whose names need quoting (#27).
+- Enums, enum values, entities, projections and hooks whose names contain `%` or `\` can be used in migrations. Previously adding, altering or dropping them failed with an unrelated PostgreSQL error such as `too few parameters specified for RAISE`, even when nothing was wrong. Errors such as `Hook '100% coverage' already exists` now report the name as written (#252).
 - Filby no longer changes the shared Handlebars module used by the host application (#24).
 - `index.d.ts` matches the code (#31).
 - `index.d.ts` accepts notification handlers that return nothing, so a synchronous handler compiles in TypeScript, and no longer lists `disabled` as a poller state (#249).

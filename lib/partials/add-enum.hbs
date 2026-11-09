@@ -15,7 +15,7 @@ BEGIN
       IF v_existing IS NOT NULL AND v_existing <> {{literal name}} THEN
         RAISE EXCEPTION 'Enum ''%'' cannot be added because enum ''%'' already exists, and both become ''%''', {{literal name}}, v_existing, {{literal (canonical name)}};
       END IF;
-      RAISE EXCEPTION 'Enum '{{literal name}}' already exists';
+      RAISE EXCEPTION 'Enum ''%'' already exists', {{literal name}};
   END;
 END;
 $$ LANGUAGE plpgsql;

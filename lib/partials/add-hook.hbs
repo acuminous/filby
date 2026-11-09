@@ -21,7 +21,7 @@ BEGIN
     RETURNING id INTO v_hook_id;
   EXCEPTION
     WHEN unique_violation
-    THEN RAISE EXCEPTION 'Hook '{{literal name}}' already exists';
+    THEN RAISE EXCEPTION 'Hook ''%'' already exists', {{literal name}};
   END;
 
   PERFORM fby_schedule_commencements(v_hook_id, v_projection_id);

@@ -9,7 +9,7 @@ BEGIN
     WHERE typname = {{literal (canonical name)}} AND typtype = 'e';
 
   IF v_enum IS NULL THEN
-    RAISE EXCEPTION 'Enum '{{literal name}}' does not exist';
+    RAISE EXCEPTION 'Enum ''%'' does not exist', {{literal name}};
   END IF;
 
   {{#add}}
@@ -20,7 +20,7 @@ BEGIN
   ) INTO v_exists;
 
   IF v_exists THEN
-    RAISE EXCEPTION 'Enum '{{literal ../name}}' already has value '{{literal this}}'';
+    RAISE EXCEPTION 'Enum ''%'' already has value ''%''', {{literal ../name}}, {{literal this}};
   END IF;
 
   ALTER TYPE {{identifier ../name}} ADD VALUE {{literal this}};
