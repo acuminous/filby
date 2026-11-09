@@ -3955,6 +3955,68 @@ describe('DSL', () => {
       eq(frames[0].label, '{ pool: true }');
     });
 
+    it('should not lose a change set id when a migration fails', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, vatRate('2020', 'standard', 0.2));
+
+      await rejects(() => applyLaterYaml(t.name, vatRate('2021', 'standard', 'twenty')), (err) => {
+        eq(err.code, INVALID_TEXT_REPRESENTATION);
+        return true;
+      });
+      await applyLaterYaml(t.name, vatRate('2021', 'standard', 20));
+
+      eq(await getChangeSetId('2021 VAT Rates'), (await getChangeSetId('2020 VAT Rates')) + 1);
+    });
+
+    it('should not lose a re-issued change set id when a migration fails', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, vatRate('2027', 'standard', 0.25));
+
+      await rejects(() => applyLaterYaml(t.name, vatRate('2026', 'reduced', 0.05), vatRate('2028', 'standard', 'twenty')), (err) => {
+        eq(err.code, INVALID_TEXT_REPRESENTATION);
+        return true;
+      });
+      await applyLaterYaml(t.name, vatRate('2026', 'reduced', 0.05), vatRate('2028', 'standard', 0.3));
+
+      const [original, reissued] = await getChangeSets('2027 VAT Rates');
+      eq(await getChangeSetId('2026 VAT Rates'), original.id + 1);
+      eq(reissued.id, original.id + 2);
+      eq(await getChangeSetId('2028 VAT Rates'), original.id + 3);
+    });
+
+    it('should not reuse the id of a deleted change set', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, vatRate('2020', 'standard', 0.2), vatRate('2021', 'standard', 0.25));
+      const deletedId = await getChangeSetId('2021 VAT Rates');
+      await filby.withTransaction((tx) => tx.query('DELETE FROM fby_change_set WHERE id = $1', [deletedId]));
+
+      await applyLaterYaml(t.name, vatRate('2022', 'standard', 0.3));
+
+      eq(await getChangeSetId('2022 VAT Rates'), deletedId + 1);
+    });
+
+    it('should give a change set inserted with fby_next_change_set_id the next id', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, vatRate('2020', 'standard', 0.2));
+      const firstId = await getChangeSetId('2020 VAT Rates');
+
+      const { rows } = await filby.withTransaction((tx) => tx.query("INSERT INTO fby_change_set (id, effective, description) VALUES (fby_next_change_set_id(), '2021-04-05T00:00:00.000Z', '2021 VAT Rates') RETURNING id"));
+      eq(rows[0].id, firstId + 1);
+
+      await applyLaterYaml(t.name, vatRate('2022', 'standard', 0.3));
+      eq(await getChangeSetId('2022 VAT Rates'), firstId + 2);
+    });
+
+    it('should reject a change set inserted without an id', async () => {
+      await rejects(() => filby.withTransaction((tx) => tx.query("INSERT INTO fby_change_set (effective, description) VALUES (now(), '2020 VAT Rates')")), (err) => {
+        eq(err.code, NOT_NULL_VIOLATION);
+        return true;
+      });
+    });
+
+    async function applyLaterYaml(name, ...script) {
+      const slug = name.replace(/ /g, '-').toLowerCase();
+      await fs.promises.rm(path.join(__dirname, 'migrations', `001.${slug}.yaml`), { force: true });
+      await fs.promises.writeFile(path.join(__dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      return filby.init();
+    }
+
     it('should keep inline yaml data values as written', async (t) => {
       await filby.applyYaml(t.name, `
 - operation: ADD_ENTITY

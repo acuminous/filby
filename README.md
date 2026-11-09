@@ -1240,7 +1240,9 @@ If you apply every migration with `filby migrate`, the instances can call `init(
 
 An application can install a projection as an npm module instead of requesting it over HTTP. The module contains the projection's change log and the documents at every change set, including change sets that have not yet taken effect. An application deployed in November with a change set that takes effect on 1 January starts using the new data on 1 January without being redeployed. Modules suit reference data that is small enough to ship with an application. Read larger projections through the API.
 
-Two tools build a module. `filby export` applies your migrations to a database and writes one projection's change sets and documents to a [bundle](#projection-bundle) file. [filby-pack](https://github.com/acuminous/filby-pack) turns the bundle into an npm package, which you then publish with `npm publish`. Neither needs a running application, so they usually run in the CI pipeline of the repository that holds your migrations, against an empty database. Change set ids are assigned as the migrations are applied, so a module built from the same migrations as your production database uses the same ids.
+Two tools build a module. `filby export` applies your migrations to a database and writes one projection's change sets and documents to a [bundle](#projection-bundle) file. [filby-pack](https://github.com/acuminous/filby-pack) turns the bundle into an npm package, which you then publish with `npm publish`. Neither needs a running application, so they usually run in the CI pipeline of the repository that holds your migrations, against an empty database. Change set ids are assigned in the order the migrations add change sets, and a migration that fails gives up the ids it took when it is rolled back. A module built from the same migrations as your production database therefore uses the same ids, even if a migration failed and was corrected along the way.
+
+A database created before 1.0.0 may not use the same ids as a module built from its migrations. Earlier versions lost an id each time a migration that added a change set failed, so every later change set has a higher id than a new database would give it. The ids can also differ if the upgrade from 0.14.0 re-issued change sets that were out of order. The upgrade gives the re-issued change sets ids after all the existing ones, whereas a new database re-issues each one when the change set that puts it out of order is added. To check a database, compare the change set ids in the `changeSets` of an exported [bundle](#projection-bundle) with the database's change log.
 
 `filby export` reads the Filby [configuration](#configuration) from a JSON file. In CI, it points Filby at a Postgres service container and the repository's migrations:
 
@@ -1307,7 +1309,14 @@ The `POST` action is now called `SET`. YAML, JSON and CSV migrations that say `P
 
 Entity tables gain two columns, `fby_change_set_id` and `fby_action`, which hold the change set and action of each row's frame. SQL that inserts rows into an entity table directly must supply both. `fby_notify_add_change_set` now takes the change set id as its first argument, so update any SQL that calls it.
 
-None of this works on 0.14.0, because the `SET` value and the new columns do not exist until the upgrade. Instead, recreate the affected functions and views in a new SQL migration that you deploy with 1.0.0. Filby applies its own migrations before yours, so your migration runs after the upgrade, during the same `init()`. SQL migrations that have already been applied do not need changing for the upgrade, but they may stop a new database from being created. See [Creating new databases from your migrations](#creating-new-databases-from-your-migrations).
+Change set ids no longer come from a sequence, so `fby_change_set.id` has no default and SQL that inserts a change set without an id fails. Take the id from `fby_next_change_set_id()`, which issues the next id from the same counter that Filby uses:
+
+```sql
+INSERT INTO fby_change_set (id, effective, description)
+VALUES (fby_next_change_set_id(), '2025-04-01T00:00:00Z', '2025 Prices');
+```
+
+None of this works on 0.14.0, because the `SET` value, the new columns and `fby_next_change_set_id` do not exist until the upgrade. Instead, recreate the affected functions and views in a new SQL migration that you deploy with 1.0.0. Filby applies its own migrations before yours, so your migration runs after the upgrade, during the same `init()`. SQL migrations that have already been applied do not need changing for the upgrade, but they may stop a new database from being created. See [Creating new databases from your migrations](#creating-new-databases-from-your-migrations).
 
 ### Application code
 
@@ -1330,7 +1339,7 @@ Upgrading an existing database does not run your old migration files again, but 
 
 - A change set with more than one frame for the same key fails. Remove the extra frames from the file, as you did in the database.
 - An `ADD_HOOK` with a `projection` must use the `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET` event. In 0.14.0, a projection on an `ADD_PROJECTION` or `DROP_PROJECTION` hook was ignored, so remove it.
-- A SQL migration that inserts `'POST'` frames, or inserts rows into an entity table without `fby_change_set_id` and `fby_action`, fails. Change it as described in [Your own SQL](#your-own-sql).
+- A SQL migration that inserts `'POST'` frames, inserts a change set without an id, or inserts rows into an entity table without `fby_change_set_id` and `fby_action`, fails. Change it as described in [Your own SQL](#your-own-sql).
 - A `DROP_ENTITY` must include `operation: DROP_ENTITY`, like every other operation.
 
 Filby does not compare your migration files with the versions it has already applied, so you can correct old files without affecting existing databases.

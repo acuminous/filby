@@ -126,8 +126,8 @@ BEGIN
       AND cs.superseded_by IS NULL
     ORDER BY cs.effective, cs.id
   LOOP
-    INSERT INTO fby_change_set (effective, description, reissued_from) VALUES
-    (v_superseded.effective, v_superseded.description, v_superseded.id)
+    INSERT INTO fby_change_set (id, effective, description, reissued_from) VALUES
+    (fby_next_change_set_id(), v_superseded.effective, v_superseded.description, v_superseded.id)
     RETURNING id INTO v_reissued_id;
 
     FOR v_entity IN
