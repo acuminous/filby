@@ -1814,7 +1814,7 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 
 | Header | Sent on | Value |
 | ------ | ------- | ----- |
-| `Content-Type` | Every response with a body | `application/json` |
+| `Content-Type` | Every response with a body, and `HEAD` responses to the same requests | `application/json` |
 | `ETag` | Projection responses, non-empty change logs and their `304` responses | The change set's entity tag, or the latest change log entry's entity tag, in double quotes, for example `"6a8f467b146c4695a674"`. |
 | `Last-Modified` | Projection responses, non-empty change logs and their `304` responses | The corresponding change set's `lastModified`, formatted as an RFC 1123 date. |
 | `Cache-Control` | Projection responses, change logs and their `304` responses | `max-age=31536000, immutable` on projection responses and `no-cache` on change logs. |

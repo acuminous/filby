@@ -43,7 +43,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.getDocuments`, which returns a projection's documents with their nests and lookups (#104).
 - `filby.fetch`, a framework-independent HTTP handler for change logs, projections and the list of projections. Its `ETag` header is the change set's `entityTag` in double quotes (#59, #180, #244).
 - Change log responses send `Cache-Control: no-cache`, so caches check with Filby before reusing them. Projection and change log responses answer a matching `If-None-Match` with `304 Not Modified` (#245).
-- `filby.fetch` answers `HEAD` requests with the status and headers a `GET` would return, and no body. Other methods still receive `405`, now with `Allow: GET, HEAD` (#256).
+- `filby.fetch` answers `HEAD` requests with the status and headers a `GET` would return, and no body. Other methods receive `405` with `Allow: GET, HEAD` (#256).
 - A generated OpenAPI document at `/openapi.json`, which says how each parameter matches and which field it filters (#64, #198, #235).
 - `filby export`, which writes a projection's documents at every change set to a bundle. [filby-pack](https://github.com/acuminous/filby-pack), released separately, turns a bundle into an npm module (#181).
 - `filby migrate`, which applies outstanding migrations and exits, and `init({ migrate: false })`, which starts an instance without applying migrations and rejects if any are outstanding (#236).
