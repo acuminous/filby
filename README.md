@@ -1346,6 +1346,7 @@ Upgrading an existing database does not run your old migration files again, but 
 - A SQL migration that inserts `'POST'` frames, inserts a change set without an id, or inserts rows into an entity table without `fby_change_set_id` and `fby_action`, fails. Change it as described in [Your own SQL](#your-own-sql).
 - A `DROP_ENTITY` must include `operation: DROP_ENTITY`, like every other operation.
 - An `ADD_PROJECTION` with a parameter named `page`, `pageSize` or `changeSetId`, in any case, fails because Filby's HTTP routes use these names. Rename the parameter in the file.
+- An `ADD_ENTITY` check with an empty name fails validation. 0.14.0 accepted it and created a constraint called `chk_`, so give the check a name. An empty expression also fails validation, but it failed in 0.14.0 too, so no applied file contains one.
 
 Filby does not compare your migration files with the versions it has already applied, so you can correct old files without affecting existing databases.
 

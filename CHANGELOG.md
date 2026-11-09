@@ -76,6 +76,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - A YAML field with no value is stored as `NULL` rather than an empty string, and a nested map or list is stored as JSON (#8).
 - A CSV source with a single column loads (#152).
 - A frame that has both `source` and `data` is rejected, instead of loading the CSV and ignoring the inline rows (#248).
+- An entity check with an empty name or an empty expression is rejected by validation. Previously an empty name created a constraint called `chk_`, and an empty expression failed in PostgreSQL with a syntax error that did not name the check (#262).
 - Field types such as `NUMERIC(10,2)`, `TEXT[]` and schema-qualified types are accepted (#9).
 - `DROP_ENUM` and `ALTER_ENUM` find an enum by the name it was declared with (#145).
 - An array of an enum is served as an array of strings (#196), including an enum added by another process after the instance started (#236).
