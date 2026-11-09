@@ -1856,17 +1856,18 @@ Array fields use the corresponding element schema. Nullable fields also allow `n
 
 #### Filby extensions
 
-The OpenAPI document carries three extensions that describe how Filby joins and filters documents:
+The OpenAPI document carries four extensions that describe how Filby joins and filters documents:
 
 | Extension | Appears on | Value |
 | --------- | ---------- | ----- |
 | `x-filby-on` | Each nest and lookup in a response schema | The join, mapping each field of the nested record to the parent field it matches. |
 | `x-filby-match` | Each declared query parameter | The parameter's match: `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` or `lte`. |
 | `x-filby-field` | Each declared query parameter | The path of the field the parameter filters, as a list of the property names a document uses, including any `as` alias, for example `["seasons", "rates", "band"]`. |
+| `x-filby-carried` | Each declared query parameter on a field that documents do not carry | `false`, meaning the last name in `x-filby-field` is not a property of the document. |
 
-A client can use `x-filby-match` and `x-filby-field` to label filter controls without inferring them from parameter names. A `range` parameter appears as two query parameters, `<name>_from` followed by `<name>_to`, which carry the same match and field. A parameter may filter on a field that documents do not carry, such as one left out by `fields`. That parameter has no `x-filby-field`, because the document has no property to name.
+A client can use `x-filby-match` and `x-filby-field` to label filter controls without inferring them from parameter names. A `range` parameter appears as two query parameters, `<name>_from` followed by `<name>_to`, which carry the same extensions. A parameter may filter on a field that documents do not carry, such as one left out by `fields`. When a lookup joins on that field and the document carries the lookup's side of the join, `x-filby-field` names the lookup's property instead, because the join makes the two values equal. In the example application, `Parks (Detailed)` declares `amenity` on `Amenities.Amenity Code`, which its amenities leave out, so the parameter's field is `["amenities", "amenity", "code"]`, the `code` property of the `amenity` lookup. Otherwise, `x-filby-field` is the path the field would have in the document, such as `["amenities", "amenity_code"]`, and the parameter also has `x-filby-carried: false`. A client can still tell from the path whether the parameter filters a nested field.
 
-Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match` and `x-filby-field` in the same way.
+Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match`, `x-filby-field` and `x-filby-carried` in the same way.
 
 ### Command line
 

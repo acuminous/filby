@@ -437,6 +437,10 @@ describe('API', () => {
       const detailedParameters = document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters;
       deq(detailedParameters.find((parameter: any) => parameter.name === 'beach_surface').schema, { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] });
       deq(detailedParameters.find((parameter: any) => parameter.name === 'amenity').schema, { type: 'array', items: { type: 'string' } });
+      const amenityParameter = detailedParameters.find((parameter: any) => parameter.name === 'amenity');
+      eq(amenityParameter['x-filby-match'], 'in');
+      deq(amenityParameter['x-filby-field'], ['amenities', 'amenity', 'code']);
+      eq('x-filby-carried' in amenityParameter, false);
       deq(detailed.properties.seasons.items.properties.current_season_start, { type: 'string', format: 'date-time' });
       deq(detailed.properties.seasons.items.properties.next_season_start, { type: ['string', 'null'], format: 'date-time' });
       deq(Object.keys(detailed.properties.amenities.items.properties), ['amenity']);

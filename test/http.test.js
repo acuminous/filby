@@ -888,21 +888,87 @@ describe('HTTP', () => {
       ]);
     });
 
-    it('should omit the document path of a parameter on a field the documents do not carry', async (t) => {
+    it('should describe the document path of a parameter on a field the documents do not carry', async (t) => {
       const parameters = {
         code: { field: 'code' },
         season_park: { field: 'seasons.park_code' },
         rate_park: { field: 'seasons.rates.park_code' },
+        end: { field: 'seasons.end', match: 'range' },
       };
       const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name'])).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start']);
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       const { paths } = await getDocument();
       const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize', 'If-None-Match'].includes(name));
-      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], 'x-filby-field' in parameter]), [
-        ['code', 'equals', false],
-        ['season_park', 'equals', false],
-        ['rate_park', 'equals', false],
+      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field'], parameter['x-filby-carried']]), [
+        ['code', 'equals', ['code'], false],
+        ['season_park', 'equals', ['seasons', 'park_code'], false],
+        ['rate_park', 'equals', ['seasons', 'rates', 'park_code'], false],
+        ['end_from', 'range', ['seasons', 'end'], false],
+        ['end_to', 'range', ['seasons', 'end'], false],
+      ]);
+    });
+
+    it('should describe a parameter on a field the documents do not carry by the lookup field it joins', async (t) => {
+      const parameters = {
+        park: { field: 'seasons.park_code', match: 'in' },
+        park_range: { field: 'seasons.park_code', match: 'range' },
+        type: { field: 'seasons.type' },
+      };
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name', 'code'] } };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['start'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'code', 'page', 'pageSize', 'If-None-Match'].includes(name));
+      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field'], parameter['x-filby-carried']]), [
+        ['park', 'in', ['seasons', 'park', 'code'], undefined],
+        ['park_range_from', 'range', ['seasons', 'park', 'code'], undefined],
+        ['park_range_to', 'range', ['seasons', 'park', 'code'], undefined],
+        ['type', 'equals', ['seasons', 'type'], false],
+      ]);
+    });
+
+    it('should describe a parameter on a field the documents do not carry by the alias of the lookup field it joins', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' } };
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: [{ field: 'code', as: 'reference' }, 'name'] } };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const parameter = paths['/projections/Parks/v1'].get.parameters.find(({ name }) => name === 'park');
+      deq(parameter['x-filby-field'], ['seasons', 'park', 'reference']);
+      eq('x-filby-carried' in parameter, false);
+    });
+
+    it('should describe a parameter by the first lookup that carries the field it joins', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' } };
+      const lookup = {
+        park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] },
+        owner: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code'] },
+        site: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code', 'name'] },
+      };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const parameter = paths['/projections/Parks/v1'].get.parameters.find(({ name }) => name === 'park');
+      deq(parameter['x-filby-field'], ['seasons', 'owner', 'code']);
+      eq('x-filby-carried' in parameter, false);
+    });
+
+    it('should mark a parameter as not carried when the lookup it joins does not carry its join field', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' }, rate_park: { field: 'seasons.rates.park_code' } };
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] } };
+      const rateLookup = { park: { entity: 'park@1', on: { code: 'park_code' } } };
+      const projection = transform(transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup)).set('0.nest.seasons.nest.rates.lookup', rateLookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => ['park', 'rate_park'].includes(name));
+      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-field'], parameter['x-filby-carried']]), [
+        ['park', ['seasons', 'park_code'], false],
+        ['rate_park', ['seasons', 'rates', 'park_code'], false],
       ]);
     });
 
