@@ -1123,6 +1123,8 @@ All routes are relative to `options.basePath`, which defaults to an empty string
 | `GET` | `/projections/<name>/v<n>?changeSetId=<id>` | The projection's documents at the specified change set, as a JSON array. |
 | `GET` | `/openapi.json` | The generated OpenAPI document. |
 
+Every route also answers `HEAD` requests, which some caches, link checkers and health checks use to read headers such as `ETag` without downloading the body. Filby responds with the status and headers a `GET` would receive, but no body. A `HEAD` request runs the same queries as a `GET`, so it costs as much. Any other method receives a `405`.
+
 URL-encode projection names in paths. For example, `VAT Rates` becomes `/projections/VAT%20Rates/v1`.
 
 If you omit `changeSetId`, Filby returns a `307` redirect to the current change set, preserving the other query parameters. For example, `/projections/Parks/v1?code=DC` might redirect to `/projections/Parks/v1?code=DC&changeSetId=8`.
@@ -1732,7 +1734,7 @@ async function getPriceList(changeSetId) {
 ```
 ### HTTP
 
-`filby.fetch(request, { basePath, info })` handles `GET` requests on the routes below. Paths are relative to `basePath`.
+`filby.fetch(request, { basePath, info })` handles `GET` and `HEAD` requests on the routes below. Paths are relative to `basePath`.
 
 See [Serving over HTTP](#serving-over-http) for framework integration and usage examples.
 
@@ -1745,6 +1747,8 @@ See [Serving over HTTP](#serving-over-http) for framework integration and usage 
 | `/projections/<name>/v<n>` | `307` redirect to the current change set. |
 | `/projections/<name>/v<n>?changeSetId=<id>` | `200` with the projection's documents. |
 | `/openapi.json` | `200` with the generated OpenAPI document. |
+
+A `HEAD` request on any route receives the same status and headers as a `GET`, including `304` and error responses, but no body.
 
 URL-encode projection names in paths. A name that cannot be URL-decoded produces a `400` response.
 
@@ -1802,7 +1806,7 @@ Expected errors have a JSON body:
   "error": "<message>"
 }
 
-Unmatched paths return `404`. A method other than `GET` on a recognised route returns `405` with `Allow: GET`.
+Unmatched paths return `404`. A method other than `GET` or `HEAD` on a recognised route returns `405` with `Allow: GET, HEAD`.
 
 PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with PostgreSQL's error message. Other unexpected errors are thrown to the host application rather than converted into an HTTP response.
 
@@ -1817,7 +1821,7 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 | `X-Total-Count` | Projection responses | The total number of matching records, regardless of the requested page. |
 | `Link` | Paged projection responses | Links to the next and previous pages, where available. |
 | `Location` | Redirect responses | The path and query with `changeSetId` set to the current change set. |
-| `Allow` | `405` responses | `GET` |
+| `Allow` | `405` responses | `GET, HEAD` |
 
 A projection's `ETag` identifies the change set rather than being calculated from the response body. It is shared across pages and filter combinations at that change set; the request URL distinguishes those responses.
 
