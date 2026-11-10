@@ -7,7 +7,7 @@
     "start": "TZ=UTC ts-node index.ts",
     "pretest": "node ../../scripts/database.js check",
     "test": "TZ=UTC node --require ../../scripts/load-env.js --require ts-node/register --test --test-concurrency=1 test/*.test.ts",
-    "docker": "pushd ../.. && npm run docker && popd"
+    "docker": "npm --prefix ../.. run docker"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
