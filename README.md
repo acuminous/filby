@@ -686,7 +686,7 @@ A parameter can also select root records by the values of the records nested or 
 
 Each parameter is tested against one nested record at a time, so a `range` parameter matches only when a single route falls within both bounds. Different parameters are tested independently. `?beach_surface=Sandy&route_access=Step%20Free` returns the parks that have a route to a sandy beach and a step-free route, even when they are different routes.
 
-Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. Consumers see only the parameter's name, and the OpenAPI document describes the parameter using the type of the field at the end of the path.
+Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. The OpenAPI document gives the parameter the type of the field at the end of the path, and its [Filby extensions](#filby-extensions) say which field the parameter filters and whether documents carry it.
 
 ##### Selecting fields
 
@@ -1125,6 +1125,8 @@ All routes are relative to `options.basePath`, which defaults to an empty string
 | `GET` | `/projections/<name>/v<n>?changeSetId=<id>` | The projection's documents at the specified change set, as a JSON array. |
 | `GET` | `/openapi.json` | The generated OpenAPI document. |
 
+Every route also answers `HEAD` requests, which some caches, link checkers and health checks use to read headers such as `ETag` without downloading the body. Filby responds with the status and headers a `GET` would receive, but no body. A `HEAD` request runs the same queries as a `GET`, so it costs as much. Any other method receives a `405`.
+
 URL-encode projection names in paths. For example, `VAT Rates` becomes `/projections/VAT%20Rates/v1`.
 
 If you omit `changeSetId`, Filby returns a `307` redirect to the current change set, preserving the other query parameters. For example, `/projections/Parks/v1?code=DC` might redirect to `/projections/Parks/v1?code=DC&changeSetId=8`.
@@ -1535,7 +1537,7 @@ Each frame has these keys.
 | `data` | list of objects, at least one | one of `data`, `source` | Keys are field names; a map or list value is stored as JSON |
 | `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names. A `.tsv` extension, in any case, means tab-separated |
 
-A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row with the header as line 1, and keeps Postgres's SQLSTATE.
+A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row numbered as a spreadsheet shows it, with the header as row 1 and blank rows counted, and keeps Postgres's SQLSTATE.
 
 #### Equivalent forms
 
@@ -1734,7 +1736,7 @@ async function getPriceList(changeSetId) {
 ```
 ### HTTP
 
-`filby.fetch(request, { basePath, info })` handles `GET` requests on the routes below. Paths are relative to `basePath`.
+`filby.fetch(request, { basePath, info })` handles `GET` and `HEAD` requests on the routes below. Paths are relative to `basePath`.
 
 See [Serving over HTTP](#serving-over-http) for framework integration and usage examples.
 
@@ -1747,6 +1749,8 @@ See [Serving over HTTP](#serving-over-http) for framework integration and usage 
 | `/projections/<name>/v<n>` | `307` redirect to the current change set. |
 | `/projections/<name>/v<n>?changeSetId=<id>` | `200` with the projection's documents. |
 | `/openapi.json` | `200` with the generated OpenAPI document. |
+
+A `HEAD` request on any route receives the same status and headers as a `GET`, including `304` and error responses, but no body.
 
 URL-encode projection names in paths. A name that cannot be URL-decoded produces a `400` response.
 
@@ -1804,7 +1808,7 @@ Expected errors have a JSON body:
   "error": "<message>"
 }
 
-Unmatched paths return `404`. A method other than `GET` on a recognised route returns `405` with `Allow: GET`.
+Unmatched paths return `404`. A method other than `GET` or `HEAD` on a recognised route returns `405` with `Allow: GET, HEAD`.
 
 PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with PostgreSQL's error message. Other unexpected errors are thrown to the host application rather than converted into an HTTP response.
 
@@ -1812,20 +1816,20 @@ PostgreSQL data errors, identified by SQLSTATE class 22, return `400` with Postg
 
 | Header | Sent on | Value |
 | ------ | ------- | ----- |
-| `Content-Type` | Every response with a body | `application/json` |
+| `Content-Type` | Every response with a body, and `HEAD` responses to the same requests | `application/json` |
 | `ETag` | Projection responses, non-empty change logs and their `304` responses | The change set's entity tag, or the latest change log entry's entity tag, in double quotes, for example `"6a8f467b146c4695a674"`. |
 | `Last-Modified` | Projection responses, non-empty change logs and their `304` responses | The corresponding change set's `lastModified`, formatted as an RFC 1123 date. |
 | `Cache-Control` | Projection responses, change logs and their `304` responses | `max-age=31536000, immutable` on projection responses and `no-cache` on change logs. |
 | `X-Total-Count` | Projection responses | The total number of matching records, regardless of the requested page. |
 | `Link` | Paged projection responses | Links to the next and previous pages, where available. |
 | `Location` | Redirect responses | The path and query with `changeSetId` set to the current change set. |
-| `Allow` | `405` responses | `GET` |
+| `Allow` | `405` responses | `GET, HEAD` |
 
 A projection's `ETag` identifies the change set rather than being calculated from the response body. It is shared across pages and filter combinations at that change set; the request URL distinguishes those responses.
 
 HTTP requires an entity tag to be a quoted string, so the `ETag` header wraps the tag in double quotes. The `entityTag` field returned by `getChangeLog()`, `getChangeSet()` and the change log route is the same tag without the quotes, so remove the quotes from the header before comparing the two.
 
-A `GET` request for a projection or change log may send an `If-None-Match` header to revalidate a stored response. When any tag in the header matches the response's `ETag`, or the header is `*`, Filby replies `304 Not Modified` with no body. The `304` carries the `ETag`, `Last-Modified` and `Cache-Control` headers the full response would have sent, but not `Content-Type`, `X-Total-Count` or `Link`. Filby compares tags weakly, so `W/"6a8f467b146c4695a674"` matches `"6a8f467b146c4695a674"`. Responses without an `ETag`, such as redirects, empty change logs and errors, ignore `If-None-Match`.
+A `GET` or `HEAD` request for a projection or change log may send an `If-None-Match` header to revalidate a stored response. When any tag in the header matches the response's `ETag`, or the header is `*`, Filby replies `304 Not Modified` with no body. The `304` carries the `ETag`, `Last-Modified` and `Cache-Control` headers the full response would have sent, but not `Content-Type`, `X-Total-Count` or `Link`. Filby compares tags weakly, so `W/"6a8f467b146c4695a674"` matches `"6a8f467b146c4695a674"`. Responses without an `ETag`, such as redirects, empty change logs and errors, ignore `If-None-Match`.
 
 Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all other query parameters.
 
@@ -1858,17 +1862,18 @@ Array fields use the corresponding element schema. Nullable fields also allow `n
 
 #### Filby extensions
 
-The OpenAPI document carries three extensions that describe how Filby joins and filters documents:
+The OpenAPI document carries four extensions that describe how Filby joins and filters documents:
 
 | Extension | Appears on | Value |
 | --------- | ---------- | ----- |
 | `x-filby-on` | Each nest and lookup in a response schema | The join, mapping each field of the nested record to the parent field it matches. |
 | `x-filby-match` | Each declared query parameter | The parameter's match: `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` or `lte`. |
 | `x-filby-field` | Each declared query parameter | The path of the field the parameter filters, as a list of the property names a document uses, including any `as` alias, for example `["seasons", "rates", "band"]`. |
+| `x-filby-carried` | Each declared query parameter whose `x-filby-field` ends in a name that documents do not carry | `false`. |
 
-A client can use `x-filby-match` and `x-filby-field` to label filter controls without inferring them from parameter names. A `range` parameter appears as two query parameters, `<name>_from` followed by `<name>_to`, which carry the same match and field. A parameter may filter on a field that documents do not carry, such as one left out by `fields`. That parameter has no `x-filby-field`, because the document has no property to name.
+A client can use `x-filby-match` and `x-filby-field` to label filter controls without inferring them from parameter names. A `range` parameter appears as two query parameters, `<name>_from` followed by `<name>_to`, which carry the same extensions. A parameter may filter on a field that documents do not carry, such as one left out by `fields`. When a lookup joins on that field and the document carries the lookup's side of the join, `x-filby-field` names the lookup's property instead, because the join makes the two values equal. In the example application, `Parks (Detailed)` declares `amenity` on `Amenities.Amenity Code`, which its amenities leave out, so the parameter's field is `["amenities", "amenity", "code"]`, the `code` property of the `amenity` lookup. Otherwise, `x-filby-field` is the path the field would have in the document, such as `["amenities", "amenity_code"]`, and the parameter also has `x-filby-carried: false`. A client can still tell from the path whether the parameter filters a nested field.
 
-Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match` and `x-filby-field` in the same way.
+Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match`, `x-filby-field` and `x-filby-carried` in the same way.
 
 ### Command line
 
