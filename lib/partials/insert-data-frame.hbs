@@ -28,24 +28,39 @@ BEGIN
       {{literal ../entity (v ../version)}};
   END IF;
 
-  FOR v_row IN SELECT e.ordinality, e.value FROM json_array_elements(v_rows) WITH ORDINALITY e ORDER BY e.ordinality LOOP
-    BEGIN
-      INSERT INTO fby_data_frame (change_set_id, entity_id, action)
-      VALUES (v_change_set_id, v_entity_id, (v_row.value->>'action')::fby_action_type)
-      RETURNING id INTO v_frame_id;
+  BEGIN
+    WITH r AS (
+      SELECT nextval(pg_get_serial_sequence('fby_data_frame', 'id')) AS frame_id, (e.value->>'action')::fby_action_type AS action, e.value->'data' AS data
+      FROM json_array_elements(v_rows) WITH ORDINALITY e ORDER BY e.ordinality
+    ), frames AS (
+      INSERT INTO fby_data_frame (id, change_set_id, entity_id, action)
+      SELECT r.frame_id, v_change_set_id, v_entity_id, r.action FROM r
+    )
+    INSERT INTO {{identifier (table ../entity ../version)}} (fby_frame_id, fby_change_set_id, fby_action, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}})
+    SELECT r.frame_id, v_change_set_id, r.action, {{#each fields}}d.{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}}
+    FROM r, json_populate_record(null::{{identifier (table ../entity ../version)}}, r.data) d;
+  EXCEPTION
+    WHEN OTHERS THEN
+      FOR v_row IN SELECT e.ordinality, e.value FROM json_array_elements(v_rows) WITH ORDINALITY e ORDER BY e.ordinality LOOP
+        BEGIN
+          INSERT INTO fby_data_frame (change_set_id, entity_id, action)
+          VALUES (v_change_set_id, v_entity_id, (v_row.value->>'action')::fby_action_type)
+          RETURNING id INTO v_frame_id;
 
-      INSERT INTO {{identifier (table ../entity ../version)}} (fby_frame_id, fby_change_set_id, fby_action, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}})
-      SELECT v_frame_id, v_change_set_id, (v_row.value->>'action')::fby_action_type, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}}
-      FROM json_populate_record(null::{{identifier (table ../entity ../version)}}, v_row.value->'data');
-    EXCEPTION
-      WHEN unique_violation
-      THEN RAISE EXCEPTION 'Entity ''%'' has more than one frame with key (%) in change set ''%''',
-        {{literal ../entity (v ../version)}},
-        (SELECT string_agg(format('%s=%s', COALESCE(i.given_name, i.name), v_row.value->'data'->>i.name), ', ' ORDER BY i.position) FROM fby_entity_field i WHERE i.entity_id = v_entity_id AND i.identity),
-        (SELECT description FROM fby_change_set WHERE id = v_change_set_id);
-      WHEN OTHERS
-      THEN RAISE EXCEPTION '%: % - %', {{literal @filename}}, {{literal prefix}} || (v_row.value->>'location'), SQLERRM USING ERRCODE = SQLSTATE;
-    END;
-  END LOOP;
+          INSERT INTO {{identifier (table ../entity ../version)}} (fby_frame_id, fby_change_set_id, fby_action, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}})
+          SELECT v_frame_id, v_change_set_id, (v_row.value->>'action')::fby_action_type, {{#each fields}}{{identifier this}}{{#unless @last}}, {{/unless}}{{/each}}
+          FROM json_populate_record(null::{{identifier (table ../entity ../version)}}, v_row.value->'data');
+        EXCEPTION
+          WHEN unique_violation
+          THEN RAISE EXCEPTION 'Entity ''%'' has more than one frame with key (%) in change set ''%''',
+            {{literal ../entity (v ../version)}},
+            (SELECT string_agg(format('%s=%s', COALESCE(i.given_name, i.name), v_row.value->'data'->>i.name), ', ' ORDER BY i.position) FROM fby_entity_field i WHERE i.entity_id = v_entity_id AND i.identity),
+            (SELECT description FROM fby_change_set WHERE id = v_change_set_id);
+          WHEN OTHERS
+          THEN RAISE EXCEPTION '%: % - %', {{literal @filename}}, {{literal prefix}} || (v_row.value->>'location'), SQLERRM USING ERRCODE = SQLSTATE;
+        END;
+      END LOOP;
+      RAISE;
+  END;
 END;
 {{/each}}

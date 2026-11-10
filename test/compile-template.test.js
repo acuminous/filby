@@ -56,8 +56,8 @@ describe('Compile Template', () => {
       frames: [{ entity: 'VAT Rate', version: 1, source: './vat-rates.csv' }],
     }], { data: { filename: '001.vat-rates.yaml', directory } });
 
-    eq(count(sql, 'INSERT INTO fby_data_frame'), 20);
-    eq(count(sql, 'INSERT INTO "vat_rate_v1"'), 20);
+    eq(count(sql, 'INSERT INTO fby_data_frame'), 40);
+    eq(count(sql, 'INSERT INTO "vat_rate_v1"'), 40);
     eq(count(sql, 'fby_notify_add_change_set'), 1);
 
     fs.rmSync(directory, { recursive: true });

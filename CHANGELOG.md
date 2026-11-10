@@ -30,6 +30,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `ADD_PROJECTION` rejects a parameter named `page`, `pageSize` or `changeSetId`, in any case, because Filby's HTTP routes use these names. Such a projection previously worked through `getDocuments` but not over HTTP (#253).
 - A change set row that PostgreSQL rejects is reported with the migration file and the row's location (#157).
 - Change set data is loaded in batches, so a 20,000 row CSV loads in seconds rather than about 30 seconds (#37).
+- Each batch of change set rows is inserted with one statement, so a 20,000 row CSV uses about 20 transaction ids rather than one per row. If a batch fails, its rows are inserted one at a time to report the failing row (#260).
 - Change logs and aggregates are read through new indexes and tables, so their cost grows with the number of change sets rather than the number of frames (#35, #36, #38).
 - An enum field type may be written as the enum was declared, such as `Amenity Category` (#190).
 - The example application is a single TypeScript Hono application, with holiday park data, in `examples/holiday-park` (#65, #175, #179, #187, #192, #200, #205, #208, #209, #211, #264, #265, #266).
