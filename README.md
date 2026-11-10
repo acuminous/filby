@@ -1533,7 +1533,7 @@ Each frame has these keys.
 | `data` | list of objects, at least one | one of `data`, `source` | Keys are field names; a map or list value is stored as JSON |
 | `source` | path | one of `data`, `source` | A CSV file relative to the migration file, with a header row of field names. A `.tsv` extension, in any case, means tab-separated |
 
-A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row that starts on line 18 of the file, and keeps Postgres's SQLSTATE.
+A change set must specify either `changes` or `frames`, not both, and a calendar effective date needs a `timezone`. Each CSV file must parse. A frame's action is given either on the frame or in an `action` column with every cell filled, but not both. Every entity and field the change set names must exist, and it may hold only one frame per key for each entity. When Postgres rejects a row, the error names the file and the row, as `/0/changes/1/data/2` for inline data or `./csv/parks/park.csv:18` for a CSV row numbered as a spreadsheet shows it, with the header as row 1 and blank rows counted, and keeps Postgres's SQLSTATE.
 
 #### Equivalent forms
 

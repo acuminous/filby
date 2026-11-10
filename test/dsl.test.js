@@ -5373,78 +5373,78 @@ describe('DSL', () => {
       });
     });
 
-    it('should report the csv line of a row after a blank line', async (t) => {
+    it('should report the csv row after a blank line', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\nSET,standard,0.2\n\nSET,reduced,five\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `001.should-report-the-csv-line-of-a-row-after-a-blank-line.yaml: ${source}:4 - invalid input syntax for type numeric: "five"`);
+        eq(err.message, `001.should-report-the-csv-row-after-a-blank-line.yaml: ${source}:4 - invalid input syntax for type numeric: "five"`);
         return true;
       });
     });
 
-    it('should report the csv line of a row after a multi-line cell', async (t) => {
+    it('should report a csv row with a multi-line cell as one row', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\nSET,"stan\ndard",0.2\nSET,reduced,five\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `001.should-report-the-csv-line-of-a-row-after-a-multi-line-cell.yaml: ${source}:4 - invalid input syntax for type numeric: "five"`);
+        eq(err.message, `001.should-report-a-csv-row-with-a-multi-line-cell-as-one-row.yaml: ${source}:3 - invalid input syntax for type numeric: "five"`);
         return true;
       });
     });
 
-    it('should report the csv line of a row after blank lines before the header', async (t) => {
+    it('should count blank lines before the csv header as rows', async (t) => {
       const source = await writeCsvText(t.name, '\n\naction,type,rate\nSET,reduced,five\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `001.should-report-the-csv-line-of-a-row-after-blank-lines-before-the-header.yaml: ${source}:4 - invalid input syntax for type numeric: "five"`);
+        eq(err.message, `001.should-count-blank-lines-before-the-csv-header-as-rows.yaml: ${source}:4 - invalid input syntax for type numeric: "five"`);
         return true;
       });
     });
 
-    it('should report the csv line of a row after a line holding only an empty quoted cell', async (t) => {
+    it('should count a csv record holding only an empty quoted cell as a blank row', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\n""\nSET,standard,0.2\n\n""\n\nSET,reduced,five\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `001.should-report-the-csv-line-of-a-row-after-a-line-holding-only-an-empty-quoted-cell.yaml: ${source}:7 - invalid input syntax for type numeric: "five"`);
+        eq(err.message, `001.should-count-a-csv-record-holding-only-an-empty-quoted-cell-as-a-blank-row.yaml: ${source}:7 - invalid input syntax for type numeric: "five"`);
         return true;
       });
     });
 
-    it('should report the csv line of a final row with no trailing newline', async (t) => {
+    it('should report the csv row of a final row with no trailing newline', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\n\nSET,standard,0.2\n\nSET,reduced,five');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `001.should-report-the-csv-line-of-a-final-row-with-no-trailing-newline.yaml: ${source}:5 - invalid input syntax for type numeric: "five"`);
+        eq(err.message, `001.should-report-the-csv-row-of-a-final-row-with-no-trailing-newline.yaml: ${source}:5 - invalid input syntax for type numeric: "five"`);
         return true;
       });
     });
 
-    it('should report the csv line of a row in a file with crlf line endings', async (t) => {
+    it('should report the csv row in a file with crlf line endings', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\r\nSET,"stan\r\ndard",0.2\r\n\r\nSET,reduced,five\r\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `001.should-report-the-csv-line-of-a-row-in-a-file-with-crlf-line-endings.yaml: ${source}:5 - invalid input syntax for type numeric: "five"`);
+        eq(err.message, `001.should-report-the-csv-row-in-a-file-with-crlf-line-endings.yaml: ${source}:4 - invalid input syntax for type numeric: "five"`);
         return true;
       });
     });
 
-    it('should report the csv line of a row beyond the first batch after a blank line', async (t) => {
+    it('should report the csv row beyond the first batch after a blank line', async (t) => {
       const source = await writeCsv(t.name, 1500);
       await fs.promises.appendFile(path.join(__dirname, 'migrations', source), '\n\nSET,type-01501,abc');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `001.should-report-the-csv-line-of-a-row-beyond-the-first-batch-after-a-blank-line.yaml: ${source}:1503 - invalid input syntax for type numeric: "abc"`);
+        eq(err.message, `001.should-report-the-csv-row-beyond-the-first-batch-after-a-blank-line.yaml: ${source}:1503 - invalid input syntax for type numeric: "abc"`);
         return true;
       });
     });
 
-    it('should report the csv line of a missing action after a blank line', async (t) => {
+    it('should report the csv row of a missing action after a blank line', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\nSET,standard,0.2\n\n,reduced,0.05\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
@@ -5454,7 +5454,7 @@ describe('DSL', () => {
       });
     });
 
-    it('should report the csv line of a parse error after a blank line', async (t) => {
+    it('should report the csv row of a parse error after a blank line', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\nSET,standard,0.2\n\nSET,reduced\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
@@ -5464,12 +5464,42 @@ describe('DSL', () => {
       });
     });
 
-    it('should report the csv line of a parse error after a multi-line cell', async (t) => {
+    it('should report the csv row of a parse error after a multi-line cell', async (t) => {
       const source = await writeCsvText(t.name, 'action,type,rate\nSET,"stan\ndard",0.2\nSET,reduced\n');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:4 - Too few fields: expected 3 fields but parsed 2`);
+        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:3 - Too few fields: expected 3 fields but parsed 2`);
+        return true;
+      });
+    });
+
+    it('should report the csv row of too many fields', async (t) => {
+      const source = await writeCsvText(t.name, 'action,type,rate\nSET,standard,0.2,1\n');
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:2 - Too many fields: expected 3 fields but parsed 4`);
+        return true;
+      });
+    });
+
+    it('should report the csv row of an unterminated quote after a blank line and a multi-line cell', async (t) => {
+      const source = await writeCsvText(t.name, 'action,type,rate\nSET,"stan\ndard",0.2\n\nSET,"reduced,0.05\n');
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:4 - Quoted field unterminated`);
+        return true;
+      });
+    });
+
+    it('should reject a csv header that repeats a column', async (t) => {
+      const source = await writeCsvText(t.name, '\naction,type,type\nSET,standard,0.2\n');
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:2 - Duplicate column 'type'`);
         return true;
       });
     });
