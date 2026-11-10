@@ -31,7 +31,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Change set data is loaded in batches, so a 20,000 row CSV loads in seconds rather than about 30 seconds (#37).
 - Change logs and aggregates are read through new indexes and tables, so their cost grows with the number of change sets rather than the number of frames (#35, #36, #38).
 - An enum field type may be written as the enum was declared, such as `Amenity Category` (#190).
-- The example application is a single TypeScript Hono application, with holiday park data, in `examples/holiday-park` (#65, #175, #179, #187, #192, #200, #205, #208, #209, #211, #264, #266).
+- The example application is a single TypeScript Hono application, with holiday park data, in `examples/holiday-park` (#65, #175, #179, #187, #192, #200, #205, #208, #209, #211, #264, #265, #266).
 - The published package contains only `index.js`, `index.d.ts`, `bin`, `lib`, `migrations`, the changelog, the README and the licence. It no longer includes the tests or the repository's tool configuration (#247).
 
 ### Added
