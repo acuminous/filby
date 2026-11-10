@@ -92,6 +92,21 @@ describe('HTTP', () => {
       eq(projections.status, 200);
     });
 
+    it('should serve routes relative to a base path with a trailing slash', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const projections = await get('/api/projections', { basePath: '/api/' });
+      eq(projections.status, 200);
+
+      const redirect = await get('/api/projections/VAT%20Rates/v1', { basePath: '/api/' });
+      eq(redirect.status, 307);
+      eq(redirect.headers.get('Location'), `/api/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
+
+      const changelog = await get('/api/changelog?projection=VAT%20Rates&version=1', { basePath: '/api/' });
+      eq(changelog.status, 200);
+    });
+
     it('should respond with 404 for a path outside the base path', async () => {
       const response = await get('/changelog?projection=VAT%20Rates&version=1', { basePath: '/api' });
       eq(response.status, 404);
@@ -1281,6 +1296,15 @@ describe('HTTP', () => {
 
       const outside = await get('/openapi.json', { basePath: '/api' });
       eq(outside.status, 404);
+    });
+
+    it('should remove a trailing slash from the base path in the server url', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const response = await get('/api/openapi.json', { basePath: '/api/' });
+      eq(response.status, 200);
+      const document = await response.json();
+      deq(document.servers, [{ url: '/api' }]);
     });
 
     it('should omit servers when there is no base path', async () => {
