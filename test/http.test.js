@@ -73,7 +73,7 @@ describe('HTTP', () => {
     it('should respond with 405 for a method other than GET on a known path', async () => {
       const response = await filby.fetch(new Request('http://localhost/changelog?projection=VAT%20Rates&version=1', { method: 'POST' }));
       eq(response.status, 405);
-      eq(response.headers.get('Allow'), 'GET');
+      eq(response.headers.get('Allow'), 'GET, HEAD');
       deq(await response.json(), { error: 'Method POST is not allowed' });
     });
 
@@ -145,7 +145,7 @@ describe('HTTP', () => {
     it('should respond with 405 for a method other than GET', async () => {
       const response = await filby.fetch(new Request('http://localhost/projections', { method: 'POST' }));
       eq(response.status, 405);
-      eq(response.headers.get('Allow'), 'GET');
+      eq(response.headers.get('Allow'), 'GET, HEAD');
       deq(await response.json(), { error: 'Method POST is not allowed' });
     });
   });
@@ -734,6 +734,88 @@ describe('HTTP', () => {
 
     async function getIfNoneMatch(path, tags) {
       return filby.fetch(new Request(`http://localhost${path}`, { headers: { 'If-None-Match': tags } }));
+    }
+  });
+
+  describe('HEAD requests', () => {
+
+    it('should respond to a projection with the status and headers of GET and no body', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const path = `/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`;
+      const expected = await get(path);
+      ok(expected.headers.get('Link'));
+
+      const response = await head(path);
+      eq(response.status, 200);
+      deq([...response.headers], [...expected.headers]);
+      eq(await response.text(), '');
+    });
+
+    it('should respond to the change log with the status and headers of GET and no body', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2);
+      const expected = await get('/changelog?projection=VAT%20Rates&version=1');
+
+      const response = await head('/changelog?projection=VAT%20Rates&version=1');
+      eq(response.status, 200);
+      deq([...response.headers], [...expected.headers]);
+      eq(await response.text(), '');
+    });
+
+    it('should respond to the projection list with no body', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const response = await head('/projections');
+      eq(response.status, 200);
+      eq(response.headers.get('Content-Type'), 'application/json');
+      eq(await response.text(), '');
+    });
+
+    it('should redirect to the current change set', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const response = await head('/projections/VAT%20Rates/v1');
+      eq(response.status, 307);
+      eq(response.headers.get('Location'), `/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
+    });
+
+    it('should respond with 304 when the entity tag matches', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const path = `/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`;
+      const expected = await get(path);
+
+      const response = await head(path, { 'If-None-Match': expected.headers.get('ETag') });
+      eq(response.status, 304);
+      eq(response.headers.get('ETag'), expected.headers.get('ETag'));
+      eq(await response.text(), '');
+    });
+
+    it('should respond with 404 and no body for an unknown path', async () => {
+      const response = await head('/wombats');
+      eq(response.status, 404);
+      eq(response.headers.get('Content-Type'), 'application/json');
+      eq(await response.text(), '');
+    });
+
+    it('should respond with 404 and no body when the projection does not exist', async () => {
+      const response = await head('/projections/VAT%20Rates/v1?changeSetId=1');
+      eq(response.status, 404);
+      eq(await response.text(), '');
+    });
+
+    it('should respond with 400 and no body when the database rejects a parameter', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const response = await head(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&above=abc`);
+      eq(response.status, 400);
+      eq(await response.text(), '');
+    });
+
+    async function head(path, headers) {
+      return filby.fetch(new Request(`http://localhost${path}`, { method: 'HEAD', headers }));
     }
   });
 
