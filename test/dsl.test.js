@@ -158,7 +158,7 @@ describe('DSL', () => {
     it('should name both enums when PostgreSQL truncates their names to the same name', async (t) => {
       await filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', 'Holiday Park Accommodation Grade Attribute Value Override Category'));
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', 'Holiday Park Accommodation Grade Attribute Value Override Categories')), (err) => {
-        eq(err.message, "Enum 'Holiday Park Accommodation Grade Attribute Value Override Categories' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of enum 'Holiday Park Accommodation Grade Attribute Value Override Category'. Use a shorter name.");
+        eq(err.message, "Enum 'Holiday Park Accommodation Grade Attribute Value Override Categories' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of enum 'Holiday Park Accommodation Grade Attribute Value Override Category'. Use a name that is unique when truncated to 63 characters.");
         return true;
       });
     });
@@ -166,7 +166,7 @@ describe('DSL', () => {
     it('should truncate enum names to 63 bytes when comparing them', async (t) => {
       await filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', `${'é'.repeat(32)}a`));
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENUM).set('0.name', `${'é'.repeat(32)}b`)), (err) => {
-        eq(err.message, `Enum '${'é'.repeat(32)}b' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of enum '${'é'.repeat(32)}a'. Use a shorter name.`);
+        eq(err.message, `Enum '${'é'.repeat(32)}b' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of enum '${'é'.repeat(32)}a'. Use a name that is unique when truncated to 63 characters.`);
         return true;
       });
     });
@@ -666,7 +666,7 @@ describe('DSL', () => {
     Code: TEXT
   key:
     - Code`), (err) => {
-        eq(err.message, "Entity 'Holiday Park Accommodation Grade Attribute Value Override v2' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of entity 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a shorter name.");
+        eq(err.message, "Entity 'Holiday Park Accommodation Grade Attribute Value Override v2' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of entity 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a name that is unique when truncated to 63 characters.");
         return true;
       });
     });
@@ -683,7 +683,7 @@ describe('DSL', () => {
     Code: TEXT
   key:
     - Code`), (err) => {
-        eq(err.message, "Entity 'Holiday Park Accommodation Grade Attribute Value Override v1' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of projection 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a shorter name.");
+        eq(err.message, "Entity 'Holiday Park Accommodation Grade Attribute Value Override v1' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of projection 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a name that is unique when truncated to 63 characters.");
         return true;
       });
     });
@@ -1363,7 +1363,7 @@ describe('DSL', () => {
   name: Holiday Park Accommodation Grade Attribute Value Overrides
   version: 2
   root: VAT Rate@1`), (err) => {
-        eq(err.message, "Projection 'Holiday Park Accommodation Grade Attribute Value Overrides v2' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of projection 'Holiday Park Accommodation Grade Attribute Value Overrides v1'. Use a shorter name.");
+        eq(err.message, "Projection 'Holiday Park Accommodation Grade Attribute Value Overrides v2' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of projection 'Holiday Park Accommodation Grade Attribute Value Overrides v1'. Use a name that is unique when truncated to 63 characters.");
         return true;
       });
     });
@@ -1380,7 +1380,7 @@ describe('DSL', () => {
 - operation: ADD_PROJECTION
   name: Holiday Park Accommodation Grade Attribute Value Override
   root: Holiday Park Accommodation Grade Attribute Value Override@1`), (err) => {
-        eq(err.message, "Projection 'Holiday Park Accommodation Grade Attribute Value Override v1' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of entity 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a shorter name.");
+        eq(err.message, "Projection 'Holiday Park Accommodation Grade Attribute Value Override v1' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of entity 'Holiday Park Accommodation Grade Attribute Value Override v1'. Use a name that is unique when truncated to 63 characters.");
         return true;
       });
     });
