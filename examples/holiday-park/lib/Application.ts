@@ -42,8 +42,12 @@ export default class Application {
   }
 
   async #getHealth(c: Context) {
-    const status = await this.#filby.getNotificationStatus();
-    return c.json(status, status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
+    try {
+      const status = await this.#filby.getNotificationStatus();
+      return c.json(status, status.started && status.failuresSinceLastSuccess === 0 ? 200 : 503);
+    } catch {
+      return c.json({ error: 'Notification status unavailable' }, 503);
+    }
   }
 
   #reportFailingWebhooks() {
