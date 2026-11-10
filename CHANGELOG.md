@@ -78,6 +78,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - A YAML field with no value is stored as `NULL` rather than an empty string, and a nested map or list is stored as JSON (#8).
 - A CSV source with a single column loads (#152).
 - A frame that has both `source` and `data` is rejected, instead of loading the CSV and ignoring the inline rows (#248).
+- `filby.fetch` accepts a `basePath` that ends with a slash, so `'/api/'` serves the same routes as `'/api'`. Previously every route responded with `404`. The OpenAPI document's server URL leaves the slash out (#257).
 - An error in a CSV row reports the row number a spreadsheet shows for it, with the header as row 1 and blank rows counted. Previously a blank row or a cell that spans several lines made every later error report the wrong row. A CSV header that repeats a column name is now rejected (#255).
 - An entity check with an empty name or an empty expression is rejected by validation. Previously an empty name created a constraint called `chk_`, and an empty expression failed in PostgreSQL with a syntax error that did not name the check (#262).
 - Field types such as `NUMERIC(10,2)`, `TEXT[]` and schema-qualified types are accepted (#9).
