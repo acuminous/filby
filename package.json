@@ -36,7 +36,7 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "docker": "docker-compose up --detach",
+    "docker": "docker compose up --detach",
     "example": "docker compose up --detach --wait fby_example && npm --prefix examples/holiday-park ci && npm --prefix examples/holiday-park start",
     "lint": "biome ci .",
     "pretest": "node scripts/database.js check",

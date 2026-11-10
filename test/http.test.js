@@ -73,7 +73,7 @@ describe('HTTP', () => {
     it('should respond with 405 for a method other than GET on a known path', async () => {
       const response = await filby.fetch(new Request('http://localhost/changelog?projection=VAT%20Rates&version=1', { method: 'POST' }));
       eq(response.status, 405);
-      eq(response.headers.get('Allow'), 'GET');
+      eq(response.headers.get('Allow'), 'GET, HEAD');
       deq(await response.json(), { error: 'Method POST is not allowed' });
     });
 
@@ -145,7 +145,7 @@ describe('HTTP', () => {
     it('should respond with 405 for a method other than GET', async () => {
       const response = await filby.fetch(new Request('http://localhost/projections', { method: 'POST' }));
       eq(response.status, 405);
-      eq(response.headers.get('Allow'), 'GET');
+      eq(response.headers.get('Allow'), 'GET, HEAD');
       deq(await response.json(), { error: 'Method POST is not allowed' });
     });
   });
@@ -737,6 +737,88 @@ describe('HTTP', () => {
     }
   });
 
+  describe('HEAD requests', () => {
+
+    it('should respond to a projection with the status and headers of GET and no body', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const path = `/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`;
+      const expected = await get(path);
+      ok(expected.headers.get('Link'));
+
+      const response = await head(path);
+      eq(response.status, 200);
+      deq([...response.headers], [...expected.headers]);
+      eq(await response.text(), '');
+    });
+
+    it('should respond to the change log with the status and headers of GET and no body', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, ADD_CHANGE_SET_2);
+      const expected = await get('/changelog?projection=VAT%20Rates&version=1');
+
+      const response = await head('/changelog?projection=VAT%20Rates&version=1');
+      eq(response.status, 200);
+      deq([...response.headers], [...expected.headers]);
+      eq(await response.text(), '');
+    });
+
+    it('should respond to the projection list with no body', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      const response = await head('/projections');
+      eq(response.status, 200);
+      eq(response.headers.get('Content-Type'), 'application/json');
+      eq(await response.text(), '');
+    });
+
+    it('should redirect to the current change set', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const response = await head('/projections/VAT%20Rates/v1');
+      eq(response.status, 307);
+      eq(response.headers.get('Location'), `/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
+    });
+
+    it('should respond with 304 when the entity tag matches', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const path = `/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`;
+      const expected = await get(path);
+
+      const response = await head(path, { 'If-None-Match': expected.headers.get('ETag') });
+      eq(response.status, 304);
+      eq(response.headers.get('ETag'), expected.headers.get('ETag'));
+      eq(await response.text(), '');
+    });
+
+    it('should respond with 404 and no body for an unknown path', async () => {
+      const response = await head('/wombats');
+      eq(response.status, 404);
+      eq(response.headers.get('Content-Type'), 'application/json');
+      eq(await response.text(), '');
+    });
+
+    it('should respond with 404 and no body when the projection does not exist', async () => {
+      const response = await head('/projections/VAT%20Rates/v1?changeSetId=1');
+      eq(response.status, 404);
+      eq(await response.text(), '');
+    });
+
+    it('should respond with 400 and no body when the database rejects a parameter', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const response = await head(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&above=abc`);
+      eq(response.status, 400);
+      eq(await response.text(), '');
+    });
+
+    async function head(path, headers) {
+      return filby.fetch(new Request(`http://localhost${path}`, { method: 'HEAD', headers }));
+    }
+  });
+
   describe('OpenAPI', () => {
 
     const ajv = new Ajv();
@@ -888,21 +970,87 @@ describe('HTTP', () => {
       ]);
     });
 
-    it('should omit the document path of a parameter on a field the documents do not carry', async (t) => {
+    it('should describe the document path of a parameter on a field the documents do not carry', async (t) => {
       const parameters = {
         code: { field: 'code' },
         season_park: { field: 'seasons.park_code' },
         rate_park: { field: 'seasons.rates.park_code' },
+        end: { field: 'seasons.end', match: 'range' },
       };
       const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name'])).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start']);
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       const { paths } = await getDocument();
       const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize', 'If-None-Match'].includes(name));
-      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], 'x-filby-field' in parameter]), [
-        ['code', 'equals', false],
-        ['season_park', 'equals', false],
-        ['rate_park', 'equals', false],
+      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field'], parameter['x-filby-carried']]), [
+        ['code', 'equals', ['code'], false],
+        ['season_park', 'equals', ['seasons', 'park_code'], false],
+        ['rate_park', 'equals', ['seasons', 'rates', 'park_code'], false],
+        ['end_from', 'range', ['seasons', 'end'], false],
+        ['end_to', 'range', ['seasons', 'end'], false],
+      ]);
+    });
+
+    it('should describe a parameter on a field the documents do not carry by the lookup field it joins', async (t) => {
+      const parameters = {
+        park: { field: 'seasons.park_code', match: 'in' },
+        park_range: { field: 'seasons.park_code', match: 'range' },
+        type: { field: 'seasons.type' },
+      };
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name', 'code'] } };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['start'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'code', 'page', 'pageSize', 'If-None-Match'].includes(name));
+      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field'], parameter['x-filby-carried']]), [
+        ['park', 'in', ['seasons', 'park', 'code'], undefined],
+        ['park_range_from', 'range', ['seasons', 'park', 'code'], undefined],
+        ['park_range_to', 'range', ['seasons', 'park', 'code'], undefined],
+        ['type', 'equals', ['seasons', 'type'], false],
+      ]);
+    });
+
+    it('should describe a parameter on a field the documents do not carry by the alias of the lookup field it joins', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' } };
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: [{ field: 'code', as: 'reference' }, 'name'] } };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const parameter = paths['/projections/Parks/v1'].get.parameters.find(({ name }) => name === 'park');
+      deq(parameter['x-filby-field'], ['seasons', 'park', 'reference']);
+      eq('x-filby-carried' in parameter, false);
+    });
+
+    it('should describe a parameter by the first lookup that carries the field it joins', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' } };
+      const lookup = {
+        park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] },
+        owner: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code'] },
+        site: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code', 'name'] },
+      };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const parameter = paths['/projections/Parks/v1'].get.parameters.find(({ name }) => name === 'park');
+      deq(parameter['x-filby-field'], ['seasons', 'owner', 'code']);
+      eq('x-filby-carried' in parameter, false);
+    });
+
+    it('should mark a parameter as not carried when the lookup it joins does not carry its join field', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' }, rate_park: { field: 'seasons.rates.park_code' } };
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] } };
+      const rateLookup = { park: { entity: 'park@1', on: { code: 'park_code' } } };
+      const projection = transform(transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup)).set('0.nest.seasons.nest.rates.lookup', rateLookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const { paths } = await getDocument();
+      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => ['park', 'rate_park'].includes(name));
+      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-field'], parameter['x-filby-carried']]), [
+        ['park', ['seasons', 'park_code'], false],
+        ['rate_park', ['seasons', 'rates', 'park_code'], false],
       ]);
     });
 
