@@ -146,7 +146,7 @@ Changes can also be inserted earlier in the timeline, for example to correct or 
 
 ## How it works
 
-The best way to understand Filby is to think of it as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application requests for the data at a change set id, much as you would check out a commit, and gets the same data every time.
+The best way to understand Filby is to think of it as source control for reference data. In git, a commit bundles related changes to source code, and the commit log gives it a hash. In Filby, a change set bundles related changes to reference data, and the change log gives it an id. An application requests the data at a change set id, much as you would check out a commit, and gets the same data every time.
 
 Reference data is added as change sets in CSV, YAML, JSON or SQL migration files. Filby applies them to a PostgreSQL database, and your application mounts Filby's HTTP handler. A client reads a projection's change log, picks a change set and asks for the data at it, and a webhook or any other handler hears when something changes.
 
@@ -224,7 +224,7 @@ A **change set** groups data frames, for one entity or many, under one effective
 
 An **aggregate** is the collapsed state of an entity at a change set, built from the frames, with deleted records omitted. Filby creates an aggregate function for every entity version, and everything else reads through it.
 
-A **projection** is a versioned view over one or more aggregates, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities can be nested under the root, and the fields each level carries can be chosen. A projection the DSL cannot express maybe written as a SQL function. Either way Filby knows which entities the projection depends on, so it can notify clients when the data behind the projection changes.
+A **projection** is a versioned view over one or more aggregates, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities can be nested under the root, and the fields each level carries can be chosen. A projection the DSL cannot express may be written as a SQL function. Either way Filby knows which entities the projection depends on, so it can notify clients when the data behind the projection changes.
 
 A **hook** names an event your application wants to hear about: a projection added or dropped, a change set added or change set taking effect. A **notification** is raised for a hook whenever its event happens, and delivered to the handler your application registered, with retries, so downstream copies of the data can stay current without polling.
 
@@ -315,7 +315,7 @@ Key fields cannot be null. Other fields are nullable by default. For non-key fie
 
 Checks are SQL expressions that validate field values. Keep the surrounding parentheses and use canonical field names: lowercase with spaces replaced by underscores. The example checks that `code` contains exactly two characters. Checks only apply to `SET` frames. A `DELETE` frame contains just the key of the record being removed, so its other fields are empty and are not checked.
 
-Entity and field names can use Title Case with spaces. Filby canonicalises these names, so a field declared as `Park Code` appears as `park_code` in served documents. See [Names](#names).
+Entity and field names can use Title Case with spaces. Filby canonicalises these names, so a field declared as `Park Code` appears as `park_code` in served documents. See [Names and dependencies](#names-and-dependencies).
 
 An entity's definition is never altered in place. To change its shape, declare a new version. See [Evolving the schema](#evolving-the-schema).
 
@@ -412,7 +412,7 @@ set,RP,Rockley Park,South West
 DELETE,TP,,
 ```
 
-The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Why Filby](#why-filby).
+The effective date may be a calendar date, such as `2024-10-01`, or a timestamp with an explicit offset, such as `2024-10-01T00:00:00Z`. A calendar date is midnight in the change set's `timezone`, an IANA name, so the stored instant follows daylight saving time. A calendar date without a `timezone` is rejected, because Filby never uses the process time zone: the same file would otherwise render differently on different machines. A timestamp with an offset is stored as written, with or without a `timezone`. The effective date may be in the future, which is how data is released ahead of time; see [Benefits](#benefits).
 
 A field with no value, and an empty CSV cell, is stored as `NULL`. A nested map or list in YAML or JSON is stored as JSON, so it can be loaded into a `JSON` or `JSONB` column. Every other value, whether inline or in a CSV cell, is passed to Postgres as written and cast to the column type. Filby does not convert values that look like numbers, so `007` keeps its leading zeros in a `TEXT` column, `1.50` keeps its scale in a `NUMERIC` column and `9007199254740993` keeps every digit in a `BIGINT` column. A migration is all or nothing: if Postgres rejects any value, for any reason from a bad cast to a check violation, nothing from the migration is applied. A change set may hold only one frame per key for each entity.
 
@@ -1020,7 +1020,7 @@ Adding a change set with the same effective date as an existing one re-issues no
           Region: Yorkshire
 ```
 
-The DSL has no operation for dropping change sets or data frames, because they are meant to be immutable, but is possibly via a SQL migration. The aggregates of every later change set change, so anything cached by id is wrong afterwards. The delete cascades to the change set's data frames and to their rows in the entity tables, so delete the change set rather than its frames.
+The DSL has no operation for dropping change sets or data frames, because they are meant to be immutable, but it is possible to delete them with a SQL migration. The aggregates of every later change set change, so anything cached by id is wrong afterwards. The delete cascades to the change set's data frames and to their rows in the entity tables, so delete the change set rather than its frames.
 
 ```sql
 -- migrations/0011.delete-a-change-set.sql
@@ -1548,6 +1548,7 @@ The forms in each row mean the same thing, all of them are permanent, and they c
 | `fields` as a map of name to type, or to `type` and `nullable` | `fields` as a list of `name`, `type` and optionally `nullable` |
 | `key` | `identified_by` |
 | `changes` | `frames` |
+| `action: SET` | `action: POST` |
 | `entity: Park@1` in a frame or a dependency | `entity: Park` with `version: 1` |
 | `projection: Parks@1` in a hook | `projection: Parks` with `version: 1` |
 
@@ -1617,7 +1618,7 @@ Call `filby.getNotificationStatus()` to inspect polling activity and notificatio
 | `overdue` | Undelivered notifications whose scheduled time has passed and that will still be retried. |
 | `exhausted` | Notifications that have reached `maxAttempts` and will not be retried. |
 
-The polling history fields—`lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError`—are held in memory. They survive `stopNotifications()` but reset when the application restarts. A successful poll resets the failure count to zero but retains `lastError`.
+The polling history fields `lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError` are held in memory. They survive `stopNotifications()` but reset when the application restarts. A successful poll resets the failure count to zero but retains `lastError`.
 
 The overdue and exhausted counts do not overlap. Once a notification has reached `maxAttempts` it is counted as exhausted and not as overdue, even after its scheduled time has passed. The method rejects if the counts cannot be read from the database.
 
@@ -1804,9 +1805,11 @@ If the projection's SQL function does not exist, Filby returns a `500`.
 
 Expected errors have a JSON body:
 
+```json
 {
   "error": "<message>"
 }
+```
 
 Unmatched paths return `404`. A method other than `GET` or `HEAD` on a recognised route returns `405` with `Allow: GET, HEAD`.
 
@@ -1846,7 +1849,7 @@ Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all
 
 For projections with a root entity, Filby generates response schemas from the selected fields, nests and lookups. The schemas include enum values and field nullability. Non-nullable fields are required, nests are arrays, and lookups are objects that may be `null`.
 
-For custom SQL projections declared with `dependencies`, response records have an unconstrained schema because Filby cannot infer the function's output structure.
+For custom SQL projections declared with `dependencies`, the schema describes each response record as an object without listing its properties, because Filby cannot infer the function's output structure.
 
 #### JSON types
 
@@ -1940,7 +1943,7 @@ TZ=UTC npx filby export --config filby.json --projection 'Parks@1' --out parks-v
 
 All three options are required. The command applies any outstanding migrations to the configured database, as `filby.init()` does, so use a database it is allowed to change, such as a service container in CI. It does not start notifications. Run it with `TZ=UTC` so that dates are exported correctly, for the reason given under [Configuration](#configuration).
 
-A projection declared with `dependencies` is exported in the same way, using the rows its SQL function returns. Filby cannot describe those rows, so the bundle gives them an unconstrained schema and their dates remain strings in the module.
+A projection declared with `dependencies` is exported in the same way, using the rows its SQL function returns. Filby cannot describe those rows, so the bundle's schema describes each row as an object without listing its properties, and their dates remain strings in the module.
 
 If an option is missing, the configuration cannot be read or the projection does not exist, the command reports the problem to stderr and exits with code 1.
 
@@ -1969,7 +1972,7 @@ Filby creates and manages:
 
 - Internal tables prefixed `fby_`, holding definitions, change history and notification state.
 - A data table and aggregate function for each entity version.
-- A query function for each projection.
+- A query function for each projection declared with a `root`. A custom SQL projection's function is written by its author.
 
 Entity tables are named `<entity>_v<n>`, and projection functions are named `get_<projection>_v<n>`.
 
