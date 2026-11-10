@@ -4027,6 +4027,44 @@ describe('DSL', () => {
       });
     });
 
+    it('should report the row of an inline value in the middle of a later batch', async (t) => {
+      const data = Array.from({ length: 1500 }, (_, i) => ({ type: `type-${i}`, rate: 0.1 }));
+      data[1200].rate = 'abc';
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames.1.data', data);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.code, INVALID_TEXT_REPRESENTATION);
+        eq(err.message, '001.should-report-the-row-of-an-inline-value-in-the-middle-of-a-later-batch.yaml: /1/frames/1/data/1200 - invalid input syntax for type numeric: "abc"');
+        return true;
+      });
+
+      const changeSets = await getChangeSets('2020 VAT Rates');
+      eq(changeSets.length, 0);
+    });
+
+    it('should reject an inline key repeated in the middle of a later batch', async (t) => {
+      const data = Array.from({ length: 1500 }, (_, i) => ({ type: `type-${i}`, rate: 0.1 }));
+      data[1200].type = 'type-5';
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames.1.data', data);
+
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' has more than one frame with key (type=type-5) in change set '2020 VAT Rates'");
+        return true;
+      });
+    });
+
+    it('should store each row with its own action when a csv mixes actions across batches', async (t) => {
+      const lines = Array.from({ length: 1500 }, (_, i) => `${i % 3 === 0 ? 'DELETE' : 'SET'},type-${i},${i % 3 === 0 ? '' : 0.1}`);
+      const source = await writeCsvText(t.name, ['action,type,rate'].concat(lines).join('\n'));
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      await filby.applyYaml(t.name, ADD_ENTITY, changeSet);
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      eq(frames.length, 1500);
+      deq(frames.map(({ action, type }) => `${action},${type}`), lines.map((line) => line.split(',').slice(0, 2).join(',')));
+    });
+
     it('should report the row location as changes when the change set uses changes', async (t) => {
       const { 0: { frames, ...changeSet } } = YAML.parse(ADD_CHANGE_SET_1);
       frames[2].data[0].rate = 'abc';
