@@ -2,6 +2,7 @@
 DO $$
 DECLARE
   v_existing TEXT;
+  v_kind TEXT;
 BEGIN
   SELECT name || ' v' || version INTO v_existing
   FROM fby_entity
@@ -11,6 +12,27 @@ BEGIN
 
   IF v_existing IS NOT NULL THEN
     RAISE EXCEPTION 'Entity ''%'' cannot be added because entity ''%'' already exists, and both become ''%''', {{literal name (v version)}}, v_existing, {{literal (table name version)}};
+  END IF;
+
+  SELECT d.kind, d.name INTO v_kind, v_existing
+  FROM (
+    SELECT 'entity' AS kind, e.name || ' v' || e.version AS name,
+      ARRAY[t.name, 'uniq_' || t.name || '_fby_change_set_id' || (SELECT string_agg('_' || f.name, '' ORDER BY f.position) FROM fby_entity_field f WHERE f.entity_id = e.id AND f.identity)]::name[] AS relations,
+      ARRAY['get_' || t.name || '_aggregate']::name[] AS functions
+    FROM fby_entity e, LATERAL (SELECT lower(regexp_replace(e.name || ' v' || e.version, '\s', '_', 'g')) AS name) t
+    WHERE NOT (e.name = {{literal name}} AND e.version = {{literal version}})
+    UNION ALL
+    SELECT 'projection', p.name || ' v' || p.version, ARRAY[]::name[], ARRAY['get_' || lower(regexp_replace(p.name || ' v' || p.version, '\s', '_', 'g'))]::name[]
+    FROM fby_projection p
+    WHERE p.root_entity_id IS NOT NULL
+      AND p.dropped_at IS NULL
+  ) d
+  WHERE d.relations && ARRAY[{{literal (table name version)}}, {{literal (uniqueName this)}}]::name[]
+    OR d.functions && ARRAY[{{literal (aggregate name version)}}]::name[]
+  LIMIT 1;
+
+  IF v_existing IS NOT NULL THEN
+    RAISE EXCEPTION 'Entity ''%'' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of % ''%''. Use a name that is unique when truncated to 63 characters.', {{literal name (v version)}}, v_kind, v_existing;
   END IF;
 
   BEGIN

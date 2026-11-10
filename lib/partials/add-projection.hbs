@@ -14,6 +14,7 @@ DECLARE
   v_order TEXT;
   v_body TEXT;
   v_existing TEXT;
+  v_kind TEXT;
   v_next_version INTEGER;
 BEGIN
   IF EXISTS (SELECT 1 FROM fby_projection WHERE name = {{literal name}} AND version = {{literal version}} AND dropped_at IS NOT NULL) THEN
@@ -31,6 +32,26 @@ BEGIN
   IF v_existing IS NOT NULL THEN
     RAISE EXCEPTION 'Projection ''%'' cannot be added because projection ''%'' already exists, and both become ''%''', {{literal name (v version)}}, v_existing, {{literal (table name version)}};
   END IF;
+  {{#if root}}
+
+  SELECT d.kind, d.name INTO v_kind, v_existing
+  FROM (
+    SELECT 'entity' AS kind, e.name || ' v' || e.version AS name, ('get_' || lower(regexp_replace(e.name || ' v' || e.version, '\s', '_', 'g')) || '_aggregate')::name AS function
+    FROM fby_entity e
+    UNION ALL
+    SELECT 'projection', p.name || ' v' || p.version, ('get_' || lower(regexp_replace(p.name || ' v' || p.version, '\s', '_', 'g')))::name
+    FROM fby_projection p
+    WHERE p.root_entity_id IS NOT NULL
+      AND p.dropped_at IS NULL
+      AND NOT (p.name = {{literal name}} AND p.version = {{literal version}})
+  ) d
+  WHERE d.function = {{literal (projectionFunction name version)}}::name
+  LIMIT 1;
+
+  IF v_existing IS NOT NULL THEN
+    RAISE EXCEPTION 'Projection ''%'' cannot be added because PostgreSQL truncates its object names to 63 characters, which makes them the same as those of % ''%''. Use a name that is unique when truncated to 63 characters.', {{literal name (v version)}}, v_kind, v_existing;
+  END IF;
+  {{/if}}
 
   BEGIN
     INSERT INTO fby_projection (name, version, description) VALUES

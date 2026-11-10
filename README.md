@@ -768,6 +768,8 @@ Parameters, `order` and `on` still use the entity's field names, not the aliases
 
 A nest or lookup name must not duplicate a field of its parent entity, or another nest or lookup name at the same level. Names beginning with `fby_` are reserved for Filby. A name cannot contain a dot, because dots separate the names in a parameter's path.
 
+PostgreSQL truncates object names to 63 bytes, which is 63 characters when a name uses only ASCII characters. Filby builds the names of the objects it creates from the canonical name and version of each definition, adding prefixes and suffixes. Version 1 of the `Park` entity has a table called `park_v1`, a unique constraint called `uniq_park_v1_fby_change_set_id_code` and an aggregate function called `get_park_v1_aggregate`. Version 1 of the `Parks` projection has a function called `get_parks_v1`, and an enum becomes a type with its canonical name. Two long names that differ only after the point at which they are truncated therefore produce the same object names, as do versions 1 and 2 of a name long enough for the version number to be truncated. When that happens, the migration fails with an error that names both definitions.
+
 The root, nested and looked-up entities are all dependencies of the projection. A change set affecting any of them appears in the projection's change log and notifies its hooks.
 
 ##### Custom SQL
