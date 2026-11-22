@@ -1,22 +1,48 @@
 -- drop entity
 DO $$
 DECLARE
-  v_exists BOOLEAN;
+  v_entity_id INTEGER;
+  v_count INTEGER;
+  v_names TEXT;
 BEGIN
-  SELECT EXISTS (
-    SELECT 1
-    FROM fby_entity
-    WHERE name = {{literal name}}
-      AND version = {{literal version}}
-  ) INTO v_exists;
+  SELECT id INTO v_entity_id
+  FROM fby_entity
+  WHERE name = {{literal name}}
+    AND version = {{literal version}};
 
-  IF NOT v_exists THEN
+  IF v_entity_id IS NULL THEN
     RAISE EXCEPTION 'Entity ''%'' does not exist', {{literal name (v version)}};
   END IF;
 
+  SELECT count(*), string_agg(format('''%s v%s''', p.name, p.version), ', ' ORDER BY p.name, p.version)
+  INTO v_count, v_names
+  FROM fby_projection p
+  WHERE p.id IN (SELECT pe.projection_id FROM fby_projection_entity pe WHERE pe.entity_id = v_entity_id);
+
+  IF v_count = 1 THEN
+    RAISE EXCEPTION 'Entity ''%'' cannot be dropped because projection % depends on it', {{literal name (v version)}}, v_names;
+  ELSIF v_count > 1 THEN
+    RAISE EXCEPTION 'Entity ''%'' cannot be dropped because projections % depend on it', {{literal name (v version)}}, v_names;
+  END IF;
+
+  SELECT count(*), string_agg(format('''%s''', c.description), ', ' ORDER BY c.id)
+  INTO v_count, v_names
+  FROM fby_change_set c
+  WHERE c.superseded_by IS NULL
+    AND c.id IN (
+      SELECT f.change_set_id FROM fby_data_frame f WHERE f.entity_id = v_entity_id
+      UNION
+      SELECT ce.change_set_id FROM fby_change_set_entity ce WHERE ce.entity_id = v_entity_id
+    );
+
+  IF v_count = 1 THEN
+    RAISE EXCEPTION 'Entity ''%'' cannot be dropped because change set % contains data for it', {{literal name (v version)}}, v_names;
+  ELSIF v_count > 1 THEN
+    RAISE EXCEPTION 'Entity ''%'' cannot be dropped because change sets % contain data for it', {{literal name (v version)}}, v_names;
+  END IF;
+
   DELETE FROM fby_entity
-  WHERE name = {{literal name}}
-    AND version = {{literal version}};
+  WHERE id = v_entity_id;
 
   DROP TABLE {{identifier (table name version)}};
 
