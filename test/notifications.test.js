@@ -169,7 +169,10 @@ describe('Notifications', () => {
     const checkpoint = await getDatabaseTime();
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].attempts === 3);
+    await until(async () => {
+      const [notification] = await getNotifications();
+      return notification.attempts === 3 && notification.status === 'PENDING';
+    });
 
     const notifications = await getNotifications();
     eq(notifications.length, 1);
@@ -744,7 +747,10 @@ describe('Notifications', () => {
     const exhausted = once(filby, TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED);
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].attempts === 1);
+    await until(async () => {
+      const [notification] = await getNotifications();
+      return notification.attempts === 1 && notification.status === 'PENDING';
+    });
     const [first] = await getNotifications();
     eq(first.status, 'PENDING');
     eq(first.last_error, 'undefined');
@@ -765,7 +771,10 @@ describe('Notifications', () => {
 
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].attempts === 3);
+    await until(async () => {
+      const [notification] = await getNotifications();
+      return notification.attempts === 3 && notification.status === 'PENDING';
+    });
     const [notification] = await getNotifications();
     eq(notification.status, 'PENDING');
     eq(notification.last_error, 'null');
