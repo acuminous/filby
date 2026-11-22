@@ -69,7 +69,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Calling `startNotifications` twice no longer starts a second poller that cannot be stopped (#21).
 - `withTransaction` runs its callback in a real transaction, so two instances can no longer deliver the same notification (#13).
 - A failed poll or a pool error is reported as `Filby.NOTIFICATION_ERROR`, instead of stopping polling or exiting the process (#14, #17).
-- A handler that throws `undefined` or `null`, or whose process stops before the result is recorded, has its attempt counted, so the notification backs off and is eventually exhausted. Previously it was claimed again at every poll without counting the attempt (#307).
+- A handler that throws `undefined` or `null` has its attempt counted and its error recorded, so the notification backs off and is eventually exhausted. A notification whose process stops before the result is recorded also has its attempt counted, so it too is eventually exhausted. Previously both were claimed again at every poll without counting the attempt (#307).
 - Due notifications are delivered in the order they fell due (#307).
 - A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener that throws no longer exits the process (#16).
 - Delivering a notification for one projection no longer discards the delivery records of other projections on the same hook (#18).

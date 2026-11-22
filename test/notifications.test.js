@@ -73,6 +73,10 @@ describe('Notifications', () => {
     return rows;
   }
 
+  async function pollCompleted(since) {
+    await until(async () => ((await filby.getNotificationStatus()).lastSuccessfulPollAt?.getTime() ?? 0) > since);
+  }
+
   it('should notify interested parties of projection changes', async () => {
     await setup();
 
@@ -729,10 +733,6 @@ describe('Notifications', () => {
     const { error } = await failed;
     eq(error.message, 'terminating connection due to administrator command');
   });
-
-  async function pollCompleted(since) {
-    await until(async () => ((await filby.getNotificationStatus()).lastSuccessfulPollAt?.getTime() ?? 0) > since);
-  }
 
   it('should count the attempt and record the error when a handler throws undefined', async () => {
     await setup();
