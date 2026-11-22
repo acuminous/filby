@@ -22,6 +22,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - A notification for a hook with no subscriber counts as a failed attempt and is retried, instead of being discarded (#15).
 - An `ADD_HOOK` with a `projection` must use a change set event, and `DROP_ENTITY` requires `operation` (#29).
 - Notifications pause on every instance while migrations run (#101).
+- Filby counts a delivery attempt when it claims a notification, then runs the handlers without holding a database connection or transaction, and records the result separately. A migration no longer waits for running handlers. A notification whose process stops during delivery is released after `notifications.handlerTimeout` plus five seconds and retried (#307).
 - Filby no longer uses the pgcrypto extension, so `init()` no longer needs permission to create extensions. The upgrade leaves the extension installed (#23).
 - `DROP_PROJECTION` keeps the projection's name and version, and `ADD_PROJECTION` rejects them from then on. Documents already served from a dropped projection's URLs therefore never change. The projection routes and the change log respond with `410` for a dropped projection. `getProjections`, `getProjection`, the OpenAPI document and `filby export` leave it out. `getProjections` also returns projections ordered by name then version. Projections dropped before the upgrade were not recorded, so their names and versions can still be reused (#243).
 - Migration errors quote names as they were written, and explain when two names clash because they only differ in case or spacing (#185).
@@ -54,7 +55,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - The `COMMENCE_CHANGE_SET` hook event, which fires when a projection's current change set changes. Adding the hook or a projection schedules notifications for future change sets that were loaded earlier (#55, #241).
 - `notifications.listen`, which delivers notifications as soon as they are scheduled rather than at the next poll (#57).
 - `notifications.handlerTimeout`, and an `AbortSignal` passed to each handler (#22).
-- `filby.getNotificationStatus()`, for health checks. Its `overdue` and `exhausted` counts do not overlap (#58, #261).
+- `filby.getNotificationStatus()`, for health checks. Its `overdue` and `exhausted` counts do not overlap, and notifications being delivered are counted as `claimed` (#58, #261, #307).
 - `ALTER_ENUM`, which adds values to an existing enum (#62).
 - `timezone` on a change set, so `effective` can be a calendar date (#102).
 - `nullable: false` on entity fields, and shorter equivalent forms of the DSL (#51).
@@ -68,6 +69,8 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Calling `startNotifications` twice no longer starts a second poller that cannot be stopped (#21).
 - `withTransaction` runs its callback in a real transaction, so two instances can no longer deliver the same notification (#13).
 - A failed poll or a pool error is reported as `Filby.NOTIFICATION_ERROR`, instead of stopping polling or exiting the process (#14, #17).
+- A handler that throws `undefined` or `null`, or whose process stops before the result is recorded, has its attempt counted, so the notification backs off and is eventually exhausted. Previously it was claimed again at every poll without counting the attempt (#307).
+- Due notifications are delivered in the order they fell due (#307).
 - A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener that throws no longer exits the process (#16).
 - Delivering a notification for one projection no longer discards the delivery records of other projections on the same hook (#18).
 - `unsubscribe(event)` without a handler removes every handler, as documented (#20).
