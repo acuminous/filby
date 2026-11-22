@@ -18,7 +18,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Entity checks apply only to `SET` frames, so they no longer block deletes. SQL that inserts rows into an entity table must supply the new `fby_change_set_id` and `fby_action` columns (#6, #225).
 - `getChangeLog` returns change sets in id order, oldest first (#19).
 - `getAggregates` rejects when the change set does not exist, instead of returning an empty array (#49).
-- `Filby.NOTIFICATION_ERROR` is emitted after every failed delivery attempt. The `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` payload is now `{ error, notification }`, and the `ErrorNotification` type is removed (#16).
+- `Filby.NOTIFICATION_ERROR` is emitted after every failed delivery attempt. The `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` payload is now `{ error, notification }`, and the `ErrorNotification` type is removed (#16). The event itself is now named `'HOOK_MAX_ATTEMPTS_EXHAUSTED'` to match its constant, instead of `'HOOK_ATTEMPTS_EXHAUSTED'` (#307).
 - A notification for a hook with no subscriber counts as a failed attempt and is retried, instead of being discarded (#15).
 - An `ADD_HOOK` with a `projection` must use a change set event, and `DROP_ENTITY` requires `operation` (#29).
 - Notifications pause on every instance while migrations run (#101).

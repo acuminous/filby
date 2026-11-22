@@ -1334,7 +1334,7 @@ Some of Filby's API behaves differently in 1.0.0. Check your application for the
 
 | Change | What to do |
 | ------ | ---------- |
-| A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener receives `{ error, notification }` instead of the notification with an `err` property. The `ErrorNotification` type is removed. | Read `error` and `notification` from the payload. |
+| A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener receives `{ error, notification }` instead of the notification with an `err` property. The `ErrorNotification` type is removed. The event is named `'HOOK_MAX_ATTEMPTS_EXHAUSTED'` instead of `'HOOK_ATTEMPTS_EXHAUSTED'`. | Read `error` and `notification` from the payload. Subscribe with the `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` constant rather than the event name. |
 | `Filby.NOTIFICATION_ERROR` is emitted after every failed delivery attempt, and when polling or a database connection fails. | Expect more of these events. Check for `notification` to tell delivery failures from polling and connection failures. See [Monitoring failures](#monitoring-failures). |
 | A notification for a hook with no subscriber counts as a failed attempt and is retried. In 0.14.0 it was discarded. | Subscribe to every hook you declare, or drop the hooks you no longer use. |
 | `getChangeLog` returns change sets in id order, oldest first. | Remove any sorting you added to work around the previous order. |
