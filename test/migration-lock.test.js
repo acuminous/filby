@@ -1,11 +1,11 @@
-const fs = require('node:fs/promises');
-const path = require('node:path');
-const { ok, strictEqual: eq } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
-const { Client } = require('pg');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { ok, strictEqual as eq } from 'node:assert';
+import { describe, it, before, beforeEach, after, afterEach } from 'node:test';
+import { Client } from 'pg';
 
-const TestFilby = require('./TestFilby');
-const { until } = require('./until');
+import TestFilby from './TestFilby.js';
+import { until } from './until.js';
 
 const config = {
   notifications: {

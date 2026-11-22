@@ -1,13 +1,13 @@
-const crypto = require('node:crypto');
-const fs = require('node:fs/promises');
-const os = require('node:os');
-const path = require('node:path');
-const { ok, strictEqual: eq, rejects } = require('node:assert');
-const { describe, it, before, beforeEach, afterEach, after, mock } = require('node:test');
-const marv = require('marv/api/promise');
+import crypto from 'node:crypto';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { ok, strictEqual as eq, rejects } from 'node:assert';
+import { describe, it, before, beforeEach, afterEach, after, mock } from 'node:test';
+import marv from 'marv/api/promise.js';
 
-const { Filby } = require('..');
-const TestFilby = require('./TestFilby');
+import { Filby } from '../index.js';
+import TestFilby from './TestFilby.js';
 
 const database = { user: 'fby_test', password: 'fby_test' };
 
@@ -51,7 +51,7 @@ describe('Checksums', () => {
   });
 
   it('should accept the checksums of Filby migrations released in 0.14.0', async () => {
-    const migrations = await marv.scan(path.join(__dirname, '..', 'migrations'));
+    const migrations = await marv.scan(path.join(import.meta.dirname, '..', 'migrations'));
     for (const { level, filename, script, directives } of migrations) {
       const accepted = [md5(script), ...(directives.accept || '').split(',').map((checksum) => checksum.trim())];
       ok(!RELEASED[level] || accepted.includes(RELEASED[level]), `${filename} has changed since 0.14.0 without an ACCEPT directive for ${RELEASED[level]}`);

@@ -1,9 +1,13 @@
-const { execFileSync } = require('node:child_process');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = path.join(__dirname, '..');
+import { rollup } from 'rollup';
+import { dts } from 'rollup-plugin-dts';
+
+const root = path.join(import.meta.dirname, '..');
 const target = path.join(root, 'index.d.ts');
 
 const commands = { build, check };
@@ -22,11 +26,9 @@ async function check() {
 }
 
 async function generate() {
-  const { rollup } = await import('rollup');
-  const { dts } = await import('rollup-plugin-dts');
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'filby-types-'));
   try {
-    execFileSync(require.resolve('typescript/bin/tsc'), ['--allowJs', '--declaration', '--removeComments', '--emitDeclarationOnly', '--skipLibCheck', '--module', 'commonjs', '--target', 'es2022', '--types', 'node', '--outDir', outDir, path.join(root, 'index.js')], { stdio: 'inherit' });
+    execFileSync(fileURLToPath(import.meta.resolve('typescript/bin/tsc')), ['--allowJs', '--declaration', '--removeComments', '--emitDeclarationOnly', '--skipLibCheck', '--module', 'nodenext', '--target', 'es2022', '--types', 'node', '--outDir', outDir, path.join(root, 'index.js')], { stdio: 'inherit' });
     const bundle = await rollup({ input: path.join(outDir, 'index.d.ts'), external: ['pg'], plugins: [dts({ respectExternal: true })] });
     const { output: [{ code }] } = await bundle.generate({ format: 'es' });
     return code;

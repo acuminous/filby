@@ -1,14 +1,14 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
-const { ok, strictEqual: eq, deepStrictEqual: deq, throws } = require('node:assert');
-const { describe, it, before, after } = require('node:test');
-const { TypeOverrides } = require('pg');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { ok, strictEqual as eq, deepStrictEqual as deq, throws } from 'node:assert';
+import { describe, it, before, after } from 'node:test';
+import { TypeOverrides } from 'pg';
 
-const { Filby } = require('..');
-const TestFilby = require('./TestFilby');
+import { Filby } from '../index.js';
+import TestFilby from './TestFilby.js';
 
 const run = promisify(execFile);
 const cli = path.resolve('bin/filby.js');

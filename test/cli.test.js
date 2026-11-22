@@ -1,12 +1,12 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
-const { strictEqual: eq, ok, match, doesNotMatch } = require('node:assert');
-const { describe, it } = require('node:test');
-const marv = require('marv/api/promise');
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { strictEqual as eq, ok, match, doesNotMatch } from 'node:assert';
+import { describe, it } from 'node:test';
+import marv from 'marv/api/promise.js';
 
-const render = require('../lib/render-migration');
+import render from '../lib/render-migration.js';
 
 const run = promisify(execFile);
 const filby = path.resolve('bin/filby.js');

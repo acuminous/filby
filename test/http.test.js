@@ -1,15 +1,15 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { ok, strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert');
-const { describe, it, before, beforeEach, after } = require('node:test');
-const YAML = require('yaml');
-const op = require('object-path-immutable');
-const { Validator } = require('@seriousme/openapi-schema-validator');
-const Ajv = require('ajv/dist/2020');
-const ajvFormats = require('ajv-formats');
+import fs from 'node:fs';
+import path from 'node:path';
+import { ok, strictEqual as eq, deepEqual as deq, match, rejects } from 'node:assert';
+import { describe, it, before, beforeEach, after } from 'node:test';
+import YAML from 'yaml';
+import op from 'object-path-immutable';
+import { Validator } from '@seriousme/openapi-schema-validator';
+import Ajv from 'ajv/dist/2020.js';
+import ajvFormats from 'ajv-formats';
 
-const TestFilby = require('./TestFilby');
-const { until } = require('./until');
+import TestFilby from './TestFilby.js';
+import { until } from './until.js';
 
 const config = {
   nukeCustomObjects: async (tx) => {
@@ -1475,5 +1475,5 @@ describe('HTTP', () => {
 });
 
 function loadYaml(filename) {
-  return fs.readFileSync(path.join(__dirname, 'dsl', 'snippets', `${filename}.yaml`), { encoding: 'utf-8' });
+  return fs.readFileSync(path.join(import.meta.dirname, 'dsl', 'snippets', `${filename}.yaml`), { encoding: 'utf-8' });
 }

@@ -1,7 +1,7 @@
-const fs = require('node:fs/promises');
-const path = require('node:path');
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
-const { Filby } = require('..');
+import { Filby } from '../index.js';
 
 const noop = () => { };
 const defaults = {
@@ -12,7 +12,7 @@ const defaults = {
   migrations: ['test/migrations'],
 };
 
-module.exports = class TestFilby extends Filby {
+export default class TestFilby extends Filby {
 
   #migrationsDirectory;
   #nukeCustomObjects;
@@ -76,4 +76,4 @@ module.exports = class TestFilby extends Filby {
     await fs.writeFile(migrationsFilename, script, { encoding: 'utf-8' });
     return this.init();
   }
-};
+}

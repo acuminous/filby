@@ -1,9 +1,9 @@
-const { execFileSync } = require('node:child_process');
-const path = require('node:path');
-const { deepStrictEqual: deq } = require('node:assert');
-const { describe, it, before } = require('node:test');
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { strictEqual as eq, deepStrictEqual as deq } from 'node:assert';
+import { describe, it, before } from 'node:test';
 
-const root = path.join(__dirname, '..');
+const root = path.join(import.meta.dirname, '..');
 
 const UNPUBLISHED = ['.github', '.gitignore', '_config.yml', 'biome.json', 'CLAUDE.md', 'codecov.yml', 'docker-compose.yaml', 'examples', 'lefthook.yml', 'package-lock.json', 'scripts', 'test'];
 
@@ -39,5 +39,15 @@ describe('Package', () => {
         tracked.filter((file) => file.startsWith(prefix)),
       );
     }
+  });
+
+  it('should load with require()', () => {
+    const stdout = execFileSync(process.execPath, ['--eval', "const { Filby } = require('filby'); process.stdout.write(typeof Filby)"], { cwd: root, encoding: 'utf8' });
+    eq(stdout, 'function');
+  });
+
+  it('should load with import', () => {
+    const stdout = execFileSync(process.execPath, ['--input-type=module', '--eval', "import { Filby } from 'filby'; process.stdout.write(typeof Filby)"], { cwd: root, encoding: 'utf8' });
+    eq(stdout, 'function');
   });
 });

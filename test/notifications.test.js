@@ -1,7 +1,10 @@
-const { ok, strictEqual: eq, deepEqual: deq, match, rejects } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
-const pipsqueak = require('pipsqueak');
-const { Client } = require('pg');
+import { ok, strictEqual as eq, deepEqual as deq, match, rejects } from 'node:assert';
+import { describe, it, before, beforeEach, after, afterEach } from 'node:test';
+import pipsqueak from 'pipsqueak';
+import { Client } from 'pg';
+
+import TestFilby from './TestFilby.js';
+import { until, once } from './until.js';
 
 const schedulers = [];
 const { promiseApi } = pipsqueak;
@@ -10,9 +13,6 @@ pipsqueak.promiseApi = (options) => {
   schedulers.push(scheduler);
   return scheduler;
 };
-
-const TestFilby = require('./TestFilby');
-const { until, once } = require('./until');
 
 const config = {
   notifications: {
