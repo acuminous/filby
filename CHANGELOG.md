@@ -78,6 +78,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener that throws no longer exits the process (#16).
 - Delivering a notification for one projection no longer discards the delivery records of other projections on the same hook (#18).
 - `unsubscribe(event)` without a handler removes every handler, as documented (#20).
+- `stop()` may be called more than once. Later calls, including concurrent ones, return the first call's promise instead of rejecting with `Called end on pool more than once` (#309).
 - An invalid or negative `notifications` duration is rejected when Filby is constructed (#134).
 - A `notifications.maxAttempts` below 1 is rejected when Filby is constructed. Previously 0 meant 10 attempts and a negative value meant no notification was ever delivered (#258).
 - A zero `notifications.interval` or `notifications.handlerTimeout` is rejected when Filby is constructed. Previously a zero interval polled the database continuously and a zero handler timeout aborted every handler as soon as it started. Use a small positive value such as `10ms` instead (#259).
