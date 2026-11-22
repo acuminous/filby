@@ -18,6 +18,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Entity checks apply only to `SET` frames, so they no longer block deletes. SQL that inserts rows into an entity table must supply the new `fby_change_set_id` and `fby_action` columns (#6, #225).
 - `getChangeLog` returns change sets in id order, oldest first (#19).
 - `getAggregates` rejects when the change set does not exist, instead of returning an empty array (#49).
+- `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values and their arrays are returned as strings, such as `2026-07-01` and `2026-07-01T10:00:00`, instead of `Date` objects in the process time zone, so they no longer depend on `TZ`. This changes the values returned by `getDocuments`, `getAggregates` and the HTTP routes, and written by `filby export`. The OpenAPI document describes a `DATE` with the `date` format and a `TIMESTAMP WITHOUT TIME ZONE` as a string with no format. The new `localDateTypes` option set to `'pg'` restores node-pg's conversion, except in `filby export` (#306).
 - `Filby.NOTIFICATION_ERROR` is emitted after every failed delivery attempt. The `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` payload is now `{ error, notification }`, and the `ErrorNotification` type is removed (#16). The event itself is now named `'HOOK_MAX_ATTEMPTS_EXHAUSTED'` to match its constant, instead of `'HOOK_ATTEMPTS_EXHAUSTED'` (#307).
 - A notification for a hook with no subscriber counts as a failed attempt and is retried, instead of being discarded (#15).
 - An `ADD_HOOK` with a `projection` must use a change set event, and `DROP_ENTITY` requires `operation` (#29).
@@ -28,6 +29,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Migration errors quote names as they were written, and explain when two names clash because they only differ in case or spacing (#185).
 - Migration errors explain when an entity, projection or enum cannot be added because PostgreSQL truncates its object names to 63 bytes, which makes them the same as those of an existing definition, and name both definitions (#251).
 - Errors about a missing entity or projection suggest the names that do exist (#26, #49).
+- When `DROP_ENTITY` is blocked, the error names the projections that depend on the entity or the change sets that contain data for it, instead of reporting a foreign key violation on Filby's internal tables (#312).
 - `ADD_PROJECTION` rejects a parameter named `page`, `pageSize` or `changeSetId`, in any case, because Filby's HTTP routes use these names. Such a projection previously worked through `getDocuments` but not over HTTP (#253).
 - A change set row that PostgreSQL rejects is reported with the migration file and the row's location (#157).
 - Change set data is loaded in batches, so a 20,000 row CSV loads in seconds rather than about 30 seconds (#37).
@@ -42,6 +44,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Projections declared in YAML, with a `root` entity, `parameters`, `order` and `paging`. Filby generates the projection's SQL function (#63).
 - Parameters with `gt`, `gte`, `lt` and `lte` matches (#161), `contains` and `in` matches on array fields (#215), and paths that filter on nested or looked-up records (#216).
 - `nest` and `lookup` in projections, to include related records as lists or single objects, to any depth (#104, #163, #177, #191).
+- `ADD_PROJECTION` rejects a nest or lookup whose `on` map joins two fields of different types. Joining `INTEGER` to `BIGINT` would otherwise return empty nests and null lookups, and joining `TEXT` to `INTEGER` would make every request for the projection fail (#304).
 - `fields` in projections, to choose which fields a document carries, and `{ field, as }` to rename them (#199, #213).
 - `filby.getDocuments`, which returns a projection's documents with their nests and lookups (#104).
 - `filby.fetch`, a framework-independent HTTP handler for change logs, projections and the list of projections. Its `ETag` header is the change set's `entityTag` in double quotes (#59, #180, #244).
@@ -85,6 +88,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.fetch` accepts a `basePath` that ends with a slash, so `'/api/'` serves the same routes as `'/api'`. Previously every route responded with `404`. The OpenAPI document's server URL leaves the slash out (#257).
 - An error in a CSV row reports the row number a spreadsheet shows for it, with the header as row 1 and blank rows counted. Previously a blank row or a cell that spans several lines made every later error report the wrong row. A CSV header that repeats a column name is now rejected (#255).
 - An entity check with an empty name or an empty expression is rejected by validation. Previously an empty name created a constraint called `chk_`, and an empty expression failed in PostgreSQL with a syntax error that did not name the check (#262).
+- A projection parameter with a `prefix` match on a field that is not text, such as an `INTEGER`, a timestamp or an enum, is rejected with an error that names the projection, the parameter, the field and its type. Previously the migration failed in PostgreSQL with `function starts_with(integer, integer) does not exist` (#310).
 - Field types such as `NUMERIC(10,2)`, `TEXT[]` and schema-qualified types are accepted (#9).
 - `DROP_ENUM` and `ALTER_ENUM` find an enum by the name it was declared with (#145).
 - An array of an enum is served as an array of strings (#196), including an enum added by another process after the instance started (#236).

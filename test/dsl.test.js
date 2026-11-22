@@ -1288,6 +1288,106 @@ describe('DSL', () => {
         return true;
       });
     });
+
+    it('should report the projection that depends on the entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projection 'VAT Rates v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should report every projection that depends on the entity by name then version', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.version', 2), ADD_ROOT_PROJECTION, transform(ADD_PROJECTION).set('0.name', 'Rates'));
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projections 'Rates v1', 'VAT Rates v1', 'VAT Rates v2' depend on it");
+        return true;
+      });
+    });
+
+    it('should report a projection that uses the entity only in a nest', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, transform(DROP_ENTITY).set('0.name', 'rate')), (err) => {
+        eq(err.message, "Entity 'rate v1' cannot be dropped because projection 'Parks v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should report a projection that uses the entity only in a lookup', async (t) => {
+      const ADD_SEASON_PROJECTION = `
+- operation: ADD_PROJECTION
+  name: Parks
+  version: 1
+  root: season@1
+  lookup:
+    park:
+      entity: park@1
+      on:
+        code: park_code
+`;
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_SEASON_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, transform(DROP_ENTITY).set('0.name', 'park')), (err) => {
+        eq(err.message, "Entity 'park v1' cannot be dropped because projection 'Parks v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should report a custom SQL projection that declares the entity as a dependency', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projection 'VAT Rates v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should drop an entity once the projections that depended on it are dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, DROP_PROJECTION, DROP_ENTITY);
+
+      ok(!await hasTable('vat_rate_v1'));
+    });
+
+    it('should report the change set that contains data for the entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because change set '2020 VAT Rates' contains data for it");
+        return true;
+      });
+    });
+
+    it('should report every change set that contains data for the entity in id order', async (t) => {
+      const ADD_LATER_CHANGE_SET = transform(transform(ADD_CHANGE_SET_1).set('0.description', 'Autumn VAT Rates')).set('0.effective', '2020-10-01T00:00:00.000Z');
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1, ADD_LATER_CHANGE_SET);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because change sets '2020 VAT Rates', 'Autumn VAT Rates' contain data for it");
+        return true;
+      });
+    });
+
+    it('should report a superseded change set by its re-issue', async (t) => {
+      const ADD_LATER_CHANGE_SET = transform(transform(ADD_CHANGE_SET_1).set('0.description', 'Autumn VAT Rates')).set('0.effective', '2020-10-01T00:00:00.000Z');
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_LATER_CHANGE_SET, ADD_CHANGE_SET_1);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because change sets '2020 VAT Rates', 'Autumn VAT Rates' contain data for it");
+        return true;
+      });
+    });
+
+    it('should report dependent projections before change sets', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projection 'VAT Rates v1' depends on it");
+        return true;
+      });
+    });
   });
 
   describe('Add Projection', () => {
@@ -1952,6 +2052,27 @@ describe('DSL', () => {
       }
     });
 
+    it('should reject a prefix match on a field that is not text', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'INTEGER'), transform(ADD_ROOT_PROJECTION).set('0.parameters', { code: { field: 'Rate', match: 'prefix' } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'code' cannot use match 'prefix' on field 'Rate' because its type integer is not text");
+        return true;
+      });
+    });
+
+    it('should reject a prefix match on an enum field', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate'), transform(ADD_ROOT_PROJECTION).set('0.parameters', { band: { field: 'rate', match: 'prefix' } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'band' cannot use match 'prefix' on field 'rate' because its type vat_tax_rate is not text");
+        return true;
+      });
+    });
+
+    it('should filter by prefix on a VARCHAR field', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.0.type', 'VARCHAR(20)'), ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_prefix => $2', ['st']);
+      deq(rows.map((row) => row.type), ['standard']);
+    });
+
     it('should describe array parameters by their element type', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate[]'), ADD_ARRAY_PROJECTION);
 
@@ -2280,6 +2401,38 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject a nest join on fields of different types', async (t) => {
+      const entities = transform(transform(ADD_PARK_ENTITIES).set('0.fields.code', 'INTEGER')).set('1.fields.park_code', 'BIGINT');
+      await rejects(() => filby.applyYaml(t.name, entities, transform(ADD_NESTED_PROJECTION).set('0.nest', { seasons: { entity: 'season@1', on: { park_code: 'code' } } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' joins field 'code' of entity 'park v1' (integer) to field 'park_code' of entity 'season v1' (bigint), which have different types");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest join on fields of different types', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_PARK_ENTITIES).set('2.fields.park_code', 'INTEGER'), ADD_NESTED_PROJECTION), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.rates' joins field 'park_code' of entity 'season v1' (text) to field 'park_code' of entity 'rate v1' (integer), which have different types");
+        return true;
+      });
+    });
+
+    it('should join on fields whose types differ only in their modifiers', async (t) => {
+      const entities = transform(transform(ADD_PARK_ENTITIES).set('0.fields.code', 'VARCHAR(10)')).set('1.fields.park_code', 'VARCHAR(20)');
+      await filby.applyYaml(t.name, entities, transform(ADD_NESTED_PROJECTION).set('0.nest', { seasons: { entity: 'season@1', on: { park_code: 'code' } } }), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      eq(park.seasons.length, 3);
+    });
+
+    it('should join on enum fields of the same enum', async (t) => {
+      const seasonType = transform(transform(ADD_ENUM).set('0.name', 'season_type')).set('0.values', ['Owners', 'Guests']);
+      const entities = transform(transform(ADD_PARK_ENTITIES).set('1.fields.type', 'season_type')).set('2.fields.season_type', 'season_type');
+      await filby.applyYaml(t.name, seasonType, entities, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons.map((season) => season.rates.length), [2, 0, 2]);
+    });
+
     it('should reject a nested nest order on a field the nested entity does not have', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.order', [{ field: 'wombat' }])), (err) => {
         eq(err.message, "Projection 'Parks v1' nest 'seasons.rates' orders by a non existent field 'wombat' of entity 'rate v1'; existing fields are 'park_code', 'season_type', 'band', 'amount'");
@@ -2469,6 +2622,23 @@ describe('DSL', () => {
       const lookup = { operator: { entity: 'operator@1', on: { wombat: 'operator_code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
         eq(err.message, "Projection 'Parks v1' lookup 'operator' joins on a non existent field 'wombat' of entity 'operator v1'; existing fields are 'code', 'name'");
+        return true;
+      });
+    });
+
+    it('should reject a lookup join on comparable fields of different types', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      const entities = transform(ADD_PARK_ENTITIES).set('0.fields.operator_code', 'INTEGER');
+      await rejects(() => filby.applyYaml(t.name, entities, transform(ADD_OPERATOR_ENTITY).set('0.fields.code', 'NUMERIC'), transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'operator' joins field 'operator_code' of entity 'park v1' (integer) to field 'code' of entity 'operator v1' (numeric), which have different types");
+        return true;
+      });
+    });
+
+    it('should reject a lookup join on incomparable fields of different types', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, transform(ADD_OPERATOR_ENTITY).set('0.fields.code', 'INTEGER'), transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'operator' joins field 'operator_code' of entity 'park v1' (text) to field 'code' of entity 'operator v1' (integer), which have different types");
         return true;
       });
     });
@@ -2965,6 +3135,13 @@ describe('DSL', () => {
     it('should reject a contains match on a nested field that is not an array', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { kind: { field: 'seasons.type', match: 'contains' } })), (err) => {
         eq(err.message, "Projection 'Parks v1' parameter 'kind' cannot use match 'contains' on field 'seasons.type' because it is not an array");
+        return true;
+      });
+    });
+
+    it('should reject a prefix match on a nested field that is not text', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { starts: { field: 'seasons.start', match: 'prefix' } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' parameter 'starts' cannot use match 'prefix' on field 'seasons.start' because its type timestamp with time zone is not text");
         return true;
       });
     });

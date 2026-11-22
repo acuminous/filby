@@ -1249,7 +1249,7 @@ describe('HTTP', () => {
         amount: { type: 'string' },
         ratio: { type: ['number', 'null'] },
         flag: { type: 'boolean' },
-        day: { type: 'string', format: 'date-time' },
+        day: { type: 'string', format: 'date' },
         occurred: { type: 'string', format: 'date-time' },
         code: { type: 'string' },
         ref: { type: 'string', format: 'uuid' },
