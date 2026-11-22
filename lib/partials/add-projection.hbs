@@ -6,6 +6,8 @@ DECLARE
   v_root_id INTEGER;
   v_type TEXT;
   v_array BOOLEAN;
+  v_category TEXT;
+  v_field_type TEXT;
   v_arrays BOOLEAN[] := '{}';
   v_selection JSONB := {{literal columns}};
   v_arguments TEXT;
@@ -104,7 +106,7 @@ BEGIN
     RAISE EXCEPTION 'Projection ''%'' parameter ''%''{{#if nests}} path ''%''{{/if}} references a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal name}}, {{#if nests}}{{literal given.path}}, {{/if}}{{literal given.field}}, {{literal entity (v version)}}, fby_entity_field_hint(v_entity_id);
   END IF;
 
-  SELECT COALESCE(t.typcategory = 'A', FALSE) INTO v_array
+  SELECT COALESCE(t.typcategory = 'A', FALSE), t.typcategory, format_type(t.oid, NULL) INTO v_array, v_category, v_field_type
   FROM fby_entity_field f
   LEFT JOIN pg_type t ON t.oid = to_regtype(f.type)
   WHERE f.entity_id = v_entity_id
@@ -116,6 +118,10 @@ BEGIN
 
   IF {{literal match}} NOT IN ('in', 'contains') AND v_array THEN
     RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal ../name (v ../version)}}, {{literal name}}, {{literal match}}, {{literal given.path}};
+  END IF;
+
+  IF {{literal match}} = 'prefix' AND v_category IS DISTINCT FROM 'S' THEN
+    RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''prefix'' on field ''%'' because its type % is not text', {{literal ../name (v ../version)}}, {{literal name}}, {{literal given.path}}, v_field_type;
   END IF;
 
   v_arrays := v_arrays || v_array;
