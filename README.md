@@ -311,7 +311,7 @@ You can also provide a `version`, a `description` and named validation `checks`.
 
 Fields use PostgreSQL types, including `TEXT`, `DATE`, `NUMERIC(5,2)`, `TIMESTAMP WITH TIME ZONE` and arrays such as `TEXT[]`. A field can use the shorthand form `Code: TEXT`, or specify its type and other properties explicitly, as shown for `Name`.
 
-Key fields cannot be null. Other fields are nullable by default. For non-key fields, `nullable: false` describes the field as required for tooling such as generated OpenAPI documentation; it does not by itself enforce non-null values.
+Key fields cannot be null. Other fields are nullable by default. Declaring a non-key field with `nullable: false` makes it required in every `SET` frame, so the migration fails if a row omits the field, gives it a null value or leaves its CSV cell empty. The error names the file and row. Generated OpenAPI documentation also describes the field as required. `DELETE` frames only need their key fields, so the rule does not apply to them.
 
 Checks are SQL expressions that validate field values. Keep the surrounding parentheses and use canonical field names: lowercase with spaces replaced by underscores. The example checks that `code` contains exactly two characters. Checks only apply to `SET` frames. A `DELETE` frame contains just the key of the record being removed, so its other fields are empty and are not checked.
 
@@ -1457,7 +1457,7 @@ The enum must exist, and no column may still use the type.
 | `name` | string | yes | | |
 | `version` | integer | no | 1 | |
 | `description` | string | no | | Stored in `fby_entity` |
-| `fields` | map of name to type, or to `{ type, nullable }`; or list of `{ name, type, nullable }`; at least one | yes | | `nullable` defaults to `true`; key fields are never nullable |
+| `fields` | map of name to type, or to `{ type, nullable }`; or list of `{ name, type, nullable }`; at least one | yes | | `nullable` defaults to `true`; key fields are never nullable; each other field declared `nullable: false` becomes a check constraint named `not_null_<field>`, applied to `SET` frames only |
 | `key` | list of field names, at least one | one of `key`, `identified_by` | | |
 | `identified_by` | list of field names, at least one | one of `key`, `identified_by` | | Equivalent to `key` |
 | `checks` | map of name to expression, at least one | no | | Each becomes a check constraint named `chk_<name>`, applied to `SET` frames only |

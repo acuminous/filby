@@ -91,7 +91,7 @@ BEGIN
     fby_action fby_action_type NOT NULL,
     $table$ || v_columns || $table$,
     {{frameReference this}},
-    {{unique this}}{{#if checks}},{{/if}}
+    {{unique this}}{{notNull this}}{{#if checks}},{{/if}}
     {{#each checks}}
     {{check @key this}}{{#unless @last}},{{/unless}}
     {{/each}}

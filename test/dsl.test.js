@@ -800,6 +800,71 @@ describe('DSL', () => {
       ]);
     });
 
+    it('should reject a SET frame that omits a field that is not nullable', async (t) => {
+      await rejects(() => filby.applyYaml(
+        t.name,
+        transform(ADD_ENTITY).set('0.fields.1.nullable', false),
+        transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0', { type: 'reduced' }),
+      ), (err) => {
+        eq(err.code, CHECK_VIOLATION);
+        eq(err.message, '001.should-reject-a-set-frame-that-omits-a-field-that-is-not-nullable.yaml: /1/frames/1/data/0 - new row for relation "vat_rate_v1" violates check constraint "not_null_rate"');
+        return true;
+      });
+    });
+
+    it('should reject a SET frame with a null value for a field that is not nullable', async (t) => {
+      await rejects(() => filby.applyYaml(
+        t.name,
+        transform(ADD_ENTITY).set('0.fields.1.nullable', false),
+        transform(ADD_CHANGE_SET_1).set('0.frames.2.data.0.rate', null),
+      ), (err) => {
+        eq(err.code, CHECK_VIOLATION);
+        eq(err.message, '001.should-reject-a-set-frame-with-a-null-value-for-a-field-that-is-not-nullable.yaml: /1/frames/2/data/0 - new row for relation "vat_rate_v1" violates check constraint "not_null_rate"');
+        return true;
+      });
+    });
+
+    it('should reject a csv row with an empty cell for a field that is not nullable', async (t) => {
+      const source = await writeCsvText(t.name, ['action,type,rate', 'SET,standard,0.2', 'SET,reduced,'].join('\n'));
+      const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
+
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.nullable', false), changeSet), (err) => {
+        eq(err.code, CHECK_VIOLATION);
+        eq(err.message, '001.should-reject-a-csv-row-with-an-empty-cell-for-a-field-that-is-not-nullable.yaml: ./001.should-reject-a-csv-row-with-an-empty-cell-for-a-field-that-is-not-nullable.csv:3 - new row for relation "vat_rate_v1" violates check constraint "not_null_rate"');
+        return true;
+      });
+    });
+
+    it('should accept a DELETE frame that omits a field that is not nullable', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        transform(ADD_ENTITY).set('0.fields.1.nullable', false),
+        transform(transform(ADD_CHANGE_SET_1).set('0.frames.1.action', 'DELETE')).set('0.frames.1.data.0', { type: 'reduced' }),
+      );
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map(({ action, type, rate }) => ({ action, type, rate })), [
+        { action: 'SET', type: 'standard', rate: '0.1' },
+        { action: 'DELETE', type: 'reduced', rate: null },
+        { action: 'SET', type: 'zero', rate: '0' },
+      ]);
+    });
+
+    it('should accept a SET frame that omits a nullable field', async (t) => {
+      await filby.applyYaml(
+        t.name,
+        transform(ADD_ENTITY).set('0.fields', { type: 'TEXT', rate: { type: 'NUMERIC', nullable: true } }),
+        transform(ADD_CHANGE_SET_1).set('0.frames.1.data.0', { type: 'reduced' }),
+      );
+
+      const frames = await getDataFrames('2020 VAT Rates');
+      deq(frames.map(({ action, type, rate }) => ({ action, type, rate })), [
+        { action: 'SET', type: 'standard', rate: '0.1' },
+        { action: 'SET', type: 'reduced', rate: null },
+        { action: 'SET', type: 'zero', rate: '0' },
+      ]);
+    });
+
     it('should require at least one field in the map form', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', {})), (err) => {
         eq(err.message, '001.should-require-at-least-one-field-in-the-map-form.yaml: /0/fields must NOT have fewer than 1 properties');
