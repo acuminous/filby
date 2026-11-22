@@ -724,6 +724,34 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject a field with a reserved name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1', { name: 'fby_action', type: 'TEXT' })), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' field 'fby_action' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject a field whose canonical name begins with fby_', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1', { name: 'FBY Action', type: 'TEXT' })), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' field 'FBY Action' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject a reserved field name declared in the map form of fields', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', { type: 'TEXT', 'Fby Rate': { type: 'NUMERIC' } })), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' field 'Fby Rate' uses a reserved name");
+        return true;
+      });
+    });
+
+    it('should reject a reserved field name before a duplicate field name', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields', [{ name: 'type', type: 'TEXT' }, { name: 'fby_rate', type: 'NUMERIC' }, { name: 'fby_rate', type: 'NUMERIC' }])), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' field 'fby_rate' uses a reserved name");
+        return true;
+      });
+    });
+
     it('should require a name', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).del('0.name')), (err) => {
         eq(err.message, "001.should-require-a-name.yaml: /0 must have required property 'name'");
