@@ -1288,6 +1288,106 @@ describe('DSL', () => {
         return true;
       });
     });
+
+    it('should report the projection that depends on the entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projection 'VAT Rates v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should report every projection that depends on the entity by name then version', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.version', 2), ADD_ROOT_PROJECTION, transform(ADD_PROJECTION).set('0.name', 'Rates'));
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projections 'Rates v1', 'VAT Rates v1', 'VAT Rates v2' depend on it");
+        return true;
+      });
+    });
+
+    it('should report a projection that uses the entity only in a nest', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, transform(DROP_ENTITY).set('0.name', 'rate')), (err) => {
+        eq(err.message, "Entity 'rate v1' cannot be dropped because projection 'Parks v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should report a projection that uses the entity only in a lookup', async (t) => {
+      const ADD_SEASON_PROJECTION = `
+- operation: ADD_PROJECTION
+  name: Parks
+  version: 1
+  root: season@1
+  lookup:
+    park:
+      entity: park@1
+      on:
+        code: park_code
+`;
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_SEASON_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, transform(DROP_ENTITY).set('0.name', 'park')), (err) => {
+        eq(err.message, "Entity 'park v1' cannot be dropped because projection 'Parks v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should report a custom SQL projection that declares the entity as a dependency', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projection 'VAT Rates v1' depends on it");
+        return true;
+      });
+    });
+
+    it('should drop an entity once the projections that depended on it are dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, DROP_PROJECTION, DROP_ENTITY);
+
+      ok(!await hasTable('vat_rate_v1'));
+    });
+
+    it('should report the change set that contains data for the entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because change set '2020 VAT Rates' contains data for it");
+        return true;
+      });
+    });
+
+    it('should report every change set that contains data for the entity in id order', async (t) => {
+      const ADD_LATER_CHANGE_SET = transform(transform(ADD_CHANGE_SET_1).set('0.description', 'Autumn VAT Rates')).set('0.effective', '2020-10-01T00:00:00.000Z');
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_CHANGE_SET_1, ADD_LATER_CHANGE_SET);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because change sets '2020 VAT Rates', 'Autumn VAT Rates' contain data for it");
+        return true;
+      });
+    });
+
+    it('should report a superseded change set by its re-issue', async (t) => {
+      const ADD_LATER_CHANGE_SET = transform(transform(ADD_CHANGE_SET_1).set('0.description', 'Autumn VAT Rates')).set('0.effective', '2020-10-01T00:00:00.000Z');
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_LATER_CHANGE_SET, ADD_CHANGE_SET_1);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because change sets '2020 VAT Rates', 'Autumn VAT Rates' contain data for it");
+        return true;
+      });
+    });
+
+    it('should report dependent projections before change sets', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      await rejects(() => filby.applyYaml(t.name, DROP_ENTITY), (err) => {
+        eq(err.message, "Entity 'VAT Rate v1' cannot be dropped because projection 'VAT Rates v1' depends on it");
+        return true;
+      });
+    });
   });
 
   describe('Add Projection', () => {

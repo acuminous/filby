@@ -27,6 +27,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Migration errors quote names as they were written, and explain when two names clash because they only differ in case or spacing (#185).
 - Migration errors explain when an entity, projection or enum cannot be added because PostgreSQL truncates its object names to 63 bytes, which makes them the same as those of an existing definition, and name both definitions (#251).
 - Errors about a missing entity or projection suggest the names that do exist (#26, #49).
+- When `DROP_ENTITY` is blocked, the error names the projections that depend on the entity or the change sets that contain data for it, instead of reporting a foreign key violation on Filby's internal tables (#312).
 - `ADD_PROJECTION` rejects a parameter named `page`, `pageSize` or `changeSetId`, in any case, because Filby's HTTP routes use these names. Such a projection previously worked through `getDocuments` but not over HTTP (#253).
 - A change set row that PostgreSQL rejects is reported with the migration file and the row's location (#157).
 - Change set data is loaded in batches, so a 20,000 row CSV loads in seconds rather than about 30 seconds (#37).
