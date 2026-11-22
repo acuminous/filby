@@ -475,6 +475,28 @@ describe('API', () => {
     });
   });
 
+  describe('Stopping', () => {
+
+    it('should resolve when stopped more than once', async () => {
+      const instance = new TestFilby(config);
+      await instance.stop();
+      await instance.stop();
+    });
+
+    it('should resolve concurrent stops after the same shutdown', async () => {
+      const instance = new TestFilby(config);
+      await Promise.all([instance.stop(), instance.stop()]);
+      await rejects(instance.withTransaction((tx) => tx.query('SELECT 1')), { message: 'Cannot use a pool after calling end on the pool' });
+    });
+
+    it('should resolve when stopped more than once with notifications started', async () => {
+      const instance = new TestFilby({ ...config, notifications: { listen: true } });
+      await instance.startNotifications();
+      await Promise.all([instance.stop(), instance.stop()]);
+      await instance.stop();
+    });
+  });
+
   function vatRate(year, rate) {
     return `
 - operation: ADD_CHANGE_SET
