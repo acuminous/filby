@@ -435,6 +435,26 @@ describe('Notifications', () => {
     eq(calledSecond, false);
   });
 
+  it('should unsubscribe all interested parties from only the named event', async () => {
+    await setup();
+
+    let called = false;
+    function fail() {
+      called = true;
+    }
+
+    filby.subscribe('VAT Rate Changed', fail);
+    const notificationError = once(filby, TestFilby.NOTIFICATION_ERROR);
+    filby.unsubscribeAll('VAT Rate Changed');
+
+    filby.startNotifications();
+
+    const { error } = await notificationError;
+
+    eq(error.message, "No subscribers for hook 'VAT Rate Changed'");
+    eq(called, false);
+  });
+
   it('should ignore startNotifications when already polling', async () => {
     await filby.startNotifications();
     await filby.startNotifications();

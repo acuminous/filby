@@ -102,5 +102,5 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `getAggregates` works for entities whose names need quoting (#27).
 - Enums, enum values, entities, projections and hooks whose names contain `%` or `\` can be used in migrations. Previously adding, altering or dropping them failed with an unrelated PostgreSQL error such as `too few parameters specified for RAISE`, even when nothing was wrong. Errors such as `Hook '100% coverage' already exists` now report the name as written (#252).
 - Filby no longer changes the shared Handlebars module used by the host application (#24).
-- `index.d.ts` matches the code (#31).
+- `index.d.ts` matches the code (#31), and is now generated from the code's JSDoc, so the two cannot drift apart (#50).
 - `index.d.ts` accepts notification handlers that return nothing, so a synchronous handler compiles in TypeScript, and no longer lists `disabled` as a poller state (#249).

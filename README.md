@@ -1613,7 +1613,7 @@ During `init()`, Filby holds the advisory lock identified by `Filby.MIGRATION_LO
 | ------ | --------- |
 | `filby.subscribe(name, handler)` | Registers a handler for a named hook or a notification monitoring event. |
 | `filby.unsubscribe(name, handler?)` | Removes the specified handler. Omit `handler` to remove every handler registered for that name. |
-| `filby.unsubscribeAll()` | Removes all handlers from all hooks and events. |
+| `filby.unsubscribeAll(name?)` | Removes all handlers from all hooks and events. Given a name, removes only the handlers registered for that name, as `unsubscribe(name)` does. |
 
 Hook handlers receive two arguments:
 
