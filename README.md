@@ -1797,6 +1797,16 @@ An unknown projection, or one with no current change set, produces a `404`. A dr
 
 With `changeSetId`, Filby returns the documents at that change set. Requests can include the projection's declared filters and, where supported, `page` and `pageSize`.
 
+Any existing change set is accepted, not only those in the projection's change log. The documents are built from every change set with a lower or equal id and an earlier or equal effective date, as described in [Correcting and re-issuing data](#correcting-and-re-issuing-data). The rule gives these results for three kinds of change set.
+
+| Change set | Documents |
+| ---------- | --------- |
+| Not in the projection's change log | The same documents as at the latest change log entry before it, or an empty array if there is no earlier entry. |
+| Superseded | The documents as they stood before it was superseded. They leave out change sets added later with an earlier effective date. The re-issued change set includes them. |
+| Not yet effective | The documents that will be in force from its effective date, given the change sets loaded so far. |
+
+These responses carry the same caching headers as any other projection response, because the documents at a given change set id never change.
+
 The following produce a `400` response:
 
 - `changeSetId` is not an integer or does not identify an existing change set.
@@ -1805,8 +1815,6 @@ The following produce a `400` response:
 - A supplied value cannot be converted to the expected PostgreSQL type.
 - `page` or `pageSize` is not a positive integer.
 - `page` or `pageSize` is supplied for a root-based projection without `paging` configured.
-
-An unknown projection produces a `404`, and a dropped projection produces a `410`.
 
 The HTTP handler reserves `page`, `pageSize` and `changeSetId`, so `ADD_PROJECTION` rejects a parameter with one of these names.
 
