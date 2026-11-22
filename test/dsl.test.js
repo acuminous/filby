@@ -1860,10 +1860,17 @@ describe('DSL', () => {
 
       const rows = await getProjectionRows();
       deq(rows, [
-        { type: 'reduced', rate: '0.05' },
-        { type: 'standard', rate: '0.10' },
-        { type: 'zero', rate: '0' },
+        { type: 'reduced', rate: '0.05', fby_total: 3 },
+        { type: 'standard', rate: '0.10', fby_total: 3 },
+        { type: 'zero', rate: '0', fby_total: 3 },
       ]);
+    });
+
+    it('should page root rows without a maximum when the projection has no paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.paging'), setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
+
+      deq((await getProjectionRows('p_page_offset => 1, p_page_size => 2')).map(({ type, fby_total }) => [type, fby_total]), [['b', 5], ['c', 5]]);
+      deq((await getProjectionRows('p_page_size => 1000000')).map(({ type }) => type), ['a', 'b', 'c', 'd', 'e']);
     });
 
     it('should filter by equality', async (t) => {

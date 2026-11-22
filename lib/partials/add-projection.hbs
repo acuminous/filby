@@ -180,12 +180,10 @@ BEGIN
   v_arguments := v_arguments || format(', %I %s DEFAULT NULL', {{literal name}}, v_type{{#if array}} || '[]'{{/if}});
   {{/each}}
   {{/each}}
-  {{#if paging}}
 
-  v_arguments := v_arguments || ', p_page_offset INTEGER DEFAULT 0, p_page_size INTEGER DEFAULT ' || {{literal paging.page_size}};
+  v_arguments := v_arguments || ', p_page_offset INTEGER DEFAULT 0, p_page_size INTEGER DEFAULT ' || {{#if paging}}{{literal paging.page_size}}{{else}}'NULL'{{/if}};
   v_columns := v_columns || ', fby_total INTEGER';
   v_outputs := v_outputs || ', COUNT(*) OVER ()::INTEGER AS fby_total';
-  {{/if}}
   {{#each nest}}
   {{> add_projection_nest projection_name=../name projection_version=../version parent_entity=../root.entity parent_version=../root.version}}
   {{/each}}
@@ -196,7 +194,7 @@ BEGIN
     {{literal (aggregate root.entity root.version)}},
     {{projectionPredicates parameters}},
     v_order,
-    {{#if paging}}{{literal (projectionLimit parameters paging)}}{{else}}''{{/if}}
+    {{literal (projectionLimit parameters paging)}}
   );
 
   EXECUTE format(
