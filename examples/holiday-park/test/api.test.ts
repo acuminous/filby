@@ -98,8 +98,8 @@ describe('API', () => {
           { name: 'Via the cliff path', distance_metres: 400, accessibility: 'Steep Steps', beach: { code: 'SANDY_BAY', name: 'Sandy Bay', surfaces: ['Sandy', 'Rocky'] } },
         ],
         seasons: [
-          { customer_type: 'Guest', current_season_start: '2026-03-16T00:00:00.000Z', current_season_end: '2026-11-03T00:00:00.000Z', next_season_start: '2027-03-16T00:00:00.000Z', next_season_end: '2027-11-03T00:00:00.000Z' },
-          { customer_type: 'Owner', current_season_start: '2026-03-01T00:00:00.000Z', current_season_end: '2027-01-06T00:00:00.000Z', next_season_start: '2027-03-01T00:00:00.000Z', next_season_end: '2028-01-06T00:00:00.000Z' },
+          { customer_type: 'Guest', current_season_start: '2026-03-16', current_season_end: '2026-11-03', next_season_start: '2027-03-16', next_season_end: '2027-11-03' },
+          { customer_type: 'Owner', current_season_start: '2026-03-01', current_season_end: '2027-01-06', next_season_start: '2027-03-01', next_season_end: '2028-01-06' },
         ],
         models: [
           { model: { code: 'AMB', name: 'ABI Ambleside' }, offers: [{ year: 2026, offer_type: 'Offer Price', offer_price: '21495.00', discount_percent: null, discount_amount: null }] },
@@ -452,8 +452,8 @@ describe('API', () => {
       eq(amenityParameter['x-filby-match'], 'in');
       deq(amenityParameter['x-filby-field'], ['amenities', 'amenity', 'code']);
       eq('x-filby-carried' in amenityParameter, false);
-      deq(detailed.properties.seasons.items.properties.current_season_start, { type: 'string', format: 'date-time' });
-      deq(detailed.properties.seasons.items.properties.next_season_start, { type: ['string', 'null'], format: 'date-time' });
+      deq(detailed.properties.seasons.items.properties.current_season_start, { type: 'string', format: 'date' });
+      deq(detailed.properties.seasons.items.properties.next_season_start, { type: ['string', 'null'], format: 'date' });
       deq(Object.keys(detailed.properties.amenities.items.properties), ['amenity']);
       deq(detailed.properties.amenities.items.required, ['amenity']);
       deq(detailed.properties.amenities.items.properties.amenity['x-filby-on'], { code: 'amenity_code' });
