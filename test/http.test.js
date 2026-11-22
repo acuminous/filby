@@ -9,6 +9,7 @@ const Ajv = require('ajv/dist/2020');
 const ajvFormats = require('ajv-formats');
 
 const TestFilby = require('./TestFilby');
+const { until } = require('./until');
 
 const config = {
   nukeCustomObjects: async (tx) => {
@@ -546,6 +547,64 @@ describe('HTTP', () => {
 
       await rejects(() => get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`), { code: '42883' });
     });
+
+    it('should respond with 410 when the projection is dropped while the request waits for it', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const dropping = Promise.withResolvers();
+      const released = Promise.withResolvers();
+      const drop = filby.withTransaction(async (tx) => {
+        await tx.query("UPDATE fby_projection SET root_entity_id = NULL, fields = NULL, aliases = NULL, page_size = NULL, page_max = NULL, dropped_at = now() WHERE name = 'VAT Rates' AND version = 1");
+        dropping.resolve();
+        await released.promise;
+      });
+      await dropping.promise;
+
+      let settled = false;
+      const pending = get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`).finally(() => { settled = true; });
+      await until(async () => settled || await isWaitingForLock('%FOR SHARE%'));
+      released.resolve();
+      await drop;
+
+      const response = await pending;
+      eq(response.status, 410);
+      deq(await response.json(), { error: "Projection 'VAT Rates v1' was dropped" });
+    });
+
+    it('should make a projection drop wait for a request that is reading the projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+      const locked = Promise.withResolvers();
+      const released = Promise.withResolvers();
+      const lock = filby.withTransaction(async (tx) => {
+        await tx.query('LOCK TABLE vat_rate_v1 IN ACCESS EXCLUSIVE MODE');
+        locked.resolve();
+        await released.promise;
+      });
+      await locked.promise;
+
+      const settled = [];
+      const pending = get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&type=standard`).finally(() => settled.push('request'));
+      await until(() => isWaitingForLock('%get_vat_rates_v1%'));
+      const dropping = filby.applyYaml(t.name, DROP_PROJECTION).finally(() => settled.push('drop'));
+      await until(async () => settled.includes('drop') || await isWaitingForLock('%drop projection%'));
+      released.resolve();
+      await lock;
+
+      const response = await pending;
+      await dropping;
+      deq(settled, ['request', 'drop']);
+      eq(response.status, 200);
+      deq(await response.json(), [{ type: 'standard', rate: 0.1 }]);
+
+      const after = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
+      eq(after.status, 410);
+    });
+
+    async function isWaitingForLock(query) {
+      const { rowCount } = await filby.withTransaction((tx) => tx.query("SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND wait_event_type = 'Lock' AND query LIKE $1", [query]));
+      return rowCount > 0;
+    }
   });
 
   describe('Raw Projections', () => {
