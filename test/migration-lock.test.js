@@ -85,16 +85,6 @@ describe('Migration Lock', () => {
     return lastSuccessfulPollAt?.getTime() ?? 0;
   }
 
-  async function countWaitingAdvisoryLocks() {
-    const { rows: [{ count }] } = await filby.withTransaction((tx) => tx.query(`
-      SELECT COUNT(*)::INTEGER AS count
-      FROM pg_locks
-      WHERE locktype = 'advisory'
-      AND NOT granted
-      AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`));
-    return count;
-  }
-
   it('should not deliver notifications while a migration holds the lock', async (t) => {
     await filby.applyYaml(t.name, VAT_RATES, ADD_VAT_RATES, changeSet('2020 VAT Rates', '2020-04-05T00:00:00.000Z'));
 
@@ -129,7 +119,7 @@ describe('Migration Lock', () => {
     eq(deliveries, 1);
   });
 
-  it('should wait for an in-flight delivery before migrating and then schedule a fresh notification', async () => {
+  it('should migrate during an in-flight delivery and then deliver a fresh notification', async () => {
     await filby.applyYaml('setup', VAT_RATES, ADD_VAT_RATES, changeSet('2020 VAT Rates', '2020-04-05T00:00:00.000Z'));
 
     let deliveries = 0;
@@ -139,30 +129,32 @@ describe('Migration Lock', () => {
     });
     filby.subscribe('VAT Rates Changed', () => {
       deliveries++;
-      return deliveries === 1 ? inFlight : new Promise(() => {});
+      if (deliveries === 1) return inFlight;
     });
 
     filby.startNotifications();
     await until(() => deliveries === 1);
 
     await fs.unlink(path.join(path.resolve(filby.config.migrations[0]), '001.setup.yaml'));
-    const migrating = filby.applyYaml('add 2021 vat rates', changeSet('2021 VAT Rates', '2021-04-05T00:00:00.000Z'));
-    await until(async () => (await countWaitingAdvisoryLocks()) > 0);
+    await filby.applyYaml('add 2021 vat rates', changeSet('2021 VAT Rates', '2021-04-05T00:00:00.000Z'));
 
-    const [beforeMigration] = await getNotifications('VAT Rates Changed');
-    eq(beforeMigration.status, 'PENDING');
-
-    completeDelivery();
-    await migrating;
-
-    const notifications = await getNotifications('VAT Rates Changed');
-    eq(notifications.length, 2);
-    const [original, fresh] = notifications;
-    eq(original.status, 'OK');
+    const [original, fresh] = await getNotifications('VAT Rates Changed');
+    eq(original.status, 'CLAIMED');
     eq(original.attempts, 1);
     eq(fresh.status, 'PENDING');
     eq(fresh.attempts, 0);
     ok(fresh.id > original.id);
+
+    completeDelivery();
+    await until(async () => {
+      const notifications = await getNotifications('VAT Rates Changed');
+      return notifications.length === 1 && notifications[0].status === 'OK';
+    });
+
+    const notifications = await getNotifications('VAT Rates Changed');
+    eq(deliveries, 2);
+    eq(notifications[0].id, fresh.id);
+    eq(notifications[0].attempts, 1);
   });
 });
 

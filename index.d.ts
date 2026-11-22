@@ -108,6 +108,7 @@ export type NotificationStatus = {
     message: string;
   };
   pending: number;
+  claimed: number;
   overdue: number;
   exhausted: number;
 };

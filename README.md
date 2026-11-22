@@ -918,11 +918,15 @@ Give handlers separate hooks if they need independent retries. When multiple han
 
 #### Delivery and retries
 
-Filby polls for due notifications at `notifications.interval`, starting after `notifications.initialDelay`. You can run several application instances: Filby coordinates delivery through the database so that each notification is claimed by one instance per attempt.
+Filby polls for due notifications at `notifications.interval`, starting after `notifications.initialDelay`, and delivers due notifications in the order they fell due. You can run several application instances: Filby coordinates delivery through the database so that each notification is claimed by one instance per attempt.
+
+Filby counts an attempt when it claims the notification, before the handlers run, and records the result once they finish. If a change set for the same projection is added while a hook's handlers are running, Filby delivers a new notification for it once the running delivery has finished. If the running delivery fails, it is not retried, because the new notification will deliver the later data. `COMMENCE_CHANGE_SET` notifications are the exception: each change set taking effect has its own notification, so different instances may deliver two of them for the same hook and projection at the same time.
 
 If a handler throws or times out, Filby retries the notification. The retry delay starts at two seconds and doubles up to `notifications.maxRescheduleDelay`. Attempts stop when `notifications.maxAttempts` is reached. A hook with no subscriber also fails and is retried. If you see an error such as `No subscribers for hook 'sns/commence-change-set/parks-v1'`, check that the name passed to `filby.subscribe` matches the declared hook name.
 
 Make handlers idempotent. Delivery is at least once, so a handler may receive the same notification again, for example if it completes just before its process is killed and success has not yet been recorded.
+
+If a process stops while its handlers are running, the notification stays claimed until `notifications.handlerTimeout` plus five seconds has passed. The next poll, on any instance, then records the attempt as failed with an error such as `Delivery did not complete within 35000ms`, and retries the notification ahead of those that fell due after it. A notification that keeps stopping its process therefore runs out of attempts like any other. Filby does not emit `Filby.NOTIFICATION_ERROR` or `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` for these attempts, so watch the exhausted count described under [Health checks](#health-checks).
 
 #### Timeouts and shutdown
 
@@ -942,7 +946,7 @@ Subscribe to these events to monitor notification failures:
 | `Filby.NOTIFICATION_ERROR` | After a failed delivery attempt is recorded, or when polling or a database connection fails. |
 | `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` | After the final permitted delivery attempt fails. |
 
-For delivery failures, the payload contains `error` and `notification`. The final failed attempt emits both events.
+For delivery failures, the payload contains `error` and `notification`. The `error` is whatever the handler threw or rejected with, which need not be an `Error`. The final failed attempt emits both events, after the failure has been recorded.
 
 ```js
 filby.subscribe(
@@ -972,7 +976,7 @@ These monitoring events are emitted synchronously. Catch errors inside their lis
 
 #### Health checks
 
-Use `filby.getNotificationStatus()` to check whether polling has started, when the last successful poll occurred, how many failures have occurred since then, and how many notifications are pending, overdue or exhausted. The returned fields are described under [API](#api).
+Use `filby.getNotificationStatus()` to check whether polling has started, when the last successful poll occurred, how many failures have occurred since then, and how many notifications are pending, claimed, overdue or exhausted. The returned fields are described under [API](#api).
 
 Watch both the overdue and exhausted counts, and investigate either one growing, even when polling is succeeding. Successful polling does not guarantee successful delivery, and a notification that has run out of attempts is counted only as exhausted.
 
@@ -990,9 +994,7 @@ app.get('/health', async (c) => {
 
 #### Migrations
 
-Filby coordinates migrations and notification delivery across application instances. No new delivery starts while migrations are running, and migrations wait for deliveries already in progress, up to the handler timeout.
-
-Keep `notifications.handlerTimeout` short enough that a slow handler does not delay migrations excessively.
+Filby coordinates migrations and notification delivery across application instances. No new delivery starts while migrations are running. Handlers that are already running carry on, and Filby records their results once the migrations have finished. A migration therefore does not wait for slow handlers.
 
 #### Reducing notification latency
 
@@ -1334,7 +1336,7 @@ Some of Filby's API behaves differently in 1.0.0. Check your application for the
 
 | Change | What to do |
 | ------ | ---------- |
-| A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener receives `{ error, notification }` instead of the notification with an `err` property. The `ErrorNotification` type is removed. | Read `error` and `notification` from the payload. |
+| A `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` listener receives `{ error, notification }` instead of the notification with an `err` property. The `ErrorNotification` type is removed. The event is named `'HOOK_MAX_ATTEMPTS_EXHAUSTED'` instead of `'HOOK_ATTEMPTS_EXHAUSTED'`. | Read `error` and `notification` from the payload. Subscribe with the `Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED` constant rather than the event name. |
 | `Filby.NOTIFICATION_ERROR` is emitted after every failed delivery attempt, and when polling or a database connection fails. | Expect more of these events. Check for `notification` to tell delivery failures from polling and connection failures. See [Monitoring failures](#monitoring-failures). |
 | A notification for a hook with no subscriber counts as a failed attempt and is retried. In 0.14.0 it was discarded. | Subscribe to every hook you declare, or drop the hooks you no longer use. |
 | `getChangeLog` returns change sets in id order, oldest first. | Remove any sorting you added to work around the previous order. |
@@ -1585,7 +1587,7 @@ Methods that read the database return promises and run in their own transactions
 | `filby.stopNotifications()` | Signals active handlers to stop, stops listening and polling, and waits for the current delivery attempt to be recorded. |
 | `filby.stop()` | Stops notifications and closes the connection pool. |
 
-During `init()`, Filby holds the advisory lock identified by `Filby.MIGRATION_LOCK_KEY`. This pauses notification delivery across all instances. Before applying migrations, it waits for delivery attempts already in progress, up to the configured handler timeout.
+During `init()`, Filby holds the advisory lock identified by `Filby.MIGRATION_LOCK_KEY`. This pauses notification delivery across all instances. Handlers that are already running are not waited for, but their results are recorded only after the migrations have been applied.
 
 `init()` rejects if a migration fails or the checksum of one of Filby's own migrations has changed.
 
@@ -1634,12 +1636,13 @@ Call `filby.getNotificationStatus()` to inspect polling activity and notificatio
 | `failuresSinceLastSuccess` | The number of failed polls since the last successful one. |
 | `lastError` | The most recent recorded error, as `{ at, message }`. |
 | `pending` | Notifications that have not yet been delivered. |
+| `claimed` | Notifications that have been claimed by the poller but not yet completed. |
 | `overdue` | Undelivered notifications whose scheduled time has passed and that will still be retried. |
 | `exhausted` | Notifications that have reached `maxAttempts` and will not be retried. |
 
 The polling history fields `lastSuccessfulPollAt`, `failuresSinceLastSuccess` and `lastError` are held in memory. They survive `stopNotifications()` but reset when the application restarts. A successful poll resets the failure count to zero but retains `lastError`.
 
-The overdue and exhausted counts do not overlap. Once a notification has reached `maxAttempts` it is counted as exhausted and not as overdue, even after its scheduled time has passed. The method rejects if the counts cannot be read from the database.
+The overdue and exhausted counts do not overlap. Once a notification has reached `maxAttempts` it is counted as exhausted and not as overdue, even after its scheduled time has passed. A notification whose handlers are running is counted as claimed, and not as pending, overdue or exhausted. The method rejects if the counts cannot be read from the database.
 
 #### Projections and change sets
 

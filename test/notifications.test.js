@@ -69,8 +69,12 @@ describe('Notifications', () => {
   }
 
   async function getNotifications() {
-    const { rows } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification WHERE hook_id = 1'));
+    const { rows } = await filby.withTransaction(async (tx) => tx.query('SELECT * FROM fby_notification WHERE hook_id = 1 ORDER BY id'));
     return rows;
+  }
+
+  async function pollCompleted(since) {
+    await until(async () => ((await filby.getNotificationStatus()).lastSuccessfulPollAt?.getTime() ?? 0) > since);
   }
 
   it('should notify interested parties of projection changes', async () => {
@@ -119,8 +123,8 @@ describe('Notifications', () => {
       await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, status) VALUES
         (3, 'VAT Rates', 1, 'OK'),
         (3, 'CGT Rates', 1, 'OK')`);
-      return tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
-        (3, 'VAT Rates', 1) RETURNING id`);
+      return tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, status, attempts, last_attempted) VALUES
+        (3, 'VAT Rates', 1, 'CLAIMED', 1, now()) RETURNING id`);
     });
 
     await filby.withTransaction((tx) => tx.query('SELECT fby_pass_notification($1)', [pending.id]));
@@ -165,7 +169,10 @@ describe('Notifications', () => {
     const checkpoint = await getDatabaseTime();
     filby.startNotifications();
 
-    await until(async () => (await getNotifications())[0].attempts === 3);
+    await until(async () => {
+      const [notification] = await getNotifications();
+      return notification.attempts === 3 && notification.status === 'PENDING';
+    });
 
     const notifications = await getNotifications();
     eq(notifications.length, 1);
@@ -728,5 +735,307 @@ describe('Notifications', () => {
 
     const { error } = await failed;
     eq(error.message, 'terminating connection due to administrator command');
+  });
+
+  it('should count the attempt and record the error when a handler throws undefined', async () => {
+    await setup();
+
+    filby.subscribe('VAT Rate Changed', () => {
+      throw undefined;
+    });
+
+    const exhausted = once(filby, TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED);
+    filby.startNotifications();
+
+    await until(async () => {
+      const [notification] = await getNotifications();
+      return notification.attempts === 1 && notification.status === 'PENDING';
+    });
+    const [first] = await getNotifications();
+    eq(first.status, 'PENDING');
+    eq(first.last_error, 'undefined');
+    ok(first.scheduled_for > first.last_attempted);
+
+    const { error, notification } = await exhausted;
+    eq(error, undefined);
+    eq(notification.attempts, 3);
+    eq((await getNotifications())[0].attempts, 3);
+  });
+
+  it('should count the attempt and record the error when a handler throws null', async () => {
+    await setup();
+
+    filby.subscribe('VAT Rate Changed', () => {
+      throw null;
+    });
+
+    filby.startNotifications();
+
+    await until(async () => {
+      const [notification] = await getNotifications();
+      return notification.attempts === 3 && notification.status === 'PENDING';
+    });
+    const [notification] = await getNotifications();
+    eq(notification.status, 'PENDING');
+    eq(notification.last_error, 'null');
+  });
+
+  it('should count the attempt before running the handlers', async () => {
+    await setup();
+
+    const observed = Promise.withResolvers();
+    filby.subscribe('VAT Rate Changed', async () => {
+      observed.resolve((await getNotifications())[0]);
+    });
+
+    filby.startNotifications();
+    const notification = await observed.promise;
+
+    eq(notification.status, 'CLAIMED');
+    eq(notification.attempts, 1);
+    ok(notification.last_attempted);
+    await until(async () => (await getNotifications())[0].status === 'OK');
+    eq((await getNotifications())[0].attempts, 1);
+  });
+
+  it('should record the failure before emitting an event for the last attempt', async () => {
+    await setup();
+
+    filby.subscribe('VAT Rate Changed', () => {
+      throw new Error('Oh Noes!');
+    });
+
+    const recorded = Promise.withResolvers();
+    filby.subscribe(TestFilby.HOOK_MAX_ATTEMPTS_EXHAUSTED, () => {
+      getNotifications().then(recorded.resolve, recorded.reject);
+    });
+
+    filby.startNotifications();
+    const [notification] = await recorded.promise;
+
+    eq(notification.status, 'PENDING');
+    eq(notification.attempts, 3);
+    match(notification.last_error, /Oh Noes!/);
+  });
+
+  it('should release an expired claim and redeliver the notification', async () => {
+    await setup();
+    await filby.withTransaction((tx) => tx.query("UPDATE fby_notification SET status = 'CLAIMED', attempts = 1, last_attempted = now() - INTERVAL '1 hour'"));
+
+    const notified = once(filby, 'VAT Rate Changed');
+    filby.startNotifications();
+    const notification = await notified;
+
+    eq(notification.attempts, 2);
+    await until(async () => (await getNotifications())[0].status === 'OK');
+    eq((await getNotifications())[0].attempts, 2);
+  });
+
+  it('should exhaust a notification whose claims keep expiring', async () => {
+    await setup();
+    await filby.withTransaction((tx) => tx.query("UPDATE fby_notification SET status = 'CLAIMED', attempts = 3, last_attempted = now() - INTERVAL '1 hour'"));
+
+    let deliveries = 0;
+    filby.subscribe('VAT Rate Changed', () => {
+      deliveries++;
+    });
+
+    filby.startNotifications();
+
+    await until(async () => (await getNotifications())[0].status === 'PENDING');
+    const [notification] = await getNotifications();
+    eq(notification.attempts, 3);
+    eq(notification.last_error, 'Delivery did not complete within 35000ms');
+    eq(deliveries, 0);
+
+    const status = await filby.getNotificationStatus();
+    eq(status.claimed, 0);
+    eq(status.exhausted, 1);
+  });
+
+  it('should not release a claim that has not expired', async () => {
+    await setup();
+    await filby.withTransaction((tx) => tx.query("UPDATE fby_notification SET status = 'CLAIMED', attempts = 1, last_attempted = now() - INTERVAL '30 seconds'"));
+
+    let deliveries = 0;
+    filby.subscribe('VAT Rate Changed', () => {
+      deliveries++;
+    });
+
+    const since = Date.now();
+    filby.startNotifications();
+    await pollCompleted(since);
+
+    const [notification] = await getNotifications();
+    eq(notification.status, 'CLAIMED');
+    eq(notification.attempts, 1);
+    eq(deliveries, 0);
+  });
+
+  it('should delete an expired claim when a newer notification is pending for the same hook and projection', async () => {
+    await setup();
+    const { rows: [pending] } = await filby.withTransaction(async (tx) => {
+      await tx.query("UPDATE fby_notification SET status = 'CLAIMED', attempts = 1, last_attempted = now() - INTERVAL '1 hour'");
+      return tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (1, 'VAT Rates', 1) RETURNING id`);
+    });
+
+    const notified = once(filby, 'VAT Rate Changed');
+    filby.startNotifications();
+    const notification = await notified;
+
+    eq(notification.id, pending.id);
+    eq(notification.attempts, 1);
+    await until(async () => (await getNotifications())[0]?.status === 'OK');
+    const notifications = await getNotifications();
+    eq(notifications.length, 1);
+    eq(notifications[0].id, pending.id);
+  });
+
+  it('should deliver a change set added while the handlers run after the running delivery passes', async () => {
+    await setup();
+
+    const entered = Promise.withResolvers();
+    const released = Promise.withResolvers();
+    const deliveries = [];
+    filby.subscribe('VAT Rate Changed', async (notification) => {
+      deliveries.push(notification);
+      if (deliveries.length > 1) return;
+      entered.resolve();
+      await released.promise;
+    });
+
+    filby.startNotifications();
+    await entered.promise;
+    await filby.withTransaction((tx) => tx.query("SELECT fby_schedule_notification(1, 'VAT Rates', 1)"));
+
+    const during = await getNotifications();
+    deq(during.map(({ status, attempts }) => ({ status, attempts })), [
+      { status: 'CLAIMED', attempts: 1 },
+      { status: 'PENDING', attempts: 0 },
+    ]);
+
+    released.resolve();
+    await until(async () => deliveries.length === 2 && (await getNotifications())[0].status === 'OK');
+
+    eq(deliveries[1].id, during[1].id);
+    eq(deliveries[1].attempts, 1);
+    const notifications = await getNotifications();
+    eq(notifications.length, 1);
+    eq(notifications[0].id, during[1].id);
+  });
+
+  it('should deliver a change set added while the handlers run after the running delivery fails', async () => {
+    await setup();
+
+    const entered = Promise.withResolvers();
+    const released = Promise.withResolvers();
+    const deliveries = [];
+    filby.subscribe('VAT Rate Changed', async (notification) => {
+      deliveries.push(notification);
+      if (deliveries.length > 1) return;
+      entered.resolve();
+      await released.promise;
+      throw new Error('Oh Noes!');
+    });
+
+    filby.startNotifications();
+    await entered.promise;
+    await filby.withTransaction((tx) => tx.query("SELECT fby_schedule_notification(1, 'VAT Rates', 1)"));
+    const [claimed, pending] = await getNotifications();
+    eq(claimed.status, 'CLAIMED');
+    eq(pending.status, 'PENDING');
+
+    released.resolve();
+    await until(async () => deliveries.length === 2 && (await getNotifications())[0].status === 'OK');
+
+    eq(deliveries[1].id, pending.id);
+    eq(deliveries[1].attempts, 1);
+    const notifications = await getNotifications();
+    eq(notifications.length, 1);
+    eq(notifications[0].id, pending.id);
+  });
+
+  it('should not claim a notification while another for the same hook and projection is being delivered', async () => {
+    await setup();
+    await filby.withTransaction(async (tx) => {
+      await tx.query("UPDATE fby_notification SET status = 'CLAIMED', attempts = 1, last_attempted = now()");
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version) VALUES
+        (1, 'VAT Rates', 1)`);
+    });
+
+    let deliveries = 0;
+    filby.subscribe('VAT Rate Changed', () => {
+      deliveries++;
+    });
+
+    const since = Date.now();
+    filby.startNotifications();
+    await pollCompleted(since);
+
+    const notifications = await getNotifications();
+    deq(notifications.map(({ status, attempts }) => ({ status, attempts })), [
+      { status: 'CLAIMED', attempts: 1 },
+      { status: 'PENDING', attempts: 0 },
+    ]);
+    eq(deliveries, 0);
+  });
+
+  it('should claim a commencement notification while another commencement for the same hook and projection is being delivered', async () => {
+    await setup();
+    const { rows: [pending] } = await filby.withTransaction(async (tx) => {
+      await tx.query('DELETE FROM fby_notification');
+      await tx.query(`INSERT INTO fby_hook (id, name, event, projection_id) VALUES
+        (3, 'VAT Rate Commenced', 'COMMENCE_CHANGE_SET', 1)`);
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, scheduled_for, status, attempts, last_attempted) VALUES
+        (3, 'VAT Rates', 1, now() - INTERVAL '2 minutes', 'CLAIMED', 1, now())`);
+      return tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, scheduled_for) VALUES
+        (3, 'VAT Rates', 1, now() - INTERVAL '1 minute') RETURNING id`);
+    });
+
+    const notified = once(filby, 'VAT Rate Commenced');
+    filby.startNotifications();
+    const notification = await notified;
+
+    eq(notification.id, pending.id);
+  });
+
+  it('should claim due notifications in scheduled order, then in insertion order', async () => {
+    await setup();
+    await filby.withTransaction(async (tx) => {
+      await tx.query('DELETE FROM fby_notification');
+      await tx.query(`INSERT INTO fby_hook (id, name, event) VALUES
+        (3, 'Rate Changed', 'ADD_CHANGE_SET')`);
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, scheduled_for) VALUES
+        (3, 'A', 1, '2020-01-01T00:00:03Z'),
+        (3, 'B', 1, '2020-01-01T00:00:01Z'),
+        (3, 'C', 1, '2020-01-01T00:00:02Z'),
+        (3, 'D', 1, '2020-01-01T00:00:01Z')`);
+    });
+
+    const names = [];
+    filby.subscribe('Rate Changed', (notification) => {
+      names.push(notification.projection.name);
+    });
+
+    filby.startNotifications();
+    await until(() => names.length === 4);
+
+    deq(names, ['B', 'D', 'C', 'A']);
+  });
+
+  it('should count claimed notifications separately', async () => {
+    await setup();
+    await filby.withTransaction(async (tx) => {
+      await tx.query(`INSERT INTO fby_notification (hook_id, projection_name, projection_version, scheduled_for, attempts, status, last_attempted) VALUES
+        (2, 'CGT Rates', 1, now() - INTERVAL '1 hour', 3, 'CLAIMED', now())`);
+    });
+
+    const status = await filby.getNotificationStatus();
+
+    eq(status.claimed, 1);
+    eq(status.pending, 1);
+    eq(status.overdue, 1);
+    eq(status.exhausted, 0);
   });
 });
