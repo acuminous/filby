@@ -59,7 +59,7 @@ async function exportCommand(args) {
   const { config: configFile, projection: reference, out } = requiredOptions(args, ['config', 'projection', 'out']);
   const [, name, version] = reference.match(/^(.+)@(\d+)$/) ?? [];
   if (!name) throw new UsageError(`Projection '${reference}' must be given as name@version`);
-  const filby = new Filby(readJson(configFile, 'config'));
+  const filby = new Filby({ ...readJson(configFile, 'config'), localDateTypes: 'string' });
   try {
     await filby.init();
     const bundle = await exportBundle(filby, name, Number(version));
