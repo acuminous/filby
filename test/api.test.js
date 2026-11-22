@@ -473,7 +473,49 @@ describe('API', () => {
       const { rows } = await filby.withTransaction((tx) => tx.query('SELECT 1 AS one'));
       eq(rows[0].one, 1);
     });
+
+    describe('with a single pooled connection', () => {
+
+      let single;
+
+      before(() => {
+        single = new TestFilby({ ...config, database: { ...filby.config.database, max: 1 } });
+      });
+
+      after(async () => {
+        await single.stop();
+      });
+
+      it('should keep the pooled connection after rolling back', async () => {
+        const pid = await backendPid(single);
+
+        await rejects(single.withTransaction(() => {
+          throw new Error('Oh Noes!');
+        }), { message: 'Oh Noes!' });
+        await rejects(single.withTransaction((tx) => tx.query('SELECT 1/0')), { message: 'division by zero' });
+        await rejects(single.getAggregates(1, 'Missing', 1), { message: "Function 'get_missing_v1_aggregate' does not exist" });
+
+        eq(await backendPid(single), pid);
+      });
+
+      it('should discard the pooled connection when the rollback fails', async () => {
+        const pid = await backendPid(single);
+
+        await rejects(single.withTransaction(async () => {
+          await filby.withTransaction((tx) => tx.query('SELECT pg_terminate_backend($1)', [pid]));
+          throw new Error('Oh Noes!');
+        }), { message: 'Oh Noes!' });
+
+        const replacement = await backendPid(single);
+        ok(replacement !== pid);
+      });
+    });
   });
+
+  async function backendPid(instance) {
+    const { rows } = await instance.withTransaction((tx) => tx.query('SELECT pg_backend_pid() AS pid'));
+    return rows[0].pid;
+  }
 
   function vatRate(year, rate) {
     return `
