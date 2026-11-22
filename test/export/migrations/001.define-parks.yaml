@@ -70,3 +70,6 @@
   dependencies:
     - entity: park
       version: 1
+  paging:
+    page_size: 2
+    page_max: 2

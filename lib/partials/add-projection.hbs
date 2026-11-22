@@ -77,6 +77,13 @@ BEGIN
   INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
   (v_projection_id, v_entity_id);
   {{/dependencies}}
+  {{#if paging}}
+
+  UPDATE fby_projection
+  SET page_size = {{literal paging.page_size}},
+      page_max = {{literal paging.page_max}}
+  WHERE id = v_projection_id;
+  {{/if}}
 
   {{#if root}}
   SELECT id INTO v_root_id
@@ -87,9 +94,7 @@ BEGIN
   UPDATE fby_projection
   SET root_entity_id = v_root_id,
       fields = {{fieldArray fields 'field'}},
-      aliases = {{fieldArray fields 'as'}},
-      page_size = {{literal paging.page_size}},
-      page_max = {{literal paging.page_max}}
+      aliases = {{fieldArray fields 'as'}}
   WHERE id = v_projection_id;
 
   {{#each parameters}}
@@ -175,12 +180,10 @@ BEGIN
   v_arguments := v_arguments || format(', %I %s DEFAULT NULL', {{literal name}}, v_type{{#if array}} || '[]'{{/if}});
   {{/each}}
   {{/each}}
-  {{#if paging}}
 
-  v_arguments := v_arguments || ', p_page_offset INTEGER DEFAULT 0, p_page_size INTEGER DEFAULT ' || {{literal paging.page_size}};
+  v_arguments := v_arguments || ', p_page_offset INTEGER DEFAULT 0, p_page_size INTEGER DEFAULT ' || {{#if paging}}{{literal paging.page_size}}{{else}}'NULL'{{/if}};
   v_columns := v_columns || ', fby_total INTEGER';
   v_outputs := v_outputs || ', COUNT(*) OVER ()::INTEGER AS fby_total';
-  {{/if}}
   {{#each nest}}
   {{> add_projection_nest projection_name=../name projection_version=../version parent_entity=../root.entity parent_version=../root.version}}
   {{/each}}
@@ -191,7 +194,7 @@ BEGIN
     {{literal (aggregate root.entity root.version)}},
     {{projectionPredicates parameters}},
     v_order,
-    {{#if paging}}{{literal (projectionLimit parameters paging)}}{{else}}''{{/if}}
+    {{literal (projectionLimit parameters paging)}}
   );
 
   EXECUTE format(

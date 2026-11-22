@@ -487,7 +487,7 @@ Some parameter names are reserved. `change_set_id`, `page_offset` and `page_size
 
 `order` lists the fields to sort by. Each is ascending by default, or can use `DESC` for descending order. `nulls` can specify `FIRST` or `LAST`. Records with equal sort values are ordered by the entity's key. When no order is declared, the key determines the entire order.
 
-`paging.page_size` sets the default page size, and `paging.page_max` sets the maximum. Without `paging`, all matching records are returned.
+`paging.page_size` sets the default page size, and `paging.page_max` sets the maximum. Without `paging`, consumers can still request pages. There is no default page size and no maximum, so a request that does not ask for a page returns every matching record.
 
 See [Serving projections over HTTP](#serving-projections-over-http) for the corresponding query parameters and response headers.
 
@@ -789,6 +789,9 @@ Name the function `get_<projection>_v<version>` and give it a change set id para
     - entity: Model@1
     - entity: Price@1
     - entity: VAT Rate@1
+  paging:
+    page_size: 50
+    page_max: 500
 ```
 
 This function reads models, prices and VAT rates at the same change set, keeping their values consistent:
@@ -821,11 +824,11 @@ AS $$
 $$ LANGUAGE sql STABLE;
 ```
 
-`parameters`, `order`, `paging`, `fields`, `nest` and `lookup` require a root entity and cannot be combined with `dependencies`.
+`parameters`, `order`, `fields`, `nest` and `lookup` require a root entity and cannot be combined with `dependencies`. `paging` works as it does for a projection with a root, with each page counting the rows the function returns. Filby pages those rows in the order the function returns them, so pages are stable only if the function orders its rows, as `get_price_list_v1` does.
 
 #### Serving projections over HTTP
 
-When a projection is served through `filby.fetch`, consumers supply filters and paging controls as query parameters. The projection's configuration determines which filters are available, how results are sorted and whether they are paged.
+When a projection is served through `filby.fetch`, consumers supply filters and paging controls as query parameters. The projection's configuration determines which filters are available, how results are sorted and the default and maximum page sizes.
 
 ##### Filtering
 
@@ -845,16 +848,29 @@ The comparison modes `gt`, `gte`, `lt` and `lte` use the parameter name directly
 
 ##### Paging
 
-For a projection with `paging` configured, consumers use:
+Every projection accepts two paging parameters:
 
 | Query parameter | Purpose |
 | --------------- | ------- |
-| `page` | Selects the page to return. |
-| `pageSize` | Requests a page size, subject to the configured maximum. |
+| `page` | Selects the page to return. Page numbers start at 1. |
+| `pageSize` | Requests a page size, subject to any configured maximum. |
 
 For example, `?page=2&pageSize=20` requests page 2 with 20 root records per page.
 
-The HTTP names `page` and `pageSize` are separate from the YAML configuration properties `page_size` and `page_max`.
+The HTTP names `page` and `pageSize` are separate from the YAML configuration properties `page_size` and `page_max`. A projection's `paging` supplies the default page size and the maximum. Without it, the parameters still work, but there is no default and no maximum:
+
+| `paging` declared | Parameters sent | Result |
+| ----------------- | --------------- | ------ |
+| No | none | All matching records. |
+| No | `page` only | Page 1 is all matching records. A later page is past the last page. |
+| No | `pageSize` only | The first page of that size, with no maximum. |
+| No | both | That page, with no maximum. |
+| Yes | none | The first page, of `page_size` records. |
+| Yes | `page` only | That page, of `page_size` records. |
+| Yes | `pageSize` only | The first page, with the size reduced to `page_max` if it is larger. |
+| Yes | both | That page, with the size reduced to `page_max` if it is larger. |
+
+A page past the last page returns `200` with an empty array, and its headers still give the total and a link to the previous page.
 
 Pages count root records. A page of ten parks includes all of their nested seasons; those seasons do not count towards the page size.
 
@@ -864,8 +880,6 @@ The response includes:
 | ------ | -------- |
 | `X-Total-Count` | The total number of matching root records. |
 | `Link` | Links to the next and previous pages, where available. |
-
-Without `paging` configured, the projection returns all matching records.
 
 ### Hooks and notifications
 
@@ -1143,7 +1157,7 @@ Pass a projection's declared parameters in the query string:
 - For an `in` match, repeat the parameter: `?region=Scotland&region=Wales`.
 - For a `range` match, append `_from` and `_to` to the parameter name: `?berths_from=4&berths_to=6`. Either bound can be omitted.
 
-For projections with paging configured, use `page` and `pageSize`. Page numbers start at 1. `pageSize` defaults to the projection's declared `page_size`; values above `page_max` are reduced to that maximum.
+Use `page` and `pageSize` to page any projection. Page numbers start at 1. Where the projection declares `paging`, `pageSize` defaults to its `page_size`, and values above `page_max` are reduced to that maximum. Without `paging`, there is no default and no maximum. [Paging](#paging) lists the result of each combination.
 
 #### Caching and response headers
 
@@ -1218,7 +1232,7 @@ app.use('/api', async (req, res, next) => {
 
 Filby generates `/openapi.json` from your projection definitions, so you do not need to maintain a separate API schema.
 
-For each projection with a root entity, the document describes its path, declared filters, paging parameters and response structure, including selected fields, nests and lookups. You can use OpenAPI tooling to generate clients, validate requests and provide interactive documentation.
+For each projection, the document describes its path, declared filters, paging parameters and response structure. For a projection with a root entity, the response structure includes its selected fields, nests and lookups. You can use OpenAPI tooling to generate clients, validate requests and provide interactive documentation.
 
 Set `options.info` to customise the document's title, version and description. The example application uses the generated document to serve Swagger UI.
 
@@ -1488,7 +1502,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `fields` | list of field names or `{ field, as }`, at least one | no | every field | Root only |
 | `parameters` | map of name to `{ field, match }`, at least one | no | | Root only; `match` defaults to `equals` |
 | `order` | list of `{ field, direction, nulls }`, at least one | no | the key | Root only; `direction` `ASC` or `DESC`, default `ASC`; `nulls` `FIRST` or `LAST` |
-| `paging` | `{ page_size, page_max }`, both integers of at least 1 | no | | Root only; both required |
+| `paging` | `{ page_size, page_max }`, both integers of at least 1 | no | | Both required |
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
@@ -1705,7 +1719,7 @@ Pass filters in `parameters`. Use parameter names without the SQL function's `p_
 
 Values must have the types expected by the projection. Supply an array for an `in` parameter. Omitted parameters do not filter the results; unknown parameters cause the method to reject.
 
-Use `pageOffset` and `pageSize` to request a page. These are ignored if the projection has no `paging` configuration. `total` always counts all matching root records, regardless of the requested page.
+Use `pageOffset` and `pageSize` to request a page. `pageOffset` is the number of root records to skip, and `pageSize` is the number to return. Where the projection declares `paging`, `pageSize` defaults to its `page_size` and is reduced to its `page_max` if it is larger. Without `paging`, there is no default and no maximum, so `pageOffset` on its own skips that many root records and returns the rest. `total` always counts all matching root records, regardless of the requested page.
 
 ```js
 async function getParks(changeSetId, code) {
@@ -1795,7 +1809,7 @@ Without `changeSetId`, Filby redirects to the projection's current change set. T
 
 An unknown projection, or one with no current change set, produces a `404`. A dropped projection produces a `410`.
 
-With `changeSetId`, Filby returns the documents at that change set. Requests can include the projection's declared filters and, where supported, `page` and `pageSize`.
+With `changeSetId`, Filby returns the documents at that change set. Requests can include the projection's declared filters, `page` and `pageSize`. [Paging](#paging) describes how `page` and `pageSize` combine with the projection's `paging`.
 
 The following produce a `400` response:
 
@@ -1804,7 +1818,6 @@ The following produce a `400` response:
 - A parameter is repeated without being configured as an `in` match.
 - A supplied value cannot be converted to the expected PostgreSQL type.
 - `page` or `pageSize` is not a positive integer.
-- `page` or `pageSize` is supplied for a root-based projection without `paging` configured.
 
 An unknown projection produces a `404`, and a dropped projection produces a `410`.
 
@@ -1814,12 +1827,7 @@ The HTTP handler reserves `page`, `pageSize` and `changeSetId`, so `ADD_PROJECTI
 
 For a projection declared with `dependencies`, Filby calls `get_<name>_v<n>(changeSetId)` and returns its rows without reshaping them.
 
-These projections accept only `changeSetId`, `page` and `pageSize`:
-
-- Without `pageSize`, all rows are returned.
-- With `pageSize`, results are paged by row.
-- Supplying `page` without `pageSize` produces a `400`.
-- Both paging parameters must be positive integers.
+These projections accept only `changeSetId`, `page` and `pageSize`. Their pages count rows and follow the rules in [Paging](#paging).
 
 If the projection's SQL function does not exist, Filby returns a `500`.
 
@@ -1861,6 +1869,8 @@ Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all
 ### OpenAPI document
 
 `GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from your projection definitions. It describes the API routes, filters, paging controls, response schemas and headers.
+
+Every projection's path lists `page` and `pageSize` as optional integers of at least 1. Where the projection declares `paging`, `pageSize` also has its `page_size` as the `default` and its `page_max` as the `maximum`.
 
 #### Configuration
 

@@ -1807,19 +1807,32 @@ describe('DSL', () => {
       });
     });
 
-    it('should require root to use parameters, order or paging', async (t) => {
-      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.parameters', { type: { field: 'type' } })), (err) => {
-        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'parameters'");
-        return true;
-      });
+    it('should require root to use fields, parameters, order, nest or lookup', async (t) => {
+      const keys = {
+        fields: ['type'],
+        parameters: { type: { field: 'type' } },
+        order: [{ field: 'type' }],
+        nest: { rates: { entity: 'VAT Rate@1', on: { type: 'type' } } },
+        lookup: { rate: { entity: 'VAT Rate@1', on: { type: 'type' } } },
+      };
+      for (const [key, value] of Object.entries(keys)) {
+        await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set(`0.${key}`, value)), (err) => {
+          eq(err.message, `Projection 'VAT Rates' must specify 'root' to use '${key}'`);
+          return true;
+        });
+      }
+    });
 
-      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.order', [{ field: 'type' }])), (err) => {
-        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'order'");
-        return true;
-      });
+    it('should record the paging of a projection declared with dependencies', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { page_size: 10, page_max: 100 }));
 
-      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { page_size: 10, page_max: 100 })), (err) => {
-        eq(err.message, "Projection 'VAT Rates' must specify 'root' to use 'paging'");
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT root_entity_id, page_size, page_max FROM fby_projection'));
+      deq(rows, [{ root_entity_id: null, page_size: 10, page_max: 100 }]);
+    });
+
+    it('should reject a page size greater than the page max on a projection declared with dependencies', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { page_size: 50, page_max: 10 })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' page_size 50 is greater than page_max 10");
         return true;
       });
     });
@@ -1847,10 +1860,17 @@ describe('DSL', () => {
 
       const rows = await getProjectionRows();
       deq(rows, [
-        { type: 'reduced', rate: '0.05' },
-        { type: 'standard', rate: '0.10' },
-        { type: 'zero', rate: '0' },
+        { type: 'reduced', rate: '0.05', fby_total: 3 },
+        { type: 'standard', rate: '0.10', fby_total: 3 },
+        { type: 'zero', rate: '0', fby_total: 3 },
       ]);
+    });
+
+    it('should page root rows without a maximum when the projection has no paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.paging'), setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
+
+      deq((await getProjectionRows('p_page_offset => 1, p_page_size => 2')).map(({ type, fby_total }) => [type, fby_total]), [['b', 5], ['c', 5]]);
+      deq((await getProjectionRows('p_page_size => 1000000')).map(({ type }) => type), ['a', 'b', 'c', 'd', 'e']);
     });
 
     it('should filter by equality', async (t) => {
@@ -2176,6 +2196,8 @@ describe('DSL', () => {
         { name: 'rate', in: 'query', schema: values, 'x-filby-match': 'contains', 'x-filby-field': ['rate'] },
         { name: 'rates', in: 'query', schema: { type: 'array', items: values }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['rate'] },
         { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['type'] },
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
       ]);
     });
@@ -2246,11 +2268,43 @@ describe('DSL', () => {
     it('should nest child entities without parameters or paging', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(transform(transform(ADD_NESTED_PROJECTION).del('0.parameters')).del('0.order')).del('0.paging'), ADD_PARK_CHANGE_SET);
 
-      const { documents, total } = await getDocuments({ pageOffset: 1, pageSize: 1 });
+      const { documents, total } = await getDocuments();
       eq(total, 3);
       deq(documents.map((document) => document.code), ['DC', 'GA', 'PV']);
       deq(Object.keys(documents[0]), ['code', 'name', 'seasons']);
       eq(documents[0].seasons.length, 3);
+    });
+
+    it('should page root rows with their nested entities when the projection has no paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).del('0.paging'), ADD_PARK_CHANGE_SET);
+
+      const page1 = await getDocuments({ pageSize: 2 });
+      eq(page1.total, 3);
+      deq(page1.documents.map((document) => [document.code, document.seasons.map((season) => season.rates.length)]), [['DC', [2, 0, 2]], ['GA', []]]);
+
+      const page2 = await getDocuments({ pageOffset: 2, pageSize: 2 });
+      eq(page2.total, 3);
+      deq(page2.documents.map((document) => [document.code, document.seasons.map((season) => season.rates.length)]), [['PV', [1]]]);
+
+      const page3 = await getDocuments({ pageOffset: 3, pageSize: 2 });
+      eq(page3.total, 3);
+      deq(page3.documents, []);
+    });
+
+    it('should skip root rows without limiting them when the projection has no paging and no page size is given', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).del('0.paging'), ADD_PARK_CHANGE_SET);
+
+      const { documents, total } = await getDocuments({ pageOffset: 1 });
+      eq(total, 3);
+      deq(documents.map((document) => [document.code, document.seasons.length]), [['GA', 0], ['PV', 1]]);
+    });
+
+    it('should not cap the page size when the projection has no paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).del('0.paging'), ADD_PARK_CHANGE_SET);
+
+      const { documents, total } = await getDocuments({ pageSize: 1000000 });
+      eq(total, 3);
+      deq(documents.map((document) => document.code), ['DC', 'GA', 'PV']);
     });
 
     it('should page root rows with all their nested entities', async (t) => {
@@ -2671,6 +2725,15 @@ describe('DSL', () => {
       const { documents } = await getDocuments({ pageSize: 3 }, '2020 Operators');
       deq(Object.keys(documents[0]), ['code', 'name', 'operator_code', 'seasons', 'operator']);
       deq(documents.map(({ code, operator }) => [code, operator]), [['DC', { name: 'Haven' }], ['GA', { name: 'Parkdean' }], ['PV', { name: 'Haven' }]]);
+    });
+
+    it('should look up a single document on each paged root row when the projection has no paging', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)).del('0.paging'), ADD_OPERATED_PARK_CHANGE_SET, ADD_OPERATOR_CHANGE_SET);
+
+      const { documents, total } = await getDocuments({ pageOffset: 1, pageSize: 1 }, '2020 Operators');
+      eq(total, 3);
+      deq(documents.map(({ code, operator }) => [code, operator]), [['GA', { name: 'Parkdean' }]]);
     });
 
     it('should look up a single document on a nest', async (t) => {
