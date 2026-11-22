@@ -1464,7 +1464,7 @@ The enum must exist, and no column may still use the type.
 | `identified_by` | list of field names, at least one | one of `key`, `identified_by` | | Equivalent to `key` |
 | `checks` | map of name to expression, at least one | no | | Each becomes a check constraint named `chk_<name>`, applied to `SET` frames only |
 
-The key fields must be fields of the entity, each field type must be a valid PostgreSQL type, and the entity version must not already exist.
+The key fields must be fields of the entity, no field name may begin with `fby_`, each field type must be a valid PostgreSQL type, and the entity version must not already exist. Field names are compared after canonicalisation, so `FBY Action` is rejected as well as `fby_action`.
 
 #### DROP_ENTITY
 
