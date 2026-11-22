@@ -1952,6 +1952,27 @@ describe('DSL', () => {
       }
     });
 
+    it('should reject a prefix match on a field that is not text', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.1.type', 'INTEGER'), transform(ADD_ROOT_PROJECTION).set('0.parameters', { code: { field: 'Rate', match: 'prefix' } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'code' cannot use match 'prefix' on field 'Rate' because its type integer is not text");
+        return true;
+      });
+    });
+
+    it('should reject a prefix match on an enum field', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate'), transform(ADD_ROOT_PROJECTION).set('0.parameters', { band: { field: 'rate', match: 'prefix' } })), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' parameter 'band' cannot use match 'prefix' on field 'rate' because its type vat_tax_rate is not text");
+        return true;
+      });
+    });
+
+    it('should filter by prefix on a VARCHAR field', async (t) => {
+      await filby.applyYaml(t.name, transform(ADD_ENTITY).set('0.fields.0.type', 'VARCHAR(20)'), ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+
+      const rows = await getProjectionRows('p_prefix => $2', ['st']);
+      deq(rows.map((row) => row.type), ['standard']);
+    });
+
     it('should describe array parameters by their element type', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate[]'), ADD_ARRAY_PROJECTION);
 
@@ -2965,6 +2986,13 @@ describe('DSL', () => {
     it('should reject a contains match on a nested field that is not an array', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { kind: { field: 'seasons.type', match: 'contains' } })), (err) => {
         eq(err.message, "Projection 'Parks v1' parameter 'kind' cannot use match 'contains' on field 'seasons.type' because it is not an array");
+        return true;
+      });
+    });
+
+    it('should reject a prefix match on a nested field that is not text', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.parameters', { starts: { field: 'seasons.start', match: 'prefix' } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' parameter 'starts' cannot use match 'prefix' on field 'seasons.start' because its type timestamp with time zone is not text");
         return true;
       });
     });

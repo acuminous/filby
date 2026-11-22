@@ -472,7 +472,7 @@ Each parameter names a field and a matching rule. The field usually belongs to t
 | Match | Behaviour |
 | ----- | --------- |
 | `equals` | Matches the supplied value exactly. This is the default. |
-| `prefix` | Matches values beginning with the supplied text. |
+| `prefix` | Matches values beginning with the supplied text. Applies only to a text field. |
 | `in` | Matches any of the supplied values. On an array field, matches arrays that share at least one value with the supplied values. |
 | `contains` | Matches arrays that include the supplied value. Applies only to an array field. |
 | `range` | Matches values between optional, inclusive lower and upper bounds. |
@@ -1471,7 +1471,7 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root or a path. A path such as `Beach Routes.Beach.Surfaces` names a nest or lookup at each level, starting from the root, and ends with a field of the last one. A lookup can only be the last name in a path. Only `in` and `contains` can be used with an array field, and `contains` can only be used with an array field. The canonical parameter names `change_set_id`, `page_offset`, `page_size`, `changesetid`, `page` and `pagesize` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root or a path. A path such as `Beach Routes.Beach.Surfaces` names a nest or lookup at each level, starting from the root, and ends with a field of the last one. A lookup can only be the last name in a path. Only `in` and `contains` can be used with an array field, and `contains` can only be used with an array field. `prefix` can only be used with a text field, such as `TEXT` or `VARCHAR`, and not with an enum field. The canonical parameter names `change_set_id`, `page_offset`, `page_size`, `changesetid`, `page` and `pagesize` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
