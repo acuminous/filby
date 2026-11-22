@@ -480,7 +480,7 @@ describe('API', () => {
       deq(offers.items.properties.discount_percent, { type: ['string', 'null'] });
 
       const beaches = schema(document, 'Beaches');
-      deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'surface', 'If-None-Match']);
+      deq(document.paths['/projections/Beaches/v1'].get.parameters.map((parameter: any) => parameter.name), ['changeSetId', 'code', 'surface', 'page', 'pageSize', 'If-None-Match']);
       deq(beaches.required, ['code', 'name', 'surfaces']);
 
       const grades = schema(document, 'Grades');

@@ -77,6 +77,13 @@ BEGIN
   INSERT INTO fby_projection_entity (projection_id, entity_id) VALUES
   (v_projection_id, v_entity_id);
   {{/dependencies}}
+  {{#if paging}}
+
+  UPDATE fby_projection
+  SET page_size = {{literal paging.page_size}},
+      page_max = {{literal paging.page_max}}
+  WHERE id = v_projection_id;
+  {{/if}}
 
   {{#if root}}
   SELECT id INTO v_root_id
@@ -87,9 +94,7 @@ BEGIN
   UPDATE fby_projection
   SET root_entity_id = v_root_id,
       fields = {{fieldArray fields 'field'}},
-      aliases = {{fieldArray fields 'as'}},
-      page_size = {{literal paging.page_size}},
-      page_max = {{literal paging.page_max}}
+      aliases = {{fieldArray fields 'as'}}
   WHERE id = v_projection_id;
 
   {{#each parameters}}

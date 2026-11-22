@@ -447,24 +447,42 @@ describe('HTTP', () => {
       }
     });
 
-    it('should respond with 400 for page or pageSize when the projection has no paging', async (t) => {
-      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.paging'), ADD_CHANGE_SET_1);
-      const changeSetId = await getChangeSetId('2020 VAT Rates');
-
-      const response = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&page=1`);
-      eq(response.status, 400);
-      deq(await response.json(), { error: "Projection 'VAT Rates v1' has no paging" });
-    });
-
-    it('should serve every document when the projection has no paging', async (t) => {
+    it('should page a projection without paging by the parameters sent, with no default and no maximum', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.paging'), setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
       const changeSetId = await getChangeSetId('2020 VAT Rates');
 
-      const response = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`);
-      eq(response.status, 200);
-      deq((await response.json()).map(({ type }) => type), ['a', 'b', 'c', 'd', 'e']);
-      eq(response.headers.get('X-Total-Count'), '5');
-      eq(response.headers.get('Link'), null);
+      await assertPages(changeSetId, [
+        ['', ['a', 'b', 'c', 'd', 'e'], []],
+        ['page=1', ['a', 'b', 'c', 'd', 'e'], []],
+        ['page=2', [], [['page=1', 'prev']]],
+        ['pageSize=2', ['a', 'b'], [['pageSize=2&page=2', 'next']]],
+        ['page=2&pageSize=2', ['c', 'd'], [['page=1&pageSize=2', 'prev'], ['page=3&pageSize=2', 'next']]],
+        ['pageSize=1000000', ['a', 'b', 'c', 'd', 'e'], []],
+      ]);
+    });
+
+    it('should page a projection with paging by its page size and maximum', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      await assertPages(changeSetId, [
+        ['', ['a', 'b'], [['page=2', 'next']]],
+        ['page=2', ['c', 'd'], [['page=1', 'prev'], ['page=3', 'next']]],
+        ['pageSize=10', ['a', 'b', 'c'], [['pageSize=10&page=2', 'next']]],
+        ['page=2&pageSize=10', ['d', 'e'], [['page=1&pageSize=10', 'prev']]],
+        ['pageSize=1000000', ['a', 'b', 'c'], [['pageSize=1000000&page=2', 'next']]],
+      ]);
+    });
+
+    it('should page a projection without paging in its declared order and then by key', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.paging'), setRates({ c: 0.1, b: 0.2, a: 0.2, e: 0.3, d: 0.4 }));
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      await assertPages(changeSetId, [
+        ['pageSize=2', ['c', 'a'], [['pageSize=2&page=2', 'next']]],
+        ['pageSize=2&page=2', ['b', 'e'], [['pageSize=2&page=1', 'prev'], ['pageSize=2&page=3', 'next']]],
+        ['pageSize=2&page=3', ['d'], [['pageSize=2&page=2', 'prev']]],
+      ]);
     });
 
     it('should filter documents by declared parameters', async (t) => {
@@ -667,14 +685,34 @@ describe('HTTP', () => {
       eq(response.headers.get('Link'), `</projections/VAT%20Rates/v1?changeSetId=${changeSetId}&page=4&pageSize=1>; rel="prev"`);
     });
 
-    it('should respond with 400 for a page without a page size', async (t) => {
-      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+    it('should page rows without paging by the parameters sent, with no default and no maximum', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
       await createRawProjection();
       const changeSetId = await getChangeSetId('2020 VAT Rates');
 
-      const response = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&page=2`);
-      eq(response.status, 400);
-      deq(await response.json(), { error: "Query parameter 'page' requires 'pageSize'" });
+      await assertPages(changeSetId, [
+        ['', ['a', 'b', 'c', 'd', 'e'], []],
+        ['page=1', ['a', 'b', 'c', 'd', 'e'], []],
+        ['page=2', [], [['page=1', 'prev']]],
+        ['pageSize=2', ['a', 'b'], [['pageSize=2&page=2', 'next']]],
+        ['page=2&pageSize=2', ['c', 'd'], [['page=1&pageSize=2', 'prev'], ['page=3&pageSize=2', 'next']]],
+        ['pageSize=1000000', ['a', 'b', 'c', 'd', 'e'], []],
+      ]);
+    });
+
+    it('should page rows with paging by its page size and maximum', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { page_size: 2, page_max: 3 }), setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
+      await createRawProjection();
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      await assertPages(changeSetId, [
+        ['', ['a', 'b'], [['page=2', 'next']]],
+        ['page=2', ['c', 'd'], [['page=1', 'prev'], ['page=3', 'next']]],
+        ['pageSize=10', ['a', 'b', 'c'], [['pageSize=10&page=2', 'next']]],
+        ['page=2&pageSize=10', ['d', 'e'], [['page=1&pageSize=10', 'prev']]],
+        ['pageSize=1000000', ['a', 'b', 'c'], [['pageSize=1000000&page=2', 'next']]],
+        ['page=4', [], [['page=3', 'prev']]],
+      ]);
     });
 
     it('should respond with 400 for any other query parameter', async (t) => {
@@ -1144,12 +1182,16 @@ describe('HTTP', () => {
       eq(paths['/projections/VAT%20Rates/v1'].get.description, undefined);
     });
 
-    it('should omit the paging parameters when the projection has no paging', async (t) => {
+    it('should publish the paging parameters without a default or maximum when the projection has no paging', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_ROOT_PROJECTION).del('0.paging'));
 
       const { paths } = await getDocument();
-      const names = paths['/projections/VAT%20Rates/v1'].get.parameters.map(({ name }) => name);
-      deq(names, ['changeSetId', 'type', 'prefix', 'types', 'rate_from', 'rate_to', 'above', 'at_least', 'below', 'at_most', 'If-None-Match']);
+      const { parameters } = paths['/projections/VAT%20Rates/v1'].get;
+      deq(parameters.map(({ name }) => name), ['changeSetId', 'type', 'prefix', 'types', 'rate_from', 'rate_to', 'above', 'at_least', 'below', 'at_most', 'page', 'pageSize', 'If-None-Match']);
+      deq(parameters.filter(({ name }) => ['page', 'pageSize'].includes(name)), [
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1 } },
+      ]);
     });
 
     it('should describe the documents of a nested projection', async (t) => {
@@ -1344,6 +1386,16 @@ describe('HTTP', () => {
       deq(operation.responses['200'].content['application/json'].schema, { type: 'array', items: { type: 'object' } });
     });
 
+    it('should publish the paging defaults and maximum of a projection declared with dependencies and paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { page_size: 2, page_max: 3 }));
+
+      const { paths } = await getDocument();
+      deq(paths['/projections/VAT%20Rates/v1'].get.parameters.filter(({ name }) => ['page', 'pageSize'].includes(name)), [
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
+        { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
+      ]);
+    });
+
     it('should serve the document under the base path', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION);
 
@@ -1390,6 +1442,17 @@ describe('HTTP', () => {
 
   async function get(path, options) {
     return filby.fetch(new Request(`http://localhost${path}`), options);
+  }
+
+  async function assertPages(changeSetId, pages) {
+    const base = `/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`;
+    for (const [query, types, links] of pages) {
+      const response = await get(query ? `${base}&${query}` : base);
+      eq(response.status, 200, query);
+      deq((await response.json()).map(({ type }) => type), types, query);
+      eq(response.headers.get('X-Total-Count'), '5', query);
+      eq(response.headers.get('Link'), links.length ? links.map(([target, rel]) => `<${base}&${target}>; rel="${rel}"`).join(', ') : null, query);
+    }
   }
 
   async function getChangeSetId(description) {
