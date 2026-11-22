@@ -15,7 +15,7 @@ declare class Filby {
     stopNotifications(): Promise<void>;
     subscribe<T>(event: string, handler: Handler<T>): void;
     unsubscribe<T>(event: string, handler?: Handler<T>): void;
-    unsubscribeAll(): void;
+    unsubscribeAll(event?: string): void;
     stop(): Promise<void>;
     withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
     getProjections(): Promise<Projection[]>;

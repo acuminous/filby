@@ -40,6 +40,7 @@ async function usage(): Promise<void> {
   filby.subscribe(Filby.NOTIFICATION_ERROR, onError);
   filby.unsubscribe('park-change', handler);
   filby.unsubscribe(Filby.NOTIFICATION_ERROR);
+  filby.unsubscribeAll('park-change');
   filby.unsubscribeAll();
 
   const count: number = await filby.withTransaction(async (client: PoolClient) => (await client.query('SELECT 1')).rowCount ?? 0);
