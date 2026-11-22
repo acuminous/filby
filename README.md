@@ -472,7 +472,7 @@ Each parameter names a field and a matching rule. The field usually belongs to t
 | Match | Behaviour |
 | ----- | --------- |
 | `equals` | Matches the supplied value exactly. This is the default. |
-| `prefix` | Matches values beginning with the supplied text. |
+| `prefix` | Matches values beginning with the supplied text. Applies only to a text field. |
 | `in` | Matches any of the supplied values. On an array field, matches arrays that share at least one value with the supplied values. |
 | `contains` | Matches arrays that include the supplied value. Applies only to an array field. |
 | `range` | Matches values between optional, inclusive lower and upper bounds. |
@@ -524,17 +524,17 @@ Each park contains its matching seasons. By default, the child's join fields are
     "seasons": [
       {
         "customer_type": "Guest",
-        "current_season_start": "2026-03-16T00:00:00.000Z",
-        "current_season_end": "2026-11-03T00:00:00.000Z",
-        "next_season_start": "2027-03-16T00:00:00.000Z",
-        "next_season_end": "2027-11-03T00:00:00.000Z"
+        "current_season_start": "2026-03-16",
+        "current_season_end": "2026-11-03",
+        "next_season_start": "2027-03-16",
+        "next_season_end": "2027-11-03"
       },
       {
         "customer_type": "Owner",
-        "current_season_start": "2026-03-01T00:00:00.000Z",
-        "current_season_end": "2027-01-06T00:00:00.000Z",
-        "next_season_start": "2027-03-01T00:00:00.000Z",
-        "next_season_end": "2028-01-06T00:00:00.000Z"
+        "current_season_start": "2026-03-01",
+        "current_season_end": "2027-01-06",
+        "next_season_start": "2027-03-01",
+        "next_season_end": "2028-01-06"
       }
     ]
   }
@@ -542,6 +542,8 @@ Each park contains its matching seasons. By default, the child's join fields are
 ```
 
 A park with no seasons has an empty `seasons` list.
+
+The two fields in each `on` pair must have the same type, although their lengths or precisions may differ. For example, a `VARCHAR(10)` field can join to a `VARCHAR(20)` field. An `INTEGER` field cannot join to a `BIGINT` field, and a `TEXT` field cannot join to a `VARCHAR` field. Filby rejects a projection that breaks this rule when its migration is applied.
 
 Nests can contain further nests to any depth. Each level joins to its immediate parent. Here, each manufacturer contains its models, and each model contains its prices:
 
@@ -633,7 +635,7 @@ Add a lookup to include the amenity each link refers to:
             Code: Amenity Code
 ```
 
-The lookup's `on` map relates fields on the looked-up entity to fields on the current record. Here, the amenity's `Code` matches the link's `Amenity Code`.
+The lookup's `on` map relates fields on the looked-up entity to fields on the current record. Here, the amenity's `Code` matches the link's `Amenity Code`. As with a nest, the two fields in each pair must have the same type.
 
 ```json
 {
@@ -1340,6 +1342,7 @@ Some of Filby's API behaves differently in 1.0.0. Check your application for the
 | `withTransaction` runs its callback in a transaction, which is rolled back if the callback throws. In 0.14.0 each statement was committed as it ran. | Check any code that relied on earlier statements being kept after a later one failed. |
 | Deleting a change set with SQL also deletes its rows from the entity tables. | Delete a superseded change set and its re-issue in the same statement. See [Correcting and re-issuing data](#correcting-and-re-issuing-data). |
 | In TypeScript, `getProjection`, `getChangeSet` and `getCurrentChangeSet` can return `undefined`. | Handle the `undefined` case. |
+| `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values are strings, such as `2026-07-01` and `2026-07-01T10:00:00`, instead of `Date` objects in the process time zone. Over HTTP, a date that was served as `2026-07-01T00:00:00.000Z` under `TZ=UTC` is now served as `2026-07-01`. | Read these values as strings, or set `localDateTypes` to `'pg'` to keep node-pg's conversion. See [Configuration](#configuration). |
 
 ### Creating new databases from your migrations
 
@@ -1371,6 +1374,7 @@ After the first `init()`:
 | Key | Type | Default | Notes |
 | --- | ---- | ------- | ----- |
 | `database` | object | | Passed through to node-pg's `Pool`, so any `PoolConfig` key works, and node-pg reads `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` and `PGDATABASE` from the environment for anything not given. A `types` entry is wrapped so Filby can add its own parsers |
+| `localDateTypes` | `'string'` or `'pg'` | `'string'` | How `DATE`, `TIMESTAMP WITHOUT TIME ZONE` and their arrays are returned, as described below |
 | `migrations` | list of paths | `['migrations']` | Relative to the working directory. |
 | `notifications.interval` | duration | `1m` | How often Filby polls for notifications |
 | `notifications.initialDelay` | duration | `10s` | The delay before the first poll after `startNotifications` |
@@ -1379,7 +1383,7 @@ After the first `init()`:
 | `notifications.handlerTimeout` | duration | `30s` | How long a handler may run before its signal is aborted and the attempt fails |
 | `notifications.listen` | boolean | `false` | Whether to hold a connection that listens for scheduled notifications and polls at once |
 
-Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax, and a negative or unparseable value is rejected. `initialDelay` and `maxRescheduleDelay` may be zero, so the first poll happens as soon as notifications start and a failed notification is retried on the next poll. `interval` and `handlerTimeout` must be greater than zero, because a zero interval polls the database continuously and a zero handler timeout aborts every handler as soon as it starts. The config is validated when Filby is constructed, and an unknown key or a bad duration is rejected. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
+Durations such as `30s`, `5m` and `1h` use [parse-duration](https://www.npmjs.com/package/parse-duration) syntax, and a negative or unparseable value is rejected. `initialDelay` and `maxRescheduleDelay` may be zero, so the first poll happens as soon as notifications start and a failed notification is retried on the next poll. `interval` and `handlerTimeout` must be greater than zero, because a zero interval polls the database continuously and a zero handler timeout aborts every handler as soon as it starts. The config is validated when Filby is constructed, and an unknown key, an unsupported `localDateTypes` or a bad duration is rejected. Every schema problem is reported in one error, one per line, and the durations are checked once the schema passes, again all together.
 
 ```js
 const filby = new Filby({
@@ -1396,7 +1400,22 @@ const filby = new Filby({
 });
 ```
 
-Run the process that reads data with `TZ=UTC`. node-pg converts `DATE` and `TIMESTAMP` values using the process time zone, so the same row renders differently on machines with different time zones. Filby never uses the process time zone for migrations, so this only affects the values your application reads.
+PostgreSQL stores a `DATE` or a `TIMESTAMP WITHOUT TIME ZONE` without a time zone, so by default Filby returns these values as strings rather than converting them into JavaScript dates. A `DATE` is returned as PostgreSQL writes it, such as `2026-07-01`. A `TIMESTAMP WITHOUT TIME ZONE` is returned in ISO 8601 form without an offset, such as `2026-07-01T10:00:00`. Arrays of either type are arrays of these strings, and values such as `infinity` or a date with a `BC` suffix are returned as PostgreSQL writes them. This applies to every query Filby runs, including `getDocuments`, `getAggregates`, custom SQL projections and `withTransaction`, so the values your application reads and serves do not depend on the time zone of the process. The strings follow PostgreSQL's `DateStyle` setting, and Filby expects its default ISO output. Types with a time zone, such as `TIMESTAMP WITH TIME ZONE`, are still returned as `Date` objects, because they identify an instant whatever the process time zone.
+
+A value without a time zone cannot be turned into an instant, because nothing says which zone its wall-clock time belongs to. If your application needs an instant, store the field as `TIMESTAMP WITH TIME ZONE`.
+
+Set `localDateTypes` to `'pg'` to stop Filby registering its parsers for these types. node-pg's own parsers then apply, which return `Date` objects in the process time zone and `Infinity` for `infinity`, unless you register your own in `database.types`. The OpenAPI document still describes the strings Filby returns by default, so it may not match what you serve. For example, on a Node.js version that provides `Temporal`, you can read dates and local timestamps as Temporal values:
+
+```js
+const { TypeOverrides } = require('pg');
+
+const types = new TypeOverrides();
+types.setTypeParser(1082, (text) => Temporal.PlainDate.from(text));
+types.setTypeParser(1114, (text) => Temporal.PlainDateTime.from(text));
+const filby = new Filby({ ...config, localDateTypes: 'pg', database: { ...config.database, types } });
+```
+
+The array types, `DATE[]` and `TIMESTAMP[]`, have their own parsers, with type ids 1182 and 1115, so register those too if your fields use them.
 
 ### DSL
 
@@ -1471,20 +1490,20 @@ Drops the metadata, the table and the aggregate function. The entity must exist,
 | `nest` | map of name to nest | no | | Root only |
 | `lookup` | map of name to lookup | no | | Root only |
 
-A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root or a path. A path such as `Beach Routes.Beach.Surfaces` names a nest or lookup at each level, starting from the root, and ends with a field of the last one. A lookup can only be the last name in a path. Only `in` and `contains` can be used with an array field, and `contains` can only be used with an array field. The canonical parameter names `change_set_id`, `page_offset`, `page_size`, `changesetid`, `page` and `pagesize` are reserved.
+A parameter's `match` is one of `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` and `lte`, and its `field` must be a field of the root or a path. A path such as `Beach Routes.Beach.Surfaces` names a nest or lookup at each level, starting from the root, and ends with a field of the last one. A lookup can only be the last name in a path. Only `in` and `contains` can be used with an array field, and `contains` can only be used with an array field. `prefix` can only be used with a text field, such as `TEXT` or `VARCHAR`, and not with an enum field. The canonical parameter names `change_set_id`, `page_offset`, `page_size`, `changesetid`, `page` and `pagesize` are reserved.
 
 A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `fields` must name at least one field.
 
 | Key | Type | Required | Notes |
 | --- | ---- | -------- | ----- |
 | `entity` | `Entity@n` | yes | Must name the version with `@n` |
-| `on` | map of child field to parent field, at least one | yes | A lookup's `on` must cover the whole key of its entity |
+| `on` | map of child field to parent field, at least one | yes | Each pair must have the same type. A lookup's `on` must cover the whole key of its entity |
 | `fields` | list of field names or `{ field, as }` | no | May be empty on a nest |
 | `order` | list of `{ field, direction, nulls }`, at least one | no | The child's key is appended |
 | `nest` | map of name to nest | no | To any depth |
 | `lookup` | map of name to lookup | no | |
 
-A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection name and version must not have been used before, including by a projection that has since been dropped. Every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
+A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection name and version must not have been used before, including by a projection that has since been dropped. Every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to, and the two fields in each `on` pair must have the same type, ignoring any length or precision. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
 #### DROP_PROJECTION
 
@@ -1707,7 +1726,7 @@ async function getParks(changeSetId, code) {
 }
 ```
 
-Values use node-pg's type conversions at every level. For example, timestamps are `Date` objects and enum arrays are arrays of strings.
+Values use node-pg's type conversions at every level, apart from the date types described under [Configuration](#configuration). For example, a `TIMESTAMP WITH TIME ZONE` is a `Date` object, a `DATE` is a string such as `2026-07-01`, and an enum array is an array of strings.
 
 `getDocuments()` does not support projections declared with `dependencies` instead of a root entity. For those projections, call the custom SQL function through `withTransaction()`.
 
@@ -1858,10 +1877,14 @@ Schemas describe the values returned over HTTP, which may differ from their Post
 | PostgreSQL type | JSON representation |
 | --------------- | ------------------- |
 | `BIGINT`, `INT8`, `NUMERIC`, `DECIMAL` | Strings, matching node-pg's default conversions. |
-| `DATE` and timestamp types | Strings with the `date-time` format. |
+| `DATE` | Strings with the `date` format, such as `2026-07-01`. |
+| `TIMESTAMP WITHOUT TIME ZONE` | Strings with no format, such as `2026-07-01T10:00:00`, because the `date-time` format requires an offset. |
+| `TIMESTAMP WITH TIME ZONE` | Strings with the `date-time` format. |
 | `JSON`, `JSONB` and unrecognised types | Unconstrained values. |
 
 Array fields use the corresponding element schema. Nullable fields also allow `null`.
+
+The `DATE` and `TIMESTAMP WITHOUT TIME ZONE` schemas describe the strings Filby returns by default, even when `localDateTypes` is `'pg'`. A value such as `infinity` is served as written, so it does not match the `date` format.
 
 #### Filby extensions
 
@@ -1932,7 +1955,7 @@ The option is required. The command applies Filby's migrations and then yours, a
 Use `export` to apply your migrations and write one projection's [bundle](#projection-bundle):
 
 ```bash
-TZ=UTC npx filby export --config filby.json --projection 'Parks@1' --out parks-v1.json
+npx filby export --config filby.json --projection 'Parks@1' --out parks-v1.json
 ```
 
 | Option | Value |
@@ -1941,7 +1964,7 @@ TZ=UTC npx filby export --config filby.json --projection 'Parks@1' --out parks-v
 | `--projection` | The projection, as `<name>@<version>`. |
 | `--out` | The bundle file to write. Missing directories are created. |
 
-All three options are required. The command applies any outstanding migrations to the configured database, as `filby.init()` does, so use a database it is allowed to change, such as a service container in CI. It does not start notifications. Run it with `TZ=UTC` so that dates are exported correctly, for the reason given under [Configuration](#configuration).
+All three options are required. The command applies any outstanding migrations to the configured database, as `filby.init()` does, so use a database it is allowed to change, such as a service container in CI. It does not start notifications. The bundle always holds `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values as the strings described under [Configuration](#configuration), even when the configuration sets `localDateTypes` to `'pg'`, so its contents depend only on the data and not on where it was exported.
 
 A projection declared with `dependencies` is exported in the same way, using the rows its SQL function returns. Filby cannot describe those rows, so the bundle's schema describes each row as an object without listing its properties, and their dates remain strings in the module.
 
@@ -1964,7 +1987,7 @@ Bundles have their own format version, independent of Filby's version. This sect
 | `changeSets` | The change log, as returned by `getChangeLog`. |
 | `documents` | An object keyed by change set id. Each value is the array of every document at that change set, as `GET /projections/<name>/v<n>` returns them with no parameters. |
 
-Values are represented as described under [JSON types](#json-types). Dates and timestamps are ISO 8601 strings, and the schema marks them with `"format": "date-time"` so that a reader can convert them back into dates.
+Values are represented as described under [JSON types](#json-types). Timestamps with a time zone are ISO 8601 strings, and the schema marks them with `"format": "date-time"` so that a reader can convert them back into dates. The schema marks a `DATE` with `"format": "date"` and gives a `TIMESTAMP WITHOUT TIME ZONE` no format. Neither identifies an instant, so a reader should keep them as strings, or convert them into a calendar date or local date and time type rather than a JavaScript `Date`.
 
 ### Database objects
 

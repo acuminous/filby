@@ -29,6 +29,7 @@ export class Filby {
 
 export type Config = {
   database?: PoolConfig;
+  localDateTypes?: 'string' | 'pg';
   migrations?: string[];
   notifications?: {
     interval?: string;

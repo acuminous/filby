@@ -5,6 +5,8 @@
     v_nest_id INTEGER;
     v_nest_entity_id INTEGER;
     v_field TEXT;
+    v_type REGTYPE;
+    v_parent_type REGTYPE;
     {{#if lookup}}
     v_missing TEXT;
     {{/if}}
@@ -38,6 +40,17 @@
 
     IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_parent_entity_id AND name = {{literal (canonical parent_field)}}) THEN
       RAISE EXCEPTION 'Projection ''%'' {{#if ../lookup}}lookup{{else}}nest{{/if}} ''%'' joins on a non existent field ''%'' of entity ''%''%', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal parent_field}}, {{literal ../parent_entity (v ../parent_version)}}, fby_entity_field_hint(v_parent_entity_id);
+    END IF;
+
+    SELECT to_regtype(c.type), to_regtype(p.type) INTO v_type, v_parent_type
+    FROM fby_entity_field c, fby_entity_field p
+    WHERE c.entity_id = v_nest_entity_id
+      AND c.name = {{literal (canonical field)}}
+      AND p.entity_id = v_parent_entity_id
+      AND p.name = {{literal (canonical parent_field)}};
+
+    IF v_type IS DISTINCT FROM v_parent_type THEN
+      RAISE EXCEPTION 'Projection ''%'' {{#if ../lookup}}lookup{{else}}nest{{/if}} ''%'' joins field ''%'' of entity ''%'' (%) to field ''%'' of entity ''%'' (%), which have different types', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal parent_field}}, {{literal ../parent_entity (v ../parent_version)}}, v_parent_type, {{literal field}}, {{literal ../entity (v ../version)}}, v_type;
     END IF;
 
     INSERT INTO fby_projection_nest_on (nest_id, position, field, parent_field) VALUES
