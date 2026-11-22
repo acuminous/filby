@@ -61,7 +61,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.getNotificationStatus()`, for health checks. Its `overdue` and `exhausted` counts do not overlap, and notifications being delivered are counted as `claimed` (#58, #261, #307).
 - `ALTER_ENUM`, which adds values to an existing enum (#62).
 - `timezone` on a change set, so `effective` can be a calendar date (#102).
-- `nullable: false` on entity fields, and shorter equivalent forms of the DSL (#51).
+- `nullable: false` on entity fields, which `SET` frames must then supply, and shorter equivalent forms of the DSL (#51, #305).
 - `since` on `getChangeLog`, to read only newer change sets (#56).
 - Frame actions in any case, and an `action` on a CSV source frame that applies to every row (#103).
 - CSV sources with a `.tsv` extension, read as tab-separated (#214).
