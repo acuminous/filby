@@ -2164,6 +2164,20 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject a page size greater than the page max', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_ROOT_PROJECTION).set('0.paging.page_size', 50)).set('0.paging.page_max', 10)), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' page_size 50 is greater than page_max 10");
+        return true;
+      });
+    });
+
+    it('should accept a page size equal to the page max', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(transform(ADD_ROOT_PROJECTION).set('0.paging.page_size', 10)).set('0.paging.page_max', 10));
+
+      const { rows } = await filby.withTransaction((tx) => tx.query('SELECT page_size, page_max FROM fby_projection'));
+      deq(rows, [{ page_size: 10, page_max: 10 }]);
+    });
+
     it('should nest child entities in the declared order at every depth', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
 

@@ -45,6 +45,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Parameters with `gt`, `gte`, `lt` and `lte` matches (#161), `contains` and `in` matches on array fields (#215), and paths that filter on nested or looked-up records (#216).
 - `nest` and `lookup` in projections, to include related records as lists or single objects, to any depth (#104, #163, #177, #191).
 - `ADD_PROJECTION` rejects a nest or lookup whose `on` map joins two fields of different types. Joining `INTEGER` to `BIGINT` would otherwise return empty nests and null lookups, and joining `TEXT` to `INTEGER` would make every request for the projection fail (#304).
+- `ADD_PROJECTION` rejects `paging` whose `page_size` is greater than its `page_max`. The OpenAPI document would otherwise publish a default page size above its maximum, and requests without `pageSize` would be capped to `page_max` (#313).
 - `fields` in projections, to choose which fields a document carries, and `{ field, as }` to rename them (#199, #213).
 - `filby.getDocuments`, which returns a projection's documents with their nests and lookups (#104).
 - `filby.fetch`, a framework-independent HTTP handler for change logs, projections and the list of projections. Its `ETag` header is the change set's `entityTag` in double quotes (#59, #180, #244).
