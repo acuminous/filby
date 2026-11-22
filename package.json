@@ -20,10 +20,17 @@
   "author": "Stephen Cresswell",
   "license": "ISC",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.15"
   },
+  "type": "module",
   "main": "index.js",
   "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
   "bin": {
     "filby": "bin/filby.js"
   },

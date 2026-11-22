@@ -1,17 +1,19 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { promisify } = require('node:util');
-const { ok, strictEqual: eq, deepEqual: deq, rejects, doesNotThrow } = require('node:assert');
-const { describe, it, before, beforeEach, after } = require('node:test');
-const YAML = require('yaml');
-const op = require('object-path-immutable');
-const { PostgresError: { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, INVALID_DATETIME_FORMAT, UNSAFE_NEW_ENUM_VALUE_USAGE } } = require('pg-error-enum');
+import fs from 'node:fs';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { ok, strictEqual as eq, deepEqual as deq, rejects, doesNotThrow } from 'node:assert';
+import { describe, it, before, beforeEach, after } from 'node:test';
+import YAML from 'yaml';
+import op from 'object-path-immutable';
+import { PostgresError } from 'pg-error-enum';
 
-const TestFilby = require('./TestFilby');
-const { table } = require('../lib/helpers');
-const validateMigration = require('../lib/validate-migration');
-const driver = require('../lib/marv-filby-driver');
-const exportBundle = require('../lib/export');
+import TestFilby from './TestFilby.js';
+import { table } from '../lib/helpers.js';
+import validateMigration from '../lib/validate-migration.js';
+import driver from '../lib/marv-filby-driver.js';
+import exportBundle from '../lib/export.js';
+
+const { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, INVALID_DATETIME_FORMAT, UNSAFE_NEW_ENUM_VALUE_USAGE } = PostgresError;
 
 const config = {
   nukeCustomObjects: async (tx) => {
@@ -465,8 +467,8 @@ describe('DSL', () => {
 
     async function applyLaterYaml(name, ...script) {
       const slug = name.replace(/ /g, '-').toLowerCase();
-      await fs.promises.unlink(path.join(__dirname, 'migrations', `001.${slug}.yaml`));
-      await fs.promises.writeFile(path.join(__dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      await fs.promises.unlink(path.join(import.meta.dirname, 'migrations', `001.${slug}.yaml`));
+      await fs.promises.writeFile(path.join(import.meta.dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
       return filby.init();
     }
   });
@@ -1254,8 +1256,8 @@ describe('DSL', () => {
 
     async function applyLaterYaml(name, ...script) {
       const slug = name.replace(/ /g, '-').toLowerCase();
-      await fs.promises.unlink(path.join(__dirname, 'migrations', `001.${slug}.yaml`));
-      await fs.promises.writeFile(path.join(__dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      await fs.promises.unlink(path.join(import.meta.dirname, 'migrations', `001.${slug}.yaml`));
+      await fs.promises.writeFile(path.join(import.meta.dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
       return filby.init();
     }
 
@@ -4713,8 +4715,8 @@ describe('DSL', () => {
 
     async function applyLaterYaml(name, ...script) {
       const slug = name.replace(/ /g, '-').toLowerCase();
-      await fs.promises.rm(path.join(__dirname, 'migrations', `001.${slug}.yaml`), { force: true });
-      await fs.promises.writeFile(path.join(__dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      await fs.promises.rm(path.join(import.meta.dirname, 'migrations', `001.${slug}.yaml`), { force: true });
+      await fs.promises.writeFile(path.join(import.meta.dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
       return filby.init();
     }
 
@@ -5695,7 +5697,7 @@ describe('DSL', () => {
     it('should reject a frame action when the csv has an action column in another case', async (t) => {
       const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-title-case-action.csv' }]);
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
-        eq(err.message, `Frame for entity 'VAT Rate v1' specifies action 'SET' but ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-title-case-action.csv')} also has an action column`);
+        eq(err.message, `Frame for entity 'VAT Rate v1' specifies action 'SET' but ${path.join(import.meta.dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-title-case-action.csv')} also has an action column`);
         return true;
       });
     });
@@ -5703,7 +5705,7 @@ describe('DSL', () => {
     it('should reject a frame action when the csv has an action column', async (t) => {
       const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/vat-rate-v1-2020-set.csv' }]);
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
-        eq(err.message, `Frame for entity 'VAT Rate v1' specifies action 'SET' but ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-set.csv')} also has an action column`);
+        eq(err.message, `Frame for entity 'VAT Rate v1' specifies action 'SET' but ${path.join(import.meta.dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-set.csv')} also has an action column`);
         return true;
       });
     });
@@ -5711,7 +5713,7 @@ describe('DSL', () => {
     it('should require a frame action when the csv has no action column', async (t) => {
       const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-no-action.csv' }]);
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
-        eq(err.message, `Frame for entity 'VAT Rate v1' does not specify an action and ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-no-action.csv')} has no action column`);
+        eq(err.message, `Frame for entity 'VAT Rate v1' does not specify an action and ${path.join(import.meta.dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-no-action.csv')} has no action column`);
         return true;
       });
     });
@@ -5719,7 +5721,7 @@ describe('DSL', () => {
     it('should reject empty csv action cells', async (t) => {
       const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source: '../dsl/datafiles/vat-rate-v1-2020-empty-action.csv' }]);
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-empty-action.csv')}:3 - Missing action`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'dsl', 'datafiles', 'vat-rate-v1-2020-empty-action.csv')}:3 - Missing action`);
         return true;
       });
     });
@@ -5767,7 +5769,7 @@ describe('DSL', () => {
       }, [ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1].join('\n'));
 
       await rejects(() => filby.applyYaml(t.name, yaml), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'dsl', 'datafiles', 'bad.csv')}:3 - Too few fields: expected 3 fields but parsed 2`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'dsl', 'datafiles', 'bad.csv')}:3 - Too few fields: expected 3 fields but parsed 2`);
         return true;
       });
     });
@@ -5788,7 +5790,7 @@ describe('DSL', () => {
 
       await rejects(() => filby.applyYaml(t.name, yaml), (err) => {
         eq(err.code, 'ENOENT');
-        ok(err.message.includes(path.join(__dirname, 'dsl', 'datafiles', 'missing.csv')), err.message);
+        ok(err.message.includes(path.join(import.meta.dirname, 'dsl', 'datafiles', 'missing.csv')), err.message);
         return true;
       });
     });
@@ -5864,7 +5866,7 @@ describe('DSL', () => {
 
     it('should report the csv line of a row beyond the first batch', async (t) => {
       const source = await writeCsv(t.name, 1500);
-      await fs.promises.appendFile(path.join(__dirname, 'migrations', source), '\nSET,type-01501,abc');
+      await fs.promises.appendFile(path.join(import.meta.dirname, 'migrations', source), '\nSET,type-01501,abc');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
@@ -5935,7 +5937,7 @@ describe('DSL', () => {
 
     it('should report the csv row beyond the first batch after a blank line', async (t) => {
       const source = await writeCsv(t.name, 1500);
-      await fs.promises.appendFile(path.join(__dirname, 'migrations', source), '\n\nSET,type-01501,abc');
+      await fs.promises.appendFile(path.join(import.meta.dirname, 'migrations', source), '\n\nSET,type-01501,abc');
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
@@ -5949,7 +5951,7 @@ describe('DSL', () => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:4 - Missing action`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'migrations', source)}:4 - Missing action`);
         return true;
       });
     });
@@ -5959,7 +5961,7 @@ describe('DSL', () => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:4 - Too few fields: expected 3 fields but parsed 2`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'migrations', source)}:4 - Too few fields: expected 3 fields but parsed 2`);
         return true;
       });
     });
@@ -5969,7 +5971,7 @@ describe('DSL', () => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:3 - Too few fields: expected 3 fields but parsed 2`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'migrations', source)}:3 - Too few fields: expected 3 fields but parsed 2`);
         return true;
       });
     });
@@ -5979,7 +5981,7 @@ describe('DSL', () => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:2 - Too many fields: expected 3 fields but parsed 4`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'migrations', source)}:2 - Too many fields: expected 3 fields but parsed 4`);
         return true;
       });
     });
@@ -5989,7 +5991,7 @@ describe('DSL', () => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:4 - Quoted field unterminated`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'migrations', source)}:4 - Quoted field unterminated`);
         return true;
       });
     });
@@ -5999,7 +6001,7 @@ describe('DSL', () => {
       const changeSet = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, source }]);
 
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, changeSet), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'migrations', source)}:2 - Duplicate column 'type'`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'migrations', source)}:2 - Duplicate column 'type'`);
         return true;
       });
     });
@@ -6095,7 +6097,7 @@ describe('DSL', () => {
     it('should report bad tsv files', async (t) => {
       const yaml = transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', source: '../dsl/datafiles/bad.tsv' }]);
       await rejects(() => filby.applyYaml(t.name, ADD_ENTITY, yaml), (err) => {
-        eq(err.message, `Error parsing ${path.join(__dirname, 'dsl', 'datafiles', 'bad.tsv')}:3 - Too few fields: expected 3 fields but parsed 2`);
+        eq(err.message, `Error parsing ${path.join(import.meta.dirname, 'dsl', 'datafiles', 'bad.tsv')}:3 - Too few fields: expected 3 fields but parsed 2`);
         return true;
       });
     });
@@ -6320,13 +6322,13 @@ describe('DSL', () => {
     const filename = `001.${name.replace(/ /g, '-')}.csv`.toLowerCase();
     const types = Array.from({ length: size }, (_, i) => `type-${String(i + 1).padStart(5, '0')}`).concat(extraTypes);
     const lines = ['action,type,rate'].concat(types.map((type, i) => `SET,${type},${(i % 100) / 100}`));
-    await fs.promises.writeFile(path.join(__dirname, 'migrations', filename), lines.join('\n'), { encoding: 'utf-8' });
+    await fs.promises.writeFile(path.join(import.meta.dirname, 'migrations', filename), lines.join('\n'), { encoding: 'utf-8' });
     return `./${filename}`;
   }
 
   async function writeCsvText(name, text) {
     const filename = `001.${name.replace(/ /g, '-')}.csv`.toLowerCase();
-    await fs.promises.writeFile(path.join(__dirname, 'migrations', filename), text, { encoding: 'utf-8' });
+    await fs.promises.writeFile(path.join(import.meta.dirname, 'migrations', filename), text, { encoding: 'utf-8' });
     return `./${filename}`;
   }
 
@@ -6364,7 +6366,7 @@ describe('DSL', () => {
 });
 
 function loadYaml(filename) {
-  return fs.readFileSync(path.join(__dirname, 'dsl', 'snippets', `${filename}.yaml`), { encoding: 'utf-8' });
+  return fs.readFileSync(path.join(import.meta.dirname, 'dsl', 'snippets', `${filename}.yaml`), { encoding: 'utf-8' });
 }
 
 function assertNotification(actual, expected) {

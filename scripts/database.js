@@ -1,8 +1,8 @@
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const { Client } = require('pg');
+import { execSync } from 'node:child_process';
+import path from 'node:path';
+import { Client } from 'pg';
 
-require('./load-env');
+import './load-env.js';
 
 const servers = [
   { port: 5432, user: 'fby_test', password: 'fby_test' },

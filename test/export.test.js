@@ -1,18 +1,20 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { execFile } = require('node:child_process');
-const { promisify } = require('node:util');
-const { strictEqual: eq, deepStrictEqual: deq, ok, match } = require('node:assert');
-const { describe, it, before, beforeEach, after } = require('node:test');
-const { Client } = require('pg');
-const Ajv = require('ajv/dist/2020');
-const addFormats = require('ajv-formats');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { strictEqual as eq, deepStrictEqual as deq, ok, match } from 'node:assert';
+import { describe, it, before, beforeEach, after } from 'node:test';
+import { Client } from 'pg';
+import Ajv from 'ajv/dist/2020.js';
+import addFormats from 'ajv-formats';
 
-const { Filby } = require('..');
-const exportBundle = require('../lib/export');
-const bundleSchema = require('../lib/bundle-schema.json');
-const { version: filbyVersion } = require('../package.json');
+import { Filby } from '../index.js';
+import exportBundle from '../lib/export.js';
+import bundleSchema from '../lib/bundle-schema.json' with { type: 'json' };
+import pkg from '../package.json' with { type: 'json' };
+
+const { version: filbyVersion } = pkg;
 
 const run = promisify(execFile);
 const cli = path.resolve('bin/filby.js');

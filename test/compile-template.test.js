@@ -1,22 +1,22 @@
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { strictEqual: eq, throws } = require('node:assert');
-const { describe, it } = require('node:test');
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { strictEqual as eq, throws } from 'node:assert';
+import { describe, it } from 'node:test';
 
-const Handlebars = require('handlebars');
+import Handlebars from 'handlebars';
 
 const hostEq = (a, b) => a === b;
 const hostEscapeExpression = Handlebars.Utils.escapeExpression;
 Handlebars.registerHelper('eq', hostEq);
 
-require('..');
-const compileTemplate = require('../lib/compile-template');
+import '../index.js';
+import compileTemplate from '../lib/compile-template.js';
 
 describe('Compile Template', () => {
 
   it('should prevent unescaped valued', () => {
-    const render = compileTemplate(__dirname, 'bad-template.hbs');
+    const render = compileTemplate(import.meta.dirname, 'bad-template.hbs');
     throws(() => render({ text: 'unescaped' }), (err) => {
       eq(err.message, "Unescaped expression 'unescaped' in Handlebars template");
       return true;
@@ -24,7 +24,7 @@ describe('Compile Template', () => {
   });
 
   it('should render escaped values', () => {
-    const render = compileTemplate(__dirname, 'bad-template.hbs');
+    const render = compileTemplate(import.meta.dirname, 'bad-template.hbs');
     eq(render({ text: new Handlebars.SafeString('escaped') }), 'This is a bad template escaped');
   });
 
@@ -48,7 +48,7 @@ describe('Compile Template', () => {
     const lines = ['action,type,rate'].concat(Array.from({ length: 20000 }, (_, i) => `SET,type-${i},${i}`));
     fs.writeFileSync(path.join(directory, 'vat-rates.csv'), lines.join('\n'));
 
-    const render = compileTemplate(path.join(__dirname, '..', 'lib'), 'template.hbs');
+    const render = compileTemplate(path.join(import.meta.dirname, '..', 'lib'), 'template.hbs');
     const sql = render([{
       operation: 'ADD_CHANGE_SET',
       description: '2020 VAT Rates',

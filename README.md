@@ -230,7 +230,9 @@ A **hook** names an event your application wants to hear about: a projection add
 
 ## Getting started
 
-Filby needs Node.js 22.12 or later and PostgreSQL 15 or later, and is tested against PostgreSQL 16.
+Filby needs Node.js 22.15 or later and PostgreSQL 15 or later, and is tested against PostgreSQL 16.
+
+Filby is an ES module. A CommonJS application can load it with `require('filby')`. A TypeScript project that compiles to CommonJS needs `module` set to `commonjs`, or to `nodenext` with TypeScript 5.8 or later.
 
 ```bash
 npm install filby
@@ -239,7 +241,7 @@ npm install filby
 Construct Filby with the database connection details and the directory holding your migrations, and call `init()` once at startup. `init()` connects and applies the migrations that have not yet been applied.
 
 ```js
-const { Filby } = require('filby');
+import { Filby } from 'filby';
 
 const filby = new Filby({
   database: { user: 'filby', database: 'filby', password: 'filby' },
@@ -254,9 +256,9 @@ A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>
 Once `init()` has resolved, mount `filby.fetch` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Subscribe to any hooks, then call `filby.startNotifications()`, and call `filby.stop()` on shutdown.
 
 ```js
-const { Filby } = require('filby');
-const { Hono } = require('hono');
-const { serve } = require('@hono/node-server');
+import { Filby } from 'filby';
+import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
 
 const filby = new Filby({
   database: { user: 'filby', database: 'refdata', password: 'secret' },
@@ -1292,7 +1294,7 @@ Most of the upgrade happens automatically. The first time `init()` runs with 1.0
 
 ### Before you upgrade
 
-1. Check your runtime. Filby 1.0.0 needs Node.js 22.12 or later and PostgreSQL 15 or later. 0.14.0 did not state a minimum PostgreSQL version, so check yours if it is older.
+1. Check your runtime. Filby 1.0.0 needs Node.js 22.15 or later and PostgreSQL 15 or later. 0.14.0 did not state a minimum PostgreSQL version, so check yours if it is older.
 2. Back up the database, so that you can return to 0.14.0 if you need to.
 3. Check for change sets that contain more than one frame for the same key, as described below.
 4. Find any of your own SQL that will need changing, as described in [Your own SQL](#your-own-sql). Make the changes when you deploy 1.0.0, not before.
@@ -1358,6 +1360,7 @@ Some of Filby's API behaves differently in 1.0.0. Check your application for the
 | `withTransaction` runs its callback in a transaction, which is rolled back if the callback throws. In 0.14.0 each statement was committed as it ran. | Check any code that relied on earlier statements being kept after a later one failed. |
 | Deleting a change set with SQL also deletes its rows from the entity tables. | Delete a superseded change set and its re-issue in the same statement. See [Correcting and re-issuing data](#correcting-and-re-issuing-data). |
 | In TypeScript, `getProjection`, `getChangeSet` and `getCurrentChangeSet` can return `undefined`. | Handle the `undefined` case. |
+| Filby is an ES module, and its package exports only `filby` itself, so files inside it, such as `filby/lib/helpers.js`, can no longer be loaded. | Load Filby as `filby`. A CommonJS application can still `require('filby')`. In a TypeScript project that compiles to CommonJS, set `module` to `commonjs`, or to `nodenext` with TypeScript 5.8 or later. |
 | `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values are strings, such as `2026-07-01` and `2026-07-01T10:00:00`, instead of `Date` objects in the process time zone. Over HTTP, a date that was served as `2026-07-01T00:00:00.000Z` under `TZ=UTC` is now served as `2026-07-01`. | Read these values as strings, or set `localDateTypes` to `'pg'` to keep node-pg's conversion. See [Configuration](#configuration). |
 
 ### Creating new databases from your migrations
@@ -1423,7 +1426,7 @@ A value without a time zone cannot be turned into an instant, because nothing sa
 Set `localDateTypes` to `'pg'` to stop Filby registering its parsers for these types. node-pg's own parsers then apply, which return `Date` objects in the process time zone and `Infinity` for `infinity`, unless you register your own in `database.types`. The OpenAPI document still describes the strings Filby returns by default, so it may not match what you serve. For example, on a Node.js version that provides `Temporal`, you can read dates and local timestamps as Temporal values:
 
 ```js
-const { TypeOverrides } = require('pg');
+import { TypeOverrides } from 'pg';
 
 const types = new TypeOverrides();
 types.setTypeParser(1082, (text) => Temporal.PlainDate.from(text));

@@ -1,8 +1,10 @@
-const { ok, strictEqual: eq, deepEqual: deq, rejects, match } = require('node:assert');
-const { describe, it, before, beforeEach, after } = require('node:test');
-const { PostgresError: { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } } = require('pg-error-enum');
+import { ok, strictEqual as eq, deepEqual as deq, rejects, match } from 'node:assert';
+import { describe, it, before, beforeEach, after } from 'node:test';
+import { PostgresError } from 'pg-error-enum';
 
-const TestFilby = require('./TestFilby');
+import TestFilby from './TestFilby.js';
+
+const { UNIQUE_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION } = PostgresError;
 
 const config = {
   database: {

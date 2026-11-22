@@ -1,5 +1,5 @@
 import { PoolClient } from 'pg';
-import { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, Filby, HandlerContext, Hook, Notification, NotificationError, NotificationStatus, PoolConfig, Projection } from '../..';
+import { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, Filby, HandlerContext, Hook, Notification, NotificationError, NotificationStatus, PoolConfig, Projection } from '../../index.js';
 
 const database: PoolConfig = { host: 'localhost', port: 5432 };
 

@@ -1,7 +1,7 @@
-const { throws, doesNotThrow } = require('node:assert');
-const { describe, it } = require('node:test');
+import { throws, doesNotThrow } from 'node:assert';
+import { describe, it } from 'node:test';
 
-const { Filby } = require('..');
+import { Filby } from '../index.js';
 
 describe('Config', () => {
 

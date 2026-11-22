@@ -1,8 +1,8 @@
-const { ok, strictEqual: eq, deepEqual: deq } = require('node:assert');
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
+import { ok, strictEqual as eq, deepEqual as deq } from 'node:assert';
+import { describe, it, before, beforeEach, after, afterEach } from 'node:test';
 
-const TestFilby = require('./TestFilby');
-const { until, once } = require('./until');
+import TestFilby from './TestFilby.js';
+import { until, once } from './until.js';
 
 const config = {
   notifications: {

@@ -1,11 +1,11 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { describe, it } = require('node:test');
-const YAML = require('yaml');
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it } from 'node:test';
+import YAML from 'yaml';
 
-const validate = require('../lib/validate-migration');
+import validate from '../lib/validate-migration.js';
 
-const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+const readme = fs.readFileSync(path.join(import.meta.dirname, '..', 'README.md'), 'utf8');
 
 const blocks = [...readme.matchAll(/^```yaml\n([\s\S]*?)^```$/gm)].map(({ index, 1: script }) => ({ line: readme.slice(0, index).split('\n').length, script }));
 

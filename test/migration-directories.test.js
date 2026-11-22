@@ -1,11 +1,11 @@
-const fs = require('node:fs/promises');
-const os = require('node:os');
-const path = require('node:path');
-const { deepEqual: deq } = require('node:assert');
-const { describe, it, before, beforeEach, after } = require('node:test');
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { deepEqual as deq } from 'node:assert';
+import { describe, it, before, beforeEach, after } from 'node:test';
 
-const { Filby } = require('..');
-const TestFilby = require('./TestFilby');
+import { Filby } from '../index.js';
+import TestFilby from './TestFilby.js';
 
 const database = { user: 'fby_test', password: 'fby_test' };
 

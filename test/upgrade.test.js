@@ -1,18 +1,18 @@
-const fs = require('node:fs/promises');
-const os = require('node:os');
-const path = require('node:path');
-const { strictEqual: eq, deepEqual: deq, rejects } = require('node:assert');
-const { describe, it, beforeEach, after } = require('node:test');
-const marv = require('marv/api/promise');
-const { Client } = require('pg');
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { strictEqual as eq, deepEqual as deq, rejects } from 'node:assert';
+import { describe, it, beforeEach, after } from 'node:test';
+import marv from 'marv/api/promise.js';
+import { Client } from 'pg';
 
-const { Filby } = require('..');
-const driver = require('../lib/marv-filby-driver');
+import { Filby } from '../index.js';
+import driver from '../lib/marv-filby-driver.js';
 
 const server = { user: 'fby_test', password: 'fby_test' };
 const upgradeDatabase = `${process.env.PGDATABASE || 'fby_test'}_upgrade`;
 const database = { ...server, database: upgradeDatabase };
-const filbyDirectory = path.join(__dirname, '..', 'migrations');
+const filbyDirectory = path.join(import.meta.dirname, '..', 'migrations');
 const directories = [];
 
 describe('Upgrade', () => {

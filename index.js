@@ -1,4 +1,4 @@
-const { Filby } = require('./lib/Filby');
+import { Filby } from './lib/Filby.js';
 
 /**
  * @typedef {import('pg').PoolConfig} PoolConfig
@@ -81,6 +81,6 @@ const { Filby } = require('./lib/Filby');
  * @property {number} total
  */
 
-module.exports = {
+export {
   Filby,
 };

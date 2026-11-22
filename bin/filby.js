@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-const fs = require('node:fs');
-const path = require('node:path');
-const { parseArgs } = require('node:util');
-const marv = require('marv/api/promise');
+import fs from 'node:fs';
+import path from 'node:path';
+import { parseArgs } from 'node:util';
+import marv from 'marv/api/promise.js';
 
-const { Filby } = require('..');
-const render = require('../lib/render-migration');
-const exportBundle = require('../lib/export');
+import { Filby } from '../index.js';
+import render from '../lib/render-migration.js';
+import exportBundle from '../lib/export.js';
 
 const USAGE = [
   'Usage: filby <validate|preview> [directory ...]',

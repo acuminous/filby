@@ -1,4 +1,4 @@
-const { setTimeout: sleep } = require('node:timers/promises');
+import { setTimeout as sleep } from 'node:timers/promises';
 
 async function until(predicate, { timeout = 5000, interval = 20 } = {}) {
   const deadline = Date.now() + timeout;
@@ -19,4 +19,4 @@ function once(filby, event, { timeout = 5000 } = {}) {
   });
 }
 
-module.exports = { until, once };
+export { until, once };

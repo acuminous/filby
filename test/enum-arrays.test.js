@@ -1,7 +1,7 @@
-const { deepStrictEqual: deq } = require('node:assert');
-const { describe, it, before, after } = require('node:test');
+import { deepStrictEqual as deq } from 'node:assert';
+import { describe, it, before, after } from 'node:test';
 
-const TestFilby = require('./TestFilby');
+import TestFilby from './TestFilby.js';
 
 const config = {
   nukeCustomObjects: async (tx) => {
