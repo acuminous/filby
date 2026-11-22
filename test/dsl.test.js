@@ -2401,6 +2401,38 @@ describe('DSL', () => {
       });
     });
 
+    it('should reject a nest join on fields of different types', async (t) => {
+      const entities = transform(transform(ADD_PARK_ENTITIES).set('0.fields.code', 'INTEGER')).set('1.fields.park_code', 'BIGINT');
+      await rejects(() => filby.applyYaml(t.name, entities, transform(ADD_NESTED_PROJECTION).set('0.nest', { seasons: { entity: 'season@1', on: { park_code: 'code' } } })), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons' joins field 'code' of entity 'park v1' (integer) to field 'park_code' of entity 'season v1' (bigint), which have different types");
+        return true;
+      });
+    });
+
+    it('should reject a nested nest join on fields of different types', async (t) => {
+      await rejects(() => filby.applyYaml(t.name, transform(ADD_PARK_ENTITIES).set('2.fields.park_code', 'INTEGER'), ADD_NESTED_PROJECTION), (err) => {
+        eq(err.message, "Projection 'Parks v1' nest 'seasons.rates' joins field 'park_code' of entity 'season v1' (text) to field 'park_code' of entity 'rate v1' (integer), which have different types");
+        return true;
+      });
+    });
+
+    it('should join on fields whose types differ only in their modifiers', async (t) => {
+      const entities = transform(transform(ADD_PARK_ENTITIES).set('0.fields.code', 'VARCHAR(10)')).set('1.fields.park_code', 'VARCHAR(20)');
+      await filby.applyYaml(t.name, entities, transform(ADD_NESTED_PROJECTION).set('0.nest', { seasons: { entity: 'season@1', on: { park_code: 'code' } } }), ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      eq(park.seasons.length, 3);
+    });
+
+    it('should join on enum fields of the same enum', async (t) => {
+      const seasonType = transform(transform(ADD_ENUM).set('0.name', 'season_type')).set('0.values', ['Owners', 'Guests']);
+      const entities = transform(transform(ADD_PARK_ENTITIES).set('1.fields.type', 'season_type')).set('2.fields.season_type', 'season_type');
+      await filby.applyYaml(t.name, seasonType, entities, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+
+      const { documents: [park] } = await getDocuments({ parameters: { code: 'DC' } });
+      deq(park.seasons.map((season) => season.rates.length), [2, 0, 2]);
+    });
+
     it('should reject a nested nest order on a field the nested entity does not have', async (t) => {
       await rejects(() => filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ADD_NESTED_PROJECTION).set('0.nest.seasons.nest.rates.order', [{ field: 'wombat' }])), (err) => {
         eq(err.message, "Projection 'Parks v1' nest 'seasons.rates' orders by a non existent field 'wombat' of entity 'rate v1'; existing fields are 'park_code', 'season_type', 'band', 'amount'");
@@ -2590,6 +2622,23 @@ describe('DSL', () => {
       const lookup = { operator: { entity: 'operator@1', on: { wombat: 'operator_code' } } };
       await rejects(() => filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, ADD_OPERATOR_ENTITY, transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
         eq(err.message, "Projection 'Parks v1' lookup 'operator' joins on a non existent field 'wombat' of entity 'operator v1'; existing fields are 'code', 'name'");
+        return true;
+      });
+    });
+
+    it('should reject a lookup join on comparable fields of different types', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      const entities = transform(ADD_PARK_ENTITIES).set('0.fields.operator_code', 'INTEGER');
+      await rejects(() => filby.applyYaml(t.name, entities, transform(ADD_OPERATOR_ENTITY).set('0.fields.code', 'NUMERIC'), transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'operator' joins field 'operator_code' of entity 'park v1' (integer) to field 'code' of entity 'operator v1' (numeric), which have different types");
+        return true;
+      });
+    });
+
+    it('should reject a lookup join on incomparable fields of different types', async (t) => {
+      const lookup = { operator: { entity: 'operator@1', on: { code: 'operator_code' } } };
+      await rejects(() => filby.applyYaml(t.name, ADD_OPERATED_PARK_ENTITIES, transform(ADD_OPERATOR_ENTITY).set('0.fields.code', 'INTEGER'), transform(ADD_NESTED_PROJECTION).set('0.lookup', lookup)), (err) => {
+        eq(err.message, "Projection 'Parks v1' lookup 'operator' joins field 'operator_code' of entity 'park v1' (text) to field 'code' of entity 'operator v1' (integer), which have different types");
         return true;
       });
     });

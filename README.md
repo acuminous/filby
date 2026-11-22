@@ -543,6 +543,8 @@ Each park contains its matching seasons. By default, the child's join fields are
 
 A park with no seasons has an empty `seasons` list.
 
+The two fields in each `on` pair must have the same type, although their lengths or precisions may differ. For example, a `VARCHAR(10)` field can join to a `VARCHAR(20)` field. An `INTEGER` field cannot join to a `BIGINT` field, and a `TEXT` field cannot join to a `VARCHAR` field. Filby rejects a projection that breaks this rule when its migration is applied.
+
 Nests can contain further nests to any depth. Each level joins to its immediate parent. Here, each manufacturer contains its models, and each model contains its prices:
 
 ```yaml
@@ -633,7 +635,7 @@ Add a lookup to include the amenity each link refers to:
             Code: Amenity Code
 ```
 
-The lookup's `on` map relates fields on the looked-up entity to fields on the current record. Here, the amenity's `Code` matches the link's `Amenity Code`.
+The lookup's `on` map relates fields on the looked-up entity to fields on the current record. Here, the amenity's `Code` matches the link's `Amenity Code`. As with a nest, the two fields in each pair must have the same type.
 
 ```json
 {
@@ -1478,13 +1480,13 @@ A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `f
 | Key | Type | Required | Notes |
 | --- | ---- | -------- | ----- |
 | `entity` | `Entity@n` | yes | Must name the version with `@n` |
-| `on` | map of child field to parent field, at least one | yes | A lookup's `on` must cover the whole key of its entity |
+| `on` | map of child field to parent field, at least one | yes | Each pair must have the same type. A lookup's `on` must cover the whole key of its entity |
 | `fields` | list of field names or `{ field, as }` | no | May be empty on a nest |
 | `order` | list of `{ field, direction, nulls }`, at least one | no | The child's key is appended |
 | `nest` | map of name to nest | no | To any depth |
 | `lookup` | map of name to lookup | no | |
 
-A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection name and version must not have been used before, including by a projection that has since been dropped. Every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
+A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection name and version must not have been used before, including by a projection that has since been dropped. Every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to, and the two fields in each `on` pair must have the same type, ignoring any length or precision. A parameter may not use a reserved name. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
 #### DROP_PROJECTION
 
