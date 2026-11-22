@@ -36,6 +36,8 @@ npm run lint
 (cd examples/holiday-park && npm test)
 ```
 
+`index.d.ts` is generated from the JSDoc in `index.js` and `lib/Filby.js`. After changing the public API, run `npm run types` and commit the result. `npm test` fails while the committed file differs from the generated one.
+
 One PR per issue, branched from `main`. Reference the issue with `Fixes #N`. The maintainer merges.
 
 ## README and documentation style
@@ -105,7 +107,7 @@ State limitations plainly. Do not oversell the project or disparage alternatives
 
 ### Verify before finishing
 
-Read the relevant code, tests and existing documentation before asserting behaviour. Check commands, option names, defaults and examples against the implementation. When documenting a proposed design, identify it as proposed.
+Read the relevant code, tests and existing documentation before asserting behaviour. `npm test` validates every `yaml` block in the README as a migration; mark a deliberately partial block with a `# filby:skip-validation` comment. Check commands, option names, defaults and examples against the implementation. When documenting a proposed design, identify it as proposed.
 
 Do not invent behaviour to make the explanation smoother. Flag material ambiguities or contradictions rather than silently resolving them. During a prose rewrite, preserve the intended technical meaning and raise any proposed behavioural changes separately.
 
