@@ -33,6 +33,7 @@ declare class Filby {
     getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
     getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
     fetchProjections(request: Request, options?: FetchOptions): Promise<Response>;
+    fetchDeclarations(request: Request, options?: FetchOptions): Promise<Response>;
     export(projection: Projection): Promise<Bundle>;
     #private;
 }

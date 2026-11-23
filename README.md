@@ -1240,6 +1240,47 @@ Set `options.info` to customise the document's title, version and description. T
 
 See [OpenAPI document](#openapi-document) for details of the generated contents.
 
+### Serving declarations over HTTP
+
+`filby.fetchProjections` serves the data. `filby.fetchDeclarations(request, options)` serves the model your migrations declared, so that a tool can show how each projection is built without reading the migration files. For each projection, it describes the root entity, the entities the projection reads, the selected fields and their aliases, the order, parameters and paging, and each nest and lookup with its entity and join fields.
+
+It accepts a standard Request, returns a standard Response and takes the same `basePath` and `info` options as `fetchProjections`. Mount it under a path of its own:
+
+```js
+app.all('/declarations/*', (c) =>
+  filby.fetchDeclarations(c.req.raw, { basePath: '/declarations' })
+);
+```
+
+`GET /declarations/projections/Parks%20(Detailed)/v1` then returns the declaration of the `Parks (Detailed)` projection from [Nests](#nests):
+
+```json
+{
+  "name": "Parks (Detailed)",
+  "version": 1,
+  "description": "Parks with their seasons",
+  "root": { "name": "Park", "version": 1 },
+  "dependencies": [{ "name": "Park", "version": 1 }, { "name": "Park Season", "version": 1 }],
+  "fields": null,
+  "order": [],
+  "parameters": [],
+  "paging": null,
+  "nests": [
+    {
+      "name": "seasons",
+      "lookup": false,
+      "entity": { "name": "Park Season", "version": 1 },
+      "on": [{ "field": "park_code", "parentField": "code" }],
+      "fields": null,
+      "order": [{ "field": "customer_type", "direction": "ASC", "nulls": null }],
+      "nests": []
+    }
+  ]
+}
+```
+
+The handler describes your whole model to anyone who can reach it, including fields that projections leave out of their documents. Applications typically mount it behind whatever protects their other administrative routes, rather than beside the public API. See [Declarations](#declarations) for the routes and the full response shape.
+
 ### Deploying
 
 Run Filby inside your application as a cluster of two or more instances, so that the API stays available while one instance restarts. Each instance calls `init()` at startup, which applies any migrations that have not yet been applied before the instance serves requests.
@@ -1757,6 +1798,8 @@ Use `filby.fetchProjections(request, options)` to serve projection discovery, ch
 
 See [Serving over HTTP](#serving-over-http) for routes, options and framework integration, and [HTTP](#http) for status codes and response headers.
 
+Use `filby.fetchDeclarations(request, options)` to serve the projections your migrations declared. See [Serving declarations over HTTP](#serving-declarations-over-http) and [Declarations](#declarations).
+
 #### Running SQL in a transaction
 
 Use `filby.withTransaction(callback)` when you need to run SQL directly. The callback receives a [node-pg](https://node-postgres.com/) client. Filby commits the transaction when the callback resolves and rolls it back if the callback rejects.
@@ -1918,6 +1961,50 @@ A client can use `x-filby-match` and `x-filby-field` to label filter controls wi
 
 Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match`, `x-filby-field` and `x-filby-carried` in the same way.
 
+### Declarations
+
+`filby.fetchDeclarations(request, { basePath, info })` handles `GET` and `HEAD` requests on the routes below. Paths are relative to `basePath`. `info` sets the title, version and description of the OpenAPI document, with the same default as the [OpenAPI document](#openapi-document) that `fetchProjections` serves.
+
+| Route | Successful response |
+| ----- | ------------------- |
+| `/projections` | `200` with the projections that have not been dropped, ordered by name then version. Each is `{ name, version, description, root }`, where `root` is the root entity as `{ name, version }`, or `null` for a custom SQL projection. |
+| `/projections/<name>/v<n>` | `200` with the projection's declaration. |
+| `/openapi.json` | `200` with an OpenAPI 3.1 document describing these routes and their response schemas. |
+
+A migration can change the model at any time, so every successful response carries `Cache-Control: no-cache`. An unknown projection produces a `404`. A dropped projection produces a `410`, because dropping a projection removes its declaration. `HEAD` requests, `405` responses, names that cannot be URL-decoded and error bodies behave as they do for [`fetchProjections`](#error-responses).
+
+#### Projection declarations
+
+A projection declaration mirrors its `ADD_PROJECTION` operation. Entity and projection names appear as declared, such as `Park Season`. Field, nest, lookup and parameter names appear in their canonical form, such as `customer_type`, because documents, query strings and SQL use that form.
+
+| Property | Value |
+| -------- | ----- |
+| `name`, `version` | The projection's name and version. |
+| `description` | The declared description, or `null`. |
+| `root` | The root entity as `{ name, version }`, or `null` for a custom SQL projection. |
+| `dependencies` | Every entity the projection reads, as `{ name, version }`, ordered by name then version. For a projection with a root, this is the root and every nested or looked-up entity. For a custom SQL projection, it is the declared `dependencies`. |
+| `fields` | `null` when the projection does not declare `fields`. Otherwise the selection in declared order, with each entry as `{ field, as }`. `as` is the property name in documents, and equals `field` when the field has no alias. A field selected twice appears twice. |
+| `order` | The declared order, with each entry as `{ field, direction, nulls }`. `direction` is `ASC` or `DESC`, and `nulls` is `FIRST`, `LAST` or `null` when the order does not specify it. |
+| `parameters` | The declared parameters, with each entry as `{ name, field, match, property }`. |
+| `paging` | `{ pageSize, pageMax }`, or `null` when the projection does not declare `paging`. |
+| `nests` | The nests in declared order, followed by the lookups in declared order. |
+
+A custom SQL projection has a `null` root and `fields`, and empty `order`, `parameters` and `nests`. Its `dependencies` and `paging` are the only structure it declares.
+
+A parameter's `field` is the path of the field it filters, such as `seasons.customer_type`. `property` is the path of property names that leads to that value in a document, including any `as` alias, such as `["seasons", "customer_type"]`. When documents leave the field out but carry it through a lookup that joins on it, `property` leads to the lookup's field instead, because the join makes the two values equal. Otherwise, a field that documents leave out has a `property` of `null`. A `range` parameter appears once, although its query string uses `_from` and `_to`.
+
+Each entry in `nests` describes a nest or lookup:
+
+| Property | Value |
+| -------- | ----- |
+| `name` | The nest or lookup name, which is also its property name in documents. |
+| `lookup` | `true` for a lookup and `false` for a nest. |
+| `entity` | The entity it reads, as `{ name, version }`. |
+| `on` | The join, with each pair as `{ field, parentField }`. `field` belongs to this entity and `parentField` to its parent. |
+| `fields` | As for the projection. When it is `null`, documents omit the join fields, as described in [Selecting fields](#selecting-fields). |
+| `order` | As for the projection. Always empty for a lookup. |
+| `nests` | The nests and lookups beneath it. Always empty for a lookup. |
+
 ### Command line
 
 Use Filby's command line tool to check migration files without a database, to apply migrations, and to export projections for distribution as npm modules.
@@ -2062,7 +2149,7 @@ npm install
 npm run example
 ```
 
-The API is served under `/api`. Open [Swagger UI](http://localhost:3000/documentation) to try requests, or access the generated OpenAPI document at `/api/openapi.json`. The `/health` endpoint reports notification status.
+The API is served under `/api`. Open [Swagger UI](http://localhost:3000/documentation) to try requests, or access the generated OpenAPI document at `/api/openapi.json`. The projection declarations are served under `/declarations`, without the protection a real application would put in front of them. The `/health` endpoint reports notification status.
 
 ### Exploring the data
 

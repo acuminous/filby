@@ -56,6 +56,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.fetchProjections` answers `HEAD` requests with the status and headers a `GET` would return, and no body. Other methods receive `405` with `Allow: GET, HEAD` (#256).
 - `filby export`, which writes a projection's documents at every change set to a bundle. [filby-pack](https://github.com/acuminous/filby-pack), released separately, turns a bundle into an npm module (#181).
 - `filby.export(projection)`, which returns the bundle that `filby export` writes, so an application or a tool such as filby-pack can build one in process. Like the command, it writes `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values as strings whatever `localDateTypes` is set to. The new `Bundle` type describes the result (#337).
+- `filby.fetchDeclarations`, an HTTP handler that serves the projections the migrations declared: the root entity, dependencies, selected fields and aliases, order, parameters, paging, nests and lookups. It takes the same options as `filby.fetchProjections` and serves its own OpenAPI document. The example application mounts it at `/declarations` (#341).
 - `filby migrate`, which applies outstanding migrations and exits, and `init({ migrate: false })`, which starts an instance without applying migrations and rejects if any are outstanding (#236).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
 - A published JSON Schema for migration files, for editor validation and completion (#48).
