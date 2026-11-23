@@ -780,7 +780,7 @@ The root, nested and looked-up entities are all dependencies of the projection. 
 
 For a shape the DSL cannot express, declare the projection's `dependencies` instead of a `root`, then implement its query function in a SQL migration.
 
-Name the function `get_<projection>_v<version>` and give it a change set id parameter. Filby uses the declared dependencies to track relevant change sets, and `filby.fetchProjections` serves the projection by calling the function.
+Name the function `get_<projection>_v<version>` and give it a change set id parameter. Filby uses the declared dependencies to track relevant change sets, and both `filby.fetchProjections` and `getDocuments()` serve the projection by calling the function.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -1708,7 +1708,7 @@ async function catchUp(projection, lastChangeSetId) {
 | Method | Behaviour |
 | ------ | --------- |
 | `filby.getAggregates(changeSetId, name, version)` | Returns the entity's aggregate rows at the specified change set. Rejects if the entity version or change set does not exist. |
-| `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Returns `{ documents, total }` for a projection declared with a root entity. |
+| `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Returns `{ documents, total }` for the projection at the specified change set. |
 
 ##### Reading projection documents
 
@@ -1748,7 +1748,7 @@ async function getParks(changeSetId, code) {
 
 Values use node-pg's type conversions at every level, apart from the date types described under [Configuration](#configuration). For example, a `TIMESTAMP WITH TIME ZONE` is a `Date` object, a `DATE` is a string such as `2026-07-01`, and an enum array is an array of strings.
 
-`getDocuments()` does not support projections declared with `dependencies` instead of a root entity. For those projections, call the custom SQL function through `withTransaction()`.
+For a projection declared with `dependencies` instead of a root entity, `getDocuments()` calls its custom SQL function and returns the rows without reshaping them. `pageOffset`, `pageSize` and `total` count those rows and follow the same paging rules. These projections have no parameters, so any key in `parameters` causes the method to reject. It also rejects if the SQL function does not exist.
 
 #### Serving HTTP requests
 
@@ -1760,13 +1760,13 @@ See [Serving over HTTP](#serving-over-http) for routes, options and framework in
 
 Use `filby.withTransaction(callback)` when you need to run SQL directly. The callback receives a [node-pg](https://node-postgres.com/) client. Filby commits the transaction when the callback resolves and rolls it back if the callback rejects.
 
-For example, to read a projection implemented with a custom SQL function:
+For example, to count the parks in each region at a change set, using the `Park` entity's aggregate function:
 
 ```js
-async function getPriceList(changeSetId) {
+async function countParksByRegion(changeSetId) {
   return filby.withTransaction(async (client) => {
     const { rows } = await client.query(
-      'SELECT * FROM get_price_list_v1($1)',
+      'SELECT region, COUNT(*) AS parks FROM get_park_v1_aggregate($1) GROUP BY region ORDER BY region',
       [changeSetId]
     );
 
