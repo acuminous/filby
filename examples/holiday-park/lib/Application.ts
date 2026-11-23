@@ -18,6 +18,7 @@ export default class Application {
     this.#config = config;
     this.#filby = new Filby(config.filby);
     this.#app.use('/api/*', cors({ origin: '*', allowMethods: ['GET'] }));
+    this.#app.use('/declarations/*', cors({ origin: '*', allowMethods: ['GET'] }));
     this.#app.get('/health', (c) => this.#getHealth(c));
     this.#app.get('/documentation', swaggerUI({ url: '/api/openapi.json' }));
     this.#app.all('/api/*', (c) => this.#filby.fetchProjections(c.req.raw, { basePath: '/api', info }));

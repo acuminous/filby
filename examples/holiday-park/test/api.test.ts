@@ -70,6 +70,12 @@ describe('API', () => {
         nests: [],
       });
     });
+
+    it('should allow requests from other origins', async () => {
+      const response = await application.app.request('/declarations/projections', { headers: { Origin: 'https://example.com' } });
+      eq(response.status, 200);
+      eq(response.headers.get('Access-Control-Allow-Origin'), '*');
+    });
   });
 
   describe('GET /api/projections', () => {
