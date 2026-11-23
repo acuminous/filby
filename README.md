@@ -1708,7 +1708,7 @@ async function catchUp(projection, lastChangeSetId) {
 | Method | Behaviour |
 | ------ | --------- |
 | `filby.getAggregates(changeSetId, name, version)` | Returns the entity's aggregate rows at the specified change set. Rejects if the entity version or change set does not exist. |
-| `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Returns `{ documents, total }` for a projection declared with a root entity. |
+| `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Returns `{ documents, total }` for the projection at the specified change set. |
 
 ##### Reading projection documents
 
@@ -1748,7 +1748,7 @@ async function getParks(changeSetId, code) {
 
 Values use node-pg's type conversions at every level, apart from the date types described under [Configuration](#configuration). For example, a `TIMESTAMP WITH TIME ZONE` is a `Date` object, a `DATE` is a string such as `2026-07-01`, and an enum array is an array of strings.
 
-`getDocuments()` does not support projections declared with `dependencies` instead of a root entity. For those projections, call the custom SQL function through `withTransaction()`.
+For a projection declared with `dependencies` instead of a root entity, `getDocuments()` calls its custom SQL function and returns the rows without reshaping them. `pageOffset`, `pageSize` and `total` count those rows and follow the same paging rules. These projections have no parameters, so any key in `parameters` causes the method to reject. It also rejects if the SQL function does not exist.
 
 #### Serving HTTP requests
 

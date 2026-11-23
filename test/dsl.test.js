@@ -2384,13 +2384,78 @@ describe('DSL', () => {
       deq(Object.keys(rows[0]), ['code', 'name', 'fby_total']);
     });
 
-    it('should reject documents for a projection without a root', async (t) => {
+    it('should return the rows and total of a projection declared with dependencies', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+      await createCustomProjection();
+
+      const { documents, total } = await getCustomDocuments();
+      eq(total, 3);
+      deq(documents, [{ type: 'reduced', rate: '0.05' }, { type: 'standard', rate: '0.10' }, { type: 'zero', rate: '0' }]);
+    });
+
+    it('should page the rows of a projection declared with dependencies without a default or maximum when it has no paging', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
+      await createCustomProjection();
+
+      const offsetOnly = await getCustomDocuments({ pageOffset: 3 });
+      eq(offsetOnly.total, 5);
+      deq(offsetOnly.documents.map(({ type }) => type), ['d', 'e']);
+
+      const page = await getCustomDocuments({ pageOffset: 1, pageSize: 2 });
+      eq(page.total, 5);
+      deq(page.documents.map(({ type }) => type), ['b', 'c']);
+
+      const uncapped = await getCustomDocuments({ pageSize: 1000000 });
+      eq(uncapped.total, 5);
+      deq(uncapped.documents.map(({ type }) => type), ['a', 'b', 'c', 'd', 'e']);
+
+      const pastTheEnd = await getCustomDocuments({ pageOffset: 5, pageSize: 2 });
+      eq(pastTheEnd.total, 5);
+      deq(pastTheEnd.documents, []);
+    });
+
+    it('should page the rows of a projection declared with dependencies by its page size and maximum', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, transform(ADD_PROJECTION).set('0.paging', { page_size: 2, page_max: 3 }), setRates({ a: 0.1, b: 0.2, c: 0.3, d: 0.4, e: 0.5 }));
+      await createCustomProjection();
+
+      const defaulted = await getCustomDocuments();
+      eq(defaulted.total, 5);
+      deq(defaulted.documents.map(({ type }) => type), ['a', 'b']);
+
+      const offset = await getCustomDocuments({ pageOffset: 2 });
+      deq(offset.documents.map(({ type }) => type), ['c', 'd']);
+
+      const capped = await getCustomDocuments({ pageOffset: 1, pageSize: 1000000 });
+      eq(capped.total, 5);
+      deq(capped.documents.map(({ type }) => type), ['b', 'c', 'd']);
+    });
+
+    it('should reject parameters for a projection declared with dependencies', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
+      await createCustomProjection();
+
+      await rejects(() => getCustomDocuments({ parameters: { type: 'standard' } }), (err) => {
+        eq(err.message, "Projection 'VAT Rates v1' has no parameter 'type'");
+        return true;
+      });
+    });
+
+    it('should reject documents for a projection declared with dependencies when its function does not exist', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1);
 
-      const projection = await filby.getProjection('VAT Rates', 1);
+      await rejects(() => getCustomDocuments(), (err) => {
+        eq(err.message, "Function 'get_vat_rates_v1' does not exist");
+        return true;
+      });
+    });
+
+    it('should reject documents for a dropped projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_CHANGE_SET_1, DROP_PROJECTION);
+      const projection = { name: 'VAT Rates', version: 1, key: 'VAT Rates v1' };
       const changeSetId = await getChangeSetId('2020 VAT Rates');
+
       await rejects(() => filby.getDocuments(projection, changeSetId), (err) => {
-        eq(err.message, "Projection 'VAT Rates v1' is not declared with a root");
+        eq(err.message, "Projection 'VAT Rates v1' does not exist");
         return true;
       });
     });
@@ -3525,6 +3590,21 @@ describe('DSL', () => {
     async function getDocuments(options, description = '2019 Parks') {
       const projection = await filby.getProjection('Parks', 1);
       const changeSetId = await getChangeSetId(description);
+      return filby.getDocuments(projection, changeSetId, options);
+    }
+
+    async function createCustomProjection() {
+      await filby.withTransaction((tx) => tx.query(`
+        CREATE FUNCTION get_vat_rates_v1(p_change_set_id INTEGER)
+        RETURNS TABLE (type TEXT, rate NUMERIC)
+        AS $$
+          SELECT type, rate FROM get_vat_rate_v1_aggregate(p_change_set_id) ORDER BY type
+        $$ LANGUAGE sql STABLE`));
+    }
+
+    async function getCustomDocuments(options) {
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
       return filby.getDocuments(projection, changeSetId, options);
     }
 
