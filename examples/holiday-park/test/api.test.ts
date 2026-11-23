@@ -49,6 +49,29 @@ describe('API', () => {
     });
   });
 
+  describe('GET /declarations/projections/:name/v:version', () => {
+    it('should describe how the migrations declared the projection', async () => {
+      const response = await get('/declarations/projections/Parks%20(Minimal)/v1');
+      eq(response.status, 200);
+      deq(await response.json(), {
+        name: 'Parks (Minimal)',
+        version: 1,
+        description: 'Parks alone, for a list or a picker',
+        root: { name: 'Park', version: 1 },
+        dependencies: [{ name: 'Park', version: 1 }],
+        fields: null,
+        order: [{ field: 'name', direction: 'ASC', nulls: null }],
+        parameters: [
+          { name: 'code', field: 'code', match: 'equals', property: ['code'] },
+          { name: 'name', field: 'name', match: 'prefix', property: ['name'] },
+          { name: 'region', field: 'region', match: 'in', property: ['region'] },
+        ],
+        paging: { pageSize: 10, pageMax: 50 },
+        nests: [],
+      });
+    });
+  });
+
   describe('GET /api/projections', () => {
     it('should list the projections with their descriptions', async () => {
       const response = await get('/api/projections');
