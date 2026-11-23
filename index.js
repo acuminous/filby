@@ -58,6 +58,10 @@ import { Filby } from './lib/Filby.js';
  * @property {Error} error
  * @property {Notification} [notification]
  *
+ * @typedef {object} MaxAttemptsExhausted
+ * @property {Error} error
+ * @property {Notification} notification
+ *
  * @typedef {object} NotificationStatus
  * @property {boolean} started
  * @property {'idle' | 'running' | 'stopped'} [poller]
