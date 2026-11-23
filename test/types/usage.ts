@@ -1,5 +1,5 @@
 import { PoolClient } from 'pg';
-import { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, Filby, HandlerContext, Hook, Notification, NotificationError, NotificationStatus, PoolConfig, Projection } from '../../index.js';
+import { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, Filby, HandlerContext, Hook, MaxAttemptsExhausted, Notification, NotificationError, NotificationStatus, PoolConfig, Projection } from '../../index.js';
 
 const database: PoolConfig = { host: 'localhost', port: 5432 };
 
@@ -23,6 +23,8 @@ async function usage(): Promise<void> {
   const filby = new Filby(config);
   const sameConfig: Config = filby.config;
   const events: string[] = [Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, Filby.NOTIFICATION_ERROR];
+  const exhaustedEvent: 'HOOK_MAX_ATTEMPTS_EXHAUSTED' = Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED;
+  const errorEvent: 'NOTIFICATION_ERROR' = Filby.NOTIFICATION_ERROR;
   const lockKey: number = Filby.MIGRATION_LOCK_KEY;
 
   await filby.init();
@@ -40,6 +42,25 @@ async function usage(): Promise<void> {
   filby.subscribe(Filby.NOTIFICATION_ERROR, onError);
   filby.unsubscribe('park-change', handler);
   filby.unsubscribe(Filby.NOTIFICATION_ERROR);
+  filby.unsubscribe(Filby.NOTIFICATION_ERROR, onError);
+
+  filby.subscribe('park-change', async (notification, { signal }) => {
+    const defaulted: Notification = notification;
+    signal.throwIfAborted();
+  });
+  filby.subscribe(Filby.NOTIFICATION_ERROR, ({ error, notification }) => {
+    const payload: NotificationError = { error, notification };
+    // @ts-expect-error
+    const missing: Notification = notification;
+  });
+  filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, ({ error, notification }) => {
+    const present: Notification = notification;
+    const failure: Error = error;
+  });
+  const onExhausted = ({ notification }: MaxAttemptsExhausted) => {};
+  filby.subscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, onExhausted);
+  filby.unsubscribe(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, onExhausted);
+  filby.subscribe<NotificationError & { notification: Notification }>(Filby.HOOK_MAX_ATTEMPTS_EXHAUSTED, ({ notification }) => {});
   filby.unsubscribeAll('park-change');
   filby.unsubscribeAll();
 

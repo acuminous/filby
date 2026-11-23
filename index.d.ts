@@ -3,8 +3,8 @@ import { PoolClient } from 'pg';
 
 type Handler<T> = (notification: T, context: HandlerContext) => void | Promise<void>;
 declare class Filby {
-    static HOOK_MAX_ATTEMPTS_EXHAUSTED: string;
-    static NOTIFICATION_ERROR: string;
+    static readonly HOOK_MAX_ATTEMPTS_EXHAUSTED: "HOOK_MAX_ATTEMPTS_EXHAUSTED";
+    static readonly NOTIFICATION_ERROR: "NOTIFICATION_ERROR";
     static MIGRATION_LOCK_KEY: number;
     constructor(config: Config);
     get config(): Config;
@@ -13,8 +13,12 @@ declare class Filby {
     }): Promise<void>;
     startNotifications(): Promise<void>;
     stopNotifications(): Promise<void>;
-    subscribe<T>(event: string, handler: Handler<T>): void;
-    unsubscribe<T>(event: string, handler?: Handler<T>): void;
+    subscribe(event: "NOTIFICATION_ERROR", handler: (event: NotificationError) => void): void;
+    subscribe(event: "HOOK_MAX_ATTEMPTS_EXHAUSTED", handler: (event: MaxAttemptsExhausted) => void): void;
+    subscribe<T = Notification>(event: string, handler: Handler<T>): void;
+    unsubscribe(event: "NOTIFICATION_ERROR", handler?: (event: NotificationError) => void): void;
+    unsubscribe(event: "HOOK_MAX_ATTEMPTS_EXHAUSTED", handler?: (event: MaxAttemptsExhausted) => void): void;
+    unsubscribe<T = Notification>(event: string, handler?: Handler<T>): void;
     unsubscribeAll(event?: string): void;
     stop(): Promise<void>;
     withTransaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T>;
@@ -90,6 +94,10 @@ type NotificationError = {
     error: Error;
     notification?: Notification;
 };
+type MaxAttemptsExhausted = {
+    error: Error;
+    notification: Notification;
+};
 type NotificationStatus = {
     started: boolean;
     poller?: "idle" | "running" | "stopped";
@@ -114,4 +122,4 @@ type Documents<T> = {
 };
 
 export { Filby };
-export type { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, HandlerContext, Hook, Notification, NotificationError, NotificationStatus, PoolConfig, Projection };
+export type { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, HandlerContext, Hook, MaxAttemptsExhausted, Notification, NotificationError, NotificationStatus, PoolConfig, Projection };
