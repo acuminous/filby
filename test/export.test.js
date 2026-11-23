@@ -194,7 +194,7 @@ function validateBundle(bundle) {
 async function fetchAll(filby, pathname, changeSetId) {
   const documents = [];
   for (let page = 1; ; page++) {
-    const response = await filby.fetch(new Request(`http://localhost${pathname}?changeSetId=${changeSetId}&page=${page}&pageSize=2`));
+    const response = await filby.fetchProjections(new Request(`http://localhost${pathname}?changeSetId=${changeSetId}&page=${page}&pageSize=2`));
     eq(response.status, 200, await response.clone().text());
     documents.push(...(await response.json()));
     if (documents.length >= Number(response.headers.get('X-Total-Count'))) return documents;

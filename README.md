@@ -76,10 +76,10 @@ Reduced,Reduced rate,5.00
 ```js
 const filby = new Filby({ database: { user: 'filby', database: 'filby' } });
 await filby.init();
-app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
+app.all('/api/*', (c) => filby.fetchProjections(c.req.raw, { basePath: '/api' }));
 ```
 
-The example above uses [Hono](https://hono.dev/). `filby.fetch` takes a web standard Request and returns a Response, so it works with most popular HTTP servers. Express needs a short adapter; see [Serving over HTTP](#serving-over-http).
+The example above uses [Hono](https://hono.dev/). `filby.fetchProjections` takes a web standard Request and returns a Response, so it works with most popular HTTP servers. Express needs a short adapter; see [Serving over HTTP](#serving-over-http).
 
 **Step 4. Read the change log and query the data at a chosen change set**
 
@@ -253,7 +253,7 @@ await filby.init();
 
 A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>`, such as `0001.define-schema.yaml`, applied once, in level order. Start with a file that declares entities and projections, as in the [Introduction](#introduction), and add a file per change set after it. `npx filby validate migrations` checks the files without a database; see [Command line](#command-line). The [Configuration](#configuration) reference lists every option and its default.
 
-Once `init()` has resolved, mount `filby.fetch` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Subscribe to any hooks, then call `filby.startNotifications()`, and call `filby.stop()` on shutdown.
+Once `init()` has resolved, mount `filby.fetchProjections` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Subscribe to any hooks, then call `filby.startNotifications()`, and call `filby.stop()` on shutdown.
 
 ```js
 import { Filby } from 'filby';
@@ -266,7 +266,7 @@ const filby = new Filby({
 });
 
 const app = new Hono();
-app.all('/api/*', (c) => filby.fetch(c.req.raw, { basePath: '/api' }));
+app.all('/api/*', (c) => filby.fetchProjections(c.req.raw, { basePath: '/api' }));
 
 filby.subscribe('webhook/vat-rates', async (notification, { signal }) => {
   await fetch('https://example.com/hooks/vat-rates', { method: 'POST', body: JSON.stringify(notification), signal });
@@ -780,7 +780,7 @@ The root, nested and looked-up entities are all dependencies of the projection. 
 
 For a shape the DSL cannot express, declare the projection's `dependencies` instead of a `root`, then implement its query function in a SQL migration.
 
-Name the function `get_<projection>_v<version>` and give it a change set id parameter. Filby uses the declared dependencies to track relevant change sets, and `filby.fetch` serves the projection by calling the function.
+Name the function `get_<projection>_v<version>` and give it a change set id parameter. Filby uses the declared dependencies to track relevant change sets, and `filby.fetchProjections` serves the projection by calling the function.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
@@ -830,7 +830,7 @@ $$ LANGUAGE sql STABLE;
 
 #### Serving projections over HTTP
 
-When a projection is served through `filby.fetch`, consumers supply filters and paging controls as query parameters. The projection's configuration determines which filters are available, how results are sorted and the default and maximum page sizes.
+When a projection is served through `filby.fetchProjections`, consumers supply filters and paging controls as query parameters. The projection's configuration determines which filters are available, how results are sorted and the default and maximum page sizes.
 
 ##### Filtering
 
@@ -1132,7 +1132,7 @@ Each operation requires the object to exist. The following example shows the syn
 
 ### Serving over HTTP
 
-Use `filby.fetch(request, options)` to serve projections, change logs and API documentation over HTTP. It accepts a standard [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and returns a standard [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), with no dependency on a particular web framework.
+Use `filby.fetchProjections(request, options)` to serve projections, change logs and API documentation over HTTP. It accepts a standard [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and returns a standard [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), with no dependency on a particular web framework.
 
 #### Routes
 
@@ -1197,7 +1197,7 @@ With [Hono](https://hono.dev/), pass the incoming request directly to Filby:
 
 ```js
 app.all('/api/*', (c) =>
-  filby.fetch(c.req.raw, { basePath: '/api' })
+  filby.fetchProjections(c.req.raw, { basePath: '/api' })
 );
 ```
 
@@ -1213,7 +1213,7 @@ app.use('/api', async (req, res, next) => {
       method: req.method
     });
 
-    const response = await filby.fetch(request, {
+    const response = await filby.fetchProjections(request, {
       basePath: '/api'
     });
 
@@ -1752,7 +1752,7 @@ Values use node-pg's type conversions at every level, apart from the date types 
 
 #### Serving HTTP requests
 
-Use `filby.fetch(request, options)` to serve projection discovery, change logs, documents and the generated OpenAPI document.
+Use `filby.fetchProjections(request, options)` to serve projection discovery, change logs, documents and the generated OpenAPI document.
 
 See [Serving over HTTP](#serving-over-http) for routes, options and framework integration, and [HTTP](#http) for status codes and response headers.
 
@@ -1776,7 +1776,7 @@ async function getPriceList(changeSetId) {
 ```
 ### HTTP
 
-`filby.fetch(request, { basePath, info })` handles `GET` and `HEAD` requests on the routes below. Paths are relative to `basePath`.
+`filby.fetchProjections(request, { basePath, info })` handles `GET` and `HEAD` requests on the routes below. Paths are relative to `basePath`.
 
 See [Serving over HTTP](#serving-over-http) for framework integration and usage examples.
 

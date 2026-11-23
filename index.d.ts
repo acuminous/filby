@@ -28,7 +28,7 @@ declare class Filby {
     getNotificationStatus(): Promise<NotificationStatus>;
     getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
     getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
-    fetch(request: Request, options?: FetchOptions): Promise<Response>;
+    fetchProjections(request: Request, options?: FetchOptions): Promise<Response>;
     #private;
 }
 

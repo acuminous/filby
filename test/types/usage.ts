@@ -57,7 +57,7 @@ async function usage(): Promise<void> {
   const { documents, total }: Documents<Park> = await filby.getDocuments<Park>(projection, 1, options);
 
   const fetchOptions: FetchOptions = { basePath: '/api', info: { title: 'Parks', version: '1.0.0', description: 'Holiday parks' } };
-  const response: Response = await filby.fetch(new Request('http://localhost/api/projections'), fetchOptions);
+  const response: Response = await filby.fetchProjections(new Request('http://localhost/api/projections'), fetchOptions);
 
   const entity: Entity = { name: 'Park', version: 1 };
   await filby.stop();

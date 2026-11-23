@@ -244,7 +244,7 @@ async function inZone(zone, fn) {
 }
 
 async function getJson(filby, pathname) {
-  const response = await filby.fetch(new Request(`http://localhost${pathname}`));
+  const response = await filby.fetchProjections(new Request(`http://localhost${pathname}`));
   eq(response.status, 200, await response.clone().text());
   return response.json();
 }

@@ -259,7 +259,7 @@ describe('DSL', () => {
 
       for (const aggregates of await Promise.all([filby.getAggregates(changeSetId, 'VAT Rate', 1), filby.getAggregates(changeSetId, 'VAT Rate', 1)])) deq(aggregates, expected);
       deq((await filby.getDocuments(projection, changeSetId)).documents, expected);
-      deq(await (await filby.fetch(new Request(`http://localhost/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`))).json(), expected);
+      deq(await (await filby.fetchProjections(new Request(`http://localhost/projections/VAT%20Rates/v1?changeSetId=${changeSetId}`))).json(), expected);
     });
   });
 
@@ -2191,7 +2191,7 @@ describe('DSL', () => {
     it('should describe array parameters by their element type', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM, transform(ADD_ENTITY).set('0.fields.1.type', 'vat_tax_rate[]'), ADD_ARRAY_PROJECTION);
 
-      const document = await (await filby.fetch(new Request('http://localhost/openapi.json'))).json();
+      const document = await (await filby.fetchProjections(new Request('http://localhost/openapi.json'))).json();
       const values = { type: 'string', enum: ['standard', 'reduced', 'zero'] };
       deq(document.paths['/projections/VAT%20Rates/v1'].get.parameters, [
         { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
@@ -3164,7 +3164,7 @@ describe('DSL', () => {
       const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name', { field: 'code', as: 'Park Code' }])).set('0.nest.seasons.fields', [{ field: 'type', as: 'Season Type' }, 'start'])).set('0.nest.seasons.nest.rates.fields', [{ field: 'season_type', as: 'Season' }, 'band', { field: 'band', as: 'Rate Band' }]);
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection, ADD_PARK_CHANGE_SET);
 
-      const { paths } = await (await filby.fetch(new Request('http://localhost/openapi.json'))).json();
+      const { paths } = await (await filby.fetchProjections(new Request('http://localhost/openapi.json'))).json();
       deq(paths['/projections/Parks/v1'].get.responses['200'].content['application/json'].schema.items, {
         type: 'object',
         properties: {
@@ -3354,7 +3354,7 @@ describe('DSL', () => {
       const projection = transform(ADD_NESTED_PROJECTION).set('0.parameters', { ...NESTED_PARAMETERS, tag: { field: 'seasons.tags', match: 'contains' }, tags: { field: 'seasons.tags', match: 'in' } });
       await filby.applyYaml(t.name, entities, projection);
 
-      const document = await (await filby.fetch(new Request('http://localhost/openapi.json'))).json();
+      const document = await (await filby.fetchProjections(new Request('http://localhost/openapi.json'))).json();
       deq(document.paths['/projections/Parks/v1'].get.parameters, [
         { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
         { name: 'code', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'equals', 'x-filby-field': ['code'] },

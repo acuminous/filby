@@ -50,10 +50,10 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `paging` on projections declared with `dependencies`. Every projection accepts `page` and `pageSize` over HTTP, and follows the same rules. `getDocuments` applies those rules to `pageOffset` and `pageSize`. `paging` supplies the default page size and the maximum, and without it there is no default and no maximum. No combination of the paging parameters returns a `400`. The OpenAPI document publishes `page` and `pageSize` for every projection (#316).
 - `fields` in projections, to choose which fields a document carries, and `{ field, as }` to rename them (#199, #213).
 - `filby.getDocuments`, which returns a projection's documents with their nests and lookups (#104).
-- `filby.fetch`, a framework-independent HTTP handler for change logs, projections and the list of projections. Its `ETag` header is the change set's `entityTag` in double quotes (#59, #180, #244).
+- `filby.fetchProjections`, a framework-independent HTTP handler for change logs, projections and the list of projections. Its `ETag` header is the change set's `entityTag` in double quotes (#59, #180, #244).
 - Change log responses send `Cache-Control: no-cache`, so caches check with Filby before reusing them. Projection and change log responses answer a matching `If-None-Match` with `304 Not Modified` (#245).
 - A generated OpenAPI document at `/openapi.json`, which says how each parameter matches and which field it filters, including fields that documents do not carry (#64, #198, #235, #239).
-- `filby.fetch` answers `HEAD` requests with the status and headers a `GET` would return, and no body. Other methods receive `405` with `Allow: GET, HEAD` (#256).
+- `filby.fetchProjections` answers `HEAD` requests with the status and headers a `GET` would return, and no body. Other methods receive `405` with `Allow: GET, HEAD` (#256).
 - `filby export`, which writes a projection's documents at every change set to a bundle. [filby-pack](https://github.com/acuminous/filby-pack), released separately, turns a bundle into an npm module (#181).
 - `filby migrate`, which applies outstanding migrations and exits, and `init({ migrate: false })`, which starts an instance without applying migrations and rejects if any are outstanding (#236).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
@@ -90,7 +90,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - A YAML field with no value is stored as `NULL` rather than an empty string, and a nested map or list is stored as JSON (#8).
 - A CSV source with a single column loads (#152).
 - A frame that has both `source` and `data` is rejected, instead of loading the CSV and ignoring the inline rows (#248).
-- `filby.fetch` accepts a `basePath` that ends with a slash, so `'/api/'` serves the same routes as `'/api'`. Previously every route responded with `404`. The OpenAPI document's server URL leaves the slash out (#257).
+- `filby.fetchProjections` accepts a `basePath` that ends with a slash, so `'/api/'` serves the same routes as `'/api'`. Previously every route responded with `404`. The OpenAPI document's server URL leaves the slash out (#257).
 - A projection route reads the projection, the change set and the documents in one transaction, and holds a share lock on the projection's row until it responds. A `DROP_PROJECTION` migration that reaches the projection during a request waits for the request to finish. A request that arrives while a drop is in progress waits for the migration to finish, then responds with `410` if the drop committed. Previously a drop that committed part way through a request could make it respond with `500` (#314).
 - An error in a CSV row reports the row number a spreadsheet shows for it, with the header as row 1 and blank rows counted. Previously a blank row or a cell that spans several lines made every later error report the wrong row. A CSV header that repeats a column name is now rejected (#255).
 - An entity check with an empty name or an empty expression is rejected by validation. Previously an empty name created a constraint called `chk_`, and an empty expression failed in PostgreSQL with a syntax error that did not name the check (#262).

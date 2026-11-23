@@ -22,7 +22,7 @@ export default class Application {
     this.#app.use('/api/*', cors({ origin: '*', allowMethods: ['GET'] }));
     this.#app.get('/health', (c) => this.#getHealth(c));
     this.#app.get('/documentation', swaggerUI({ url: '/api/openapi.json' }));
-    this.#app.all('/api/*', (c) => this.#filby.fetch(c.req.raw, { basePath: '/api', info }));
+    this.#app.all('/api/*', (c) => this.#filby.fetchProjections(c.req.raw, { basePath: '/api', info }));
   }
 
   get app() {

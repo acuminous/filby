@@ -72,7 +72,7 @@ describe('HTTP', () => {
     });
 
     it('should respond with 405 for a method other than GET on a known path', async () => {
-      const response = await filby.fetch(new Request('http://localhost/changelog?projection=VAT%20Rates&version=1', { method: 'POST' }));
+      const response = await filby.fetchProjections(new Request('http://localhost/changelog?projection=VAT%20Rates&version=1', { method: 'POST' }));
       eq(response.status, 405);
       eq(response.headers.get('Allow'), 'GET, HEAD');
       deq(await response.json(), { error: 'Method POST is not allowed' });
@@ -159,7 +159,7 @@ describe('HTTP', () => {
     });
 
     it('should respond with 405 for a method other than GET', async () => {
-      const response = await filby.fetch(new Request('http://localhost/projections', { method: 'POST' }));
+      const response = await filby.fetchProjections(new Request('http://localhost/projections', { method: 'POST' }));
       eq(response.status, 405);
       eq(response.headers.get('Allow'), 'GET, HEAD');
       deq(await response.json(), { error: 'Method POST is not allowed' });
@@ -845,7 +845,7 @@ describe('HTTP', () => {
     });
 
     async function getIfNoneMatch(path, tags) {
-      return filby.fetch(new Request(`http://localhost${path}`, { headers: { 'If-None-Match': tags } }));
+      return filby.fetchProjections(new Request(`http://localhost${path}`, { headers: { 'If-None-Match': tags } }));
     }
   });
 
@@ -927,7 +927,7 @@ describe('HTTP', () => {
     });
 
     async function head(path, headers) {
-      return filby.fetch(new Request(`http://localhost${path}`, { method: 'HEAD', headers }));
+      return filby.fetchProjections(new Request(`http://localhost${path}`, { method: 'HEAD', headers }));
     }
   });
 
@@ -1441,7 +1441,7 @@ describe('HTTP', () => {
   });
 
   async function get(path, options) {
-    return filby.fetch(new Request(`http://localhost${path}`), options);
+    return filby.fetchProjections(new Request(`http://localhost${path}`), options);
   }
 
   async function assertPages(changeSetId, pages) {
