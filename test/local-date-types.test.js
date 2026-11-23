@@ -18,6 +18,7 @@ const config = {
   nukeCustomObjects: async (tx) => {
     await tx.query('DROP FUNCTION IF EXISTS get_opening_rows_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_openings_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_opening_nests_v1');
     await tx.query('DROP TABLE IF EXISTS opening_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_opening_v1_aggregate');
   },
@@ -46,6 +47,15 @@ const ADD_OPENINGS = `
   name: Openings
   version: 1
   root: Opening@1
+- operation: ADD_PROJECTION
+  name: Opening Nests
+  version: 1
+  root: Opening@1
+  nest:
+    same:
+      entity: Opening@1
+      on:
+        code: code
 - operation: ADD_PROJECTION
   name: Opening Rows
   version: 1
@@ -202,6 +212,38 @@ describe('Local date types', () => {
 
     it("publishes the same schema under localDateTypes: 'pg'", async () => {
       deq(await getJson(pg, '/openapi.json'), await getJson(filby, '/openapi.json'));
+    });
+  });
+
+  describe('Export in process', () => {
+
+    for (const zone of ZONES) {
+      it(`returns text in ${zone} even when the configuration says 'pg'`, async () => {
+        await inZone(zone, async () => {
+          for (const name of ['Openings', 'Opening Rows']) {
+            const { documents } = await pg.export(await pg.getProjection(name, 1));
+            deq(documents[changeSetId], EXPECTED);
+          }
+        });
+      });
+
+      it(`returns text in nested documents in ${zone} even when the configuration says 'pg'`, async () => {
+        const { documents } = await inZone(zone, async () => pg.export(await pg.getProjection('Opening Nests', 1)));
+        deq(documents[changeSetId], EXPECTED.map(({ code, ...nested }) => ({ code, ...nested, same: [nested] })));
+      });
+    }
+
+    it('returns text when database.types sets a parser for a local date type', async () => {
+      const { documents } = await pgWithTypes.export(await pgWithTypes.getProjection('Openings', 1));
+      deq(documents[changeSetId], EXPECTED);
+    });
+
+    it("leaves the instance's own parsers in place", async () => {
+      const projection = await pg.getProjection('Openings', 1);
+      await pg.export(projection);
+      const { documents: [a] } = await pg.getDocuments(projection, changeSetId);
+      ok(a.opens instanceof Date);
+      ok(a.closures[0] instanceof Date);
     });
   });
 

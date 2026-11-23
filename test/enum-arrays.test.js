@@ -74,5 +74,8 @@ describe('Enum arrays', () => {
 
     const aggregates = await serving.getAggregates(changeSet.id, 'Amenity', 1);
     deq(aggregates.map(({ categories }) => categories), [['Pool', 'Entertainment']]);
+
+    const bundle = await serving.export(projection);
+    deq(bundle.documents[changeSet.id].map(({ categories }) => categories), [['Pool', 'Entertainment']]);
   });
 });

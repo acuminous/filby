@@ -1,5 +1,5 @@
 import { PoolClient } from 'pg';
-import { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, Filby, HandlerContext, Hook, MaxAttemptsExhausted, Notification, NotificationError, NotificationStatus, PoolConfig, Projection } from '../../index.js';
+import { Bundle, BundleChangeSet, ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, Filby, HandlerContext, Hook, MaxAttemptsExhausted, Notification, NotificationError, NotificationStatus, PoolConfig, Projection } from '../../index.js';
 
 const database: PoolConfig = { host: 'localhost', port: 5432 };
 
@@ -76,6 +76,10 @@ async function usage(): Promise<void> {
   const aggregates: Park[] = await filby.getAggregates<Park>(1, 'Park', 1);
   const options: DocumentOptions = { parameters: { code: 'DC' }, pageOffset: 0, pageSize: 10 };
   const { documents, total }: Documents<Park> = await filby.getDocuments<Park>(projection, 1, options);
+  const bundle: Bundle = await filby.export(projection);
+  const bundled: BundleChangeSet[] = bundle.changeSets;
+  const effective: string = bundled[0].effective;
+  const bundledDocuments: Record<string, unknown>[] | undefined = bundle.documents[bundled[0].id];
 
   const fetchOptions: FetchOptions = { basePath: '/api', info: { title: 'Parks', version: '1.0.0', description: 'Holiday parks' } };
   const response: Response = await filby.fetchProjections(new Request('http://localhost/api/projections'), fetchOptions);

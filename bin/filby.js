@@ -6,7 +6,6 @@ import marv from 'marv/api/promise.js';
 
 import { Filby } from '../index.js';
 import render from '../lib/render-migration.js';
-import exportBundle from '../lib/export.js';
 
 const USAGE = [
   'Usage: filby <validate|preview> [directory ...]',
@@ -57,12 +56,15 @@ async function migrateCommand(args) {
 
 async function exportCommand(args) {
   const { config: configFile, projection: reference, out } = requiredOptions(args, ['config', 'projection', 'out']);
-  const [, name, version] = reference.match(/^(.+)@(\d+)$/) ?? [];
+  const [, name, digits] = reference.match(/^(.+)@(\d+)$/) ?? [];
   if (!name) throw new UsageError(`Projection '${reference}' must be given as name@version`);
-  const filby = new Filby({ ...readJson(configFile, 'config'), localDateTypes: 'string' });
+  const filby = new Filby(readJson(configFile, 'config'));
   try {
     await filby.init();
-    const bundle = await exportBundle(filby, name, Number(version));
+    const version = Number(digits);
+    const projection = await filby.getProjection(name, version);
+    if (!projection) throw new Error(`Projection '${name} v${version}' does not exist`);
+    const bundle = await filby.export(projection);
     fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
     fs.writeFileSync(out, `${JSON.stringify(bundle, null, 2)}\n`);
   } finally {
