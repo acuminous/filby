@@ -33,6 +33,7 @@ declare class Filby {
     getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
     getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
     fetchProjections(request: Request, options?: FetchOptions): Promise<Response>;
+    export(projection: Projection): Promise<Bundle>;
     #private;
 }
 
@@ -116,10 +117,28 @@ type Entity = {
     name: string;
     version: number;
 };
+type BundleChangeSet = {
+    id: number;
+    effective: string;
+    description: string;
+    lastModified: string;
+    entityTag: string;
+    reissuedFrom?: number;
+};
+type Bundle = {
+    format: 1;
+    filby: string;
+    name: string;
+    version: number;
+    description: string | null;
+    schema: Record<string, unknown>;
+    changeSets: BundleChangeSet[];
+    documents: Record<string, Record<string, unknown>[]>;
+};
 type Documents<T> = {
     documents: T[];
     total: number;
 };
 
 export { Filby };
-export type { ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, HandlerContext, Hook, MaxAttemptsExhausted, Notification, NotificationError, NotificationStatus, PoolConfig, Projection };
+export type { Bundle, BundleChangeSet, ChangeSet, Config, DocumentOptions, Documents, Entity, FetchOptions, HandlerContext, Hook, MaxAttemptsExhausted, Notification, NotificationError, NotificationStatus, PoolConfig, Projection };

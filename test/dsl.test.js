@@ -11,7 +11,6 @@ import TestFilby from './TestFilby.js';
 import { table } from '../lib/helpers.js';
 import validateMigration from '../lib/validate-migration.js';
 import driver from '../lib/marv-filby-driver.js';
-import exportBundle from '../lib/export.js';
 
 const { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, INVALID_DATETIME_FORMAT, UNSAFE_NEW_ENUM_VALUE_USAGE } = PostgresError;
 
@@ -3756,9 +3755,11 @@ describe('DSL', () => {
     });
 
     it('should not export a dropped projection', async (t) => {
-      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, DROP_PROJECTION);
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
+      const projection = await filby.getProjection('VAT Rates', 1);
+      await applyLaterYaml(t.name, DROP_PROJECTION);
 
-      await rejects(() => exportBundle(filby, 'VAT Rates', 1), (err) => {
+      await rejects(() => filby.export(projection), (err) => {
         eq(err.message, "Projection 'VAT Rates v1' does not exist");
         return true;
       });
@@ -3885,6 +3886,13 @@ describe('DSL', () => {
         return true;
       });
     });
+
+    async function applyLaterYaml(name, ...script) {
+      const slug = name.replace(/ /g, '-').toLowerCase();
+      await fs.promises.unlink(path.join(import.meta.dirname, 'migrations', `001.${slug}.yaml`));
+      await fs.promises.writeFile(path.join(import.meta.dirname, 'migrations', `002.${slug}.yaml`), script.join('\n'), { encoding: 'utf-8' });
+      return filby.init();
+    }
   });
 
   describe('Add Change Set', () => {

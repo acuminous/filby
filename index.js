@@ -76,6 +76,24 @@ import { Filby } from './lib/Filby.js';
  * @typedef {object} Entity
  * @property {string} name
  * @property {number} version
+ *
+ * @typedef {object} BundleChangeSet
+ * @property {number} id
+ * @property {string} effective
+ * @property {string} description
+ * @property {string} lastModified
+ * @property {string} entityTag
+ * @property {number} [reissuedFrom]
+ *
+ * @typedef {object} Bundle
+ * @property {1} format
+ * @property {string} filby
+ * @property {string} name
+ * @property {number} version
+ * @property {string | null} description
+ * @property {Record<string, unknown>} schema
+ * @property {BundleChangeSet[]} changeSets
+ * @property {Record<string, Record<string, unknown>[]>} documents
  */
 
 /**

@@ -10,7 +10,6 @@ import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
 import { Filby } from '../index.js';
-import exportBundle from '../lib/export.js';
 import bundleSchema from '../lib/bundle-schema.json' with { type: 'json' };
 import pkg from '../package.json' with { type: 'json' };
 
@@ -81,7 +80,7 @@ describe('Export', () => {
     const filby = new Filby({ database, migrations });
     try {
       const projection = await filby.getProjection('Parks', 1);
-      const bundle = await exportBundle(filby, 'Parks', 1);
+      const bundle = await filby.export(projection);
       for (const changeSet of bundle.changeSets) {
         deq(bundle.documents[changeSet.id], await fetchAll(filby, '/projections/Parks/v1', changeSet.id));
       }
@@ -106,6 +105,26 @@ describe('Export', () => {
         { code: 'GA', opened: null },
         { code: 'PV', opened: '1999-03-01T00:00:00.000Z' },
       ]);
+    } finally {
+      await filby.stop();
+    }
+  });
+
+  it('builds the same bundle in process as the command writes for a root projection', async () => {
+    const written = await exportWithCli('Parks@1');
+    const filby = new Filby({ database, migrations });
+    try {
+      deq(await filby.export(await filby.getProjection('Parks', 1)), written);
+    } finally {
+      await filby.stop();
+    }
+  });
+
+  it('builds the same bundle in process as the command writes for a projection declared with dependencies', async () => {
+    const written = await exportWithCli('Park Codes@1');
+    const filby = new Filby({ database, migrations });
+    try {
+      deq(await filby.export(await filby.getProjection('Park Codes', 1)), written);
     } finally {
       await filby.stop();
     }
