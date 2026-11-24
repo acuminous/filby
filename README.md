@@ -1242,7 +1242,7 @@ See [OpenAPI document](#openapi-document) for details of the generated contents.
 
 ### Serving declarations over HTTP
 
-`filby.fetchProjections` serves the data. `filby.fetchDeclarations(request, options)` serves the model your migrations declared, so that a tool can show how each projection is built without reading the migration files. For each projection, it describes the root entity, the entities the projection reads, the selected fields and their aliases, the order, parameters and paging, and each nest and lookup with its entity and join fields.
+`filby.fetchProjections` serves the data. `filby.fetchDeclarations(request, options)` serves the model your migrations declared: how each projection is built and what each entity holds. A tool can use it to show the model without reading the migration files.
 
 It accepts a standard Request, returns a standard Response and takes the same `basePath` and `info` options as `fetchProjections`. Mount it under a path of its own:
 
@@ -1279,7 +1279,7 @@ app.all('/declarations/*', (c) =>
 }
 ```
 
-The handler describes your whole model to anyone who can reach it, including fields that projections leave out of their documents. Applications typically mount it behind whatever protects their other administrative routes, rather than beside the public API. See [Declarations](#declarations) for the routes and the full response shape.
+The handler describes your whole model to anyone who can reach it, including fields that projections leave out of their documents and the SQL of each entity check. Applications typically mount it behind whatever protects their other administrative routes, rather than beside the public API. See [Declarations](#declarations) for the routes and the full response shape.
 
 ### Deploying
 
@@ -1954,6 +1954,8 @@ The `DATE` and `TIMESTAMP WITHOUT TIME ZONE` schemas describe the strings Filby 
 | ----- | ------------------- |
 | `/projections` | `200` with the projections that have not been dropped, ordered by name then version. Each is `{ name, version, description, root }`, where `root` is the root entity as `{ name, version }`, or `null` for a custom SQL projection. |
 | `/projections/<name>/v<n>` | `200` with the projection's declaration. |
+| `/entities` | `200` with the entities, ordered by name then version. Each is `{ name, version, description }`. |
+| `/entities/<name>/v<n>` | `200` with the entity's declaration. |
 | `/openapi.json` | `200` with an OpenAPI 3.1 document describing these routes and their response schemas. |
 
 A migration can change the model at any time, so every successful response carries `Cache-Control: no-cache`. An unknown projection produces a `404`. A dropped projection produces a `410`, because dropping a projection removes its declaration. `HEAD` requests, `405` responses, names that cannot be URL-decoded and error bodies behave as they do for [`fetchProjections`](#error-responses).
@@ -1989,6 +1991,38 @@ Each entry in `nests` describes a nest or lookup:
 | `fields` | As for the projection. When it is `null`, documents omit the join fields, as described in [Selecting fields](#selecting-fields). |
 | `order` | As for the projection. Always empty for a lookup. |
 | `nests` | The nests and lookups beneath it. Always empty for a lookup. |
+
+#### Entity declarations
+
+An entity declaration describes its `ADD_ENTITY` operation, with the entity and projection names as declared and the field names in canonical form. `GET /entities/Park%20Season/v1`, for the entity in [ADD_ENUM](#add_enum), with the `Parks (Detailed)` projection from [Nests](#nests) declared, returns:
+
+```json
+{
+  "name": "Park Season",
+  "version": 1,
+  "description": null,
+  "fields": [
+    { "name": "park_code", "type": "TEXT", "key": true, "nullable": false },
+    { "name": "customer_type", "type": "customer_type", "key": true, "nullable": false },
+    { "name": "current_season_start", "type": "DATE", "key": false, "nullable": false },
+    { "name": "current_season_end", "type": "DATE", "key": false, "nullable": false },
+    { "name": "next_season_start", "type": "DATE", "key": false, "nullable": true },
+    { "name": "next_season_end", "type": "DATE", "key": false, "nullable": true }
+  ],
+  "checks": [],
+  "projections": [{ "name": "Parks (Detailed)", "version": 1 }]
+}
+```
+
+| Property | Value |
+| -------- | ----- |
+| `name`, `version` | The entity's name and version. |
+| `description` | The declared description, or `null`. |
+| `fields` | The fields in declared order, with each entry as `{ name, type, key, nullable }`. `type` is the PostgreSQL type as written, such as `NUMERIC(5,2)`. For an enum, it is the enum's canonical name, such as `customer_type`, followed by `[]` for an array. `key` is `true` for the fields in `key`, and `nullable` is `false` for key fields and for fields declared `nullable: false`. |
+| `checks` | The declared checks, ordered by name, with each entry as `{ name, expression }`. `expression` is the SQL as written in the migration. Fields declared `nullable: false` are described by `nullable`, not by a check. |
+| `projections` | The projections that read the entity and have not been dropped, as `{ name, version }`, ordered by name then version. A projection listed here prevents [`DROP_ENTITY`](#drop_entity). |
+
+An unknown entity produces a `404`. A dropped entity also produces a `404`, because `DROP_ENTITY` removes its declaration and its name and version can be declared again.
 
 ### Command line
 
