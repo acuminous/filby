@@ -936,7 +936,10 @@ describe('Notifications', () => {
     ]);
 
     released.resolve();
-    await until(async () => deliveries.length === 2 && (await getNotifications())[0].status === 'OK');
+    await until(async () => {
+      const notifications = await getNotifications();
+      return deliveries.length === 2 && notifications.length === 1 && notifications[0].status === 'OK';
+    });
 
     eq(deliveries[1].id, during[1].id);
     eq(deliveries[1].attempts, 1);
@@ -967,7 +970,10 @@ describe('Notifications', () => {
     eq(pending.status, 'PENDING');
 
     released.resolve();
-    await until(async () => deliveries.length === 2 && (await getNotifications())[0].status === 'OK');
+    await until(async () => {
+      const notifications = await getNotifications();
+      return deliveries.length === 2 && notifications.length === 1 && notifications[0].status === 'OK';
+    });
 
     eq(deliveries[1].id, pending.id);
     eq(deliveries[1].attempts, 1);
