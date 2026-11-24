@@ -690,7 +690,7 @@ A parameter can also select root records by the values of the records nested or 
 
 Each parameter is tested against one nested record at a time, so a `range` parameter matches only when a single route falls within both bounds. Different parameters are tested independently. `?beach_surface=Sandy&route_access=Step%20Free` returns the parks that have a route to a sandy beach and a step-free route, even when they are different routes.
 
-Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. The OpenAPI document gives the parameter the type of the field at the end of the path, and its [Filby extensions](#filby-extensions) say which field the parameter filters and whether documents carry it.
+Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. The OpenAPI document gives the parameter the type of the field at the end of the path. The projection's [declaration](#projection-declarations) says which field the parameter filters and whether documents carry it.
 
 ##### Selecting fields
 
@@ -1284,7 +1284,7 @@ See [OpenAPI document](#openapi-document) for details of the generated contents.
 
 ### Serving declarations over HTTP
 
-`filby.fetchProjections` serves the data. `filby.fetchDeclarations(request, options)` serves the model your migrations declared, so that a tool can show how each projection is built without reading the migration files. For each projection, it describes the root entity, the entities the projection reads, the selected fields and their aliases, the order, parameters and paging, and each nest and lookup with its entity and join fields.
+`filby.fetchProjections` serves the data. `filby.fetchDeclarations(request, options)` serves the model your migrations declared: how each projection is built and what each entity holds. A tool can use it to show the model without reading the migration files.
 
 It accepts a standard Request, returns a standard Response and takes the same `basePath` and `info` options as `fetchProjections`. Mount it under a path of its own:
 
@@ -1321,7 +1321,7 @@ app.all('/declarations/*', (c) =>
 }
 ```
 
-The handler describes your whole model to anyone who can reach it, including fields that projections leave out of their documents. Applications typically mount it behind whatever protects their other administrative routes, rather than beside the public API. See [Declarations](#declarations) for the routes and the full response shape.
+The handler describes your whole model to anyone who can reach it, including fields that projections leave out of their documents and the SQL of each entity check. Applications typically mount it behind whatever protects their other administrative routes, rather than beside the public API. See [Declarations](#declarations) for the routes and the full response shape.
 
 ### Deploying
 
@@ -1959,7 +1959,7 @@ Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all
 
 ### OpenAPI document
 
-`GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from your projection definitions. It describes the API routes, filters, paging controls, response schemas and headers.
+`GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from your projection definitions. It describes the API routes, filters, paging controls, response schemas and headers. It does not say how a projection is built, such as which field a parameter filters, how it matches, or which fields join a nest to its parent. A tool that needs those details can read the projection's declaration from [`filby.fetchDeclarations`](#serving-declarations-over-http), as described in [Declarations](#declarations).
 
 Every projection's path lists `page` and `pageSize` as optional integers of at least 1. Where the projection declares `paging`, `pageSize` also has its `page_size` as the `default` and its `page_max` as the `maximum`.
 
@@ -1990,21 +1990,6 @@ Array fields use the corresponding element schema. Nullable fields also allow `n
 
 The `DATE` and `TIMESTAMP WITHOUT TIME ZONE` schemas describe the strings Filby returns by default, even when `localDateTypes` is `'pg'`. A value such as `infinity` is served as written, so it does not match the `date` format.
 
-#### Filby extensions
-
-The OpenAPI document carries four extensions that describe how Filby joins and filters documents:
-
-| Extension | Appears on | Value |
-| --------- | ---------- | ----- |
-| `x-filby-on` | Each nest and lookup in a response schema | The join, mapping each field of the nested record to the parent field it matches. |
-| `x-filby-match` | Each declared query parameter | The parameter's match: `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` or `lte`. |
-| `x-filby-field` | Each declared query parameter | The path of the field the parameter filters, as a list of the property names a document uses, including any `as` alias, for example `["seasons", "rates", "band"]`. |
-| `x-filby-carried` | Each declared query parameter whose `x-filby-field` ends in a name that documents do not carry | `false`. |
-
-A client can use `x-filby-match` and `x-filby-field` to label filter controls without inferring them from parameter names. A `range` parameter appears as two query parameters, `<name>_from` followed by `<name>_to`, which carry the same extensions. A parameter may filter on a field that documents do not carry, such as one left out by `fields`. When a lookup joins on that field and the document carries the lookup's side of the join, `x-filby-field` names the lookup's property instead, because the join makes the two values equal. In the example application, `Parks (Detailed)` declares `amenity` on `Amenities.Amenity Code`, which its amenities leave out, so the parameter's field is `["amenities", "amenity", "code"]`, the `code` property of the `amenity` lookup. Otherwise, `x-filby-field` is the path the field would have in the document, such as `["amenities", "amenity_code"]`, and the parameter also has `x-filby-carried: false`. A client can still tell from the path whether the parameter filters a nested field.
-
-Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match`, `x-filby-field` and `x-filby-carried` in the same way.
-
 ### Declarations
 
 `filby.fetchDeclarations(request, { basePath, info })` handles `GET` and `HEAD` requests on the routes below. Paths are relative to `basePath`. `info` sets the title, version and description of the OpenAPI document, with the same default as the [OpenAPI document](#openapi-document) that `fetchProjections` serves.
@@ -2013,6 +1998,10 @@ Response schemas contain only `x-filby-on`. If you validate them with Ajv in str
 | ----- | ------------------- |
 | `/projections` | `200` with the projections that have not been dropped, ordered by name then version. Each is `{ name, version, description, root }`, where `root` is the root entity as `{ name, version }`, or `null` for a custom SQL projection. |
 | `/projections/<name>/v<n>` | `200` with the projection's declaration. |
+| `/entities` | `200` with the entities, ordered by name then version. Each is `{ name, version, description }`. |
+| `/entities/<name>/v<n>` | `200` with the entity's declaration. |
+| `/enums` | `200` with every enum, ordered by name. |
+| `/enums/<name>` | `200` with the enum's declaration. `<name>` is the enum's canonical name, such as `customer_type`. |
 | `/openapi.json` | `200` with an OpenAPI 3.1 document describing these routes and their response schemas. |
 
 A migration can change the model at any time, so every successful response carries `Cache-Control: no-cache`. An unknown projection produces a `404`. A dropped projection produces a `410`, because dropping a projection removes its declaration. `HEAD` requests, `405` responses, names that cannot be URL-decoded and error bodies behave as they do for [`fetchProjections`](#error-responses).
@@ -2048,6 +2037,50 @@ Each entry in `nests` describes a nest or lookup:
 | `fields` | As for the projection. When it is `null`, documents omit the join fields, as described in [Selecting fields](#selecting-fields). |
 | `order` | As for the projection. Always empty for a lookup. |
 | `nests` | The nests and lookups beneath it. Always empty for a lookup. |
+
+#### Entity declarations
+
+An entity declaration describes its `ADD_ENTITY` operation, with the entity and projection names as declared and the field names in canonical form. `GET /entities/Park%20Season/v1`, for the entity in [ADD_ENUM](#add_enum), with the `Parks (Detailed)` projection from [Nests](#nests) declared, returns:
+
+```json
+{
+  "name": "Park Season",
+  "version": 1,
+  "description": null,
+  "fields": [
+    { "name": "park_code", "type": "TEXT", "key": true, "nullable": false },
+    { "name": "customer_type", "type": "customer_type", "key": true, "nullable": false },
+    { "name": "current_season_start", "type": "DATE", "key": false, "nullable": false },
+    { "name": "current_season_end", "type": "DATE", "key": false, "nullable": false },
+    { "name": "next_season_start", "type": "DATE", "key": false, "nullable": true },
+    { "name": "next_season_end", "type": "DATE", "key": false, "nullable": true }
+  ],
+  "checks": [],
+  "projections": [{ "name": "Parks (Detailed)", "version": 1 }]
+}
+```
+
+| Property | Value |
+| -------- | ----- |
+| `name`, `version` | The entity's name and version. |
+| `description` | The declared description, or `null`. |
+| `fields` | The fields in declared order, with each entry as `{ name, type, key, nullable }`. `type` is the PostgreSQL type as written, such as `NUMERIC(5,2)`. For an enum, it is the enum's canonical name, such as `customer_type`, followed by `[]` for an array. `key` is `true` for the fields in `key`, and `nullable` is `false` for key fields and for fields declared `nullable: false`. |
+| `checks` | The declared checks, ordered by name, with each entry as `{ name, expression }`. `expression` is the SQL as written in the migration. Fields declared `nullable: false` are described by `nullable`, not by a check. |
+| `projections` | The projections that read the entity and have not been dropped, as `{ name, version }`, ordered by name then version. A projection listed here prevents [`DROP_ENTITY`](#drop_entity). |
+
+An unknown entity produces a `404`. A dropped entity also produces a `404`, because `DROP_ENTITY` removes its declaration and its name and version can be declared again.
+
+#### Enum declarations
+
+An enum declaration is `{ name, values }`. For the `Customer Type` enum in [ADD_ENUM](#add_enum), it is:
+
+```json
+{ "name": "customer_type", "values": ["Guest", "Owner"] }
+```
+
+`name` is the enum's canonical name. An entity field that uses the enum has this name as its type, followed by `[]` for an array. `values` lists the values as written, in declared order, followed by any values that `ALTER_ENUM` added. PostgreSQL sorts enum values in this order, so a projection ordered by `customer_type` lists `Guest` before `Owner`.
+
+`/enums/<name>` matches only the canonical name. `/enums/customer_type` returns the declaration above, while `/enums/Customer%20Type` produces a `404`, as does an enum that does not exist or was removed by `DROP_ENUM`. Enums are not versioned, so their paths have no `/v<n>` segment.
 
 ### Status
 
@@ -2088,6 +2121,7 @@ Each entry in `pending` has:
 | `attempts` | The attempts made so far, including one in progress. |
 | `lastAttempted` | When the last attempt started, or `null` before the first. |
 | `exhausted` | `true` when a `PENDING` notification has reached `notifications.maxAttempts` and will not be retried. This is the rule `getNotificationStatus()` uses for its `exhausted` count, so a `CLAIMED` notification is never exhausted. |
+
 
 ### Command line
 

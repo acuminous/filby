@@ -71,6 +71,13 @@ describe('API', () => {
       });
     });
 
+    it('should describe a parameter on a field the documents leave out by the lookup field it joins', async () => {
+      const response = await get('/declarations/projections/Parks%20(Detailed)/v1');
+      eq(response.status, 200);
+      const { parameters } = await response.json();
+      deq(parameters.find((parameter: any) => parameter.name === 'amenity'), { name: 'amenity', field: 'amenities.amenity_code', match: 'in', property: ['amenities', 'amenity', 'code'] });
+    });
+
     it('should allow requests from other origins', async () => {
       const response = await application.app.request('/declarations/projections', { headers: { Origin: 'https://example.com' } });
       eq(response.status, 200);
@@ -493,15 +500,10 @@ describe('API', () => {
       const detailedParameters = document.paths['/projections/Parks%20(Detailed)/v1'].get.parameters;
       deq(detailedParameters.find((parameter: any) => parameter.name === 'beach_surface').schema, { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] });
       deq(detailedParameters.find((parameter: any) => parameter.name === 'amenity').schema, { type: 'array', items: { type: 'string' } });
-      const amenityParameter = detailedParameters.find((parameter: any) => parameter.name === 'amenity');
-      eq(amenityParameter['x-filby-match'], 'in');
-      deq(amenityParameter['x-filby-field'], ['amenities', 'amenity', 'code']);
-      eq('x-filby-carried' in amenityParameter, false);
       deq(detailed.properties.seasons.items.properties.current_season_start, { type: 'string', format: 'date' });
       deq(detailed.properties.seasons.items.properties.next_season_start, { type: ['string', 'null'], format: 'date' });
       deq(Object.keys(detailed.properties.amenities.items.properties), ['amenity']);
       deq(detailed.properties.amenities.items.required, ['amenity']);
-      deq(detailed.properties.amenities.items.properties.amenity['x-filby-on'], { code: 'amenity_code' });
       const [amenity, amenityNull] = detailed.properties.amenities.items.properties.amenity.anyOf;
       deq(amenityNull, { type: 'null' });
       deq(Object.keys(amenity.properties), ['code', 'name', 'category', 'age_group', 'charge', 'vat_code']);
@@ -509,16 +511,13 @@ describe('API', () => {
       deq(amenity.properties.age_group, { type: 'string', enum: ['All Ages', 'Children', 'Adults'] });
       deq(Object.keys(detailed.properties.beach_routes.items.properties), ['name', 'distance_metres', 'accessibility', 'beach']);
       deq(detailed.properties.beach_routes.items.properties.accessibility, { type: 'string', enum: ['Step Free', 'Steps', 'Steep Steps'] });
-      deq(detailed.properties.beach_routes.items.properties.beach['x-filby-on'], { code: 'beach_code' });
       const [beach, beachNull] = detailed.properties.beach_routes.items.properties.beach.anyOf;
       deq(beachNull, { type: 'null' });
       deq(Object.keys(beach.properties), ['code', 'name', 'surfaces']);
       deq(beach.properties.surfaces, { type: 'array', items: { type: 'string', enum: ['Sandy', 'Shingle', 'Pebbles', 'Rocky'] } });
       deq(Object.keys(detailed.properties.models.items.properties), ['offers', 'model']);
-      deq(detailed.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
       deq(Object.keys(detailed.properties.models.items.properties.model.anyOf[0].properties), ['code', 'name']);
       const offers = detailed.properties.models.items.properties.offers;
-      deq(offers['x-filby-on'], { park_code: 'park_code', model_code: 'model_code' });
       deq(Object.keys(offers.items.properties), ['year', 'offer_type', 'offer_price', 'discount_percent', 'discount_amount']);
       deq(offers.items.required, ['year', 'offer_type']);
       deq(offers.items.properties.offer_type, { type: 'string', enum: ['Offer Price', 'Percent Off', 'Amount Off'] });
@@ -532,7 +531,6 @@ describe('API', () => {
       deq(grades.properties.code, { type: 'string', enum: ['Platinum', 'Gold', 'Silver', 'Bronze', 'Saver'] });
       deq(grades.required, ['code', 'models', 'attributes']);
       deq(grades.properties.models.items.required, ['year', 'model']);
-      deq(grades.properties.models.items.properties.model['x-filby-on'], { code: 'model_code' });
       deq(Object.keys(grades.properties.models.items.properties.model.anyOf[0].properties), ['code', 'name']);
       deq(grades.properties.attributes.items.properties.attribute, { type: 'string', enum: ['Double Glazing', 'Central Heating', 'Decking', 'Dishwasher', 'En Suite', 'Patio Doors', 'Integrated Appliances'] });
 
@@ -545,7 +543,6 @@ describe('API', () => {
       deq(models.properties.length, { type: 'string' });
       deq(models.properties.double_glazed, { type: 'boolean' });
       deq(models.required, ['code', 'name', 'berths', 'bedrooms', 'length', 'width', 'heating', 'double_glazed', 'vat_code', 'prices', 'accessories', 'manufacturer']);
-      deq(models.properties.manufacturer['x-filby-on'], { code: 'manufacturer_code' });
       deq(Object.keys(models.properties.manufacturer.anyOf[0].properties), ['code', 'name']);
 
       const catalogue = schema(document, 'Catalogue');
