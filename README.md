@@ -1969,6 +1969,8 @@ Response schemas contain only `x-filby-on`. If you validate them with Ajv in str
 | ----- | ------------------- |
 | `/projections` | `200` with the projections that have not been dropped, ordered by name then version. Each is `{ name, version, description, root }`, where `root` is the root entity as `{ name, version }`, or `null` for a custom SQL projection. |
 | `/projections/<name>/v<n>` | `200` with the projection's declaration. |
+| `/hooks` | `200` with every hook declaration, ordered by name. |
+| `/hooks/<name>` | `200` with the hook's declaration. |
 | `/openapi.json` | `200` with an OpenAPI 3.1 document describing these routes and their response schemas. |
 
 A migration can change the model at any time, so every successful response carries `Cache-Control: no-cache`. An unknown projection produces a `404`. A dropped projection produces a `410`, because dropping a projection removes its declaration. `HEAD` requests, `405` responses, names that cannot be URL-decoded and error bodies behave as they do for [`fetchProjections`](#error-responses).
@@ -2004,6 +2006,28 @@ Each entry in `nests` describes a nest or lookup:
 | `fields` | As for the projection. When it is `null`, documents omit the join fields, as described in [Selecting fields](#selecting-fields). |
 | `order` | As for the projection. Always empty for a lookup. |
 | `nests` | The nests and lookups beneath it. Always empty for a lookup. |
+
+#### Hook declarations
+
+A hook declaration describes its `ADD_HOOK` operation. The name appears exactly as declared, because it is the name an application passes to `subscribe`. Names often contain `/`, so URL-encode the whole name in the path. For the first hook in [Defining hooks](#defining-hooks), `GET /hooks/sns%2Fcommence-change-set%2Fparks-v1` returns:
+
+```json
+{
+  "name": "sns/commence-change-set/parks-v1",
+  "description": null,
+  "event": "COMMENCE_CHANGE_SET",
+  "projection": { "name": "Parks", "version": 1 }
+}
+```
+
+| Property | Value |
+| -------- | ----- |
+| `name` | The hook name. |
+| `description` | The declared description, or `null`. |
+| `event` | `ADD_PROJECTION`, `DROP_PROJECTION`, `ADD_CHANGE_SET` or `COMMENCE_CHANGE_SET`. |
+| `projection` | The projection the hook is restricted to, as `{ name, version }`, or `null` for a hook that covers every projection. |
+
+An unknown hook produces a `404`. `DROP_HOOK` deletes the hook, and `DROP_PROJECTION` deletes the hooks restricted to the projection, so `/hooks` leaves them out afterwards and `/hooks/<name>` responds with `404`. Applications subscribe to hooks in their own code, so a declaration cannot say whether any instance handles the hook.
 
 ### Command line
 
