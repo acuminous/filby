@@ -6,6 +6,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import YAML from 'yaml';
 import op from 'object-path-immutable';
 import { PostgresError } from 'pg-error-enum';
+import { Validator } from '@seriousme/openapi-schema-validator';
 
 import TestFilby from './TestFilby.js';
 import { table } from '../lib/helpers.js';
@@ -1626,6 +1627,9 @@ describe('DSL', () => {
       await fs.promises.unlink(path.join(path.resolve(filby.config.migrations[0]), '001.custom.yaml'));
       await filby.applyYaml(t.name, ALTER_PARK);
 
+      const { fields } = await (await filby.fetchDeclarations(new Request('http://localhost/entities/park/v1'))).json();
+      ok(fields.some(({ name }) => name === 'opened'));
+
       const documents = await getDocuments('2019 Parks');
       deq(documents, [
         { code: 'DC', name: 'Devon Cliffs' },
@@ -1807,6 +1811,7 @@ describe('DSL', () => {
       deq(schema.properties.opened, { type: ['string', 'null'], format: 'date', 'x-filby-since': since });
       deq(schema.properties.closed, { type: 'string', format: 'date', 'x-filby-since': since });
       deq(schema.required, ['code', 'seasons']);
+      ok((await new Validator().validate(document)).valid);
     });
 
     async function getDocuments(description, options) {
