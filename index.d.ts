@@ -34,6 +34,7 @@ declare class Filby {
     getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
     fetchProjections(request: Request, options?: FetchOptions): Promise<Response>;
     fetchDeclarations(request: Request, options?: FetchOptions): Promise<Response>;
+    fetchStatus(request: Request, options?: FetchOptions): Promise<Response>;
     export(projection: Projection): Promise<Bundle>;
     #private;
 }
