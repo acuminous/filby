@@ -60,6 +60,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.fetchDeclarations` also serves the entities: their fields with each type, key and nullability, their checks, and the projections that read them (#342).
 - `filby.fetchDeclarations` also serves every enum at `/enums`, and one enum at `/enums/<name>`, as its canonical name and its values in declared order, including values added by `ALTER_ENUM` (#343).
 - `filby.fetchDeclarations` also serves the hooks the migrations declared, at `/hooks` and `/hooks/<name>`, with each hook's description, event and projection (#344).
+- `filby.fetchStatus`, an HTTP handler that serves the delivery status of each hook: the projections it has notified, when each last succeeded, and the notifications still pending, with their attempts and whether they are exhausted. It also reports how many handlers subscribe to the hook on the instance that answered. Responses are not cached. The example application mounts it at `/status` (#346).
 - `filby migrate`, which applies outstanding migrations and exits, and `init({ migrate: false })`, which starts an instance without applying migrations and rejects if any are outstanding (#236).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
 - A published JSON Schema for migration files, for editor validation and completion (#48).

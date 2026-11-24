@@ -85,6 +85,22 @@ describe('API', () => {
     });
   });
 
+  describe('GET /status/hooks', () => {
+    it('should report the delivery status of each hook to other origins', async () => {
+      const response = await application.app.request('/status/hooks', { headers: { Origin: 'https://example.com' } });
+      eq(response.status, 200);
+      eq(response.headers.get('Access-Control-Allow-Origin'), '*');
+      eq(response.headers.get('Cache-Control'), 'no-store');
+      const hooks = await response.json();
+      deq(hooks.map(({ name, event, projection, subscribers }: any) => ({ name, event, projection, subscribers })), [
+        { name: 'httpbin/add-change-set/*', event: 'ADD_CHANGE_SET', projection: null, subscribers: 1 },
+        { name: 'httpbin/add-change-set/parks-minimal-v1', event: 'ADD_CHANGE_SET', projection: { name: 'Parks (Minimal)', version: 1 }, subscribers: 1 },
+        { name: 'httpbin/add-projection', event: 'ADD_PROJECTION', projection: null, subscribers: 1 },
+      ]);
+      ok(hooks.every(({ deliveries }: any) => Array.isArray(deliveries)));
+    });
+  });
+
   describe('GET /api/projections', () => {
     it('should list the projections with their descriptions', async () => {
       const response = await get('/api/projections');
