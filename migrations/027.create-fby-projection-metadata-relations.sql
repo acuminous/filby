@@ -79,8 +79,6 @@ BEGIN
   WHERE f.entity_id = v_projection.root_entity_id
     AND (v_projection.fields IS NULL OR s.field IS NOT NULL);
 
-  EXECUTE format('DROP FUNCTION IF EXISTS %I', v_function);
-
   EXECUTE format(
     'CREATE FUNCTION %I(%s) RETURNS TABLE (%s, fby_total INTEGER) AS %L LANGUAGE sql STABLE',
     v_function,

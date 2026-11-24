@@ -3922,6 +3922,18 @@ describe('DSL', () => {
       return transform(ADD_CHANGE_SET_1).set('0.frames', [{ entity: 'VAT Rate', version: 1, action: 'SET', data }]);
     }
 
+    it('should reject a projection whose function already exists', async (t) => {
+      await filby.withTransaction((tx) => tx.query(`
+        CREATE FUNCTION get_parks_v1(p_change_set_id INTEGER, p_code TEXT, p_page_offset INTEGER, p_page_size INTEGER)
+        RETURNS TABLE (code TEXT)
+        AS $$ SELECT 'DC'::TEXT $$ LANGUAGE sql STABLE`));
+
+      await rejects(filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION), (err) => {
+        eq(err.message, 'function "get_parks_v1" already exists with same argument types');
+        return true;
+      });
+    });
+
     async function getProjectionRows(args = '', values = []) {
       const changeSetId = await getChangeSetId('2020 VAT Rates');
       const { rows } = await filby.withTransaction((tx) => tx.query(`SELECT * FROM get_vat_rates_v1($1${args ? `, ${args}` : ''})`, [changeSetId, ...values]));

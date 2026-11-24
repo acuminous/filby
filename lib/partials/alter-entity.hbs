@@ -8,6 +8,7 @@ DECLARE
   v_kind TEXT;
   v_path TEXT;
   v_projection TEXT;
+  v_root RECORD;
 BEGIN
   SELECT id INTO v_entity_id
   FROM fby_entity
@@ -83,10 +84,17 @@ BEGIN
 
   PERFORM fby_create_aggregate_function(v_entity_id);
 
-  PERFORM fby_create_projection_function(id)
-  FROM fby_projection
-  WHERE root_entity_id = v_entity_id
-    AND fields IS NULL
-    AND dropped_at IS NULL;
+  FOR v_root IN
+    SELECT id, name, version
+    FROM fby_projection
+    WHERE root_entity_id = v_entity_id
+      AND fields IS NULL
+      AND dropped_at IS NULL
+    ORDER BY id
+  LOOP
+    EXECUTE format('DROP FUNCTION %I', 'get_' || lower(regexp_replace(v_root.name || ' v' || v_root.version, '\s', '_', 'g')));
+
+    PERFORM fby_create_projection_function(v_root.id);
+  END LOOP;
 END;
 $$ LANGUAGE plpgsql;
