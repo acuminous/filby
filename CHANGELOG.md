@@ -58,6 +58,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `filby.export(projection)`, which returns the bundle that `filby export` writes, so an application or a tool such as filby-pack can build one in process. Like the command, it writes `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values as strings whatever `localDateTypes` is set to. The new `Bundle` type describes the result (#337).
 - `filby.fetchDeclarations`, an HTTP handler that serves the projections the migrations declared: the root entity, dependencies, selected fields and aliases, order, parameters, paging, nests and lookups. It takes the same options as `filby.fetchProjections` and serves its own OpenAPI document. The example application mounts it at `/declarations` (#341).
 - `filby.fetchDeclarations` also serves the entities: their fields with each type, key and nullability, their checks, and the projections that read them (#342).
+- `filby.fetchDeclarations` also serves every enum at `/enums`, and one enum at `/enums/<name>`, as its canonical name and its values in declared order, including values added by `ALTER_ENUM` (#343).
 - `filby migrate`, which applies outstanding migrations and exits, and `init({ migrate: false })`, which starts an instance without applying migrations and rejects if any are outstanding (#236).
 - `filby validate` and `filby preview`, which check migrations and show their SQL without a database (#47).
 - A published JSON Schema for migration files, for editor validation and completion (#48).

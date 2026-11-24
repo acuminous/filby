@@ -1956,6 +1956,8 @@ The `DATE` and `TIMESTAMP WITHOUT TIME ZONE` schemas describe the strings Filby 
 | `/projections/<name>/v<n>` | `200` with the projection's declaration. |
 | `/entities` | `200` with the entities, ordered by name then version. Each is `{ name, version, description }`. |
 | `/entities/<name>/v<n>` | `200` with the entity's declaration. |
+| `/enums` | `200` with every enum, ordered by name. |
+| `/enums/<name>` | `200` with the enum's declaration. `<name>` is the enum's canonical name, such as `customer_type`. |
 | `/openapi.json` | `200` with an OpenAPI 3.1 document describing these routes and their response schemas. |
 
 A migration can change the model at any time, so every successful response carries `Cache-Control: no-cache`. An unknown projection produces a `404`. A dropped projection produces a `410`, because dropping a projection removes its declaration. `HEAD` requests, `405` responses, names that cannot be URL-decoded and error bodies behave as they do for [`fetchProjections`](#error-responses).
@@ -2023,6 +2025,18 @@ An entity declaration describes its `ADD_ENTITY` operation, with the entity and 
 | `projections` | The projections that read the entity and have not been dropped, as `{ name, version }`, ordered by name then version. A projection listed here prevents [`DROP_ENTITY`](#drop_entity). |
 
 An unknown entity produces a `404`. A dropped entity also produces a `404`, because `DROP_ENTITY` removes its declaration and its name and version can be declared again.
+
+#### Enum declarations
+
+An enum declaration is `{ name, values }`. For the `Customer Type` enum in [ADD_ENUM](#add_enum), it is:
+
+```json
+{ "name": "customer_type", "values": ["Guest", "Owner"] }
+```
+
+`name` is the enum's canonical name. An entity field that uses the enum has this name as its type, followed by `[]` for an array. `values` lists the values as written, in declared order, followed by any values that `ALTER_ENUM` added. PostgreSQL sorts enum values in this order, so a projection ordered by `customer_type` lists `Guest` before `Owner`.
+
+`/enums/<name>` matches only the canonical name. `/enums/customer_type` returns the declaration above, while `/enums/Customer%20Type` produces a `404`, as does an enum that does not exist or was removed by `DROP_ENUM`. Enums are not versioned, so their paths have no `/v<n>` segment.
 
 ### Command line
 
