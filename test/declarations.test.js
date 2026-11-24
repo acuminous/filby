@@ -356,7 +356,7 @@ describe('Declarations', () => {
       const document = await response.json();
       deq(document.info, { title: 'Model', version: '2.0.0' });
       deq(document.servers, [{ url: '/admin' }]);
-      deq(Object.keys(document.paths), ['/projections', '/projections/{name}/v{version}', '/entities', '/entities/{name}/v{version}', '/enums', '/enums/{name}']);
+      deq(Object.keys(document.paths), ['/projections', '/projections/{name}/v{version}', '/entities', '/entities/{name}/v{version}', '/enums', '/enums/{name}', '/hooks', '/hooks/{name}']);
       const { valid, errors } = await new Validator().validate(document);
       deq(errors, undefined);
       eq(valid, true);
@@ -668,6 +668,124 @@ describe('Declarations', () => {
       eq(list(enums), true, JSON.stringify(list.errors));
       eq(declaration(await (await get('/enums/customer_type')).json()), true, JSON.stringify(declaration.errors));
       eq(declaration({ name: 'customer_type', values: ['Guest'], extra: true }), false);
+    });
+  });
+
+  describe('Hooks', () => {
+
+    const ADD_HOOK_ADD_PROJECTION = loadYaml('ADD_HOOK_ADD_PROJECTION');
+    const ADD_HOOK_DROP_PROJECTION = loadYaml('ADD_HOOK_DROP_PROJECTION');
+    const ADD_HOOK_CHANGE_SET_GENERAL = loadYaml('ADD_HOOK_CHANGE_SET_GENERAL');
+    const ADD_HOOK_CHANGE_SET_PROJECTION = loadYaml('ADD_HOOK_CHANGE_SET_PROJECTION');
+    const ADD_HOOK_COMMENCE_CHANGE_SET = YAML.stringify([{
+      operation: 'ADD_HOOK',
+      name: 'sns/commence-change-set/vat-rates-v1',
+      description: 'Publishes the current VAT rates',
+      event: 'COMMENCE_CHANGE_SET',
+      projection: 'VAT Rates@1',
+    }]);
+
+    it('should list the hooks by name', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_HOOK_DROP_PROJECTION, ADD_HOOK_COMMENCE_CHANGE_SET, ADD_HOOK_CHANGE_SET_PROJECTION, ADD_HOOK_ADD_PROJECTION, ADD_HOOK_CHANGE_SET_GENERAL);
+
+      const response = await get('/hooks');
+      eq(response.status, 200);
+      deq(await response.json(), [
+        { name: 'sns/add-change-set/*', description: null, event: 'ADD_CHANGE_SET', projection: null },
+        { name: 'sns/add-change-set/vat-rates-v1', description: null, event: 'ADD_CHANGE_SET', projection: { name: 'VAT Rates', version: 1 } },
+        { name: 'sns/add-projection', description: null, event: 'ADD_PROJECTION', projection: null },
+        { name: 'sns/commence-change-set/vat-rates-v1', description: 'Publishes the current VAT rates', event: 'COMMENCE_CHANGE_SET', projection: { name: 'VAT Rates', version: 1 } },
+        { name: 'sns/drop-projection', description: null, event: 'DROP_PROJECTION', projection: null },
+      ]);
+    });
+
+    it('should list no hooks when none are declared', async () => {
+      deq(await (await get('/hooks')).json(), []);
+    });
+
+    it('should describe a hook on one projection by its URL-encoded name', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_HOOK_COMMENCE_CHANGE_SET);
+
+      const response = await get('/hooks/sns%2Fcommence-change-set%2Fvat-rates-v1');
+      eq(response.status, 200);
+      deq(await response.json(), {
+        name: 'sns/commence-change-set/vat-rates-v1',
+        description: 'Publishes the current VAT rates',
+        event: 'COMMENCE_CHANGE_SET',
+        projection: { name: 'VAT Rates', version: 1 },
+      });
+    });
+
+    it('should describe a hook on every projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_HOOK_CHANGE_SET_GENERAL);
+
+      const response = await get('/hooks/sns%2Fadd-change-set%2F*');
+      eq(response.status, 200);
+      deq(await response.json(), { name: 'sns/add-change-set/*', description: null, event: 'ADD_CHANGE_SET', projection: null });
+    });
+
+    it('should respond with JSON that caches must revalidate', async (t) => {
+      await filby.applyYaml(t.name, ADD_HOOK_CHANGE_SET_GENERAL);
+
+      for (const route of ['/hooks', '/hooks/sns%2Fadd-change-set%2F*']) {
+        const response = await get(route);
+        eq(response.headers.get('Content-Type'), 'application/json', route);
+        eq(response.headers.get('Cache-Control'), 'no-cache', route);
+      }
+    });
+
+    it('should respond with 404 for a hook that does not exist', async () => {
+      const response = await get('/hooks/sns%2Fadd-change-set%2F*');
+      eq(response.status, 404);
+      deq(await response.json(), { error: "Hook 'sns/add-change-set/*' does not exist" });
+    });
+
+    it('should respond with 404 for a hook that was dropped', async (t) => {
+      await filby.applyYaml(t.name, ADD_HOOK_CHANGE_SET_GENERAL, loadYaml('DROP_HOOK_ADD_CHANGE_SET_GENERAL'));
+
+      eq((await get('/hooks/sns%2Fadd-change-set%2F*')).status, 404);
+      deq(await (await get('/hooks')).json(), []);
+    });
+
+    it('should leave out the hooks of a dropped projection', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, ADD_HOOK_COMMENCE_CHANGE_SET, ADD_HOOK_CHANGE_SET_GENERAL, DROP_PROJECTION);
+
+      deq((await (await get('/hooks')).json()).map(({ name }) => name), ['sns/add-change-set/*']);
+      const response = await get('/hooks/sns%2Fadd-change-set%2Fvat-rates-v1');
+      eq(response.status, 404);
+      deq(await response.json(), { error: "Hook 'sns/add-change-set/vat-rates-v1' does not exist" });
+    });
+
+    it('should respond with 400 for a hook name that cannot be decoded', async () => {
+      const response = await get('/hooks/sns%E0%A4%A');
+      eq(response.status, 400);
+      deq(await response.json(), { error: "Malformed hook name 'sns%E0%A4%A'" });
+    });
+
+    it('should respond with 404 for a hook name whose slashes are not encoded', async (t) => {
+      await filby.applyYaml(t.name, ADD_HOOK_CHANGE_SET_GENERAL);
+
+      eq((await get('/hooks/sns/add-change-set/*')).status, 404);
+    });
+
+    it('should describe the responses of the hook routes', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_HOOK_COMMENCE_CHANGE_SET, ADD_HOOK_CHANGE_SET_GENERAL);
+
+      const document = await (await get('/openapi.json')).json();
+      deq(Object.keys(document.paths['/hooks/{name}'].get.responses), ['200', '400', '404']);
+      const ajv = new Ajv({ strict: false });
+      ajv.addSchema({ $id: 'declarations', ...document });
+      const list = ajv.compile({ type: 'array', items: { $ref: 'declarations#/components/schemas/HookDeclaration' } });
+      const declaration = ajv.compile({ $ref: 'declarations#/components/schemas/HookDeclaration' });
+
+      const hooks = await (await get('/hooks')).json();
+      eq(hooks.length, 2);
+      eq(list(hooks), true, JSON.stringify(list.errors));
+      for (const route of ['/hooks/sns%2Fcommence-change-set%2Fvat-rates-v1', '/hooks/sns%2Fadd-change-set%2F*']) {
+        const body = await (await get(route)).json();
+        eq(declaration(body), true, JSON.stringify(declaration.errors));
+      }
+      eq(declaration({ ...hooks[0], extra: true }), false);
     });
   });
 
