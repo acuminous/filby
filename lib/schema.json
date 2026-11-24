@@ -18,6 +18,7 @@
               "ADD_HOOK",
               "ADD_CHANGE_SET",
               "ALTER_ENUM",
+              "ALTER_ENTITY",
               "DROP_ENUM",
               "DROP_ENTITY",
               "DROP_PROJECTION",
@@ -127,6 +128,21 @@
                 "type": "object",
                 "properties": {
                   "operation": {
+                    "$ref": "#/definitions/AlterEntityOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/AlterEntityType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
                     "$ref": "#/definitions/DropEnumOperationType"
                   }
                 }
@@ -225,54 +241,7 @@
           "type": "integer"
         },
         "fields": {
-          "if": {
-            "type": "object"
-          },
-          "then": {
-            "type": "object",
-            "minProperties": 1,
-            "additionalProperties": {
-              "type": [
-                "string",
-                "object"
-              ],
-              "properties": {
-                "type": {
-                  "type": "string"
-                },
-                "nullable": {
-                  "type": "boolean"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "type"
-              ]
-            }
-          },
-          "else": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "type": {
-                  "type": "string"
-                },
-                "nullable": {
-                  "type": "boolean"
-                }
-              },
-              "additionalProperties": false,
-              "required": [
-                "name",
-                "type"
-              ]
-            }
-          }
+          "$ref": "#/definitions/EntityFieldListType"
         },
         "key": {
           "$ref": "#/definitions/StringListType"
@@ -660,6 +629,33 @@
         "add"
       ]
     },
+    "AlterEntityType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AlterEntityOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "add": {
+          "$ref": "#/definitions/EntityFieldListType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name",
+        "version",
+        "add"
+      ]
+    },
     "DropEnumType": {
       "type": "object",
       "properties": {
@@ -761,6 +757,9 @@
     },
     "AlterEnumOperationType": {
       "const": "ALTER_ENUM"
+    },
+    "AlterEntityOperationType": {
+      "const": "ALTER_ENTITY"
     },
     "DropEnumOperationType": {
       "const": "DROP_ENUM"
@@ -918,6 +917,56 @@
       "minItems": 1,
       "items": {
         "type": "string"
+      }
+    },
+    "EntityFieldListType": {
+      "if": {
+        "type": "object"
+      },
+      "then": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": {
+          "type": [
+            "string",
+            "object"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "nullable": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        }
+      },
+      "else": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "nullable": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "type"
+          ]
+        }
       }
     }
   }

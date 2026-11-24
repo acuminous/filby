@@ -9,12 +9,8 @@ DECLARE
   v_category TEXT;
   v_field_type TEXT;
   v_arrays BOOLEAN[] := '{}';
-  v_selection JSONB := {{literal columns}};
   v_arguments TEXT;
-  v_columns TEXT;
-  v_outputs TEXT;
   v_order TEXT;
-  v_body TEXT;
   v_existing TEXT;
   v_kind TEXT;
   v_next_version INTEGER;
@@ -150,15 +146,6 @@ BEGIN
   END IF;
 
   {{/each}}
-  SELECT
-    string_agg(format('%I %s', COALESCE(s.item->>'as', f.name), f.type), ', ' ORDER BY s.ordinality, f.position),
-    string_agg(format('a.%I', f.name), ', ' ORDER BY s.ordinality, f.position)
-  INTO v_columns, v_outputs
-  FROM fby_entity_field f
-  LEFT JOIN jsonb_array_elements(v_selection) WITH ORDINALITY s(item, ordinality) ON s.item->>'field' = f.name
-  WHERE f.entity_id = v_root_id
-    AND (v_selection IS NULL OR s.item IS NOT NULL);
-
   SELECT {{#if order}}{{literal (projectionOrder order)}} || ', ' || {{/if}}string_agg(format('a.%I ASC', name), ', ' ORDER BY position)
   INTO v_order
   FROM fby_entity_field
@@ -182,28 +169,22 @@ BEGIN
   {{/each}}
 
   v_arguments := v_arguments || ', p_page_offset INTEGER DEFAULT 0, p_page_size INTEGER DEFAULT ' || {{#if paging}}{{literal paging.page_size}}{{else}}'NULL'{{/if}};
-  v_columns := v_columns || ', fby_total INTEGER';
-  v_outputs := v_outputs || ', COUNT(*) OVER ()::INTEGER AS fby_total';
   {{#each nest}}
   {{> add_projection_nest projection_name=../name projection_version=../version parent_entity=../root.entity parent_version=../root.version}}
   {{/each}}
 
-  v_body := format(
-    'SELECT %s FROM %I($1) a WHERE %s ORDER BY %s%s',
-    v_outputs,
-    {{literal (aggregate root.entity root.version)}},
-    {{projectionPredicates parameters}},
-    v_order,
-    {{literal (projectionLimit parameters paging)}}
-  );
+  UPDATE fby_projection
+  SET function_arguments = v_arguments,
+      function_from = format(
+        'FROM %I($1) a WHERE %s ORDER BY %s%s',
+        {{literal (aggregate root.entity root.version)}},
+        {{projectionPredicates parameters}},
+        v_order,
+        {{literal (projectionLimit parameters paging)}}
+      )
+  WHERE id = v_projection_id;
 
-  EXECUTE format(
-    'CREATE FUNCTION %I(%s) RETURNS TABLE (%s) AS %L LANGUAGE sql STABLE',
-    {{literal (projectionFunction name version)}},
-    v_arguments,
-    v_columns,
-    v_body
-  );
+  PERFORM fby_create_projection_function(v_projection_id);
   {{/if}}
 
   PERFORM fby_schedule_notification(h.id, {{literal name}}, {{literal version}})

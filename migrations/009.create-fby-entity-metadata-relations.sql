@@ -7,6 +7,7 @@ CREATE TABLE fby_entity_field (
   given_name TEXT,
   type TEXT NOT NULL,
   identity BOOLEAN NOT NULL,
+  since INTEGER,
   PRIMARY KEY (entity_id, position),
   CONSTRAINT uniq_fby_entity_field_entity_id_name UNIQUE (entity_id, name)
 );

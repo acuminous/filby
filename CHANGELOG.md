@@ -69,6 +69,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - `notifications.handlerTimeout`, and an `AbortSignal` passed to each handler (#22).
 - `filby.getNotificationStatus()`, for health checks. Its `overdue` and `exhausted` counts do not overlap, and notifications being delivered are counted as `claimed` (#58, #261, #307).
 - `ALTER_ENUM`, which adds values to an existing enum (#62).
+- `ALTER_ENTITY`, which adds fields to an existing entity version without a new version. Each added field records `since`, the next change set id. Documents and aggregates at earlier change set ids leave the field out, so responses already cached stay identical. Projection levels that do not declare `fields` carry the field from `since` onwards. The entity declaration gives each field's `since`, and the OpenAPI document marks an added property with `x-filby-since` and does not require it (#355).
 - `timezone` on a change set, so `effective` can be a calendar date (#102).
 - `nullable: false` on entity fields, which `SET` frames must then supply, and shorter equivalent forms of the DSL (#51, #305).
 - `since` on `getChangeLog`, to read only newer change sets (#56).
