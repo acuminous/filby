@@ -21,6 +21,8 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
+    await tx.query('DROP TYPE IF EXISTS customer_type');
+    await tx.query('DROP TYPE IF EXISTS amenity_category');
   },
 };
 
@@ -309,7 +311,7 @@ describe('Declarations', () => {
       const document = await response.json();
       deq(document.info, { title: 'Model', version: '2.0.0' });
       deq(document.servers, [{ url: '/admin' }]);
-      deq(Object.keys(document.paths), ['/projections', '/projections/{name}/v{version}']);
+      deq(Object.keys(document.paths), ['/projections', '/projections/{name}/v{version}', '/enums', '/enums/{name}']);
       const { valid, errors } = await new Validator().validate(document);
       deq(errors, undefined);
       eq(valid, true);
@@ -334,6 +336,119 @@ describe('Declarations', () => {
         eq(declaration(body), true, JSON.stringify(declaration.errors));
       }
       eq(declaration({ ...(await (await get('/projections/Parks/v1')).json()), extra: true }), false);
+    });
+  });
+
+  describe('Enums', () => {
+
+    const ADD_ENUMS = `
+- operation: ADD_ENUM
+  name: Customer Type
+  values:
+    - Guest
+    - Owner
+- operation: ADD_ENUM
+  name: amenity_category
+  values:
+    - Outdoor
+    - Indoor`;
+
+    it('should list every enum by name with its values in declared order', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUMS);
+
+      const response = await get('/enums');
+      eq(response.status, 200);
+      eq(response.headers.get('Cache-Control'), 'no-cache');
+      deq(await response.json(), [
+        { name: 'amenity_category', values: ['Outdoor', 'Indoor'] },
+        { name: 'customer_type', values: ['Guest', 'Owner'] },
+      ]);
+    });
+
+    it('should list no enums when none are declared', async () => {
+      deq(await (await get('/enums')).json(), []);
+    });
+
+    it('should describe an enum by its canonical name', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUMS);
+
+      const response = await get('/enums/customer_type');
+      eq(response.status, 200);
+      eq(response.headers.get('Cache-Control'), 'no-cache');
+      deq(await response.json(), { name: 'customer_type', values: ['Guest', 'Owner'] });
+    });
+
+    it('should use the canonical name that an entity field of the enum type has', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUMS, `
+- operation: ADD_ENTITY
+  name: Season
+  fields:
+    Park Code: TEXT
+    Customer Type: Customer Type
+  key:
+    - Park Code
+    - Customer Type`);
+
+      const { rows: [{ type }] } = await filby.withTransaction((tx) => tx.query("SELECT type FROM fby_entity_field WHERE name = 'customer_type'"));
+      eq((await (await get(`/enums/${type}`)).json()).name, type);
+    });
+
+    it('should list the values in declared order after ALTER_ENUM', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUMS, `
+- operation: ALTER_ENUM
+  name: Customer Type
+  add:
+    - Staff
+    - Contractor`);
+
+      deq(await (await get('/enums/customer_type')).json(), { name: 'customer_type', values: ['Guest', 'Owner', 'Staff', 'Contractor'] });
+      deq((await (await get('/enums')).json())[1], { name: 'customer_type', values: ['Guest', 'Owner', 'Staff', 'Contractor'] });
+    });
+
+    it('should respond with 404 for an enum named as declared rather than canonically', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUMS);
+
+      const response = await get('/enums/Customer%20Type');
+      eq(response.status, 404);
+      deq(await response.json(), { error: "Enum 'Customer Type' does not exist" });
+    });
+
+    it('should respond with 404 for an enum that does not exist', async () => {
+      const response = await get('/enums/wombat');
+      eq(response.status, 404);
+      deq(await response.json(), { error: "Enum 'wombat' does not exist" });
+    });
+
+    it('should respond with 404 for a dropped enum', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUMS, `
+- operation: DROP_ENUM
+  name: Customer Type`);
+
+      eq((await get('/enums/customer_type')).status, 404);
+      deq(await (await get('/enums')).json(), [{ name: 'amenity_category', values: ['Outdoor', 'Indoor'] }]);
+    });
+
+    it('should respond with 400 for an enum name that cannot be decoded', async () => {
+      const response = await get('/enums/%E0%A4%A');
+      eq(response.status, 400);
+      deq(await response.json(), { error: "Malformed enum name '%E0%A4%A'" });
+    });
+
+    it('should describe the responses of the enum routes', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENUMS);
+
+      const document = await (await get('/openapi.json')).json();
+      deq(document.paths['/enums'].get.operationId, 'listEnumDeclarations');
+      deq(document.paths['/enums/{name}'].get.operationId, 'getEnumDeclaration');
+      const ajv = new Ajv({ strict: false });
+      ajv.addSchema({ $id: 'declarations', ...document });
+      const list = ajv.compile({ type: 'array', items: { $ref: 'declarations#/components/schemas/EnumDeclaration' } });
+      const declaration = ajv.compile({ $ref: 'declarations#/components/schemas/EnumDeclaration' });
+
+      const enums = await (await get('/enums')).json();
+      eq(list(enums), true, JSON.stringify(list.errors));
+      eq(declaration(await (await get('/enums/customer_type')).json()), true, JSON.stringify(declaration.errors));
+      eq(declaration({ name: 'customer_type', values: ['Guest'], extra: true }), false);
     });
   });
 
