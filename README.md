@@ -994,7 +994,7 @@ These monitoring events are emitted synchronously. Catch errors inside their lis
 
 Use `filby.getNotificationStatus()` to check whether polling has started, when the last successful poll occurred, how many failures have occurred since then, and how many notifications are pending, claimed, overdue or exhausted. The returned fields are described under [API](#api).
 
-Watch both the overdue and exhausted counts, and investigate either one growing, even when polling is succeeding. Successful polling does not guarantee successful delivery, and a notification that has run out of attempts is counted only as exhausted.
+Watch both the overdue and exhausted counts, and investigate either one growing, even when polling is succeeding. Successful polling does not guarantee successful delivery, and a notification that has run out of attempts is counted only as exhausted. [Delivery status](#delivery-status) shows which hook and projection a growing count belongs to.
 
 ```js
 app.get('/health', async (c) => {
@@ -1007,6 +1007,48 @@ app.get('/health', async (c) => {
   }
 });
 ```
+
+#### Delivery status
+
+The counts from `getNotificationStatus()` cover every hook together. `filby.fetchStatus(request, options)` serves the delivery status of each hook over HTTP, so you can see which hook is failing, for which projection, and when it last succeeded. It accepts a standard Request, returns a standard Response and takes the same `basePath` and `info` options as `fetchProjections`. Mount it under a path of its own:
+
+```js
+app.all('/status/*', (c) =>
+  filby.fetchStatus(c.req.raw, { basePath: '/status' })
+);
+```
+
+`GET /status/hooks` returns every hook, and `GET /status/hooks/<name>` returns one. Hook names often contain `/`, so URL-encode the name. Suppose the `data-lake/add-change-set/*` hook from [Defining hooks](#defining-hooks) last delivered `Parks` v1 on 20 November, and has failed four times since because the data lake rejects the request. `GET /status/hooks/data-lake%2Fadd-change-set%2F*` returns:
+
+```json
+{
+  "name": "data-lake/add-change-set/*",
+  "event": "ADD_CHANGE_SET",
+  "projection": null,
+  "subscribers": 1,
+  "deliveries": [
+    {
+      "projection": { "name": "Parks", "version": 1 },
+      "lastDelivered": "2026-11-20T09:14:03.000Z",
+      "pending": [
+        {
+          "status": "PENDING",
+          "scheduledFor": "2026-11-23T10:02:16.000Z",
+          "attempts": 4,
+          "lastAttempted": "2026-11-23T10:02:00.000Z",
+          "exhausted": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+Each entry in `deliveries` covers one projection the hook has notified. `lastDelivered` is when the last successful delivery started, and `pending` lists the notifications that have not yet been delivered, in the order they are due. A `COMMENCE_CHANGE_SET` hook has a pending notification for each future change set. `exhausted` becomes `true` when a notification has used all `notifications.maxAttempts` attempts and will not be retried. The error from the last attempt is not served, because handler errors may contain secrets. Subscribe to `Filby.NOTIFICATION_ERROR` to see it, as described under [Monitoring failures](#monitoring-failures).
+
+`subscribers` is the number of handlers subscribed to the hook on the instance that answered the request. A hook with no subscriber fails every attempt, so a `0` often explains a failing hook. Behind a load balancer, this value describes whichever instance answered, and other instances may differ, for example during a rolling deployment. Every other value is read from the database, so it is the same whichever instance answers.
+
+The handler exposes your hook names and delivery history to anyone who can reach it. Mount it behind whatever protects your other administrative routes. See [Status](#status) for the full response shape.
 
 #### Migrations
 
@@ -1800,6 +1842,8 @@ See [Serving over HTTP](#serving-over-http) for routes, options and framework in
 
 Use `filby.fetchDeclarations(request, options)` to serve the projections your migrations declared. See [Serving declarations over HTTP](#serving-declarations-over-http) and [Declarations](#declarations).
 
+Use `filby.fetchStatus(request, options)` to serve the delivery status of each hook. See [Delivery status](#delivery-status) and [Status](#status).
+
 #### Running SQL in a transaction
 
 Use `filby.withTransaction(callback)` when you need to run SQL directly. The callback receives a [node-pg](https://node-postgres.com/) client. Filby commits the transaction when the callback resolves and rolls it back if the callback rejects.
@@ -2038,6 +2082,47 @@ An enum declaration is `{ name, values }`. For the `Customer Type` enum in [ADD_
 
 `/enums/<name>` matches only the canonical name. `/enums/customer_type` returns the declaration above, while `/enums/Customer%20Type` produces a `404`, as does an enum that does not exist or was removed by `DROP_ENUM`. Enums are not versioned, so their paths have no `/v<n>` segment.
 
+### Status
+
+`filby.fetchStatus(request, { basePath, info })` handles `GET` and `HEAD` requests on the routes below. Paths are relative to `basePath`. `info` sets the title, version and description of the OpenAPI document, with the same default as the [OpenAPI document](#openapi-document) that `fetchProjections` serves.
+
+| Route | Successful response |
+| ----- | ------------------- |
+| `/hooks` | `200` with the delivery status of every hook, ordered by name. |
+| `/hooks/<name>` | `200` with the delivery status of one hook. |
+| `/openapi.json` | `200` with an OpenAPI 3.1 document describing these routes and their response schemas. |
+
+The status changes with every delivery attempt, so every successful response carries `Cache-Control: no-store`, which tells browsers and caches not to keep a copy. A hook that does not exist, including one removed by `DROP_HOOK` or `DROP_PROJECTION`, produces a `404`. `HEAD` requests, `405` responses, names that cannot be URL-decoded and error bodies behave as they do for [`fetchProjections`](#error-responses).
+
+Each hook has these properties. Times are ISO 8601 strings in UTC.
+
+| Property | Value |
+| -------- | ----- |
+| `name` | The hook's name, as declared. |
+| `event` | The event the hook fires on. |
+| `projection` | The projection the hook is limited to, as `{ name, version }`, or `null` for a hook that covers every projection. |
+| `subscribers` | The number of handlers subscribed to the hook on the instance that answered the request. |
+| `deliveries` | One entry for each projection that has a notification for the hook, ordered by projection name then version. Empty when the hook has no notifications. |
+
+Each entry in `deliveries` has:
+
+| Property | Value |
+| -------- | ----- |
+| `projection` | The projection, as `{ name, version }`. |
+| `lastDelivered` | When the last successful delivery attempt started, or `null` if no delivery has succeeded. Filby keeps only the latest success, so earlier deliveries are not listed. |
+| `pending` | The notifications that have not yet been delivered, ordered by `scheduledFor`. Empty when there are none. |
+
+Each entry in `pending` has:
+
+| Property | Value |
+| -------- | ----- |
+| `status` | `PENDING` while the notification waits for an attempt, or `CLAIMED` while an instance's handlers are running. |
+| `scheduledFor` | When the notification is due. After a failed attempt, this is when it will be retried. |
+| `attempts` | The attempts made so far, including one in progress. |
+| `lastAttempted` | When the last attempt started, or `null` before the first. |
+| `exhausted` | `true` when a `PENDING` notification has reached `notifications.maxAttempts` and will not be retried. This is the rule `getNotificationStatus()` uses for its `exhausted` count, so a `CLAIMED` notification is never exhausted. |
+
+
 ### Command line
 
 Use Filby's command line tool to check migration files without a database, to apply migrations, and to export projections for distribution as npm modules.
@@ -2182,7 +2267,7 @@ npm install
 npm run example
 ```
 
-The API is served under `/api`. Open [Swagger UI](http://localhost:3000/documentation) to try requests, or access the generated OpenAPI document at `/api/openapi.json`. The projection declarations are served under `/declarations`, without the protection a real application would put in front of them. The `/health` endpoint reports notification status.
+The API is served under `/api`. Open [Swagger UI](http://localhost:3000/documentation) to try requests, or access the generated OpenAPI document at `/api/openapi.json`. The declarations are served under `/declarations`, and the delivery status of each hook under `/status`, both without the protection a real application would put in front of them. The `/health` endpoint reports notification status.
 
 ### Exploring the data
 
