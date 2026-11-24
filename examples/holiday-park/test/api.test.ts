@@ -71,6 +71,13 @@ describe('API', () => {
       });
     });
 
+    it('should describe a parameter on a field the documents leave out by the lookup field it joins', async () => {
+      const response = await get('/declarations/projections/Parks%20(Detailed)/v1');
+      eq(response.status, 200);
+      const { parameters } = await response.json();
+      deq(parameters.find((parameter: any) => parameter.name === 'amenity'), { name: 'amenity', field: 'amenities.amenity_code', match: 'in', property: ['amenities', 'amenity', 'code'] });
+    });
+
     it('should allow requests from other origins', async () => {
       const response = await application.app.request('/declarations/projections', { headers: { Origin: 'https://example.com' } });
       eq(response.status, 200);
