@@ -21,6 +21,13 @@ const config = {
     await tx.query('DROP FUNCTION IF EXISTS get_rate_v1_aggregate');
     await tx.query('DROP TABLE IF EXISTS vat_rate_v1');
     await tx.query('DROP FUNCTION IF EXISTS get_vat_rate_v1_aggregate');
+    await tx.query('DROP FUNCTION IF EXISTS get_parks_v2');
+    await tx.query('DROP FUNCTION IF EXISTS get_seasons_v1');
+    await tx.query('DROP TABLE IF EXISTS park_v2');
+    await tx.query('DROP FUNCTION IF EXISTS get_park_v2_aggregate');
+    await tx.query('DROP TABLE IF EXISTS park_season_v1');
+    await tx.query('DROP FUNCTION IF EXISTS get_park_season_v1_aggregate');
+    await tx.query('DROP TYPE IF EXISTS customer_type');
   },
 };
 
@@ -30,6 +37,7 @@ const ADD_ROOT_PROJECTION = loadYaml('ADD_ROOT_PROJECTION');
 const ADD_PARK_ENTITIES = loadYaml('ADD_PARK_ENTITIES');
 const ADD_NESTED_PROJECTION = loadYaml('ADD_NESTED_PROJECTION');
 const DROP_PROJECTION = loadYaml('DROP_PROJECTION');
+const DROP_ENTITY = loadYaml('DROP_ENTITY');
 
 describe('Declarations', () => {
 
@@ -309,7 +317,7 @@ describe('Declarations', () => {
       const document = await response.json();
       deq(document.info, { title: 'Model', version: '2.0.0' });
       deq(document.servers, [{ url: '/admin' }]);
-      deq(Object.keys(document.paths), ['/projections', '/projections/{name}/v{version}']);
+      deq(Object.keys(document.paths), ['/projections', '/projections/{name}/v{version}', '/entities', '/entities/{name}/v{version}']);
       const { valid, errors } = await new Validator().validate(document);
       deq(errors, undefined);
       eq(valid, true);
@@ -334,6 +342,180 @@ describe('Declarations', () => {
         eq(declaration(body), true, JSON.stringify(declaration.errors));
       }
       eq(declaration({ ...(await (await get('/projections/Parks/v1')).json()), extra: true }), false);
+    });
+  });
+
+  describe('Entities', () => {
+
+    const ADD_PARK_SEASON = `
+- operation: ADD_ENUM
+  name: Customer Type
+  values:
+    - Guest
+    - Owner
+
+- operation: ADD_ENTITY
+  name: Park Season
+  fields:
+    Park Code: TEXT
+    Customer Type: Customer Type
+    Current Season Start:
+      type: DATE
+      nullable: false
+    Current Season End:
+      type: DATE
+      nullable: false
+    Next Season Start: DATE
+    Next Season End: DATE
+    Customer Types: Customer Type[]
+  key:
+    - Park Code
+    - Customer Type
+  checks:
+    season_order: (current_season_start < current_season_end)
+    next_season_order: (next_season_start < next_season_end)
+`;
+
+    const ADD_PARK_V2 = transform(transform(ADD_PARK_ENTITIES.split('\n\n')[0]).set('0.version', 2)).set('0.description', 'Parks with regions');
+
+    it('should list the entities by name then version', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_PARK_V2);
+
+      const response = await get('/entities');
+      eq(response.status, 200);
+      deq(await response.json(), [
+        { name: 'park', version: 1, description: null },
+        { name: 'park', version: 2, description: 'Parks with regions' },
+        { name: 'rate', version: 1, description: null },
+        { name: 'season', version: 1, description: null },
+      ]);
+    });
+
+    it('should describe an entity with its keys, nullable fields, enum fields and checks', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_SEASON);
+
+      const response = await get('/entities/Park%20Season/v1');
+      eq(response.status, 200);
+      deq(await response.json(), {
+        name: 'Park Season',
+        version: 1,
+        description: null,
+        fields: [
+          { name: 'park_code', type: 'TEXT', key: true, nullable: false },
+          { name: 'customer_type', type: 'customer_type', key: true, nullable: false },
+          { name: 'current_season_start', type: 'DATE', key: false, nullable: false },
+          { name: 'current_season_end', type: 'DATE', key: false, nullable: false },
+          { name: 'next_season_start', type: 'DATE', key: false, nullable: true },
+          { name: 'next_season_end', type: 'DATE', key: false, nullable: true },
+          { name: 'customer_types', type: 'customer_type[]', key: false, nullable: true },
+        ],
+        checks: [
+          { name: 'next_season_order', expression: '(next_season_start < next_season_end)' },
+          { name: 'season_order', expression: '(current_season_start < current_season_end)' },
+        ],
+        projections: [],
+      });
+    });
+
+    it('should describe an enum field by the name of the enum it uses', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_SEASON);
+      const { rows: [{ name }] } = await filby.withTransaction((tx) => tx.query("SELECT DISTINCT name FROM fby_enum WHERE given_name = 'Customer Type'"));
+
+      const { fields } = await (await get('/entities/Park%20Season/v1')).json();
+      eq(fields.find((field) => field.name === 'customer_type').type, name);
+      eq(fields.find((field) => field.name === 'customer_types').type, `${name}[]`);
+    });
+
+    it('should describe an entity with no dependent projections or checks', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY);
+
+      const response = await get('/entities/VAT%20Rate/v1');
+      eq(response.status, 200);
+      deq(await response.json(), {
+        name: 'VAT Rate',
+        version: 1,
+        description: null,
+        fields: [
+          { name: 'type', type: 'TEXT', key: true, nullable: false },
+          { name: 'rate', type: 'NUMERIC', key: false, nullable: true },
+        ],
+        checks: [],
+        projections: [],
+      });
+    });
+
+    it('should list the live projections that read the entity by name then version', async (t) => {
+      const seasons = transform(ADD_ROOT_PROJECTION).set('0', { operation: 'ADD_PROJECTION', name: 'Seasons', version: 1, root: 'season@1' });
+      const dropParks = transform(DROP_PROJECTION).set('0.name', 'Parks');
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, seasons, ADD_NESTED_PROJECTION, transform(ADD_NESTED_PROJECTION).set('0.version', 2), dropParks);
+
+      deq((await (await get('/entities/season/v1')).json()).projections, [
+        { name: 'Parks', version: 2 },
+        { name: 'Seasons', version: 1 },
+      ]);
+      deq((await (await get('/entities/park/v1')).json()).projections, [
+        { name: 'Parks', version: 2 },
+      ]);
+    });
+
+    it('should list the custom SQL projections that depend on the entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION);
+
+      deq((await (await get('/entities/VAT%20Rate/v1')).json()).projections, [{ name: 'VAT Rates', version: 1 }]);
+    });
+
+    it('should respond with JSON that caches must revalidate', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY);
+
+      for (const route of ['/entities', '/entities/VAT%20Rate/v1']) {
+        const response = await get(route);
+        eq(response.headers.get('Content-Type'), 'application/json', route);
+        eq(response.headers.get('Cache-Control'), 'no-cache', route);
+      }
+    });
+
+    it('should respond with 404 for an entity that does not exist', async () => {
+      const response = await get('/entities/VAT%20Rate/v1');
+      eq(response.status, 404);
+      deq(await response.json(), { error: "Entity 'VAT Rate v1' does not exist" });
+    });
+
+    it('should respond with 404 for a dropped entity', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, DROP_ENTITY);
+
+      const response = await get('/entities/VAT%20Rate/v1');
+      eq(response.status, 404);
+      deq(await response.json(), { error: "Entity 'VAT Rate v1' does not exist" });
+    });
+
+    it('should respond with 400 for an entity name that cannot be decoded', async () => {
+      const response = await get('/entities/VAT%E0%A4%A/v1');
+      eq(response.status, 400);
+      deq(await response.json(), { error: "Malformed entity name 'VAT%E0%A4%A'" });
+    });
+
+    it('should respond with 400 for a version PostgreSQL rejects', async () => {
+      const response = await get('/entities/VAT%20Rate/v99999999999');
+      eq(response.status, 400);
+      deq(await response.json(), { error: 'value "99999999999" is out of range for type integer' });
+    });
+
+    it('should describe the responses of the entity routes', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_SEASON, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_V2);
+
+      const document = await (await get('/openapi.json')).json();
+      const ajv = new Ajv({ strict: false });
+      ajv.addSchema({ $id: 'declarations', ...document });
+      const list = ajv.compile({ type: 'array', items: { $ref: 'declarations#/components/schemas/EntitySummary' } });
+      const declaration = ajv.compile({ $ref: 'declarations#/components/schemas/EntityDeclaration' });
+
+      const entities = await (await get('/entities')).json();
+      eq(list(entities), true, JSON.stringify(list.errors));
+      for (const route of ['/entities/Park%20Season/v1', '/entities/park/v1', '/entities/park/v2']) {
+        const body = await (await get(route)).json();
+        eq(declaration(body), true, JSON.stringify(declaration.errors));
+      }
+      eq(declaration({ ...(await (await get('/entities/park/v1')).json()), extra: true }), false);
     });
   });
 
