@@ -253,6 +253,44 @@ describe('Declarations', () => {
       ]);
     });
 
+    it('should describe a parameter by the first lookup that carries the field it joins', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' } };
+      const lookup = {
+        park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] },
+        owner: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code'] },
+        site: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code', 'name'] },
+      };
+      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      deq((await (await get('/projections/Parks/v1')).json()).parameters, [
+        { name: 'park', field: 'seasons.park_code', match: 'equals', property: ['seasons', 'owner', 'code'] },
+      ]);
+    });
+
+    it('should describe the property of a parameter as null when the lookup it joins does not carry its join field', async (t) => {
+      const parameters = { park: { field: 'seasons.park_code' }, rate_park: { field: 'seasons.rates.park_code' } };
+      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] } };
+      const rateLookup = { park: { entity: 'park@1', on: { code: 'park_code' } } };
+      const projection = transform(transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup)).set('0.nest.seasons.nest.rates.lookup', rateLookup);
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      deq((await (await get('/projections/Parks/v1')).json()).parameters, [
+        { name: 'park', field: 'seasons.park_code', match: 'equals', property: null },
+        { name: 'rate_park', field: 'seasons.rates.park_code', match: 'equals', property: null },
+      ]);
+    });
+
+    it('should describe the property of a parameter on a field carried under several names by the first', async (t) => {
+      const fields = [{ field: 'code', as: 'park' }, { field: 'code', as: 'reference' }, 'name'];
+      const projection = transform(transform(ADD_NESTED_PROJECTION).set('0.fields', fields)).del('0.nest');
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
+
+      const declaration = await (await get('/projections/Parks/v1')).json();
+      deq(declaration.fields, [{ field: 'code', as: 'park' }, { field: 'code', as: 'reference' }, { field: 'name', as: 'name' }]);
+      deq(declaration.parameters.find(({ name }) => name === 'code'), { name: 'code', field: 'code', match: 'equals', property: ['park'] });
+    });
+
     it('should describe a custom SQL projection by its dependencies and paging', async (t) => {
       const dependencies = [{ entity: 'season', version: 1 }, { entity: 'park', version: 1 }];
       const projection = transform(transform(transform(ADD_PROJECTION).set('0.dependencies', dependencies)).set('0.paging', { page_size: 10, page_max: 50 })).set('0.description', 'Rates of VAT');

@@ -690,7 +690,7 @@ A parameter can also select root records by the values of the records nested or 
 
 Each parameter is tested against one nested record at a time, so a `range` parameter matches only when a single route falls within both bounds. Different parameters are tested independently. `?beach_surface=Sandy&route_access=Step%20Free` returns the parks that have a route to a sandy beach and a step-free route, even when they are different routes.
 
-Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. The OpenAPI document gives the parameter the type of the field at the end of the path, and its [Filby extensions](#filby-extensions) say which field the parameter filters and whether documents carry it.
+Any match type can be used at the end of a path, including `contains` and `in` on an array field. A lookup cannot contain nests or lookups, so it can only be the last name before the field. The field does not need to appear in the documents. The OpenAPI document gives the parameter the type of the field at the end of the path. The projection's [declaration](#projection-declarations) says which field the parameter filters and whether documents carry it.
 
 ##### Selecting fields
 
@@ -1915,7 +1915,7 @@ Pagination links use `<url>; rel="next"` and `<url>; rel="prev"`, preserving all
 
 ### OpenAPI document
 
-`GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from your projection definitions. It describes the API routes, filters, paging controls, response schemas and headers.
+`GET /openapi.json` returns an [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) document generated from your projection definitions. It describes the API routes, filters, paging controls, response schemas and headers. It does not say how a projection is built, such as which field a parameter filters, how it matches, or which fields join a nest to its parent. A tool that needs those details can read the projection's declaration from [`filby.fetchDeclarations`](#serving-declarations-over-http), as described in [Declarations](#declarations).
 
 Every projection's path lists `page` and `pageSize` as optional integers of at least 1. Where the projection declares `paging`, `pageSize` also has its `page_size` as the `default` and its `page_max` as the `maximum`.
 
@@ -1945,21 +1945,6 @@ Schemas describe the values returned over HTTP, which may differ from their Post
 Array fields use the corresponding element schema. Nullable fields also allow `null`.
 
 The `DATE` and `TIMESTAMP WITHOUT TIME ZONE` schemas describe the strings Filby returns by default, even when `localDateTypes` is `'pg'`. A value such as `infinity` is served as written, so it does not match the `date` format.
-
-#### Filby extensions
-
-The OpenAPI document carries four extensions that describe how Filby joins and filters documents:
-
-| Extension | Appears on | Value |
-| --------- | ---------- | ----- |
-| `x-filby-on` | Each nest and lookup in a response schema | The join, mapping each field of the nested record to the parent field it matches. |
-| `x-filby-match` | Each declared query parameter | The parameter's match: `equals`, `prefix`, `in`, `contains`, `range`, `gt`, `gte`, `lt` or `lte`. |
-| `x-filby-field` | Each declared query parameter | The path of the field the parameter filters, as a list of the property names a document uses, including any `as` alias, for example `["seasons", "rates", "band"]`. |
-| `x-filby-carried` | Each declared query parameter whose `x-filby-field` ends in a name that documents do not carry | `false`. |
-
-A client can use `x-filby-match` and `x-filby-field` to label filter controls without inferring them from parameter names. A `range` parameter appears as two query parameters, `<name>_from` followed by `<name>_to`, which carry the same extensions. A parameter may filter on a field that documents do not carry, such as one left out by `fields`. When a lookup joins on that field and the document carries the lookup's side of the join, `x-filby-field` names the lookup's property instead, because the join makes the two values equal. In the example application, `Parks (Detailed)` declares `amenity` on `Amenities.Amenity Code`, which its amenities leave out, so the parameter's field is `["amenities", "amenity", "code"]`, the `code` property of the `amenity` lookup. Otherwise, `x-filby-field` is the path the field would have in the document, such as `["amenities", "amenity_code"]`, and the parameter also has `x-filby-carried: false`. A client can still tell from the path whether the parameter filters a nested field.
-
-Response schemas contain only `x-filby-on`. If you validate them with Ajv in strict mode, register it with `ajv.addKeyword('x-filby-on')`. If you also compile parameter objects, register `x-filby-match`, `x-filby-field` and `x-filby-carried` in the same way.
 
 ### Declarations
 

@@ -935,7 +935,6 @@ describe('HTTP', () => {
 
     const ajv = new Ajv();
     ajvFormats(ajv);
-    ajv.addKeyword('x-filby-on');
 
     it('should serve a document that validates against the OpenAPI 3.1 schema', async (t) => {
       await filby.applyYaml(t.name, ADD_ENUM, ADD_ENTITY, ADD_ROOT_PROJECTION, transform(ADD_PROJECTION).set('0.version', 2), ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_SAMPLE_ENTITY, ADD_SAMPLE_PROJECTION);
@@ -1036,15 +1035,15 @@ describe('HTTP', () => {
       eq(operation.description, 'Rates of VAT');
       deq(operation.parameters, [
         { name: 'changeSetId', in: 'query', schema: { type: 'integer' } },
-        { name: 'type', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'equals', 'x-filby-field': ['type'] },
-        { name: 'prefix', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'prefix', 'x-filby-field': ['type'] },
-        { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true, 'x-filby-match': 'in', 'x-filby-field': ['type'] },
-        { name: 'rate_from', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'range', 'x-filby-field': ['rate'] },
-        { name: 'rate_to', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'range', 'x-filby-field': ['rate'] },
-        { name: 'above', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'gt', 'x-filby-field': ['rate'] },
-        { name: 'at_least', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'gte', 'x-filby-field': ['rate'] },
-        { name: 'below', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'lt', 'x-filby-field': ['rate'] },
-        { name: 'at_most', in: 'query', schema: { type: 'string' }, 'x-filby-match': 'lte', 'x-filby-field': ['rate'] },
+        { name: 'type', in: 'query', schema: { type: 'string' } },
+        { name: 'prefix', in: 'query', schema: { type: 'string' } },
+        { name: 'types', in: 'query', schema: { type: 'array', items: { type: 'string' } }, style: 'form', explode: true },
+        { name: 'rate_from', in: 'query', schema: { type: 'string' } },
+        { name: 'rate_to', in: 'query', schema: { type: 'string' } },
+        { name: 'above', in: 'query', schema: { type: 'string' } },
+        { name: 'at_least', in: 'query', schema: { type: 'string' } },
+        { name: 'below', in: 'query', schema: { type: 'string' } },
+        { name: 'at_most', in: 'query', schema: { type: 'string' } },
         { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 } },
         { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, default: 2, maximum: 3 } },
         { name: 'If-None-Match', in: 'header', description: 'Entity tags from earlier responses, to revalidate against the ETag', schema: { type: 'string' } },
@@ -1057,122 +1056,6 @@ describe('HTTP', () => {
       deq(operation.responses['400'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
       deq(operation.responses['404'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
       deq(operation.responses['410'].content['application/json'].schema, { $ref: '#/components/schemas/Error' });
-    });
-
-    it('should describe the match and document path of parameters on nested fields', async (t) => {
-      const parameters = {
-        code: { field: 'code' },
-        kind: { field: 'seasons.type' },
-        start: { field: 'Seasons.Start', match: 'range' },
-        bands: { field: 'seasons.rates.band', match: 'in' },
-        park: { field: 'seasons.park.name', match: 'prefix' },
-      };
-      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', [{ field: 'type', as: 'kind' }, 'start'])).set('0.nest.seasons.lookup', { park: { entity: 'park@1', on: { code: 'park_code' } } });
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
-
-      const { paths } = await getDocument();
-      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize', 'If-None-Match'].includes(name));
-      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field']]), [
-        ['code', 'equals', ['code']],
-        ['kind', 'equals', ['seasons', 'kind']],
-        ['start_from', 'range', ['seasons', 'start']],
-        ['start_to', 'range', ['seasons', 'start']],
-        ['bands', 'in', ['seasons', 'rates', 'band']],
-        ['park', 'prefix', ['seasons', 'park', 'name']],
-      ]);
-    });
-
-    it('should describe the document path of a parameter on a field the documents do not carry', async (t) => {
-      const parameters = {
-        code: { field: 'code' },
-        season_park: { field: 'seasons.park_code' },
-        rate_park: { field: 'seasons.rates.park_code' },
-        end: { field: 'seasons.end', match: 'range' },
-      };
-      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['name'])).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start']);
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
-
-      const { paths } = await getDocument();
-      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'page', 'pageSize', 'If-None-Match'].includes(name));
-      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field'], parameter['x-filby-carried']]), [
-        ['code', 'equals', ['code'], false],
-        ['season_park', 'equals', ['seasons', 'park_code'], false],
-        ['rate_park', 'equals', ['seasons', 'rates', 'park_code'], false],
-        ['end_from', 'range', ['seasons', 'end'], false],
-        ['end_to', 'range', ['seasons', 'end'], false],
-      ]);
-    });
-
-    it('should describe a parameter on a field the documents do not carry by the lookup field it joins', async (t) => {
-      const parameters = {
-        park: { field: 'seasons.park_code', match: 'in' },
-        park_range: { field: 'seasons.park_code', match: 'range' },
-        type: { field: 'seasons.type' },
-      };
-      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name', 'code'] } };
-      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['start'])).set('0.nest.seasons.lookup', lookup);
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
-
-      const { paths } = await getDocument();
-      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => !['changeSetId', 'code', 'page', 'pageSize', 'If-None-Match'].includes(name));
-      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-match'], parameter['x-filby-field'], parameter['x-filby-carried']]), [
-        ['park', 'in', ['seasons', 'park', 'code'], undefined],
-        ['park_range_from', 'range', ['seasons', 'park', 'code'], undefined],
-        ['park_range_to', 'range', ['seasons', 'park', 'code'], undefined],
-        ['type', 'equals', ['seasons', 'type'], false],
-      ]);
-    });
-
-    it('should describe a parameter on a field the documents do not carry by the alias of the lookup field it joins', async (t) => {
-      const parameters = { park: { field: 'seasons.park_code' } };
-      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: [{ field: 'code', as: 'reference' }, 'name'] } };
-      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup);
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
-
-      const { paths } = await getDocument();
-      const parameter = paths['/projections/Parks/v1'].get.parameters.find(({ name }) => name === 'park');
-      deq(parameter['x-filby-field'], ['seasons', 'park', 'reference']);
-      eq('x-filby-carried' in parameter, false);
-    });
-
-    it('should describe a parameter by the first lookup that carries the field it joins', async (t) => {
-      const parameters = { park: { field: 'seasons.park_code' } };
-      const lookup = {
-        park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] },
-        owner: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code'] },
-        site: { entity: 'park@1', on: { code: 'park_code' }, fields: ['code', 'name'] },
-      };
-      const projection = transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup);
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
-
-      const { paths } = await getDocument();
-      const parameter = paths['/projections/Parks/v1'].get.parameters.find(({ name }) => name === 'park');
-      deq(parameter['x-filby-field'], ['seasons', 'owner', 'code']);
-      eq('x-filby-carried' in parameter, false);
-    });
-
-    it('should mark a parameter as not carried when the lookup it joins does not carry its join field', async (t) => {
-      const parameters = { park: { field: 'seasons.park_code' }, rate_park: { field: 'seasons.rates.park_code' } };
-      const lookup = { park: { entity: 'park@1', on: { code: 'park_code' }, fields: ['name'] } };
-      const rateLookup = { park: { entity: 'park@1', on: { code: 'park_code' } } };
-      const projection = transform(transform(transform(transform(ADD_NESTED_PROJECTION).set('0.parameters', parameters)).set('0.nest.seasons.fields', ['type', 'start'])).set('0.nest.seasons.lookup', lookup)).set('0.nest.seasons.nest.rates.lookup', rateLookup);
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
-
-      const { paths } = await getDocument();
-      const declared = paths['/projections/Parks/v1'].get.parameters.filter(({ name }) => ['park', 'rate_park'].includes(name));
-      deq(declared.map((parameter) => [parameter.name, parameter['x-filby-field'], parameter['x-filby-carried']]), [
-        ['park', ['seasons', 'park_code'], false],
-        ['rate_park', ['seasons', 'rates', 'park_code'], false],
-      ]);
-    });
-
-    it('should describe the document path of a field carried under several names', async (t) => {
-      const fields = [{ field: 'code', as: 'park' }, { field: 'code', as: 'reference' }, 'name'];
-      const projection = transform(transform(ADD_NESTED_PROJECTION).set('0.fields', fields)).del('0.nest');
-      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
-
-      const { paths } = await getDocument();
-      deq(paths['/projections/Parks/v1'].get.parameters.find(({ name }) => name === 'code')['x-filby-field'], ['park']);
     });
 
     it('should omit the projection description when there is none', async (t) => {
@@ -1232,13 +1115,11 @@ describe('HTTP', () => {
                       required: ['band'],
                       additionalProperties: false,
                     },
-                    'x-filby-on': { park_code: 'park_code', season_type: 'type' },
                   },
                 },
                 required: ['type', 'start', 'rates'],
                 additionalProperties: false,
               },
-              'x-filby-on': { park_code: 'code' },
             },
           },
           required: ['code', 'seasons'],
@@ -1265,7 +1146,6 @@ describe('HTTP', () => {
           { type: 'object', properties: { name: { type: ['string', 'null'] } }, required: [], additionalProperties: false },
           { type: 'null' },
         ],
-        'x-filby-on': { code: 'park_code' },
       });
       deq(schema.items.properties.seasons.items.required, ['type', 'start', 'rates', 'park']);
 
@@ -1309,20 +1189,17 @@ describe('HTTP', () => {
                       required: ['band'],
                       additionalProperties: false,
                     },
-                    'x-filby-on': { park_code: 'park_code', season_type: 'type' },
                   },
                   park: {
                     anyOf: [
                       { type: 'object', properties: { code: { type: 'string' }, name: { type: ['string', 'null'] } }, required: ['code'], additionalProperties: false },
                       { type: 'null' },
                     ],
-                    'x-filby-on': { code: 'park_code' },
                   },
                 },
                 required: ['type', 'rates', 'park'],
                 additionalProperties: false,
               },
-              'x-filby-on': { park_code: 'code' },
             },
           },
           required: ['seasons'],
