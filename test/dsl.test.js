@@ -5038,6 +5038,93 @@ describe('DSL', () => {
       deq(notifications, [{ hook_name: 'sns/add-change-set/vat-rates-v1', projection_name: 'VAT Rates', projection_version: 1 }]);
     });
 
+    it('should keep a same dated correction winning when a migration also backdates a change set', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2025', 'standard', 0.2));
+      await applyLaterYaml(t.name, vatRate('2024', 'reduced', 0.05), transform(vatRate('2025', 'standard', 0.3)).set('0.description', '2025 VAT Rates Correction'));
+
+      deq(await getChangeSetHistory(), [
+        { id: 1, description: '2025 VAT Rates', superseded_by: 4, reissued_from: null },
+        { id: 2, description: '2024 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 3, description: '2025 VAT Rates Correction', superseded_by: 5, reissued_from: null },
+        { id: 4, description: '2025 VAT Rates', superseded_by: null, reissued_from: 1 },
+        { id: 5, description: '2025 VAT Rates Correction', superseded_by: null, reissued_from: 3 },
+      ]);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeSet = await filby.getCurrentChangeSet(projection);
+      eq(changeSet.description, '2025 VAT Rates Correction');
+      deq(await filby.getAggregates(changeSet.id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.05 }, { type: 'standard', rate: 0.3 }]);
+    });
+
+    it('should re-issue each later change set once when a migration backfills several change sets', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2024', 'standard', 0.2), vatRate('2025', 'standard', 0.25), vatRate('2026', 'standard', 0.3));
+      await applyLaterYaml(t.name, vatRate('2022', 'reduced', 0.05), vatRate('2023', 'reduced', 0.06));
+
+      const history = await getChangeSetHistory();
+      deq(history, [
+        { id: 1, description: '2024 VAT Rates', superseded_by: 7, reissued_from: null },
+        { id: 2, description: '2025 VAT Rates', superseded_by: 8, reissued_from: null },
+        { id: 3, description: '2026 VAT Rates', superseded_by: 9, reissued_from: null },
+        { id: 4, description: '2022 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 5, description: '2023 VAT Rates', superseded_by: 6, reissued_from: null },
+        { id: 6, description: '2023 VAT Rates', superseded_by: null, reissued_from: 5 },
+        { id: 7, description: '2024 VAT Rates', superseded_by: null, reissued_from: 1 },
+        { id: 8, description: '2025 VAT Rates', superseded_by: null, reissued_from: 2 },
+        { id: 9, description: '2026 VAT Rates', superseded_by: null, reissued_from: 3 },
+      ]);
+      eq(history.filter(({ superseded_by }) => superseded_by !== null).length, 4);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+      deq(changeLog.map(({ description }) => description), ['2022 VAT Rates', '2023 VAT Rates', '2024 VAT Rates', '2025 VAT Rates', '2026 VAT Rates']);
+      deq(await filby.getAggregates(changeLog.at(-1).id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.06 }, { type: 'standard', rate: 0.3 }]);
+    });
+
+    it('should re-issue each later change set once when a migration backfills several change sets in reverse order', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2024', 'standard', 0.2), vatRate('2025', 'standard', 0.25), vatRate('2026', 'standard', 0.3));
+      await applyLaterYaml(t.name, vatRate('2023', 'reduced', 0.06), vatRate('2022', 'reduced', 0.05));
+
+      deq(await getChangeSetHistory(), [
+        { id: 1, description: '2024 VAT Rates', superseded_by: 7, reissued_from: null },
+        { id: 2, description: '2025 VAT Rates', superseded_by: 8, reissued_from: null },
+        { id: 3, description: '2026 VAT Rates', superseded_by: 9, reissued_from: null },
+        { id: 4, description: '2023 VAT Rates', superseded_by: 6, reissued_from: null },
+        { id: 5, description: '2022 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 6, description: '2023 VAT Rates', superseded_by: null, reissued_from: 4 },
+        { id: 7, description: '2024 VAT Rates', superseded_by: null, reissued_from: 1 },
+        { id: 8, description: '2025 VAT Rates', superseded_by: null, reissued_from: 2 },
+        { id: 9, description: '2026 VAT Rates', superseded_by: null, reissued_from: 3 },
+      ]);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+      deq(changeLog.map(({ description }) => description), ['2022 VAT Rates', '2023 VAT Rates', '2024 VAT Rates', '2025 VAT Rates', '2026 VAT Rates']);
+      deq(await filby.getAggregates(changeLog[1].id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.06 }]);
+      deq(await filby.getAggregates(changeLog.at(-1).id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.06 }, { type: 'standard', rate: 0.3 }]);
+    });
+
+    it('should re-issue only the later change sets when a migration backdates one change set', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2025', 'standard', 0.2), vatRate('2027', 'standard', 0.25));
+      await applyLaterYaml(t.name, vatRate('2026', 'reduced', 0.05));
+
+      deq(await getChangeSetHistory(), [
+        { id: 1, description: '2025 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 2, description: '2027 VAT Rates', superseded_by: 4, reissued_from: null },
+        { id: 3, description: '2026 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 4, description: '2027 VAT Rates', superseded_by: null, reissued_from: 2 },
+      ]);
+    });
+
+    it('should schedule one notification per hook and projection when a migration backfills several change sets', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, ADD_HOOK_CHANGE_SET_PROJECTION, vatRate('2024', 'standard', 0.2), vatRate('2025', 'standard', 0.25), vatRate('2026', 'standard', 0.3));
+      await applyLaterYaml(t.name, vatRate('2022', 'reduced', 0.05), vatRate('2023', 'reduced', 0.06));
+
+      const notifications = await getNotifications();
+      deq(notifications.map(({ hook_name, projection_name, projection_version, status }) => ({ hook_name, projection_name, projection_version, status })), [
+        { hook_name: 'sns/add-change-set/vat-rates-v1', projection_name: 'VAT Rates', projection_version: 1, status: 'PENDING' },
+      ]);
+    });
+
     it('should forbid additional properties in frames', async (t) => {
       await rejects(() => filby.applyYaml(t.name, transform(ADD_CHANGE_SET_1).merge('0.frames.0', { wombat: 1 })), (err) => {
         eq(err.message, "001.should-forbid-additional-properties-in-frames.yaml: /0/frames/0 must NOT have additional property 'wombat'");
@@ -5121,10 +5208,13 @@ describe('DSL', () => {
       });
       await applyLaterYaml(t.name, vatRate('2026', 'reduced', 0.05), vatRate('2028', 'standard', 0.3));
 
-      const [original, reissued] = await getChangeSets('2027 VAT Rates');
-      eq(await getChangeSetId('2026 VAT Rates'), original.id + 1);
-      eq(reissued.id, original.id + 2);
-      eq(await getChangeSetId('2028 VAT Rates'), original.id + 3);
+      deq(await getChangeSetHistory(), [
+        { id: 1, description: '2027 VAT Rates', superseded_by: 4, reissued_from: null },
+        { id: 2, description: '2026 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 3, description: '2028 VAT Rates', superseded_by: 5, reissued_from: null },
+        { id: 4, description: '2027 VAT Rates', superseded_by: null, reissued_from: 1 },
+        { id: 5, description: '2028 VAT Rates', superseded_by: null, reissued_from: 3 },
+      ]);
     });
 
     it('should not reuse the id of a deleted change set', async (t) => {
@@ -6704,6 +6794,13 @@ describe('DSL', () => {
   async function getChangeSets(description) {
     const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id, superseded_by, reissued_from FROM fby_change_set WHERE description = $1 ORDER BY id', [description]));
     return rows;
+  }
+
+  async function getChangeSetHistory() {
+    const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id, description, superseded_by, reissued_from FROM fby_change_set ORDER BY id'));
+    const offset = rows[0].id - 1;
+    const relative = (id) => (id === null ? null : id - offset);
+    return rows.map(({ id, description, superseded_by, reissued_from }) => ({ id: relative(id), description, superseded_by: relative(superseded_by), reissued_from: relative(reissued_from) }));
   }
 
   async function getChangeSetEntities() {
