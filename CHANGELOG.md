@@ -12,7 +12,7 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 - Filby is an ES module. A CommonJS application can still `require('filby')`. The package exports only `filby` itself, so files inside it, such as `filby/lib/helpers.js`, can no longer be loaded. A TypeScript project that compiles to CommonJS must set `module` to `commonjs`, or to `nodenext` with TypeScript 5.8 or later (#46).
 - The `POST` frame action is renamed to `SET`. YAML, JSON and CSV migrations may still say `POST`, but SQL must use `'SET'` (#77).
 - A change set may contain only one frame for each key of an entity (#6).
-- Adding a change set with an earlier effective date than existing ones re-issues the later change sets with new ids, so ids always follow effective dates. The originals keep their data but leave the change log (#4, #99).
+- Adding a change set with an earlier effective date than existing ones re-issues the later change sets with new ids, so ids always follow effective dates. The originals keep their data but leave the change log. Change sets are re-issued once per migration file, rather than after each change set (#4, #99, #357).
 - Change set ids come from a counter instead of a sequence, so a failed migration leaves no gap and every database built from the same migrations gives its change sets the same ids. `fby_change_set.id` no longer has a default, so SQL that inserts a change set must take its id from `fby_next_change_set_id()` (#242).
 - Aggregates take each record from the change set with the latest effective date, rather than from the most recently added frame (#3).
 - Deleting a change set with SQL also deletes its rows from the entity tables (#6, #25).

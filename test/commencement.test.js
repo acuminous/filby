@@ -202,6 +202,65 @@ describe('Commencement', () => {
     ok(commencements[1].id > commencements[0].id);
   });
 
+  it('should schedule one commencement per effective date and deliver one addition when a migration backfills several change sets', async (t) => {
+    await filby.applyYaml(
+      t.name,
+      VAT_RATES,
+      ADD_VAT_RATES,
+      COMMENCE_VAT_RATES,
+      changeSet('VAT', '2097 VAT Rates', '2097-01-01T00:00:00.000Z'),
+      changeSet('VAT', '2098 VAT Rates', '2098-01-01T00:00:00.000Z'),
+      changeSet('VAT', '2099 VAT Rates', '2099-01-01T00:00:00.000Z'),
+      changeSet('VAT', '2095 VAT Rates', '2095-01-01T00:00:00.000Z'),
+      changeSet('VAT', '2096 VAT Rates', '2096-01-01T00:00:00.000Z'),
+    );
+
+    const commencements = await getNotifications('VAT Rates Commenced');
+    deq(commencements.map(({ status, scheduled_for }) => ({ status, scheduled_for })), [
+      { status: 'PENDING', scheduled_for: new Date('2095-01-01T00:00:00.000Z') },
+      { status: 'PENDING', scheduled_for: new Date('2096-01-01T00:00:00.000Z') },
+      { status: 'PENDING', scheduled_for: new Date('2097-01-01T00:00:00.000Z') },
+      { status: 'PENDING', scheduled_for: new Date('2098-01-01T00:00:00.000Z') },
+      { status: 'PENDING', scheduled_for: new Date('2099-01-01T00:00:00.000Z') },
+    ]);
+
+    const deliveries = [];
+    filby.subscribe('VAT Rates Changed', (notification) => {
+      deliveries.push(notification);
+    });
+    filby.startNotifications();
+    await until(async () => (await getNotifications('VAT Rates Changed')).every(({ status }) => status === 'OK'));
+
+    eq((await getNotifications('VAT Rates Changed')).length, 1);
+    eq(deliveries.length, 1);
+  });
+
+  it('should schedule one commencement per effective date for a hook added after a backfill in the same migration', async (t) => {
+    await filby.applyYaml(
+      t.name,
+      VAT_RATES,
+      changeSet('VAT', '2099 VAT Rates', '2099-01-01T00:00:00.000Z'),
+      changeSet('VAT', '2098 VAT Rates', '2098-01-01T00:00:00.000Z'),
+      COMMENCE_VAT_RATES,
+      COMMENCE_ALL_RATES,
+      VAT_RATES_V2,
+    );
+
+    const specific = await getNotifications('VAT Rates Commenced');
+    deq(specific.map(({ projection_version, scheduled_for }) => ({ projection_version, scheduled_for })), [
+      { projection_version: 1, scheduled_for: new Date('2098-01-01T00:00:00.000Z') },
+      { projection_version: 1, scheduled_for: new Date('2099-01-01T00:00:00.000Z') },
+    ]);
+
+    const general = await getNotifications('Rates Commenced');
+    deq(general.map(({ projection_version, scheduled_for }) => ({ projection_version, scheduled_for })), [
+      { projection_version: 1, scheduled_for: new Date('2098-01-01T00:00:00.000Z') },
+      { projection_version: 2, scheduled_for: new Date('2098-01-01T00:00:00.000Z') },
+      { projection_version: 1, scheduled_for: new Date('2099-01-01T00:00:00.000Z') },
+      { projection_version: 2, scheduled_for: new Date('2099-01-01T00:00:00.000Z') },
+    ]);
+  });
+
   it('should schedule commencements for future change sets added before a general hook and projection', async (t) => {
     await filby.applyYaml(
       t.name,

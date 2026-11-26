@@ -311,7 +311,7 @@ describe('API', () => {
 
       const { rows } = await filby.withTransaction((tx) => tx.query('SELECT id FROM fby_change_set WHERE superseded_by IS NOT NULL'));
       const supersededIds = rows.map(({ id }) => id);
-      eq(supersededIds.length, 3);
+      eq(supersededIds.length, 2);
 
       const projection = await filby.getProjection('VAT Rates', 1);
       const changelog = await filby.getChangeLog(projection);
