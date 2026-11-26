@@ -216,7 +216,7 @@ Inside Filby, the pieces relate like this.
 └─────────────────┘                  └─────────────────┘
 </pre>
 
-An **entity** is a type of reference data: a park, a VAT rate, a caravan model. It is declared with a name, a version, the key fields that determine a unique record, the regular data fields, and optionally some checks, which become PostgreSQL check constraints. A field may be of any PostgreSQL type, including an enum declared in the same DSL. An entity is never altered in place; a change to its shape is a new version alongside the old one.
+An **entity** is a type of reference data: a park, a VAT rate, a caravan model. It is declared with a name, a version, the key fields that determine a unique record, the regular data fields, and optionally some checks, which become PostgreSQL check constraints. A field may be of any PostgreSQL type, including an enum declared in the same DSL. An entity can gain fields in place, but any other change to its shape is a new version alongside the old one.
 
 A **data frame** is a record of an entity as it was at a specific point in time: a `SET` frame carries the record's values, a `DELETE` frame says the record is gone. Frames are only ever added, so the history of a record is the sequence of its frames.
 
@@ -319,7 +319,7 @@ Checks are SQL expressions that validate field values. Keep the surrounding pare
 
 Entity and field names can use Title Case with spaces. Filby canonicalises these names, so a field declared as `Park Code` appears as `park_code` in served documents. See [Names and dependencies](#names-and-dependencies).
 
-An entity's definition is never altered in place. To change its shape, declare a new version. See [Evolving the schema](#evolving-the-schema).
+To add fields to an existing entity, use `ALTER_ENTITY`. Any other change to its shape needs a new version. See [Evolving the schema](#evolving-the-schema).
 
 #### ADD_ENUM
 
@@ -1096,7 +1096,46 @@ END TRANSACTION;
 
 ### Evolving the schema
 
-To change an entity's structure, create a new version alongside the existing one. Publish a new projection version to expose it, so existing clients can continue using the old version until they are ready to move.
+An entity's shape can change in two ways. Adding fields does not break a client that ignores properties it does not recognise, so `ALTER_ENTITY` adds them to the existing entity version, as described in [Adding fields](#adding-fields). Any other change, such as removing, renaming or retyping a field, or changing the key or checks, needs a new entity version, as described in [New versions](#new-versions).
+
+#### Adding fields
+
+Use `ALTER_ENTITY` to add fields to an existing entity version. Suppose `Park` version 1 already holds data and needs an opening date:
+
+```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+# migrations/0012.park-opened.yaml
+- operation: ALTER_ENTITY
+  name: Park
+  version: 1
+  add:
+    Opened: DATE
+```
+
+`add` takes fields in the same forms as the `fields` of `ADD_ENTITY`, and appends them after the existing fields in the order listed. Nothing else about the entity can change.
+
+Each added field records `since`, which is the id the next change set will take when the `ALTER_ENTITY` runs. Change set ids are assigned in the order the migrations add change sets, so `since` is the same in every database built from the same migrations. Documents at change set ids below `since` leave the field out, so a response that a client or cache already holds for one of those ids stays identical, including its `ETag` and `Last-Modified` headers. Documents at `since` and later ids carry the field, which is `null` until a change set gives it a value. If the next change set id is 12 when the migration above runs, a `Parks` document at change set 11 has no `opened` property, while at change set 12 it has `"opened": null`. The rule applies to `getDocuments`, `getAggregates`, `filby.export` and the HTTP routes.
+
+`since` includes the change set it names. The `since` parameter of the change log works the other way, returning only the change sets after the one it names.
+
+Each level of a projection, whether the root, a nest or a lookup, is judged separately:
+
+| The level declares `fields` | Result |
+| --------------------------- | ------ |
+| No | The level carries the added field from `since` onwards. A nest still leaves out the fields it joins on. |
+| Yes | The level is unchanged. To show the field, publish a new projection version that lists it. |
+
+Neither case needs a new projection or hook version, and the alteration raises no notifications, because the documents at existing change set ids do not change. The field first appears in the next change set, which notifies hooks as usual. A custom SQL projection is not changed, so its function must select the field itself.
+
+An added field is nullable, and Filby does not fill existing records with a default value, because that would change data outside a change set. `nullable: false` is accepted only while the entity has no data, because existing frames have no value for the field. An added field must not have the canonical name of an existing field, or of a nest or lookup of a projection level that carries every field of the entity.
+
+To give existing records a value, add change sets with `SET` frames carrying whole rows. The aggregate takes each record's frame with the latest effective date, and of those the frame with the highest change set id. Frames added before the alteration hold `null` for the field. A backfill change set with an earlier effective date therefore gives a record its value only until that record's next frame. To give a record the value throughout its history, add a backfill for each change set that has a frame for the record, with the same effective date. Each backfill then wins over the original because its id is higher. Copying each existing change set and adding the column to its data does exactly this. A backfill with an earlier effective date than other change sets re-issues them, as described in [Correcting and re-issuing data](#correcting-and-re-issuing-data). The backfill can go in the same migration as the `ALTER_ENTITY`, because change sets added after it have ids of at least `since`.
+
+Some clients validate documents against a copy of the schema taken before the alteration. The OpenAPI document declares `additionalProperties: false`, so such a client rejects documents from `since` onwards. Whether to add fields in place or publish a new version depends on the clients that read the projection.
+
+#### New versions
+
+To make any other change to an entity's structure, create a new version alongside the existing one. Publish a new projection version to expose it, so existing clients can continue using the old version until they are ready to move.
 
 To rename a field without a new entity version, publish a new projection version that carries the field under an alias. See [Selecting fields](#selecting-fields).
 
@@ -1104,7 +1143,7 @@ References to entities and projections must include a version, such as `Park@2`.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0012.park-v2.yaml
+# migrations/0013.park-v2.yaml
 - operation: ADD_ENTITY
   name: Park
   version: 2
@@ -1132,7 +1171,7 @@ Use `ALTER_ENUM` to add values to an existing enum. New values are appended afte
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0013.customer-type-staff.yaml
+# migrations/0014.customer-type-staff.yaml
 - operation: ALTER_ENUM
   name: Customer Type
   add:
@@ -1156,7 +1195,7 @@ Each operation requires the object to exist. The following example shows the syn
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0014.drop-unused-objects.yaml
+# migrations/0015.drop-unused-objects.yaml
 - operation: DROP_HOOK
   name: sns/commence-change-set/parks-v1
 
@@ -1566,6 +1605,19 @@ The enum must exist, and no column may still use the type.
 
 The key fields must be fields of the entity, no field name may begin with `fby_`, each field type must be a valid PostgreSQL type, and the entity version must not already exist. Field names are compared after canonicalisation. Two fields must not share a canonical name, so an entity cannot declare both `Type` and `type`. The `fby_` rule also applies to canonical names, so `FBY Action` is reserved as well as `fby_action`.
 
+#### ALTER_ENTITY
+
+| Key | Type | Required | Notes |
+| --- | ---- | -------- | ----- |
+| `name` | string | yes | |
+| `version` | integer | yes | |
+| `add` | fields in the same forms as the `fields` of `ADD_ENTITY`, at least one | yes | Appended after the existing fields, in order; `nullable` defaults to `true` |
+| `description` | string | no | Accepted but not stored |
+
+Adds a column to the entity's table for each field and recreates the entity's aggregate function. The generated function of each projection whose root is the entity and does not declare `fields` is recreated too. Each added field records `since`, the id the next change set will take. See [Adding fields](#adding-fields).
+
+The entity must exist. The field names and types follow the rules of `ADD_ENTITY`, and must not share a canonical name with an existing field. A field declared `nullable: false` becomes a check constraint named `not_null_<field>`, and is accepted only while the entity has no data frames. A field must not share its canonical name with a nest or lookup of a projection level that carries every field of the entity.
+
 #### DROP_ENTITY
 
 | Key | Type | Required | Notes |
@@ -1666,7 +1718,7 @@ The forms in each row mean the same thing, all of them are permanent, and they c
 
 | Form | Equivalent form |
 | ---- | --------------- |
-| `fields` as a map of name to type, or to `type` and `nullable` | `fields` as a list of `name`, `type` and optionally `nullable` |
+| `fields`, or `add` in `ALTER_ENTITY`, as a map of name to type, or to `type` and `nullable` | The same key as a list of `name`, `type` and optionally `nullable` |
 | `key` | `identified_by` |
 | `changes` | `frames` |
 | `action: SET` | `action: POST` |
@@ -1790,7 +1842,7 @@ async function catchUp(projection, lastChangeSetId) {
 
 | Method | Behaviour |
 | ------ | --------- |
-| `filby.getAggregates(changeSetId, name, version)` | Returns the entity's aggregate rows at the specified change set. Rejects if the entity version or change set does not exist. |
+| `filby.getAggregates(changeSetId, name, version)` | Returns the entity's aggregate rows at the specified change set. Fields added by `ALTER_ENTITY` are left out at ids below their `since`. Rejects if the entity version or change set does not exist. |
 | `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Returns `{ documents, total }` for the projection at the specified change set. |
 | `filby.export(projection)` | Returns the projection's [bundle](#projection-bundle), the object that [`filby export`](#export-a-projection) writes to a file. `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values are always strings, whatever `localDateTypes` is set to. Rejects if the projection has been dropped. |
 
@@ -1829,6 +1881,8 @@ async function getParks(changeSetId, code) {
   return { parks: documents, total };
 }
 ```
+
+A level that carries every field of its entity leaves out the fields that `ALTER_ENTITY` added at a later change set id, as described in [Adding fields](#adding-fields).
 
 Values use node-pg's type conversions at every level, apart from the date types described under [Configuration](#configuration). For example, a `TIMESTAMP WITH TIME ZONE` is a `Date` object, a `DATE` is a string such as `2026-07-01`, and an enum array is an array of strings.
 
@@ -1972,6 +2026,8 @@ Every projection's path lists `page` and `pageSize` as optional integers of at l
 
 For projections with a root entity, Filby generates response schemas from the selected fields, nests and lookups. The schemas include enum values and field nullability. Non-nullable fields are required, nests are arrays, and lookups are objects that may be `null`.
 
+A field that [`ALTER_ENTITY`](#adding-fields) added, at a level that carries every field of its entity, has an `x-filby-since` property holding the field's `since`. It is never required, because documents at earlier change set ids leave it out. OpenAPI and JSON Schema have no keyword for when a property was introduced, so Filby uses an OpenAPI specification extension. Fields declared by `ADD_ENTITY` have no `x-filby-since`, so a document with no added fields is plain OpenAPI. Ajv in strict mode rejects unknown keywords, so register the extension with `ajv.addKeyword('x-filby-since')` before compiling the response schemas.
+
 For custom SQL projections declared with `dependencies`, the schema describes each response record as an object without listing its properties, because Filby cannot infer the function's output structure.
 
 #### JSON types
@@ -2042,7 +2098,7 @@ Each entry in `nests` describes a nest or lookup:
 
 #### Entity declarations
 
-An entity declaration describes its `ADD_ENTITY` operation, with the entity and projection names as declared and the field names in canonical form. `GET /entities/Park%20Season/v1`, for the entity in [ADD_ENUM](#add_enum), with the `Parks (Detailed)` projection from [Nests](#nests) declared, returns:
+An entity declaration describes its `ADD_ENTITY` operation and any `ALTER_ENTITY` operations, with the entity and projection names as declared and the field names in canonical form. `GET /entities/Park%20Season/v1`, for the entity in [ADD_ENUM](#add_enum), with the `Parks (Detailed)` projection from [Nests](#nests) declared, returns:
 
 ```json
 {
@@ -2050,12 +2106,12 @@ An entity declaration describes its `ADD_ENTITY` operation, with the entity and 
   "version": 1,
   "description": null,
   "fields": [
-    { "name": "park_code", "type": "TEXT", "key": true, "nullable": false },
-    { "name": "customer_type", "type": "customer_type", "key": true, "nullable": false },
-    { "name": "current_season_start", "type": "DATE", "key": false, "nullable": false },
-    { "name": "current_season_end", "type": "DATE", "key": false, "nullable": false },
-    { "name": "next_season_start", "type": "DATE", "key": false, "nullable": true },
-    { "name": "next_season_end", "type": "DATE", "key": false, "nullable": true }
+    { "name": "park_code", "type": "TEXT", "key": true, "nullable": false, "since": null },
+    { "name": "customer_type", "type": "customer_type", "key": true, "nullable": false, "since": null },
+    { "name": "current_season_start", "type": "DATE", "key": false, "nullable": false, "since": null },
+    { "name": "current_season_end", "type": "DATE", "key": false, "nullable": false, "since": null },
+    { "name": "next_season_start", "type": "DATE", "key": false, "nullable": true, "since": null },
+    { "name": "next_season_end", "type": "DATE", "key": false, "nullable": true, "since": null }
   ],
   "checks": [],
   "projections": [{ "name": "Parks (Detailed)", "version": 1 }]
@@ -2066,7 +2122,7 @@ An entity declaration describes its `ADD_ENTITY` operation, with the entity and 
 | -------- | ----- |
 | `name`, `version` | The entity's name and version. |
 | `description` | The declared description, or `null`. |
-| `fields` | The fields in declared order, with each entry as `{ name, type, key, nullable }`. `type` is the PostgreSQL type as written, such as `NUMERIC(5,2)`. For an enum, it is the enum's canonical name, such as `customer_type`, followed by `[]` for an array. `key` is `true` for the fields in `key`, and `nullable` is `false` for key fields and for fields declared `nullable: false`. |
+| `fields` | The fields in declared order, followed by any fields that `ALTER_ENTITY` added, with each entry as `{ name, type, key, nullable, since }`. `type` is the PostgreSQL type as written, such as `NUMERIC(5,2)`. For an enum, it is the enum's canonical name, such as `customer_type`, followed by `[]` for an array. `key` is `true` for the fields in `key`, and `nullable` is `false` for key fields and for fields declared `nullable: false`. `since` is the first change set id whose documents carry a field that `ALTER_ENTITY` added, as described in [Adding fields](#adding-fields), and `null` for a field declared by `ADD_ENTITY`. |
 | `checks` | The declared checks, ordered by name, with each entry as `{ name, expression }`. `expression` is the SQL as written in the migration. Fields declared `nullable: false` are described by `nullable`, not by a check. |
 | `projections` | The projections that read the entity and have not been dropped, as `{ name, version }`, ordered by name then version. A projection listed here prevents [`DROP_ENTITY`](#drop_entity). |
 

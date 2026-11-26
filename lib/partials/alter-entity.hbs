@@ -1,0 +1,100 @@
+-- alter entity
+DO $$
+DECLARE
+  v_entity_id INTEGER;
+  v_since INTEGER;
+  v_field TEXT;
+  v_type TEXT;
+  v_kind TEXT;
+  v_path TEXT;
+  v_projection TEXT;
+  v_root RECORD;
+BEGIN
+  SELECT id INTO v_entity_id
+  FROM fby_entity
+  WHERE name = {{literal name}}
+    AND version = {{literal version}};
+
+  IF v_entity_id IS NULL THEN
+    RAISE EXCEPTION 'Entity ''%'' does not exist%', {{literal name (v version)}}, fby_entity_hint({{literal name}}, {{literal version}});
+  END IF;
+
+  SELECT last_id + 1 INTO v_since
+  FROM fby_change_set_counter;
+  {{#add}}
+
+  SELECT COALESCE(given_name, name) INTO v_field
+  FROM fby_entity_field
+  WHERE entity_id = v_entity_id
+    AND name = {{literal (canonical name)}};
+
+  IF v_field = {{literal name}} THEN
+    RAISE EXCEPTION 'Entity ''%'' already has field ''%''', {{literal ../name (v ../version)}}, v_field;
+  ELSIF v_field IS NOT NULL THEN
+    RAISE EXCEPTION 'Entity ''%'' cannot have both fields ''%'' and ''%'', because both become ''%''', {{literal ../name (v ../version)}}, v_field, {{literal name}}, {{literal (canonical name)}};
+  END IF;
+  {{#unless nullable}}
+
+  IF EXISTS (SELECT 1 FROM fby_data_frame WHERE entity_id = v_entity_id) THEN
+    RAISE EXCEPTION 'Entity ''%'' field ''%'' must be nullable because the entity already has data', {{literal ../name (v ../version)}}, {{literal name}};
+  END IF;
+  {{/unless}}
+
+  WITH RECURSIVE paths AS (
+    SELECT id, name AS path
+    FROM fby_projection_nest
+    WHERE parent_nest_id IS NULL
+    UNION ALL
+    SELECT n.id, p.path || '.' || n.name
+    FROM fby_projection_nest n
+    INNER JOIN paths p ON p.id = n.parent_nest_id
+  )
+  SELECT CASE WHEN n.lookup THEN 'lookup' ELSE 'nest' END, p.path, pr.name || ' v' || pr.version INTO v_kind, v_path, v_projection
+  FROM fby_projection_nest n
+  INNER JOIN paths p ON p.id = n.id
+  INNER JOIN fby_projection pr ON pr.id = n.projection_id
+  LEFT JOIN fby_projection_nest parent ON parent.id = n.parent_nest_id
+  WHERE n.name = {{literal (canonical name)}}
+    AND pr.dropped_at IS NULL
+    AND (
+      (n.parent_nest_id IS NULL AND pr.root_entity_id = v_entity_id AND pr.fields IS NULL)
+      OR (parent.entity_id = v_entity_id AND parent.fields IS NULL)
+    )
+  ORDER BY pr.name, pr.version, p.path
+  LIMIT 1;
+
+  IF v_kind IS NOT NULL THEN
+    RAISE EXCEPTION 'Entity ''%'' field ''%'' has the same name as % ''%'' of projection ''%''', {{literal ../name (v ../version)}}, {{literal name}}, v_kind, v_path, v_projection;
+  END IF;
+
+  INSERT INTO fby_entity_field (entity_id, position, name, given_name, type, identity, nullable, since)
+  SELECT v_entity_id, max(position) + 1, {{literal (canonical name)}}, {{literal name}}, {{fieldType ../name ../version name type}}, FALSE, {{#if nullable}}TRUE{{else}}FALSE{{/if}}, v_since
+  FROM fby_entity_field
+  WHERE entity_id = v_entity_id
+  RETURNING type INTO v_type;
+
+  EXECUTE format('ALTER TABLE %I ADD COLUMN %I %s', {{literal (table ../name ../version)}}, {{literal (canonical name)}}, v_type);
+  {{#unless nullable}}
+
+  EXECUTE format('ALTER TABLE %I ADD CONSTRAINT %I CHECK (fby_action = ''DELETE'' OR %I IS NOT NULL)', {{literal (table ../name ../version)}}, 'not_null_' || {{literal (canonical name)}}, {{literal (canonical name)}});
+  {{/unless}}
+  {{/add}}
+
+  DROP FUNCTION {{identifier (aggregate name version)}};
+
+  PERFORM fby_create_aggregate_function(v_entity_id);
+
+  FOR v_root IN
+    SELECT id, name, version
+    FROM fby_projection
+    WHERE root_entity_id = v_entity_id
+      AND fields IS NULL
+      AND dropped_at IS NULL
+    ORDER BY id
+  LOOP
+    EXECUTE format('DROP FUNCTION %I', 'get_' || lower(regexp_replace(v_root.name || ' v' || v_root.version, '\s', '_', 'g')));
+
+    PERFORM fby_create_projection_function(v_root.id);
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
