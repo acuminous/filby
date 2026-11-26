@@ -5087,17 +5087,16 @@ describe('DSL', () => {
 
       const history = await getChangeSetHistory();
       deq(history, [
-        { id: 1, description: '2024 VAT Rates', superseded_by: 7, reissued_from: null },
-        { id: 2, description: '2025 VAT Rates', superseded_by: 8, reissued_from: null },
-        { id: 3, description: '2026 VAT Rates', superseded_by: 9, reissued_from: null },
+        { id: 1, description: '2024 VAT Rates', superseded_by: 6, reissued_from: null },
+        { id: 2, description: '2025 VAT Rates', superseded_by: 7, reissued_from: null },
+        { id: 3, description: '2026 VAT Rates', superseded_by: 8, reissued_from: null },
         { id: 4, description: '2022 VAT Rates', superseded_by: null, reissued_from: null },
-        { id: 5, description: '2023 VAT Rates', superseded_by: 6, reissued_from: null },
-        { id: 6, description: '2023 VAT Rates', superseded_by: null, reissued_from: 5 },
-        { id: 7, description: '2024 VAT Rates', superseded_by: null, reissued_from: 1 },
-        { id: 8, description: '2025 VAT Rates', superseded_by: null, reissued_from: 2 },
-        { id: 9, description: '2026 VAT Rates', superseded_by: null, reissued_from: 3 },
+        { id: 5, description: '2023 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 6, description: '2024 VAT Rates', superseded_by: null, reissued_from: 1 },
+        { id: 7, description: '2025 VAT Rates', superseded_by: null, reissued_from: 2 },
+        { id: 8, description: '2026 VAT Rates', superseded_by: null, reissued_from: 3 },
       ]);
-      eq(history.filter(({ superseded_by }) => superseded_by !== null).length, 4);
+      eq(history.filter(({ superseded_by }) => superseded_by !== null).length, 3);
 
       const projection = await filby.getProjection('VAT Rates', 1);
       const changeLog = await filby.getChangeLog(projection);
@@ -5126,6 +5125,33 @@ describe('DSL', () => {
       deq(changeLog.map(({ description }) => description), ['2022 VAT Rates', '2023 VAT Rates', '2024 VAT Rates', '2025 VAT Rates', '2026 VAT Rates']);
       deq(await filby.getAggregates(changeLog[1].id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.06 }]);
       deq(await filby.getAggregates(changeLog.at(-1).id, 'VAT Rate', 1), [{ type: 'reduced', rate: 0.06 }, { type: 'standard', rate: 0.3 }]);
+    });
+
+    it('should leave live change set ids in effective date order after a migration that backdates one change set and adds a later one', async (t) => {
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_PROJECTION, vatRate('2025', 'standard', 0.2));
+      await applyLaterYaml(t.name, vatRate('2024', 'reduced', 0.05), vatRate('2026', 'standard', 0.25));
+
+      deq(await getChangeSetHistory(), [
+        { id: 1, description: '2025 VAT Rates', superseded_by: 4, reissued_from: null },
+        { id: 2, description: '2024 VAT Rates', superseded_by: null, reissued_from: null },
+        { id: 3, description: '2026 VAT Rates', superseded_by: 5, reissued_from: null },
+        { id: 4, description: '2025 VAT Rates', superseded_by: null, reissued_from: 1 },
+        { id: 5, description: '2026 VAT Rates', superseded_by: null, reissued_from: 3 },
+      ]);
+
+      const projection = await filby.getProjection('VAT Rates', 1);
+      const changeLog = await filby.getChangeLog(projection);
+      deq(changeLog.map(({ id }) => id), changeLog.toSorted((a, b) => a.effective - b.effective).map(({ id }) => id));
+
+      const slug = t.name.replace(/ /g, '-').toLowerCase();
+      await fs.promises.rm(path.join(import.meta.dirname, 'migrations', `002.${slug}.yaml`));
+      await fs.promises.writeFile(path.join(import.meta.dirname, 'migrations', `003.${slug}.yaml`), vatRate('2027', 'standard', 0.3), { encoding: 'utf-8' });
+      await filby.init();
+
+      const history = await getChangeSetHistory();
+      eq(history.length, 6);
+      deq(history.at(-1), { id: 6, description: '2027 VAT Rates', superseded_by: null, reissued_from: null });
+      eq(history.filter(({ superseded_by }) => superseded_by !== null).length, 2);
     });
 
     it('should re-issue only the later change sets when a migration backdates one change set', async (t) => {

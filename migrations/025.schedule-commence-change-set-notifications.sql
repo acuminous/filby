@@ -111,7 +111,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION fby_reissue_change_sets() RETURNS VOID
 AS $$
 DECLARE
-  v_earliest TIMESTAMP WITH TIME ZONE;
+  v_first RECORD;
   v_last_id INTEGER;
   v_superseded RECORD;
   v_reissued_id INTEGER;
@@ -119,15 +119,17 @@ DECLARE
   v_table TEXT;
   v_columns TEXT;
 BEGIN
-  SELECT min(effective) INTO v_earliest
+  SELECT id, effective INTO v_first
   FROM (
-    SELECT effective, max(effective) OVER (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS preceding_effective
+    SELECT id, effective, min(effective) OVER (ORDER BY id ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING) AS following_effective
     FROM fby_change_set
     WHERE superseded_by IS NULL
   ) cs
-  WHERE preceding_effective > effective;
+  WHERE following_effective < effective
+  ORDER BY effective, id
+  LIMIT 1;
 
-  IF v_earliest IS NULL THEN
+  IF v_first.id IS NULL THEN
     RETURN;
   END IF;
 
@@ -137,7 +139,7 @@ BEGIN
     SELECT cs.id, cs.description, cs.effective
     FROM fby_change_set cs
     WHERE cs.superseded_by IS NULL
-      AND cs.effective > v_earliest
+      AND (cs.effective, cs.id) >= (v_first.effective, v_first.id)
       AND cs.id <= v_last_id
     ORDER BY cs.effective, cs.id
   LOOP
