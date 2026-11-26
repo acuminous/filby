@@ -19,6 +19,7 @@
               "ADD_CHANGE_SET",
               "ALTER_ENUM",
               "ALTER_ENTITY",
+              "ALTER_PROJECTION",
               "DROP_ENUM",
               "DROP_ENTITY",
               "DROP_PROJECTION",
@@ -134,6 +135,21 @@
               },
               {
                 "$ref": "#/definitions/AlterEntityType"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "$ref": "#/definitions/AlterProjectionOperationType"
+                  }
+                }
+              },
+              {
+                "$ref": "#/definitions/AlterProjectionType"
               }
             ]
           },
@@ -328,34 +344,7 @@
           }
         },
         "parameters": {
-          "type": "object",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "field": {
-                "type": "string"
-              },
-              "match": {
-                "type": "string",
-                "enum": [
-                  "equals",
-                  "prefix",
-                  "in",
-                  "contains",
-                  "range",
-                  "gt",
-                  "gte",
-                  "lt",
-                  "lte"
-                ]
-              }
-            },
-            "additionalProperties": false,
-            "required": [
-              "field"
-            ]
-          }
+          "$ref": "#/definitions/ProjectionParameterMapType"
         },
         "order": {
           "type": "array",
@@ -656,6 +645,49 @@
         "add"
       ]
     },
+    "AlterProjectionType": {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "$ref": "#/definitions/AlterProjectionOperationType"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "add": {
+          "type": "object",
+          "minProperties": 1,
+          "properties": {
+            "fields": {
+              "$ref": "#/definitions/ProjectionFieldListType"
+            },
+            "parameters": {
+              "$ref": "#/definitions/ProjectionParameterMapType"
+            },
+            "nest": {
+              "$ref": "#/definitions/AlterNestType"
+            },
+            "lookup": {
+              "$ref": "#/definitions/AlterLookupType"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "name",
+        "version",
+        "add"
+      ]
+    },
     "DropEnumType": {
       "type": "object",
       "properties": {
@@ -761,6 +793,9 @@
     "AlterEntityOperationType": {
       "const": "ALTER_ENTITY"
     },
+    "AlterProjectionOperationType": {
+      "const": "ALTER_PROJECTION"
+    },
     "DropEnumOperationType": {
       "const": "DROP_ENUM"
     },
@@ -787,78 +822,178 @@
       "minProperties": 1,
       "patternProperties": {
         "^[^.]*$": {
-          "type": "object",
-          "properties": {
-            "entity": {
-              "type": "string",
-              "pattern": "@[0-9]+$"
-            },
-            "on": {
-              "type": "object",
-              "minProperties": 1,
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
-            "fields": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/ProjectionFieldType"
-              }
-            },
-            "order": {
-              "type": "array",
-              "minItems": 1,
-              "items": {
-                "$ref": "#/definitions/OrderItemType"
-              }
-            },
-            "nest": {
-              "$ref": "#/definitions/NestType"
-            },
-            "lookup": {
-              "$ref": "#/definitions/LookupType"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "entity",
-            "on"
-          ]
+          "$ref": "#/definitions/NestItemType"
         }
       },
       "additionalProperties": false
+    },
+    "NestItemType": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "pattern": "@[0-9]+$"
+        },
+        "on": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ProjectionFieldType"
+          }
+        },
+        "order": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/OrderItemType"
+          }
+        },
+        "nest": {
+          "$ref": "#/definitions/NestType"
+        },
+        "lookup": {
+          "$ref": "#/definitions/LookupType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entity",
+        "on"
+      ]
     },
     "LookupType": {
       "type": "object",
       "minProperties": 1,
       "patternProperties": {
         "^[^.]*$": {
-          "type": "object",
-          "properties": {
-            "entity": {
-              "type": "string",
-              "pattern": "@[0-9]+$"
-            },
-            "on": {
-              "type": "object",
-              "minProperties": 1,
-              "additionalProperties": {
-                "type": "string"
-              }
-            },
-            "fields": {
-              "$ref": "#/definitions/ProjectionFieldListType"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "entity",
-            "on"
-          ]
+          "$ref": "#/definitions/LookupItemType"
         }
       },
       "additionalProperties": false
+    },
+    "LookupItemType": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "type": "string",
+          "pattern": "@[0-9]+$"
+        },
+        "on": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "$ref": "#/definitions/ProjectionFieldListType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entity",
+        "on"
+      ]
+    },
+    "AlterNestType": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[^.]*$": {
+          "if": {
+            "type": "object",
+            "required": [
+              "entity"
+            ]
+          },
+          "then": {
+            "$ref": "#/definitions/NestItemType"
+          },
+          "else": {
+            "type": "object",
+            "minProperties": 1,
+            "properties": {
+              "fields": {
+                "$ref": "#/definitions/ProjectionFieldListType"
+              },
+              "nest": {
+                "$ref": "#/definitions/AlterNestType"
+              },
+              "lookup": {
+                "$ref": "#/definitions/AlterLookupType"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "AlterLookupType": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[^.]*$": {
+          "if": {
+            "type": "object",
+            "required": [
+              "entity"
+            ]
+          },
+          "then": {
+            "$ref": "#/definitions/LookupItemType"
+          },
+          "else": {
+            "type": "object",
+            "properties": {
+              "fields": {
+                "$ref": "#/definitions/ProjectionFieldListType"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "fields"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProjectionParameterMapType": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "equals",
+              "prefix",
+              "in",
+              "contains",
+              "range",
+              "gt",
+              "gte",
+              "lt",
+              "lte"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "field"
+        ]
+      }
     },
     "ProjectionFieldListType": {
       "type": "array",

@@ -1,0 +1,110 @@
+-- alter projection
+DO $$
+DECLARE
+  v_projection_id INTEGER;
+  v_root_id INTEGER;
+  v_root_entity TEXT;
+  v_dropped_at TIMESTAMP WITH TIME ZONE;
+  v_fields TEXT[];
+  v_aliases TEXT[];
+  v_since INTEGER;
+  v_clash RECORD;
+BEGIN
+  SELECT p.id, p.root_entity_id, e.name || ' v' || e.version, p.dropped_at, p.fields, p.aliases INTO v_projection_id, v_root_id, v_root_entity, v_dropped_at, v_fields, v_aliases
+  FROM fby_projection p
+  LEFT JOIN fby_entity e ON e.id = p.root_entity_id
+  WHERE p.name = {{literal name}}
+    AND p.version = {{literal version}};
+
+  IF v_projection_id IS NULL THEN
+    RAISE EXCEPTION 'Projection ''%'' does not exist%', {{literal name (v version)}}, fby_projection_hint({{literal name}}, {{literal version}});
+  END IF;
+
+  IF v_dropped_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Projection ''%'' was dropped and cannot be altered', {{literal name (v version)}};
+  END IF;
+
+  IF v_root_id IS NULL THEN
+    RAISE EXCEPTION 'Projection ''%'' is a custom SQL projection and cannot be altered', {{literal name (v version)}};
+  END IF;
+
+  SELECT last_id + 1 INTO v_since
+  FROM fby_change_set_counter;
+  {{#if add.fields}}
+
+  IF v_fields IS NULL THEN
+    RAISE EXCEPTION 'Projection ''%'' does not declare fields, so it already carries every field of entity ''%''', {{literal name (v version)}}, v_root_entity;
+  END IF;
+  {{#each add.fields}}
+
+  IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_root_id AND name = {{literal field}}) THEN
+    RAISE EXCEPTION 'Projection ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../name (v ../version)}}, {{literal given.field}}, v_root_entity, fby_entity_field_hint(v_root_id);
+  END IF;
+
+  IF {{literal as}} = ANY(v_aliases) THEN
+    RAISE EXCEPTION 'Projection ''%'' already carries a property named ''%''', {{literal ../name (v ../version)}}, {{literal as}};
+  END IF;
+  {{/each}}
+
+  UPDATE fby_projection
+  SET fields = fields || {{fieldArray add.fields 'field'}},
+      aliases = aliases || {{fieldArray add.fields 'as'}},
+      fields_since = COALESCE(fields_since, array_fill(NULL::INTEGER, ARRAY[cardinality(fields)])) || array_fill(v_since, ARRAY[cardinality({{fieldArray add.fields 'field'}})])
+  WHERE id = v_projection_id
+  RETURNING fields, aliases INTO v_fields, v_aliases;
+  {{/if}}
+  {{#each add.nest}}
+  {{#if existing}}
+  {{> alter_projection_nest projection_name=../name projection_version=../version}}
+  {{else}}
+  {{> add_projection_nest projection_name=../name projection_version=../version added=true}}
+  {{/if}}
+  {{/each}}
+
+  WITH RECURSIVE levels AS (
+    SELECT id, name, NULL::TEXT AS parent_path, v_aliases AS parent_aliases, name AS path
+    FROM fby_projection_nest
+    WHERE projection_id = v_projection_id
+      AND parent_nest_id IS NULL
+    UNION ALL
+    SELECT n.id, n.name, l.path, parent.aliases, l.path || '.' || n.name
+    FROM fby_projection_nest n
+    INNER JOIN levels l ON l.id = n.parent_nest_id
+    INNER JOIN fby_projection_nest parent ON parent.id = n.parent_nest_id
+  )
+  SELECT name, parent_path INTO v_clash
+  FROM levels
+  WHERE name = ANY(parent_aliases)
+  LIMIT 1;
+
+  IF v_clash.name IS NOT NULL THEN
+    RAISE EXCEPTION 'Projection ''%''% already carries a property named ''%''', {{literal name (v version)}}, COALESCE(' nest ''' || v_clash.parent_path || '''', ''), v_clash.name;
+  END IF;
+
+  SELECT u.alias, o.parent_field, n.name, n.lookup INTO v_clash
+  FROM unnest(v_fields, v_aliases) u(field, alias)
+  INNER JOIN fby_projection_nest_on o ON o.parent_field = u.alias
+  INNER JOIN fby_projection_nest n ON n.id = o.nest_id
+  WHERE n.projection_id = v_projection_id
+    AND n.parent_nest_id IS NULL
+    AND u.field <> u.alias
+  LIMIT 1;
+
+  IF v_clash.alias IS NOT NULL THEN
+    RAISE EXCEPTION 'Projection ''%'' property ''%'' has the same name as the field ''%'' that % ''%'' joins on', {{literal name (v version)}}, v_clash.alias, v_clash.parent_field, CASE WHEN v_clash.lookup THEN 'lookup' ELSE 'nest' END, v_clash.name;
+  END IF;
+
+  INSERT INTO fby_projection_entity (projection_id, entity_id)
+  SELECT DISTINCT v_projection_id, entity_id
+  FROM fby_projection_nest
+  WHERE projection_id = v_projection_id
+  ON CONFLICT DO NOTHING;
+  {{#each add.parameters}}
+  {{> add_projection_parameter projection_name=../name projection_version=../version added=true}}
+  {{/each}}
+
+  EXECUTE format('DROP FUNCTION %I', {{literal (projectionFunction name version)}});
+
+  PERFORM fby_create_projection_function(v_projection_id);
+END;
+$$ LANGUAGE plpgsql;

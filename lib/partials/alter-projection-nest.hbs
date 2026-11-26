@@ -1,0 +1,49 @@
+  DECLARE
+    v_parent_nest_id INTEGER := {{#if path}}v_nest_id{{else}}NULL{{/if}};
+    v_nest_id INTEGER;
+    v_nest_entity_id INTEGER;
+    v_nest_entity TEXT;
+    v_nest_fields TEXT[];
+    v_nest_aliases TEXT[];
+  BEGIN
+    SELECT n.id, n.entity_id, e.name || ' v' || e.version, n.fields, n.aliases INTO v_nest_id, v_nest_entity_id, v_nest_entity, v_nest_fields, v_nest_aliases
+    FROM fby_projection_nest n
+    INNER JOIN fby_entity e ON e.id = n.entity_id
+    WHERE n.projection_id = v_projection_id
+      AND n.parent_nest_id IS NOT DISTINCT FROM v_parent_nest_id
+      AND n.name = {{literal (canonical name)}}
+      AND n.lookup = {{#if lookup}}TRUE{{else}}FALSE{{/if}};
+
+    IF v_nest_id IS NULL THEN
+      RAISE EXCEPTION 'Projection ''%'' has no {{#if lookup}}lookup{{else}}nest{{/if}} ''%''; a new {{#if lookup}}lookup{{else}}nest{{/if}} needs ''entity'' and ''on''', {{literal projection_name (v projection_version)}}, {{literal (nestPath path name)}};
+    END IF;
+    {{#if fields}}
+
+    IF v_nest_fields IS NULL THEN
+      RAISE EXCEPTION 'Projection ''%'' {{#if lookup}}lookup{{else}}nest{{/if}} ''%'' does not declare fields, so it already carries every field of entity ''%''', {{literal projection_name (v projection_version)}}, {{literal (nestPath path name)}}, v_nest_entity;
+    END IF;
+    {{#each fields}}
+
+    IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_nest_entity_id AND name = {{literal field}}) THEN
+      RAISE EXCEPTION 'Projection ''%'' {{#if ../lookup}}lookup{{else}}nest{{/if}} ''%'' selects a non existent field ''%'' of entity ''%''%', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal given.field}}, v_nest_entity, fby_entity_field_hint(v_nest_entity_id);
+    END IF;
+
+    IF {{literal as}} = ANY(v_nest_aliases) THEN
+      RAISE EXCEPTION 'Projection ''%'' {{#if ../lookup}}lookup{{else}}nest{{/if}} ''%'' already carries a property named ''%''', {{literal ../projection_name (v ../projection_version)}}, {{literal (nestPath ../path ../name)}}, {{literal as}};
+    END IF;
+    {{/each}}
+
+    UPDATE fby_projection_nest
+    SET fields = fields || {{fieldArray fields 'field'}},
+        aliases = aliases || {{fieldArray fields 'as'}},
+        fields_since = COALESCE(fields_since, array_fill(NULL::INTEGER, ARRAY[cardinality(fields)])) || array_fill(v_since, ARRAY[cardinality({{fieldArray fields 'field'}})])
+    WHERE id = v_nest_id;
+    {{/if}}
+    {{#each nest}}
+    {{#if existing}}
+    {{> alter_projection_nest projection_name=../projection_name projection_version=../projection_version path=(nestPath ../path ../name)}}
+    {{else}}
+    {{> add_projection_nest projection_name=../projection_name projection_version=../projection_version path=(nestPath ../path ../name) added=true}}
+    {{/if}}
+    {{/each}}
+  END;
