@@ -2,4 +2,5 @@ START TRANSACTION;
 {{#each .}}
 {{partial operation }}
 {{/each}}
+SELECT fby_reissue_change_sets();
 END TRANSACTION;

@@ -15,22 +15,39 @@ AS $$
   UPDATE fby_change_set_counter SET last_id = last_id + 1 RETURNING last_id;
 $$ LANGUAGE sql;
 
-CREATE FUNCTION fby_reissue_change_sets(p_change_set_id INTEGER) RETURNS VOID
+CREATE FUNCTION fby_reissue_change_sets() RETURNS VOID
 AS $$
 DECLARE
+  v_first RECORD;
+  v_last_id INTEGER;
   v_superseded RECORD;
   v_reissued_id INTEGER;
   v_entity RECORD;
   v_table TEXT;
   v_columns TEXT;
 BEGIN
+  SELECT id, effective INTO v_first
+  FROM (
+    SELECT id, effective, min(effective) OVER (ORDER BY id ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING) AS following_effective
+    FROM fby_change_set
+    WHERE superseded_by IS NULL
+  ) cs
+  WHERE following_effective < effective
+  ORDER BY effective, id
+  LIMIT 1;
+
+  IF v_first.id IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT last_id INTO v_last_id FROM fby_change_set_counter;
+
   FOR v_superseded IN
     SELECT cs.id, cs.description, cs.effective
-    FROM fby_change_set cs, fby_change_set added
-    WHERE added.id = p_change_set_id
-      AND cs.id < added.id
-      AND cs.effective > added.effective
-      AND cs.superseded_by IS NULL
+    FROM fby_change_set cs
+    WHERE cs.superseded_by IS NULL
+      AND (cs.effective, cs.id) >= (v_first.effective, v_first.id)
+      AND cs.id <= v_last_id
     ORDER BY cs.effective, cs.id
   LOOP
     INSERT INTO fby_change_set (id, effective, description, reissued_from) VALUES
