@@ -4213,6 +4213,29 @@ describe('DSL', () => {
       deq(Object.keys(after.seasons[0]), ['type', 'start', 'rates', 'park']);
     });
 
+    it('should page documents as requested when a parameter is added during the request', async (t) => {
+      await filby.applyYaml('setup', ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+      await fs.promises.unlink(path.join(path.resolve(filby.config.migrations[0]), '001.setup.yaml'));
+      const projection = await filby.getProjection('Parks', 1);
+      const changeSetId = await getChangeSetId('2019 Parks');
+
+      const withTransaction = filby.withTransaction;
+      let altered = false;
+      const query = (tx) => async (text, values) => {
+        if (!altered && text.includes('get_parks_v1')) {
+          altered = true;
+          await filby.applyYaml(t.name, transform(ALTER_PARKS).set('0.add', { parameters: { name: { field: 'name', match: 'prefix' } } }));
+        }
+        return tx.query(text, values);
+      };
+      filby.withTransaction = (callback) => withTransaction.call(filby, (tx) => callback({ query: query(tx) }));
+      const { documents, total } = await filby.getDocuments(projection, changeSetId, { pageOffset: 1, pageSize: 1 }).finally(() => { filby.withTransaction = withTransaction; });
+
+      ok(altered);
+      deq(documents.map(({ code }) => code), ['GA']);
+      eq(total, 3);
+    });
+
     it('should leave added fields out of exported documents before since', async (t) => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_SELECTED_PROJECTION, ADD_PARK_CHANGE_SET, ALTER_PARK, ALTER_SEASON, ALTER_PARKS, ADD_SEASON_CHANGE_SET);
 
