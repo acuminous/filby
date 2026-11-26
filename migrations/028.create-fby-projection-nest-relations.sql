@@ -2,6 +2,7 @@ START TRANSACTION;
 
 ALTER TABLE fby_projection ADD COLUMN fields TEXT[];
 ALTER TABLE fby_projection ADD COLUMN aliases TEXT[];
+ALTER TABLE fby_projection ADD COLUMN fields_since INTEGER[];
 
 CREATE TABLE fby_projection_nest (
   id SERIAL PRIMARY KEY,
@@ -13,6 +14,8 @@ CREATE TABLE fby_projection_nest (
   lookup BOOLEAN NOT NULL DEFAULT FALSE,
   fields TEXT[],
   aliases TEXT[],
+  fields_since INTEGER[],
+  since INTEGER,
   CONSTRAINT uniq_fby_projection_nest_projection_id_parent_nest_id_position UNIQUE NULLS NOT DISTINCT (projection_id, parent_nest_id, position),
   CONSTRAINT uniq_fby_projection_nest_projection_id_parent_nest_id_name UNIQUE NULLS NOT DISTINCT (projection_id, parent_nest_id, name)
 );
