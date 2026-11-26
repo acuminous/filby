@@ -1606,6 +1606,31 @@ describe('DSL', () => {
       deq(after.seasons.map(Object.keys), [['type', 'start', 'end', 'capacity', 'rates'], ['type', 'start', 'end', 'capacity', 'rates'], ['type', 'start', 'end', 'capacity', 'rates']]);
     });
 
+    it('should leave an added field out of documents before since when the entity is altered during the request', async (t) => {
+      await filby.applyYaml('setup', ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET);
+      await fs.promises.unlink(path.join(path.resolve(filby.config.migrations[0]), '001.setup.yaml'));
+      const projection = await filby.getProjection('Parks', 1);
+      const changeSetId = await getChangeSetId('2019 Parks');
+
+      const withTransaction = filby.withTransaction;
+      let altered = false;
+      const query = (tx) => async (text, values) => {
+        if (!altered && text.includes('get_season_v1_aggregate')) {
+          altered = true;
+          await filby.applyYaml(t.name, ALTER_SEASON, ADD_SEASON_CHANGE_SET);
+        }
+        return tx.query(text, values);
+      };
+      filby.withTransaction = (callback) => withTransaction.call(filby, (tx) => callback({ query: query(tx) }));
+      const { documents: [before] } = await filby.getDocuments(projection, changeSetId, { parameters: { code: 'DC' } }).finally(() => { filby.withTransaction = withTransaction; });
+
+      ok(altered);
+      deq(before.seasons.map(Object.keys), [['type', 'start', 'end', 'rates'], ['type', 'start', 'end', 'rates'], ['type', 'start', 'end', 'rates']]);
+
+      const { documents: [after] } = await filby.getDocuments(projection, await getChangeSetId('2020 Seasons'), { parameters: { code: 'DC' } });
+      deq(after.seasons.map(Object.keys), [['type', 'start', 'end', 'capacity', 'rates'], ['type', 'start', 'end', 'capacity', 'rates'], ['type', 'start', 'end', 'capacity', 'rates']]);
+    });
+
     it('should leave a level that declares fields unchanged', async (t) => {
       const projection = transform(transform(ADD_NESTED_PROJECTION).set('0.fields', ['code', 'name'])).set('0.nest.seasons.fields', ['type', 'start']);
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection, ADD_PARK_CHANGE_SET, ALTER_PARK, ALTER_SEASON, ADD_SEASON_CHANGE_SET);
