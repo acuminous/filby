@@ -40,6 +40,20 @@ npm run lint
 
 One PR per issue, branched from `main`. Reference the issue with `Fixes #N`. The maintainer merges.
 
+## Releasing
+
+Each published package has its own version and CHANGELOG. A GitHub release publishes the package that its tag names, through `.github/workflows/node-js-publish.yml`:
+
+| Tag | Package |
+|-----|---------|
+| `framework-v<version>` | `@filby/framework` from `framework/` |
+
+1. In a PR, bump `version` in the package's `package.json` and add the release to its CHANGELOG.
+2. Merge the PR.
+3. Create a GitHub release with a new tag such as `framework-v1.0.0`. The workflow fails without publishing if the prefix is unknown or the version after `-v` differs from the package's `package.json`.
+
+GitHub generates release notes from the previous release, whichever package it was for. Set "Previous tag" to the last tag with the same prefix, or run `gh release create <tag> --generate-notes --notes-start-tag <previous tag>`.
+
 ## README and documentation style
 
 Write clear, practical documentation in professional UK English. The reader should understand what the software does, why it is useful and how to use it without having to reconstruct the explanation from implementation details.

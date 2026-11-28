@@ -5,7 +5,29 @@ on:
     types: [created]
 
 jobs:
-  build:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      workspace: ${{ steps.tag.outputs.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: tag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          case "$TAG" in
+            framework-v*) workspace=framework ;;
+            *) echo "::error::Tag $TAG does not start with framework-v" && exit 1 ;;
+          esac
+          version=$(node -p "require('./$workspace/package.json').version")
+          if [ "${TAG#*-v}" != "$version" ]; then
+            echo "::error::Tag $TAG does not match version $version in $workspace/package.json" && exit 1
+          fi
+          echo "workspace=$workspace" >> "$GITHUB_OUTPUT"
+
+  test-framework:
+    needs: resolve
+    if: needs.resolve.outputs.workspace == 'framework'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -23,11 +45,11 @@ jobs:
         with:
           node-version: '22.x'
       - run: npm ci
-      - run: npm test
-
+      - run: npm test --workspace framework
 
   publish-npm:
-    needs: build
+    needs: [resolve, test-framework]
+    if: ${{ !cancelled() && needs.resolve.result == 'success' && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,4 +62,4 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - run: npm install -g npm@latest
       - run: npm ci
-      - run: npm publish --workspace framework
+      - run: npm publish --workspace ${{ needs.resolve.outputs.workspace }}
