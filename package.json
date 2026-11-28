@@ -1,0 +1,29 @@
+{
+  "name": "filby-monorepo",
+  "private": true,
+  "description": "Filby and its tools",
+  "type": "module",
+  "workspaces": [
+    "framework",
+    "examples/holiday-park"
+  ],
+  "scripts": {
+    "docker": "docker compose up --detach",
+    "example": "docker compose up --detach --wait fby_example && npm start --workspace examples/holiday-park",
+    "lint": "biome ci .",
+    "types": "npm run types --workspace framework",
+    "test": "npm test --workspace framework",
+    "test:all": "docker compose up --detach --wait && npm test --workspace examples/holiday-park && npm test --workspace framework",
+    "coverage": "npm run coverage --workspace framework",
+    "db:create": "node scripts/database.js create",
+    "db:drop": "node scripts/database.js drop",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "lefthook": "2.2.2",
+    "pg": "^8.23.1"
+  },
+  "author": "Stephen Cresswell",
+  "license": "ISC"
+}
