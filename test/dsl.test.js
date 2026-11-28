@@ -9,7 +9,7 @@ import { PostgresError } from 'pg-error-enum';
 import { Validator } from '@seriousme/openapi-schema-validator';
 
 import TestFilby from './TestFilby.js';
-import { table } from '../lib/helpers.js';
+import { table } from '../lib/naming.js';
 import { validateMigration } from '../lib/migrations/validate-migration.js';
 import { marvFilbyDriver as driver } from '../lib/migrations/marv-filby-driver.js';
 

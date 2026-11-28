@@ -46,7 +46,6 @@
     },
     {
       "includes": [
-        "lib/helpers.js",
         "test/dsl.test.js"
       ],
       "linter": {
