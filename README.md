@@ -2356,7 +2356,7 @@ If an option is missing, the configuration cannot be read or the projection does
 
 A bundle is a JSON file holding one projection's change log and the documents at every change set. [filby-pack](https://github.com/acuminous/filby-pack) reads it to build an npm module. Other tools can read it too, for example to build a package for another language.
 
-Bundles have their own format version, independent of Filby's version. This section describes format 1. Its JSON Schema is published at https://acuminous.github.io/filby/lib/bundle-schema.json.
+Bundles have their own format version, independent of Filby's version. This section describes format 1. Its JSON Schema is published at https://acuminous.github.io/filby/lib/export/bundle-schema.json.
 
 | Key | Contents |
 | --- | -------- |
