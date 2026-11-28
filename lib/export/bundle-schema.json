@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://acuminous.github.io/filby/lib/bundle-schema.json",
+  "$id": "https://acuminous.github.io/filby/lib/export/bundle-schema.json",
   "title": "Filby projection bundle",
   "description": "One projection's change sets and documents, written by filby export",
   "type": "object",
