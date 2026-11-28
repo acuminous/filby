@@ -11,7 +11,7 @@ const hostEscapeExpression = Handlebars.Utils.escapeExpression;
 Handlebars.registerHelper('eq', hostEq);
 
 import '../index.js';
-import compileTemplate from '../lib/compile-template.js';
+import { compileTemplate } from '../lib/migrations/compile-template.js';
 
 describe('Compile Template', () => {
 
@@ -48,7 +48,7 @@ describe('Compile Template', () => {
     const lines = ['action,type,rate'].concat(Array.from({ length: 20000 }, (_, i) => `SET,type-${i},${i}`));
     fs.writeFileSync(path.join(directory, 'vat-rates.csv'), lines.join('\n'));
 
-    const render = compileTemplate(path.join(import.meta.dirname, '..', 'lib'), 'template.hbs');
+    const render = compileTemplate(path.join(import.meta.dirname, '..', 'lib', 'migrations'), 'template.hbs');
     const sql = render([{
       operation: 'ADD_CHANGE_SET',
       description: '2020 VAT Rates',

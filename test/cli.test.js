@@ -6,7 +6,7 @@ import { strictEqual as eq, ok, match, doesNotMatch } from 'node:assert';
 import { describe, it } from 'node:test';
 import marv from 'marv/api/promise.js';
 
-import render from '../lib/render-migration.js';
+import { renderMigration as render } from '../lib/migrations/render-migration.js';
 
 const run = promisify(execFile);
 const filby = path.resolve('bin/filby.js');
