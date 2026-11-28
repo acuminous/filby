@@ -1,6 +1,6 @@
 # Filby
 
-A framework for temporal reference data on Postgres. The library is in `lib/`, Filby's own migrations in `migrations/`, tests in `test/`, and an example application in `examples/holiday-park`.
+A framework for temporal reference data on Postgres. The repository is an npm workspace. The framework, published as `@filby/framework`, is in `framework/`: the library in `framework/lib/`, Filby's own migrations in `framework/migrations/` and tests in `framework/test/`. The example application is in `examples/holiday-park` and its migrations in `examples/migrations`, which the framework tests also use.
 
 The October 2026 review is tracked in https://github.com/acuminous/filby/issues/2. Read its implementer conventions before starting any issue; they are not repeated here. Its Concurrency section says which issues can be worked on at the same time and the rules for concurrent PRs.
 
@@ -21,7 +21,7 @@ Never run `docker compose down`, `npm run docker` or `npm run test:all` from a w
 
 1. Create a worktree on a branch named `m-<item>-<slug>`, for example `m-b5-csv-typing`. If the worktree tool chose a different branch name, rename it with `git branch -m`.
 2. In the worktree root, write `.env` containing `PGDATABASE=fby_<slug>` using only lower case letters, digits and underscores, for example `PGDATABASE=fby_b5_csv_typing`.
-3. Run `npm ci` in the root and `examples/holiday-park`.
+3. Run `npm ci` in the worktree root. This installs every workspace.
 4. Run `npm run db:create`. This creates the database on both servers.
 5. Work as normal. `npm test`, `npm run coverage` and the example suite refuse to run in a worktree that has no `PGDATABASE`.
 6. When the branch is merged, run `npm run db:drop` before removing the worktree.
@@ -36,7 +36,7 @@ npm run lint
 (cd examples/holiday-park && npm test)
 ```
 
-`index.d.ts` is generated from the JSDoc in `index.js` and `lib/Filby.js`. After changing the public API, run `npm run types` and commit the result. `npm test` fails while the committed file differs from the generated one.
+`framework/index.d.ts` is generated from the JSDoc in `framework/index.js` and `framework/lib/Filby.js`. After changing the public API, run `npm run types` and commit the result. `npm test` fails while the committed file differs from the generated one.
 
 One PR per issue, branched from `main`. Reference the issue with `Fixes #N`. The maintainer merges.
 
@@ -107,7 +107,7 @@ State limitations plainly. Do not oversell the project or disparage alternatives
 
 ### Verify before finishing
 
-Read the relevant code, tests and existing documentation before asserting behaviour. `npm test` validates every `yaml` block in the README as a migration; mark a deliberately partial block with a `# filby:skip-validation` comment. Check commands, option names, defaults and examples against the implementation. When documenting a proposed design, identify it as proposed.
+Read the relevant code, tests and existing documentation before asserting behaviour. `npm test` validates every `yaml` block in `framework/README.md` as a migration; mark a deliberately partial block with a `# filby:skip-validation` comment. Check commands, option names, defaults and examples against the implementation. When documenting a proposed design, identify it as proposed.
 
 Do not invent behaviour to make the explanation smoother. Flag material ambiguities or contradictions rather than silently resolving them. During a prose rewrite, preserve the intended technical meaning and raise any proposed behavioural changes separately.
 

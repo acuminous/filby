@@ -7,11 +7,12 @@
   },
   "files": {
     "includes": [
-      "index.js",
-      "bin/**/*.js",
-      "lib/**/*.js",
+      "framework/index.js",
+      "framework/bin/**/*.js",
+      "framework/lib/**/*.js",
       "scripts/**/*.js",
-      "test/**/*.js",
+      "framework/scripts/**/*.js",
+      "framework/test/**/*.js",
       "examples/**/*.js",
       "examples/**/*.ts"
     ]
@@ -46,7 +47,7 @@
     },
     {
       "includes": [
-        "test/dsl.test.js"
+        "framework/test/dsl.test.js"
       ],
       "linter": {
         "rules": {

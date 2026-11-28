@@ -19,9 +19,10 @@ jobs:
       - uses: actions/checkout@v7
       - run: |
           mkdir -p site/lib/export
-          cp _config.yml README.md CHANGELOG.md site/
-          cp lib/schema.json site/lib/
-          cp lib/export/bundle-schema.json site/lib/export/
+          cp _config.yml site/
+          cp framework/README.md framework/CHANGELOG.md site/
+          cp framework/lib/schema.json site/lib/
+          cp framework/lib/export/bundle-schema.json site/lib/export/
       - uses: actions/jekyll-build-pages@v1
         with:
           source: site

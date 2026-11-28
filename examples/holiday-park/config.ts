@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { Config } from '../..';
+import { Config } from '@filby/framework';
 
 export type ApplicationConfig = {
   server: {

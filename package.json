@@ -1,93 +1,29 @@
 {
-  "name": "filby",
-  "version": "0.14.0",
-  "description": "A framework for managing reference data that changes over time",
-  "keywords": [
-    "temporal",
-    "time",
-    "travelling",
-    "series",
-    "time-series",
-    "reference",
-    "data",
-    "database",
-    "postgres",
-    "postgresql",
-    "typescript",
-    "product information management",
-    "pim"
-  ],
-  "author": "Stephen Cresswell",
-  "license": "ISC",
-  "engines": {
-    "node": ">=22.15"
-  },
+  "name": "filby-monorepo",
+  "private": true,
+  "description": "Filby and its tools",
   "type": "module",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./index.d.ts",
-      "default": "./index.js"
-    }
-  },
-  "bin": {
-    "filby": "bin/filby.js"
-  },
-  "files": [
-    "index.js",
-    "index.d.ts",
-    "bin",
-    "lib",
-    "migrations",
-    "CHANGELOG.md"
+  "workspaces": [
+    "framework",
+    "examples/holiday-park"
   ],
   "scripts": {
     "docker": "docker compose up --detach",
-    "example": "docker compose up --detach --wait fby_example && npm --prefix examples/holiday-park ci && npm --prefix examples/holiday-park start",
+    "example": "docker compose up --detach --wait fby_example && npm start --workspace examples/holiday-park",
     "lint": "biome ci .",
-    "types": "node scripts/types.js build",
-    "pretest": "node scripts/database.js check",
-    "test": "node --require ./scripts/load-env.js --test --test-concurrency=1 test/*.test.js",
-    "test:all": "docker compose up --detach --wait && (cd examples/holiday-park && npm test) && npm test",
-    "precoverage": "node scripts/database.js check",
-    "coverage": "mkdir -p coverage && node --require ./scripts/load-env.js --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
+    "types": "npm run types --workspace framework",
+    "test": "npm test --workspace framework",
+    "test:all": "docker compose up --detach --wait && npm test --workspace examples/holiday-park && npm test --workspace framework",
+    "coverage": "npm run coverage --workspace framework",
     "db:create": "node scripts/database.js create",
     "db:drop": "node scripts/database.js drop",
-    "prepublishOnly": "node scripts/types.js check",
     "prepare": "lefthook install"
-  },
-  "dependencies": {
-    "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1",
-    "eventemitter2": "^6.4.9",
-    "handlebars": "^4.7.10",
-    "marv": "^7.1.0",
-    "marv-pg-driver": "^6.0.0",
-    "papaparse": "^5.7.0",
-    "parse-duration": "^2.1.9",
-    "pg": "^8.23.1",
-    "pipsqueak": "^3.0.0",
-    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "@seriousme/openapi-schema-validator": "^2.11.0",
-    "@types/node": "^22.20.5",
-    "@types/pg": "^8.23.1",
     "lefthook": "2.2.2",
-    "object-path-immutable": "^4.1.2",
-    "pg-error-enum": "^2.0.1",
-    "rollup": "^4.68.8",
-    "rollup-plugin-dts": "^6.5.1",
-    "typescript": "^5.9.3"
+    "pg": "^8.23.1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/acuminous/filby.git"
-  },
-  "bugs": {
-    "url": "https://github.com/acuminous/filby/issues"
-  },
-  "homepage": "https://acuminous.github.io/filby"
+  "author": "Stephen Cresswell",
+  "license": "ISC"
 }

@@ -17,7 +17,7 @@ describe('CLI', () => {
   describe('validate', () => {
 
     it('exits 0 and prints nothing when every migration is valid', async () => {
-      const { stdout, stderr } = await run(process.execPath, [filby, 'validate', 'examples/migrations']);
+      const { stdout, stderr } = await run(process.execPath, [filby, 'validate', '../examples/migrations']);
       eq(stdout, '');
       eq(stderr, '');
     });
@@ -38,7 +38,7 @@ describe('CLI', () => {
     });
 
     it('reports a directory that cannot be scanned', async () => {
-      const { code, stderr } = await fails(['validate', 'examples/migrations', 'test/cli/missing']);
+      const { code, stderr } = await fails(['validate', '../examples/migrations', 'test/cli/missing']);
       eq(code, 1);
       match(stderr, /^test\/cli\/missing: ENOENT/m);
     });
@@ -47,16 +47,16 @@ describe('CLI', () => {
   describe('preview', () => {
 
     it('prints the SQL the driver would run for every migration in order', async () => {
-      const { stdout, stderr } = await run(process.execPath, [filby, 'preview', 'examples/migrations']);
+      const { stdout, stderr } = await run(process.execPath, [filby, 'preview', '../examples/migrations']);
       eq(stderr, '');
-      const directory = path.resolve('examples/migrations');
+      const directory = path.resolve('../examples/migrations');
       const scanned = await marv.scan(directory, { filter: /\.(ya?ml|json|sql)$/ });
       const expected = scanned
         .sort((a, b) => a.level - b.level)
-        .map((migration) => `-- examples/migrations/${migration.filename}\n${render({ ...migration, directory })}\n`)
+        .map((migration) => `-- ../examples/migrations/${migration.filename}\n${render({ ...migration, directory })}\n`)
         .join('');
       eq(stdout, expected);
-      ok(stdout.indexOf('-- examples/migrations/0001.define-schema.yaml') < stdout.indexOf('-- examples/migrations/0011.catalogue-2027.yaml'));
+      ok(stdout.indexOf('-- ../examples/migrations/0001.define-schema.yaml') < stdout.indexOf('-- ../examples/migrations/0011.catalogue-2027.yaml'));
     });
 
     it('prints SQL migrations verbatim', async () => {

@@ -2,7 +2,7 @@ import { Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { swaggerUI } from '@hono/swagger-ui';
 
-import { Filby } from '../../..';
+import { Filby } from '@filby/framework';
 import pkg from '../package.json';
 import { ApplicationConfig } from '../config';
 

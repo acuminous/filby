@@ -36,11 +36,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-      - run: pushd examples/holiday-park && npm ci && npm test
+      - run: npm test --workspace examples/holiday-park
       - run: npm run lint
       - run: npm run coverage
       - uses: codecov/codecov-action@v7
         if: matrix.node-version == '24.x'
         with:
-          files: coverage/lcov.info
+          files: framework/coverage/lcov.info
           use_oidc: true

@@ -10,6 +10,7 @@
     "docker": "npm --prefix ../.. run docker"
   },
   "dependencies": {
+    "@filby/framework": "*",
     "@hono/node-server": "^2.1.5",
     "@hono/swagger-ui": "^0.6.1",
     "hono": "^4.13.13"
@@ -19,5 +20,6 @@
   "devDependencies": {
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
-  }
+  },
+  "private": true
 }

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, it, before, after } from 'node:test';
 
-import { Filby } from '../../..';
+import { Filby } from '@filby/framework';
 import config from '../config';
 import Application from '../lib/Application';
 

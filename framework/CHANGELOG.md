@@ -9,7 +9,8 @@ This release contains breaking changes. Filby converts a 0.14.0 database the fir
 ### Changed
 
 - Filby requires Node.js 22.15 or later and PostgreSQL 15 or later.
-- Filby is an ES module. A CommonJS application can still `require('filby')`. The package exports only `filby` itself, so files inside it, such as `filby/lib/helpers.js`, can no longer be loaded. A TypeScript project that compiles to CommonJS must set `module` to `commonjs`, or to `nodenext` with TypeScript 5.8 or later (#46).
+- Filby is published as `@filby/framework` instead of `filby` (#384).
+- Filby is an ES module. A CommonJS application can still `require('@filby/framework')`. The package exports only itself, so files inside it, such as `filby/lib/helpers.js`, can no longer be loaded. A TypeScript project that compiles to CommonJS must set `module` to `commonjs`, or to `nodenext` with TypeScript 5.8 or later (#46).
 - The `POST` frame action is renamed to `SET`. YAML, JSON and CSV migrations may still say `POST`, but SQL must use `'SET'` (#77).
 - A change set may contain only one frame for each key of an entity (#6).
 - Adding a change set with an earlier effective date than existing ones re-issues the later change sets with new ids, so ids always follow effective dates. The originals keep their data but leave the change log. Change sets are re-issued once per migration file, rather than after each change set (#4, #99, #357).
