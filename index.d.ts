@@ -30,7 +30,7 @@ declare class Filby {
     getCurrentChangeSet(projection: Projection): Promise<ChangeSet | undefined>;
     getChangeSet(changeSetId: number): Promise<ChangeSet | undefined>;
     getNotificationStatus(): Promise<NotificationStatus>;
-    getAggregates<T>(changeSetId: number, name: string, version: number): Promise<T[]>;
+    getAggregates<T>(changeSetId: number, entityName: string, entityVersion: number): Promise<T[]>;
     getDocuments<T>(projection: Projection, changeSetId: number, options?: DocumentOptions): Promise<Documents<T>>;
     fetchProjections(request: Request, options?: FetchOptions): Promise<Response>;
     fetchDeclarations(request: Request, options?: FetchOptions): Promise<Response>;
