@@ -62,9 +62,9 @@ describe('API', () => {
         fields: null,
         order: [{ field: 'name', direction: 'ASC', nulls: null }],
         parameters: [
-          { name: 'code', field: 'code', match: 'equals', property: ['code'] },
-          { name: 'name', field: 'name', match: 'prefix', property: ['name'] },
-          { name: 'region', field: 'region', match: 'in', property: ['region'] },
+          { name: 'code', field: 'code', match: 'equals', property: ['code'], since: null },
+          { name: 'name', field: 'name', match: 'prefix', property: ['name'], since: null },
+          { name: 'region', field: 'region', match: 'in', property: ['region'], since: null },
         ],
         paging: { pageSize: 10, pageMax: 50 },
         nests: [],
@@ -75,7 +75,7 @@ describe('API', () => {
       const response = await get('/declarations/projections/Parks%20(Detailed)/v1');
       eq(response.status, 200);
       const { parameters } = await response.json();
-      deq(parameters.find((parameter: any) => parameter.name === 'amenity'), { name: 'amenity', field: 'amenities.amenity_code', match: 'in', property: ['amenities', 'amenity', 'code'] });
+      deq(parameters.find((parameter: any) => parameter.name === 'amenity'), { name: 'amenity', field: 'amenities.amenity_code', match: 'in', property: ['amenities', 'amenity', 'code'], since: null });
     });
 
     it('should allow requests from other origins', async () => {

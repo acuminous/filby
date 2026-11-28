@@ -136,7 +136,7 @@ describe('Declarations', () => {
         dependencies: [{ name: 'park', version: 1 }, { name: 'rate', version: 1 }, { name: 'season', version: 1 }],
         fields: null,
         order: [{ field: 'name', direction: 'ASC', nulls: null }],
-        parameters: [{ name: 'code', field: 'code', match: 'equals', property: ['code'] }],
+        parameters: [{ name: 'code', field: 'code', match: 'equals', property: ['code'], since: null }],
         paging: { pageSize: 2, pageMax: 3 },
         nests: [
           {
@@ -155,8 +155,10 @@ describe('Declarations', () => {
                 fields: null,
                 order: [{ field: 'band', direction: 'ASC', nulls: null }],
                 nests: [],
+                since: null,
               },
             ],
+            since: null,
           },
         ],
       });
@@ -173,9 +175,10 @@ describe('Declarations', () => {
         lookup: true,
         entity: { name: 'park', version: 1 },
         on: [{ field: 'code', parentField: 'park_code' }],
-        fields: [{ field: 'name', as: 'name' }],
+        fields: [{ field: 'name', as: 'name', since: null }],
         order: [],
         nests: [],
+        since: null,
       });
     });
 
@@ -186,10 +189,10 @@ describe('Declarations', () => {
 
       const declaration = await (await get('/projections/Parks/v1')).json();
       deq(declaration.fields, [
-        { field: 'code', as: 'park' },
-        { field: 'code', as: 'reference' },
-        { field: 'name', as: 'name' },
-        { field: 'code', as: 'code' },
+        { field: 'code', as: 'park', since: null },
+        { field: 'code', as: 'reference', since: null },
+        { field: 'name', as: 'name', since: null },
+        { field: 'code', as: 'code', since: null },
       ]);
       deq(declaration.nests[0].fields, []);
       eq(declaration.nests[0].nests[0].fields, null);
@@ -225,11 +228,11 @@ describe('Declarations', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       deq((await (await get('/projections/Parks/v1')).json()).parameters, [
-        { name: 'code', field: 'code', match: 'equals', property: ['code'] },
-        { name: 'season_kind', field: 'seasons.type', match: 'equals', property: ['seasons', 'kind'] },
-        { name: 'start', field: 'seasons.start', match: 'range', property: ['seasons', 'start'] },
-        { name: 'bands', field: 'seasons.rates.band', match: 'in', property: ['seasons', 'rates', 'band'] },
-        { name: 'park', field: 'seasons.park.name', match: 'prefix', property: ['seasons', 'park', 'name'] },
+        { name: 'code', field: 'code', match: 'equals', property: ['code'], since: null },
+        { name: 'season_kind', field: 'seasons.type', match: 'equals', property: ['seasons', 'kind'], since: null },
+        { name: 'start', field: 'seasons.start', match: 'range', property: ['seasons', 'start'], since: null },
+        { name: 'bands', field: 'seasons.rates.band', match: 'in', property: ['seasons', 'rates', 'band'], since: null },
+        { name: 'park', field: 'seasons.park.name', match: 'prefix', property: ['seasons', 'park', 'name'], since: null },
       ]);
     });
 
@@ -240,7 +243,7 @@ describe('Declarations', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       deq((await (await get('/projections/Parks/v1')).json()).parameters, [
-        { name: 'park', field: 'seasons.park_code', match: 'in', property: ['seasons', 'park', 'reference'] },
+        { name: 'park', field: 'seasons.park_code', match: 'in', property: ['seasons', 'park', 'reference'], since: null },
       ]);
     });
 
@@ -255,10 +258,10 @@ describe('Declarations', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       deq((await (await get('/projections/Parks/v1')).json()).parameters, [
-        { name: 'code', field: 'code', match: 'equals', property: null },
-        { name: 'season_park', field: 'seasons.park_code', match: 'equals', property: null },
-        { name: 'rate_park', field: 'seasons.rates.park_code', match: 'equals', property: null },
-        { name: 'end', field: 'seasons.end', match: 'range', property: null },
+        { name: 'code', field: 'code', match: 'equals', property: null, since: null },
+        { name: 'season_park', field: 'seasons.park_code', match: 'equals', property: null, since: null },
+        { name: 'rate_park', field: 'seasons.rates.park_code', match: 'equals', property: null, since: null },
+        { name: 'end', field: 'seasons.end', match: 'range', property: null, since: null },
       ]);
     });
 
@@ -273,7 +276,7 @@ describe('Declarations', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       deq((await (await get('/projections/Parks/v1')).json()).parameters, [
-        { name: 'park', field: 'seasons.park_code', match: 'equals', property: ['seasons', 'owner', 'code'] },
+        { name: 'park', field: 'seasons.park_code', match: 'equals', property: ['seasons', 'owner', 'code'], since: null },
       ]);
     });
 
@@ -285,8 +288,8 @@ describe('Declarations', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       deq((await (await get('/projections/Parks/v1')).json()).parameters, [
-        { name: 'park', field: 'seasons.park_code', match: 'equals', property: null },
-        { name: 'rate_park', field: 'seasons.rates.park_code', match: 'equals', property: null },
+        { name: 'park', field: 'seasons.park_code', match: 'equals', property: null, since: null },
+        { name: 'rate_park', field: 'seasons.rates.park_code', match: 'equals', property: null, since: null },
       ]);
     });
 
@@ -296,8 +299,8 @@ describe('Declarations', () => {
       await filby.applyYaml(t.name, ADD_PARK_ENTITIES, projection);
 
       const declaration = await (await get('/projections/Parks/v1')).json();
-      deq(declaration.fields, [{ field: 'code', as: 'park' }, { field: 'code', as: 'reference' }, { field: 'name', as: 'name' }]);
-      deq(declaration.parameters.find(({ name }) => name === 'code'), { name: 'code', field: 'code', match: 'equals', property: ['park'] });
+      deq(declaration.fields, [{ field: 'code', as: 'park', since: null }, { field: 'code', as: 'reference', since: null }, { field: 'name', as: 'name', since: null }]);
+      deq(declaration.parameters.find(({ name }) => name === 'code'), { name: 'code', field: 'code', match: 'equals', property: ['park'], since: null });
     });
 
     it('should describe a custom SQL projection by its dependencies and paging', async (t) => {
