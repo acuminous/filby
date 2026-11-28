@@ -1,4 +1,6 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
+@source '../src';
+@source '../index.html';
 
 @plugin 'daisyui' {
   themes: false;

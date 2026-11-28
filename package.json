@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": [
     "framework",
+    "ui",
     "examples/holiday-park"
   ],
   "scripts": {

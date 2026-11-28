@@ -13,6 +13,13 @@
       "scripts/**/*.js",
       "framework/scripts/**/*.js",
       "framework/test/**/*.js",
+      "ui/bin/**/*.js",
+      "ui/lib/**/*.js",
+      "ui/src/**/*.ts",
+      "ui/src/**/*.tsx",
+      "ui/test/**/*.ts",
+      "ui/test/**/*.tsx",
+      "ui/vite.config.ts",
       "examples/**/*.js",
       "examples/**/*.ts"
     ]

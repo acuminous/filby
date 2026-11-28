@@ -7,7 +7,7 @@
   "author": "Stephen Cresswell",
   "license": "ISC",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.15"
   },
   "bin": {
     "filby-ui": "bin/filby-ui.js"
@@ -16,8 +16,6 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "lint": "biome ci .",
-    "prepare": "lefthook install",
     "start": "node bin/filby-ui.js"
   },
   "dependencies": {
@@ -31,13 +29,11 @@
     "preact-iso": "^2.12.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
     "@preact/preset-vite": "^2.10.6",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/preact": "^3.2.4",
     "daisyui": "^5.7.50",
     "happy-dom": "^21.0.4",
-    "lefthook": "^2.2.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
