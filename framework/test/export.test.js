@@ -131,7 +131,7 @@ describe('Export', () => {
   });
 
   it('exports a bundle from the example migrations', async () => {
-    const bundle = await exportWithCli('Parks (Detailed)@1', { migrations: ['examples/migrations'] });
+    const bundle = await exportWithCli('Parks (Detailed)@1', { migrations: ['../examples/migrations'] });
 
     validateBundle(bundle);
     eq(bundle.name, 'Parks (Detailed)');

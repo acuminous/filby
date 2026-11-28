@@ -1,4 +1,4 @@
-[![NPM version](https://img.shields.io/npm/v/filby.svg?style=flat-square)](https://www.npmjs.com/package/filby)
+[![NPM version](https://img.shields.io/npm/v/@filby/framework.svg?style=flat-square)](https://www.npmjs.com/package/@filby/framework)
 [![Node.js CI](https://github.com/acuminous/filby/workflows/Node.js%20CI/badge.svg)](https://github.com/acuminous/filby/actions?query=workflow%3A%22Node.js+CI%22)
 [![Codecov](https://codecov.io/gh/acuminous/filby/graph/badge.svg)](https://codecov.io/gh/acuminous/filby)
 
@@ -232,16 +232,16 @@ A **hook** names an event your application wants to hear about: a projection add
 
 Filby needs Node.js 22.15 or later and PostgreSQL 15 or later, and is tested against PostgreSQL 16.
 
-Filby is an ES module. A CommonJS application can load it with `require('filby')`. A TypeScript project that compiles to CommonJS needs `module` set to `commonjs`, or to `nodenext` with TypeScript 5.8 or later.
+Filby is published as `@filby/framework`. It is an ES module, and a CommonJS application can load it with `require('@filby/framework')`. A TypeScript project that compiles to CommonJS needs `module` set to `commonjs`, or to `nodenext` with TypeScript 5.8 or later.
 
 ```bash
-npm install filby
+npm install @filby/framework
 ```
 
 Construct Filby with the database connection details and the directory holding your migrations, and call `init()` once at startup. `init()` connects and applies the migrations that have not yet been applied.
 
 ```js
-import { Filby } from 'filby';
+import { Filby } from '@filby/framework';
 
 const filby = new Filby({
   database: { user: 'filby', database: 'filby', password: 'filby' },
@@ -256,7 +256,7 @@ A migration is a YAML, JSON or SQL file named `<level>.<description>.<extension>
 Once `init()` has resolved, mount `filby.fetchProjections` to serve the data over HTTP, or call `getDocuments` and the other methods under [API](#api) directly. Subscribe to any hooks, then call `filby.startNotifications()`, and call `filby.stop()` on shutdown.
 
 ```js
-import { Filby } from 'filby';
+import { Filby } from '@filby/framework';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 
@@ -1546,7 +1546,7 @@ Some of Filby's API behaves differently in 1.0.0. Check your application for the
 | `withTransaction` runs its callback in a transaction, which is rolled back if the callback throws. In 0.14.0 each statement was committed as it ran. | Check any code that relied on earlier statements being kept after a later one failed. |
 | Deleting a change set with SQL also deletes its rows from the entity tables. | Delete a superseded change set and its re-issue in the same statement. See [Correcting and re-issuing data](#correcting-and-re-issuing-data). |
 | In TypeScript, `getProjection`, `getChangeSet` and `getCurrentChangeSet` can return `undefined`. | Handle the `undefined` case. |
-| Filby is an ES module, and its package exports only `filby` itself, so files inside it, such as `filby/lib/helpers.js`, can no longer be loaded. | Load Filby as `filby`. A CommonJS application can still `require('filby')`, with the TypeScript settings described in [Getting started](#getting-started). |
+| Filby is published as `@filby/framework` instead of `filby`. It is an ES module, and the package exports only itself, so files inside it, such as `filby/lib/helpers.js`, can no longer be loaded. | Replace the `filby` dependency with `@filby/framework`, and import Filby from `@filby/framework`. A CommonJS application can still `require('@filby/framework')`, with the TypeScript settings described in [Getting started](#getting-started). |
 | `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values are strings, such as `2026-07-01` and `2026-07-01T10:00:00`, instead of `Date` objects in the process time zone. Over HTTP, a date that was served as `2026-07-01T00:00:00.000Z` under `TZ=UTC` is now served as `2026-07-01`. | Read these values as strings, or set `localDateTypes` to `'pg'` to keep node-pg's conversion. See [Configuration](#configuration). |
 
 ### Creating new databases from your migrations

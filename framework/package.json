@@ -1,5 +1,5 @@
 {
-  "name": "filby",
+  "name": "@filby/framework",
   "version": "0.14.0",
   "description": "A framework for managing reference data that changes over time",
   "keywords": [
@@ -42,20 +42,16 @@
     "migrations",
     "CHANGELOG.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "docker": "docker compose up --detach",
-    "example": "docker compose up --detach --wait fby_example && npm --prefix examples/holiday-park ci && npm --prefix examples/holiday-park start",
-    "lint": "biome ci .",
     "types": "node scripts/types.js build",
-    "pretest": "node scripts/database.js check",
-    "test": "node --require ./scripts/load-env.js --test --test-concurrency=1 test/*.test.js",
-    "test:all": "docker compose up --detach --wait && (cd examples/holiday-park && npm test) && npm test",
-    "precoverage": "node scripts/database.js check",
-    "coverage": "mkdir -p coverage && node --require ./scripts/load-env.js --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
-    "db:create": "node scripts/database.js create",
-    "db:drop": "node scripts/database.js drop",
-    "prepublishOnly": "node scripts/types.js check",
-    "prepare": "lefthook install"
+    "pretest": "node ../scripts/database.js check",
+    "test": "node --require ../scripts/load-env.js --test --test-concurrency=1 test/*.test.js",
+    "precoverage": "node ../scripts/database.js check",
+    "coverage": "mkdir -p coverage && node --require ../scripts/load-env.js --test --test-concurrency=1 --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info test/*.test.js",
+    "prepublishOnly": "node scripts/types.js check"
   },
   "dependencies": {
     "ajv": "^8.20.0",
@@ -71,11 +67,9 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
     "@seriousme/openapi-schema-validator": "^2.11.0",
     "@types/node": "^22.20.5",
     "@types/pg": "^8.23.1",
-    "lefthook": "2.2.2",
     "object-path-immutable": "^4.1.2",
     "pg-error-enum": "^2.0.1",
     "rollup": "^4.68.8",
@@ -84,7 +78,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/acuminous/filby.git"
+    "url": "git+https://github.com/acuminous/filby.git",
+    "directory": "framework"
   },
   "bugs": {
     "url": "https://github.com/acuminous/filby/issues"

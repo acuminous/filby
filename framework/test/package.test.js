@@ -5,7 +5,7 @@ import { describe, it, before } from 'node:test';
 
 const root = path.join(import.meta.dirname, '..');
 
-const UNPUBLISHED = ['.github', '.gitignore', '_config.yml', 'biome.json', 'CLAUDE.md', 'codecov.yml', 'docker-compose.yaml', 'examples', 'lefthook.yml', 'package-lock.json', 'scripts', 'test'];
+const UNPUBLISHED = ['scripts', 'test'];
 
 const topLevel = (files) => [...new Set(files.map((file) => file.split('/')[0]))].sort();
 
@@ -42,12 +42,12 @@ describe('Package', () => {
   });
 
   it('should load with require()', () => {
-    const stdout = execFileSync(process.execPath, ['--eval', "const { Filby } = require('filby'); process.stdout.write(typeof Filby)"], { cwd: root, encoding: 'utf8' });
+    const stdout = execFileSync(process.execPath, ['--eval', "const { Filby } = require('@filby/framework'); process.stdout.write(typeof Filby)"], { cwd: root, encoding: 'utf8' });
     eq(stdout, 'function');
   });
 
   it('should load with import', () => {
-    const stdout = execFileSync(process.execPath, ['--input-type=module', '--eval', "import { Filby } from 'filby'; process.stdout.write(typeof Filby)"], { cwd: root, encoding: 'utf8' });
+    const stdout = execFileSync(process.execPath, ['--input-type=module', '--eval', "import { Filby } from '@filby/framework'; process.stdout.write(typeof Filby)"], { cwd: root, encoding: 'utf8' });
     eq(stdout, 'function');
   });
 });
