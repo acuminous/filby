@@ -1921,7 +1921,7 @@ async function catchUp(projection, lastChangeSetId) {
 
 | Method | Behaviour |
 | ------ | --------- |
-| `filby.getAggregates(changeSetId, name, version)` | Returns the entity's aggregate rows at the specified change set. Fields added by `ALTER_ENTITY` are left out at ids below their `since`. Rejects if the entity version or change set does not exist. |
+| `filby.getAggregates(changeSetId, entityName, entityVersion)` | Returns the entity's aggregate rows at the specified change set. Fields added by `ALTER_ENTITY` are left out at ids below their `since`. Rejects if the entity version or change set does not exist. |
 | `filby.getDocuments(projection, changeSetId, { parameters, pageOffset, pageSize })` | Returns `{ documents, total }` for the projection at the specified change set. |
 | `filby.export(projection)` | Returns the projection's [bundle](#projection-bundle), the object that [`filby export`](#export-a-projection) writes to a file. `DATE` and `TIMESTAMP WITHOUT TIME ZONE` values are always strings, whatever `localDateTypes` is set to. Rejects if the projection has been dropped. |
 
