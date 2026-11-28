@@ -30,5 +30,3 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test --workspace ui
-      - run: npm run build --workspace ui
-      - run: git diff --exit-code ui/dist

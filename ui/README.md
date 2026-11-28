@@ -1,27 +1,22 @@
-# filby-ui
+# Filby UI
 
-A read-only web UI for any application that mounts [Filby](../framework/README.md)'s `filby.fetch` HTTP handler. It shows the projections, the change sets of each projection and the documents at any change set, so that people can see the timeline of their reference data rather than be told about it. It uses nothing but the routes `filby.fetch` serves, so it works against every Filby application without that application changing, and it never writes anything.
+A read-only web UI for any application that mounts the `filby.fetchProjections` HTTP handler of [Filby](../framework/README.md), `@filby/framework` 1.0.0 or later. It shows the projections, the change sets of each projection and the documents at any change set, so that people can see the timeline of their reference data rather than be told about it. It uses nothing but the routes `filby.fetchProjections` serves, so it works against every Filby application without that application changing, and it never writes anything.
 
 ## Usage
 
-The UI runs from a clone of the Filby repository:
-
 ```
-git clone https://github.com/acuminous/filby.git
-cd filby
-npm ci
-FILBY_API_HOST=localhost FILBY_API_PORT=3000 npm start --workspace ui
+FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx @filby/ui
 ```
 
-This starts a small local server on port 4000 that serves the UI and proxies `/api` to the target application, which sidesteps CORS. Open http://localhost:4000. The example above points at Filby's example application, which mounts `filby.fetch` under `/api` on port 3000.
+This starts a small local server on port 4000 that serves the UI and proxies `/api` to the target application, which sidesteps CORS. Open http://localhost:4000. The example above points at Filby's example application, which mounts `filby.fetchProjections` under `/api` on port 3000.
 
 The target is configured with environment variables.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `FILBY_API_HOST` | required | The host of the application that mounts `filby.fetch` |
+| `FILBY_API_HOST` | required | The host of the application that mounts `filby.fetchProjections` |
 | `FILBY_API_PORT` | required | Its port |
-| `FILBY_API_PATH` | `/api` | The base path the application mounted `filby.fetch` under |
+| `FILBY_API_PATH` | `/api` | The base path the application mounted `filby.fetchProjections` under |
 | `FILBY_API_PROTOCOL` | `http` | `http` or `https` |
 | `PORT` | `4000` | The port the UI listens on |
 
@@ -57,7 +52,7 @@ npm run build --workspace ui
 npm run lint
 ```
 
-`npm run dev` starts Vite with hot reloading and proxies `/api` to the target named by the same environment variables as above. `npm run build` type checks the source and writes the bundle to `dist/`, which is committed so that the UI runs from a clone without a build step; CI fails if the committed bundle is out of date, so run the build and commit `dist/` with any change to `src/`. `npm run lint` runs Biome over the whole repository, and a pre-commit hook runs it on staged files.
+`npm run dev` starts Vite with hot reloading and proxies `/api` to the target named by the same environment variables as above. `npm run build` type checks the source and writes the bundle to `dist/`, which is not committed. `npm test` builds it first, because one test starts the real server. `npm start --workspace ui` serves the last build, and publishing builds it again through the `prepack` script. `npm run lint` runs Biome over the whole repository, and a pre-commit hook runs it on staged files.
 
 The UI is Preact with [Tailwind](https://tailwindcss.com) and [daisyUI](https://daisyui.com) for the components, themed in `src/styles.css` for light and dark colour schemes, which also limits Tailwind to the classes used in `src/` and `index.html`, with IBM Plex Sans and IBM Plex Mono bundled so that nothing is fetched from the network.
 

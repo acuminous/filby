@@ -1,8 +1,7 @@
 {
-  "name": "filby-ui",
+  "name": "@filby/ui",
   "version": "0.1.0",
   "description": "A read-only web UI for any application that mounts Filby's HTTP handler",
-  "private": true,
   "type": "module",
   "author": "Stephen Cresswell",
   "license": "ISC",
@@ -12,11 +11,22 @@
   "bin": {
     "filby-ui": "bin/filby-ui.js"
   },
+  "files": [
+    "bin",
+    "lib",
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "pretest": "npm run build",
     "test": "vitest run",
-    "start": "node bin/filby-ui.js"
+    "start": "node bin/filby-ui.js",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
@@ -38,5 +48,14 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acuminous/filby.git",
+    "directory": "ui"
+  },
+  "bugs": {
+    "url": "https://github.com/acuminous/filby/issues"
+  },
+  "homepage": "https://github.com/acuminous/filby/tree/main/ui"
 }

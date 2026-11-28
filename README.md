@@ -8,7 +8,7 @@ Filby is a framework for managing reference data that changes over time, such as
 | Folder | Contents |
 |--------|----------|
 | [framework](framework) | The framework, its command line tool and its documentation, published to npm as [`@filby/framework`](https://www.npmjs.com/package/@filby/framework). Start with its [README](framework/README.md). |
-| [ui](ui) | Filby UI, a read-only web interface to any application that serves Filby's API. See its [README](ui/README.md). |
+| [ui](ui) | Filby UI, a read-only web interface to any application that serves Filby's API, published to npm as [`@filby/ui`](https://www.npmjs.com/package/@filby/ui). See its [README](ui/README.md). |
 | [examples](examples) | The holiday park example application and the migrations it loads. |
 
 ## Development

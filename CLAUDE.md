@@ -47,6 +47,7 @@ Each published package has its own version and CHANGELOG. A GitHub release publi
 | Tag | Package |
 |-----|---------|
 | `framework-v<version>` | `@filby/framework` from `framework/` |
+| `ui-v<version>` | `@filby/ui` from `ui/`, built by its `prepack` script |
 
 1. In a PR, bump `version` in the package's `package.json` and add the release to its CHANGELOG.
 2. Merge the PR.

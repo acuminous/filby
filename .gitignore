@@ -4,3 +4,4 @@ node_modules
 examples/holiday-park/dist
 .env
 .claude/worktrees
+ui/dist
