@@ -1724,6 +1724,58 @@ describe('DSL', () => {
       deq(latest.map(({ name, opened }) => ({ name, opened })), [{ name: 'Devon Cliffs Holiday Park', opened: '1954-05-01' }]);
     });
 
+    it('should carry each added field from its own since when an entity is altered in separate migrations', async (t) => {
+      await filby.applyYaml('setup', ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET, ALTER_PARK, ALTER_SEASON, BACKFILL_2020_PARKS);
+      await fs.promises.unlink(path.join(path.resolve(filby.config.migrations[0]), '001.setup.yaml'));
+      await filby.applyYaml(t.name, transform(ALTER_PARK).set('0.add', { capacity: 'INTEGER' }), transform(ALTER_SEASON).set('0.add', { notes: 'TEXT' }), ADD_SEASON_CHANGE_SET);
+
+      const [before] = await getDocuments('2019 Parks', { parameters: { code: 'DC' } });
+      deq(Object.keys(before), ['code', 'name', 'seasons']);
+      deq(before.seasons.map(Object.keys), [['type', 'start', 'end', 'rates'], ['type', 'start', 'end', 'rates'], ['type', 'start', 'end', 'rates']]);
+
+      const [between] = await getDocuments('2020 Parks Opened', { parameters: { code: 'DC' } });
+      deq(Object.keys(between), ['code', 'name', 'opened', 'seasons']);
+      eq(between.opened, '1954-05-01');
+      deq(between.seasons.map(Object.keys), [['type', 'start', 'end', 'capacity', 'rates'], ['type', 'start', 'end', 'capacity', 'rates'], ['type', 'start', 'end', 'capacity', 'rates']]);
+
+      const [after] = await getDocuments('2020 Seasons', { parameters: { code: 'DC' } });
+      deq(Object.keys(after), ['code', 'name', 'opened', 'capacity', 'seasons']);
+      deq({ opened: after.opened, capacity: after.capacity }, { opened: '1954-05-01', capacity: null });
+      deq(after.seasons.map(Object.keys), [['type', 'start', 'end', 'capacity', 'notes', 'rates'], ['type', 'start', 'end', 'capacity', 'notes', 'rates'], ['type', 'start', 'end', 'capacity', 'notes', 'rates']]);
+    });
+
+    it('should include each added field in aggregates from its own since when an entity is altered in separate migrations', async (t) => {
+      await filby.applyYaml('setup', ADD_PARK_ENTITIES, ADD_PARK_CHANGE_SET, ALTER_PARK, BACKFILL_2020_PARKS);
+      await fs.promises.unlink(path.join(path.resolve(filby.config.migrations[0]), '001.setup.yaml'));
+      await filby.applyYaml(t.name, transform(ALTER_PARK).set('0.add', { capacity: 'INTEGER' }), ADD_SEASON_CHANGE_SET);
+
+      const before = await filby.getAggregates(await getChangeSetId('2019 Parks'), 'park', 1);
+      deq(before.find(({ code }) => code === 'DC'), { code: 'DC', name: 'Devon Cliffs' });
+
+      const between = await filby.getAggregates(await getChangeSetId('2020 Parks Opened'), 'park', 1);
+      deq(between.find(({ code }) => code === 'DC'), { code: 'DC', name: 'Devon Cliffs Holiday Park', opened: '1954-05-01' });
+
+      const after = await filby.getAggregates(await getChangeSetId('2020 Seasons'), 'park', 1);
+      deq(after.find(({ code }) => code === 'DC'), { code: 'DC', name: 'Devon Cliffs Holiday Park', opened: '1954-05-01', capacity: null });
+    });
+
+    it('should give fields added with no change set between their alterations the same since', async (t) => {
+      await filby.applyYaml(t.name, ADD_PARK_ENTITIES, ADD_NESTED_PROJECTION, ADD_PARK_CHANGE_SET, ALTER_PARK, transform(ALTER_PARK).set('0.add', { capacity: 'INTEGER' }), ADD_SEASON_CHANGE_SET);
+      const since = await getChangeSetId('2020 Seasons');
+
+      const { fields } = await (await filby.fetchDeclarations(new Request('http://localhost/entities/park/v1'))).json();
+      deq(fields.slice(2).map((field) => ({ name: field.name, since: field.since })), [
+        { name: 'opened', since },
+        { name: 'capacity', since },
+      ]);
+
+      const before = await getDocuments('2019 Parks');
+      deq(before.map(Object.keys), [['code', 'name', 'seasons'], ['code', 'name', 'seasons'], ['code', 'name', 'seasons']]);
+
+      const after = await getDocuments('2020 Seasons');
+      deq(after.map(Object.keys), [['code', 'name', 'opened', 'capacity', 'seasons'], ['code', 'name', 'opened', 'capacity', 'seasons'], ['code', 'name', 'opened', 'capacity', 'seasons']]);
+    });
+
     it('should accept a field that is not nullable while the entity has no data', async (t) => {
       await rejects(filby.applyYaml(t.name, ADD_PARK_ENTITIES, transform(ALTER_PARK).set('0.add.opened', { type: 'DATE', nullable: false }), ADD_PARK_CHANGE_SET), (err) => {
         eq(err.code, CHECK_VIOLATION);
