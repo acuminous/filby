@@ -511,6 +511,19 @@ describe('HTTP', () => {
       deq((await response.json()).map(({ type }) => type), ['zero', 'standard']);
     });
 
+    it('should filter documents at an earlier change set by parameters that ALTER_PROJECTION added', async (t) => {
+      const alter = YAML.stringify([{ operation: 'ALTER_PROJECTION', name: 'VAT Rates', version: 1, add: { parameters: { kinds: { field: 'type', match: 'in' }, vat: { field: 'rate', match: 'range' } } } }]);
+      await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1, alter);
+      const changeSetId = await getChangeSetId('2020 VAT Rates');
+
+      const kinds = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&kinds=standard&kinds=zero`);
+      deq((await kinds.json()).map(({ type }) => type), ['zero', 'standard']);
+
+      const combined = await get(`/projections/VAT%20Rates/v1?changeSetId=${changeSetId}&kinds=standard&kinds=reduced&vat_to=0.07&pageSize=1`);
+      deq((await combined.json()).map(({ type }) => type), ['reduced']);
+      eq(combined.headers.get('X-Total-Count'), '1');
+    });
+
     it('should respond with 400 for an undeclared query parameter', async (t) => {
       await filby.applyYaml(t.name, ADD_ENTITY, ADD_ROOT_PROJECTION, ADD_CHANGE_SET_1);
       const changeSetId = await getChangeSetId('2020 VAT Rates');

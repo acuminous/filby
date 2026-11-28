@@ -224,7 +224,7 @@ A **change set** groups data frames, for one entity or many, under one effective
 
 An **aggregate** is the collapsed state of an entity at a change set, built from the frames, with deleted records omitted. Filby creates an aggregate function for every entity version, and everything else reads through it.
 
-A **projection** is a versioned view over one or more aggregates, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities can be nested under the root, and the fields each level carries can be chosen. A projection the DSL cannot express may be written as a SQL function. Either way Filby knows which entities the projection depends on, so it can notify clients when the data behind the projection changes.
+A **projection** is a versioned view over one or more aggregates, and the unit a client consumes. Most are declared by naming a root entity, with optional parameters, ordering and paging; related entities can be nested under the root, and the fields each level carries can be chosen. A projection can gain fields, nests, lookups and parameters in place, but any other change is a new version. A projection the DSL cannot express may be written as a SQL function. Either way Filby knows which entities the projection depends on, so it can notify clients when the data behind the projection changes.
 
 A **hook** names an event your application wants to hear about: a projection added or dropped, a change set added or change set taking effect. A **notification** is raised for a hook whenever its event happens, and delivered to the handler your application registered, with retries, so downstream copies of the data can stay current without polling.
 
@@ -1098,7 +1098,7 @@ END TRANSACTION;
 
 ### Evolving the schema
 
-An entity's shape can change in two ways. Adding fields does not break a client that ignores properties it does not recognise, so `ALTER_ENTITY` adds them to the existing entity version, as described in [Adding fields](#adding-fields). Any other change, such as removing, renaming or retyping a field, or changing the key or checks, needs a new entity version, as described in [New versions](#new-versions).
+An entity's shape can change in two ways. Adding fields does not break a client that ignores properties it does not recognise, so `ALTER_ENTITY` adds them to the existing entity version, as described in [Adding fields](#adding-fields). Any other change, such as removing, renaming or retyping a field, or changing the key or checks, needs a new entity version, as described in [New versions](#new-versions). A projection can grow in the same way: `ALTER_PROJECTION` adds fields, nests, lookups and parameters to an existing projection version, as described in [Adding to projections](#adding-to-projections).
 
 #### Adding fields
 
@@ -1125,7 +1125,7 @@ Each level of a projection, whether the root, a nest or a lookup, is judged sepa
 | The level declares `fields` | Result |
 | --------------------------- | ------ |
 | No | The level carries the added field from `since` onwards. A nest still leaves out the fields it joins on. |
-| Yes | The level is unchanged. To show the field, publish a new projection version that lists it. |
+| Yes | The level is unchanged. To show the field, add it with `ALTER_PROJECTION`, as described in [Adding to projections](#adding-to-projections), or publish a new projection version that lists it. |
 
 Neither case needs a new projection or hook version, and the alteration raises no notifications, because the documents at existing change set ids do not change. The field first appears in the next change set, which notifies hooks as usual. A custom SQL projection is not changed, so its function must select the field itself.
 
@@ -1134,6 +1134,67 @@ An added field is nullable, and Filby does not fill existing records with a defa
 To give existing records a value, add change sets with `SET` frames carrying whole rows. The aggregate takes each record's frame with the latest effective date, and of those the frame with the highest change set id. Frames added before the alteration hold `null` for the field. A backfill change set with an earlier effective date therefore gives a record its value only until that record's next frame. To give a record the value throughout its history, add a backfill for each change set that has a frame for the record, with the same effective date. Each backfill then wins over the original because its id is higher. Copying each existing change set and adding the column to its data does exactly this. A backfill with an earlier effective date than other change sets re-issues them, as described in [Correcting and re-issuing data](#correcting-and-re-issuing-data). The backfill can go in the same migration as the `ALTER_ENTITY`, because change sets added after it have ids of at least `since`.
 
 Some clients validate documents against a copy of the schema taken before the alteration. The OpenAPI document declares `additionalProperties: false`, so such a client rejects documents from `since` onwards. Whether to add fields in place or publish a new version depends on the clients that read the projection.
+
+#### Adding to projections
+
+Use `ALTER_PROJECTION` to add fields, nests, lookups and parameters to an existing projection version. A level that declares `fields` carries exactly the fields it lists, so this is how it shows a field that `ALTER_ENTITY` added. Suppose the `Parks (Detailed)` projection from [Selecting fields](#selecting-fields) should show the opening date added above, give each amenity's category, and let clients filter by opening date:
+
+```yaml
+# yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
+# migrations/0013.parks-detailed-opened.yaml
+- operation: ALTER_PROJECTION
+  name: Parks (Detailed)
+  version: 1
+  add:
+    fields:
+      - Opened
+    nest:
+      Amenities:
+        lookup:
+          Amenity:
+            fields:
+              - Category
+    parameters:
+      opened_since:
+        field: Opened
+        match: gte
+```
+
+`add` lists only the additions:
+
+| In `add` | Effect |
+| -------- | ------ |
+| `fields` | Appended to the root's `fields`, in the same forms as in `ADD_PROJECTION`, including `{ field, as }`. Refused when the root does not declare `fields`, because it already carries every field. |
+| `nest` and `lookup` | A name without `entity` refers to an existing nest or lookup at that level. An existing nest takes `fields`, `nest` and `lookup`, and an existing lookup takes `fields`. Its `fields` are refused when it does not declare `fields`. A name with `entity` adds a new nest or lookup after the existing ones, with the same keys and rules as in `ADD_PROJECTION`. |
+| `parameters` | Appended after the existing parameters, with the same rules as in `ADD_PROJECTION`. |
+
+Nothing else about the projection can change. `order`, `paging`, joins, existing fields and aliases cannot be named, and a custom SQL projection or a dropped projection cannot be altered.
+
+Each added field, nest and lookup records `since` in the same way as a field that `ALTER_ENTITY` adds, and documents at change set ids below `since` leave it out. A field appears at a level that lists it only from the `since` of the `ALTER_PROJECTION`, even if `ALTER_ENTITY` added it to the entity earlier. Additions are appended after the existing fields, nests and lookups of their level, so documents keep their property order. If the next change set id is 15 when the migration above runs, a park at change set 14 is exactly as it was, while from change set 15 it carries `opened` and each amenity carries `category`:
+
+```json
+{
+  "code": "DC",
+  "name": "Devon Cliffs",
+  "opened": null,
+  "amenities": [
+    {
+      "amenity": {
+        "code": "INDOOR_POOL",
+        "name": "Indoor Pool",
+        "charge": "Free",
+        "category": "Pool"
+      }
+    }
+  ]
+}
+```
+
+A new parameter does not change the response to any existing URL, so it works at every change set id, including those before the alteration. `?opened_since=1960-01-01` can be combined with `changeSetId=14`, although documents at that id do not carry `opened`.
+
+A new nest or lookup adds its entity to the projection's dependencies, so later change sets for that entity appear in the projection's change log and notify its hooks. The entity's earlier change sets join the change log too, although the documents at their ids are unchanged, because those ids are below `since`.
+
+The alteration needs no new projection or hook version and raises no notifications, for the same reason as `ALTER_ENTITY`. Clients that reject unknown properties need a new projection version instead, as described in [Adding fields](#adding-fields).
 
 #### New versions
 
@@ -1145,7 +1206,7 @@ References to entities and projections must include a version, such as `Park@2`.
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0013.park-v2.yaml
+# migrations/0014.park-v2.yaml
 - operation: ADD_ENTITY
   name: Park
   version: 2
@@ -1173,7 +1234,7 @@ Use `ALTER_ENUM` to add values to an existing enum. New values are appended afte
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0014.customer-type-staff.yaml
+# migrations/0015.customer-type-staff.yaml
 - operation: ALTER_ENUM
   name: Customer Type
   add:
@@ -1197,7 +1258,7 @@ Each operation requires the object to exist. The following example shows the syn
 
 ```yaml
 # yaml-language-server: $schema=https://acuminous.github.io/filby/lib/schema.json
-# migrations/0015.drop-unused-objects.yaml
+# migrations/0016.drop-unused-objects.yaml
 - operation: DROP_HOOK
   name: sns/commence-change-set/parks-v1
 
@@ -1356,7 +1417,8 @@ app.all('/declarations/*', (c) =>
       "on": [{ "field": "park_code", "parentField": "code" }],
       "fields": null,
       "order": [{ "field": "customer_type", "direction": "ASC", "nulls": null }],
-      "nests": []
+      "nests": [],
+      "since": null
     }
   ]
 }
@@ -1661,6 +1723,21 @@ A nest has these keys. A lookup has `entity`, `on` and `fields` only, and its `f
 
 A projection must specify either `root` or `dependencies`, not both, and the keys that need a root cannot be used without one. The projection name and version must not have been used before, including by a projection that has since been dropped. Every entity it names must exist. Every field named by a parameter, an order, a `fields` list or an `on` map must be a field of the entity it applies to, and the two fields in each `on` pair must have the same type, ignoring any length or precision. A parameter may not use a reserved name. The `page_size` in `paging` may equal `page_max` but must not be greater. A nest or lookup name may not repeat a field of its parent entity, may not begin with `fby_`, may not contain a dot, and may not be used twice at one level. A lookup must join on the whole key of its entity. A `fields` entry `{ field, as }` carries `field` under the name `as`. Each property a `fields` list produces must not repeat another property or a nest or lookup name at its level, and must not begin with `fby_`. At the root, it must not take the name of a field that a nest or lookup joins on.
 
+#### ALTER_PROJECTION
+
+| Key | Type | Required | Notes |
+| --- | ---- | -------- | ----- |
+| `name` | string | yes | |
+| `version` | integer | yes | |
+| `add` | map with at least one of `fields`, `nest`, `lookup` and `parameters` | yes | |
+| `description` | string | no | Accepted but not stored |
+
+`fields` and `parameters` take the same forms as in `ADD_PROJECTION`. Under `nest` and `lookup`, an entry with `entity` adds a nest or lookup with the keys of `ADD_PROJECTION`. An entry without `entity` names an existing nest, which takes `fields`, `nest` and `lookup`, or an existing lookup, which takes `fields` only. Its `fields` must name at least one field.
+
+Records the additions after the existing ones and recreates the projection's generated function. Each added field, nest and lookup records `since`, the id the next change set will take. A new nest or lookup adds its entity to the projection's dependencies. See [Adding to projections](#adding-to-projections).
+
+The projection must exist, must not have been dropped and must have a root. `fields` can be added only to a level that declares `fields`. A nest or lookup without `entity` must exist, and one with `entity` must not. An added property, nest or lookup must not repeat a property or a nest or lookup name at its level, and an added parameter must not share its canonical name with an existing one. Otherwise the rules of `ADD_PROJECTION` apply.
+
 #### DROP_PROJECTION
 
 | Key | Type | Required | Notes |
@@ -1884,7 +1961,7 @@ async function getParks(changeSetId, code) {
 }
 ```
 
-A level that carries every field of its entity leaves out the fields that `ALTER_ENTITY` added at a later change set id, as described in [Adding fields](#adding-fields).
+A level that carries every field of its entity leaves out the fields that `ALTER_ENTITY` added at a later change set id, as described in [Adding fields](#adding-fields). Documents also leave out the fields, nests and lookups that `ALTER_PROJECTION` added at a later change set id, as described in [Adding to projections](#adding-to-projections).
 
 Values use node-pg's type conversions at every level, apart from the date types described under [Configuration](#configuration). For example, a `TIMESTAMP WITH TIME ZONE` is a `Date` object, a `DATE` is a string such as `2026-07-01`, and an enum array is an array of strings.
 
@@ -2028,7 +2105,7 @@ Every projection's path lists `page` and `pageSize` as optional integers of at l
 
 For projections with a root entity, Filby generates response schemas from the selected fields, nests and lookups. The schemas include enum values and field nullability. Non-nullable fields are required, nests are arrays, and lookups are objects that may be `null`.
 
-A field that [`ALTER_ENTITY`](#adding-fields) added, at a level that carries every field of its entity, has an `x-filby-since` property holding the field's `since`. It is never required, because documents at earlier change set ids leave it out. OpenAPI and JSON Schema have no keyword for when a property was introduced, so Filby uses an OpenAPI specification extension. Fields declared by `ADD_ENTITY` have no `x-filby-since`, so a document with no added fields is plain OpenAPI. Ajv in strict mode rejects unknown keywords, so register the extension with `ajv.addKeyword('x-filby-since')` before compiling the response schemas.
+A field that [`ALTER_ENTITY`](#adding-fields) added, at a level that carries every field of its entity, has an `x-filby-since` property holding the field's `since`. It is never required, because documents at earlier change set ids leave it out. OpenAPI and JSON Schema have no keyword for when a property was introduced, so Filby uses an OpenAPI specification extension. A field, nest or lookup that [`ALTER_PROJECTION`](#adding-to-projections) added has `x-filby-since` holding its `since` in the same way, and is not required either. Parameters never have `x-filby-since`, because a parameter that `ALTER_PROJECTION` added works at every change set id. Fields declared by `ADD_ENTITY` and everything declared by `ADD_PROJECTION` have no `x-filby-since`, so a document with no alterations is plain OpenAPI. Ajv in strict mode rejects unknown keywords, so register the extension with `ajv.addKeyword('x-filby-since')` before compiling the response schemas.
 
 For custom SQL projections declared with `dependencies`, the schema describes each response record as an object without listing its properties, because Filby cannot infer the function's output structure.
 
@@ -2068,7 +2145,7 @@ A migration can change the model at any time, so every successful response carri
 
 #### Projection declarations
 
-A projection declaration mirrors its `ADD_PROJECTION` operation. Entity and projection names appear as declared, such as `Park Season`. Field, nest, lookup and parameter names appear in their canonical form, such as `customer_type`, because documents, query strings and SQL use that form.
+A projection declaration mirrors its `ADD_PROJECTION` operation and any `ALTER_PROJECTION` operations. Entity and projection names appear as declared, such as `Park Season`. Field, nest, lookup and parameter names appear in their canonical form, such as `customer_type`, because documents, query strings and SQL use that form.
 
 | Property | Value |
 | -------- | ----- |
@@ -2076,15 +2153,15 @@ A projection declaration mirrors its `ADD_PROJECTION` operation. Entity and proj
 | `description` | The declared description, or `null`. |
 | `root` | The root entity as `{ name, version }`, or `null` for a custom SQL projection. |
 | `dependencies` | Every entity the projection reads, as `{ name, version }`, ordered by name then version. For a projection with a root, this is the root and every nested or looked-up entity. For a custom SQL projection, it is the declared `dependencies`. |
-| `fields` | `null` when the projection does not declare `fields`. Otherwise the selection in declared order, with each entry as `{ field, as }`. `as` is the property name in documents, and equals `field` when the field has no alias. A field selected twice appears twice. |
+| `fields` | `null` when the projection does not declare `fields`. Otherwise the selection in declared order, followed by any entries that `ALTER_PROJECTION` added, with each entry as `{ field, as, since }`. `as` is the property name in documents, and equals `field` when the field has no alias. A field selected twice appears twice. `since` is the first change set id whose documents carry an entry that `ALTER_PROJECTION` added, as described in [Adding to projections](#adding-to-projections), and `null` for an entry declared by `ADD_PROJECTION`. |
 | `order` | The declared order, with each entry as `{ field, direction, nulls }`. `direction` is `ASC` or `DESC`, and `nulls` is `FIRST`, `LAST` or `null` when the order does not specify it. |
-| `parameters` | The declared parameters, with each entry as `{ name, field, match, property }`. |
+| `parameters` | The declared parameters, followed by any that `ALTER_PROJECTION` added, with each entry as `{ name, field, match, property, since }`. |
 | `paging` | `{ pageSize, pageMax }`, or `null` when the projection does not declare `paging`. |
-| `nests` | The nests in declared order, followed by the lookups in declared order. |
+| `nests` | The nests in declared order, followed by the lookups in declared order, and then any that `ALTER_PROJECTION` added. |
 
 A custom SQL projection has a `null` root and `fields`, and empty `order`, `parameters` and `nests`. Its `dependencies` and `paging` are the only structure it declares.
 
-A parameter's `field` is the path of the field it filters, such as `seasons.customer_type`. `property` is the path of property names that leads to that value in a document, including any `as` alias, such as `["seasons", "customer_type"]`. When documents leave the field out but carry it through a lookup that joins on it, `property` leads to the lookup's field instead, because the join makes the two values equal. Otherwise, a field that documents leave out has a `property` of `null`. A `range` parameter appears once, although its query string uses `_from` and `_to`.
+A parameter's `field` is the path of the field it filters, such as `seasons.customer_type`. `property` is the path of property names that leads to that value in a document, including any `as` alias, such as `["seasons", "customer_type"]`. When documents leave the field out but carry it through a lookup that joins on it, `property` leads to the lookup's field instead, because the join makes the two values equal. Otherwise, a field that documents leave out has a `property` of `null`. A `range` parameter appears once, although its query string uses `_from` and `_to`. A parameter that `ALTER_PROJECTION` added has the `since` of that alteration, and works at every change set id. A parameter declared by `ADD_PROJECTION` has a `since` of `null`.
 
 Each entry in `nests` describes a nest or lookup:
 
@@ -2097,6 +2174,7 @@ Each entry in `nests` describes a nest or lookup:
 | `fields` | As for the projection. When it is `null`, documents omit the join fields, as described in [Selecting fields](#selecting-fields). |
 | `order` | As for the projection. Always empty for a lookup. |
 | `nests` | The nests and lookups beneath it. Always empty for a lookup. |
+| `since` | The first change set id whose documents carry a nest or lookup that `ALTER_PROJECTION` added, and `null` for one declared by `ADD_PROJECTION`. The fields, nests and lookups inside an added nest or lookup arrive with it, so their own `since` is `null`. |
 
 #### Entity declarations
 

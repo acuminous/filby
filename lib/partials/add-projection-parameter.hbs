@@ -1,0 +1,66 @@
+  DECLARE
+    v_entity_id INTEGER := v_root_id;
+    v_entity TEXT;
+    v_array BOOLEAN;
+    v_category TEXT;
+    v_field_type TEXT;
+  BEGIN
+    IF {{literal (canonical name)}} IN ('change_set_id', 'page_offset', 'page_size', 'changesetid', 'page', 'pagesize') THEN
+      RAISE EXCEPTION 'Projection ''%'' parameter ''%'' uses a reserved name', {{literal projection_name (v projection_version)}}, {{literal name}};
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM fby_projection_parameter WHERE projection_id = v_projection_id AND lower(regexp_replace(name, '\s', '_', 'g')) = {{literal (canonical name)}}) THEN
+      RAISE EXCEPTION 'Projection ''%'' already has parameter ''%''', {{literal projection_name (v projection_version)}}, {{literal (canonical name)}};
+    END IF;
+    {{#if nests}}
+
+    WITH RECURSIVE paths AS (
+      SELECT id, entity_id, name AS path
+      FROM fby_projection_nest
+      WHERE projection_id = v_projection_id
+        AND parent_nest_id IS NULL
+      UNION ALL
+      SELECT n.id, n.entity_id, p.path || '.' || n.name
+      FROM fby_projection_nest n
+      INNER JOIN paths p ON p.id = n.parent_nest_id
+    )
+    SELECT entity_id INTO v_entity_id
+    FROM paths
+    WHERE path = {{literal parent}};
+
+    IF v_entity_id IS NULL THEN
+      RAISE EXCEPTION 'Projection ''%'' parameter ''%'' path ''%'' references a non existent nest or lookup ''%''', {{literal projection_name (v projection_version)}}, {{literal name}}, {{literal given.path}}, {{literal given.parent}};
+    END IF;
+    {{/if}}
+
+    SELECT name || ' v' || version INTO v_entity
+    FROM fby_entity
+    WHERE id = v_entity_id;
+
+    IF NOT EXISTS (SELECT 1 FROM fby_entity_field WHERE entity_id = v_entity_id AND name = {{literal field}}) THEN
+      RAISE EXCEPTION 'Projection ''%'' parameter ''%''{{#if nests}} path ''%''{{/if}} references a non existent field ''%'' of entity ''%''%', {{literal projection_name (v projection_version)}}, {{literal name}}, {{#if nests}}{{literal given.path}}, {{/if}}{{literal given.field}}, v_entity, fby_entity_field_hint(v_entity_id);
+    END IF;
+
+    SELECT COALESCE(t.typcategory = 'A', FALSE), t.typcategory, format_type(t.oid, NULL) INTO v_array, v_category, v_field_type
+    FROM fby_entity_field f
+    LEFT JOIN pg_type t ON t.oid = to_regtype(f.type)
+    WHERE f.entity_id = v_entity_id
+      AND f.name = {{literal field}};
+
+    IF {{literal match}} = 'contains' AND NOT v_array THEN
+      RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''contains'' on field ''%'' because it is not an array', {{literal projection_name (v projection_version)}}, {{literal name}}, {{literal given.path}};
+    END IF;
+
+    IF {{literal match}} NOT IN ('in', 'contains') AND v_array THEN
+      RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''%'' on field ''%'' because it is an array', {{literal projection_name (v projection_version)}}, {{literal name}}, {{literal match}}, {{literal given.path}};
+    END IF;
+
+    IF {{literal match}} = 'prefix' AND v_category IS DISTINCT FROM 'S' THEN
+      RAISE EXCEPTION 'Projection ''%'' parameter ''%'' cannot use match ''prefix'' on field ''%'' because its type % is not text', {{literal projection_name (v projection_version)}}, {{literal name}}, {{literal given.path}}, v_field_type;
+    END IF;
+
+    INSERT INTO fby_projection_parameter (projection_id, position, name, field, match, since)
+    SELECT v_projection_id, COALESCE(max(position), 0) + 1, {{literal name}}, {{literal path}}, {{literal match}}, {{#if added}}v_since{{else}}NULL{{/if}}
+    FROM fby_projection_parameter
+    WHERE projection_id = v_projection_id;
+  END;
