@@ -1,0 +1,1 @@
+SELECT DISTINCT ON (change_set_id) change_set_id, effective, description, last_modified, entity_tag, reissued_from FROM fby_projection_change_log_vw WHERE projection_id = $1 AND change_set_id > $2 ORDER BY change_set_id;

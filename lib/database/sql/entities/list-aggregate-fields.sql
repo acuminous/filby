@@ -1,0 +1,1 @@
+SELECT f.name FROM fby_entity_field f INNER JOIN fby_entity e ON e.id = f.entity_id WHERE 'get_' || lower(regexp_replace(e.name || ' v' || e.version, '\s', '_', 'g')) || '_aggregate' = $1 AND (f.since IS NULL OR f.since <= $2) ORDER BY f.position;

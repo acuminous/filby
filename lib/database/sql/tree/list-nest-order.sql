@@ -1,0 +1,1 @@
+SELECT o.nest_id, o.field, o.direction, o.nulls FROM fby_projection_nest_order o INNER JOIN fby_projection_nest n ON n.id = o.nest_id WHERE $1::INTEGER IS NULL OR n.projection_id = $1 ORDER BY o.nest_id, o.position;
