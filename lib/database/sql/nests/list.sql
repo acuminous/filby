@@ -1,0 +1,1 @@
+SELECT n.id, n.parent_nest_id, n.name, n.entity_id, n.lookup, n.fields, n.aliases, n.fields_since, e.name AS entity, e.version FROM fby_projection_nest n INNER JOIN fby_entity e ON e.id = n.entity_id WHERE n.projection_id = $1 AND (n.since IS NULL OR n.since <= $2) ORDER BY n.position;
