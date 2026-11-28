@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import YAML from 'yaml';
 
-import validate from '../lib/validate-migration.js';
+import { validateMigration as validate } from '../lib/migrations/validate-migration.js';
 
 const readme = fs.readFileSync(path.join(import.meta.dirname, '..', 'README.md'), 'utf8');
 

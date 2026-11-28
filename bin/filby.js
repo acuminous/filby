@@ -5,7 +5,7 @@ import { parseArgs } from 'node:util';
 import marv from 'marv/api/promise.js';
 
 import { Filby } from '../index.js';
-import render from '../lib/render-migration.js';
+import { renderMigration } from '../lib/migrations/render-migration.js';
 
 const USAGE = [
   'Usage: filby <validate|preview> [directory ...]',
@@ -109,15 +109,15 @@ async function scanDirectory(directory) {
     const scanned = await marv.scan(directory, { filter: /\.(ya?ml|json|sql)$/ });
     return scanned
       .sort((a, b) => a.level - b.level)
-      .map((migration) => renderMigration({ ...migration, directory, filename: label(path.join(directory, migration.filename)) }));
+      .map((migration) => tryRenderMigration({ ...migration, directory, filename: label(path.join(directory, migration.filename)) }));
   } catch (err) {
     return [{ error: describe(label(directory), err) }];
   }
 }
 
-function renderMigration(migration) {
+function tryRenderMigration(migration) {
   try {
-    return { filename: migration.filename, sql: render(migration) };
+    return { filename: migration.filename, sql: renderMigration(migration) };
   } catch (err) {
     return { error: describe(migration.filename, err) };
   }

@@ -10,7 +10,7 @@ import Ajv from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
 import { Filby } from '../index.js';
-import bundleSchema from '../lib/bundle-schema.json' with { type: 'json' };
+import bundleSchema from '../lib/export/bundle-schema.json' with { type: 'json' };
 import pkg from '../package.json' with { type: 'json' };
 
 const { version: filbyVersion } = pkg;

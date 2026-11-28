@@ -10,8 +10,8 @@ import { Validator } from '@seriousme/openapi-schema-validator';
 
 import TestFilby from './TestFilby.js';
 import { table } from '../lib/helpers.js';
-import validateMigration from '../lib/validate-migration.js';
-import driver from '../lib/marv-filby-driver.js';
+import { validateMigration } from '../lib/migrations/validate-migration.js';
+import { marvFilbyDriver as driver } from '../lib/migrations/marv-filby-driver.js';
 
 const { INVALID_NAME, SYNTAX_ERROR, CHECK_VIOLATION, NOT_NULL_VIOLATION, FOREIGN_KEY_VIOLATION, INVALID_TEXT_REPRESENTATION, INVALID_DATETIME_FORMAT, UNSAFE_NEW_ENUM_VALUE_USAGE } = PostgresError;
 

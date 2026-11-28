@@ -7,7 +7,7 @@ import marv from 'marv/api/promise.js';
 import { Client } from 'pg';
 
 import { Filby } from '../index.js';
-import driver from '../lib/marv-filby-driver.js';
+import { marvFilbyDriver as driver } from '../lib/migrations/marv-filby-driver.js';
 
 const server = { user: 'fby_test', password: 'fby_test' };
 const upgradeDatabase = `${process.env.PGDATABASE || 'fby_test'}_upgrade`;
