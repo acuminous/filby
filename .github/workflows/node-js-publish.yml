@@ -17,7 +17,8 @@ jobs:
         run: |
           case "$TAG" in
             framework-v*) workspace=framework ;;
-            *) echo "::error::Tag $TAG does not start with framework-v" && exit 1 ;;
+            ui-v*) workspace=ui ;;
+            *) echo "::error::Tag $TAG does not start with framework-v or ui-v" && exit 1 ;;
           esac
           version=$(node -p "require('./$workspace/package.json').version")
           if [ "${TAG#*-v}" != "$version" ]; then
@@ -47,8 +48,20 @@ jobs:
       - run: npm ci
       - run: npm test --workspace framework
 
+  test-ui:
+    needs: resolve
+    if: needs.resolve.outputs.workspace == 'ui'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+      - run: npm ci
+      - run: npm test --workspace ui
+
   publish-npm:
-    needs: [resolve, test-framework]
+    needs: [resolve, test-framework, test-ui]
     if: ${{ !cancelled() && needs.resolve.result == 'success' && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     permissions:
