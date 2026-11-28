@@ -1,0 +1,42 @@
+{
+  "name": "filby-ui",
+  "version": "0.1.0",
+  "description": "A read-only web UI for any application that mounts Filby's HTTP handler",
+  "private": true,
+  "type": "module",
+  "author": "Stephen Cresswell",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22.15"
+  },
+  "bin": {
+    "filby-ui": "bin/filby-ui.js"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "start": "node bin/filby-ui.js"
+  },
+  "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@hono/node-server": "^2.1.5",
+    "@preact/signals": "^2.11.3",
+    "hono": "^4.13.13",
+    "lucide-preact": "^1.61.0",
+    "preact": "^11.0.1",
+    "preact-iso": "^2.12.2"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/preact": "^3.2.4",
+    "daisyui": "^5.7.50",
+    "happy-dom": "^21.0.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

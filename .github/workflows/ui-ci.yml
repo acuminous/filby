@@ -1,0 +1,34 @@
+name: UI CI
+
+on:
+  push:
+    paths:
+      - 'ui/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'biome.json'
+      - '.github/workflows/ui-ci.yml'
+  pull_request:
+    paths:
+      - 'ui/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'biome.json'
+      - '.github/workflows/ui-ci.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.15.0, 22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test --workspace ui
+      - run: npm run build --workspace ui
+      - run: git diff --exit-code ui/dist

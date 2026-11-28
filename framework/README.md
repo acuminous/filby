@@ -112,10 +112,13 @@ The [example application](#example-application) uses Filby to manage data for a 
 
 ## User interfaces
 
-Filby has a sister project, [Filby UI](https://github.com/acuminous/filby-ui), which provides a read-only web interface to any application that serves Filby's API. You can list projections, inspect their change logs, see which change set is in force at a given date, and browse documents with their nests and lookups displayed as tables. One command starts it against a running application:
+[Filby UI](https://github.com/acuminous/filby/tree/main/ui), in the `ui` folder of the Filby repository, provides a read-only web interface to any application that serves Filby's API. You can list projections, inspect their change logs, see which change set is in force at a given date, and browse documents with their nests and lookups displayed as tables. It runs from a clone of the repository, against a running application:
 
 ```bash
-FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
+git clone https://github.com/acuminous/filby.git
+cd filby
+npm ci
+FILBY_API_HOST=localhost FILBY_API_PORT=3000 npm start --workspace ui
 ```
 
 Filby UI is read-only. This may sound like a significant limitation, but it is a deliberate design choice. Supporting edits would require authentication, authorisation, review and promotion workflows. Your existing source control management (SCM) system and deployment tooling can provide these capabilities without Filby having to implement and maintain them.
@@ -2431,10 +2434,10 @@ The API is served under `/api`. Open [Swagger UI](http://localhost:3000/document
 
 ### Exploring the data
 
-[Filby UI](https://github.com/acuminous/filby-ui) is the best way to explore the example application's data. With the application running, start it in another terminal:
+[Filby UI](https://github.com/acuminous/filby/tree/main/ui) is the best way to explore the example application's data. With the application running, start it in another terminal:
 
 ```bash
-FILBY_API_HOST=localhost FILBY_API_PORT=3000 npx github:acuminous/filby-ui
+FILBY_API_HOST=localhost FILBY_API_PORT=3000 npm start --workspace ui
 ```
 
 Use it to browse projections, inspect their change logs and view the data at different change sets.
